@@ -1,1 +1,5 @@
-project_id = "uvuotaxikuxejfeitlaw"
+[functions.seed-demo-data]
+verify_jwt = true
+
+[functions.generate-report]
+verify_jwt = true
