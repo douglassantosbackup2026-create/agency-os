@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { brl, num, pct, timeAgo } from "@/lib/format";
 import { useState } from "react";
 import { ArrowLeft, Sparkles, Loader2, RefreshCw } from "lucide-react";
-import { Card, CardHeader, Empty, PageSkeleton, Row, RiskDot, ScoreBar, Stat } from "../dashboard";
+import { Card, CardHeader, Empty, PageSkeleton, Row, RiskDot, ScoreBar, Stat } from "./dashboard";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/clients/$clientId")({
