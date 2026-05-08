@@ -32,8 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select("agency_id, agencies:agency_id(id, name, slug, logo_url, primary_color)")
       .eq("id", userId)
       .maybeSingle();
-    // @ts-expect-error joined
-    setAgency(profile?.agencies ?? null);
+    setAgency((profile as unknown as { agencies: AgencyContext })?.agencies ?? null);
   };
 
   useEffect(() => {
