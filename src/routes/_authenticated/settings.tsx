@@ -111,7 +111,7 @@ function Settings() {
         </Card>
 
         <Card className="lg:col-span-2">
-          <CardHeader title="Portal do cliente" icon={<Globe className="h-3.5 w-3.5" />} />
+          <CardHeader title="Portal do cliente" />
           <div className="space-y-2 p-4 text-sm text-muted-foreground">
             <p>Cada cliente com <code className="rounded bg-surface px-1 py-0.5 text-[11px]">portal_slug</code> ganha um portal público em <code className="rounded bg-surface px-1 py-0.5 text-[11px]">/p/&lt;slug&gt;</code> com tema da sua agência.</p>
             <p>Configure o slug na tela de cada cliente. Ex: <code className="rounded bg-surface px-1 py-0.5 text-[11px]">/p/acme</code>.</p>

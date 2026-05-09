@@ -2,7 +2,7 @@ import { createFileRoute, Link, Outlet, redirect, useRouterState } from "@tansta
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { Activity, BarChart3, Bell, Command, LayoutDashboard, LogOut, Search, Settings, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { Activity, Bell, Command, LayoutDashboard, LogOut, MessageSquare, Plug, Search, Settings, Shield, ShieldCheck, Sparkles, Users } from "lucide-react";
 import { CommandPalette } from "@/components/command-palette";
 import { initials } from "@/lib/format";
 
@@ -20,10 +20,13 @@ const NAV = [
   { to: "/alerts", label: "Alertas", icon: Bell },
   { to: "/health", label: "Health Score", icon: ShieldCheck },
   { to: "/reports", label: "Relatórios IA", icon: Sparkles },
+  { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },
+  { to: "/integrations", label: "Integrações", icon: Plug },
   { to: "/activity", label: "Atividade", icon: Activity },
 ] as const;
 
 const SECONDARY = [
+  { to: "/admin", label: "Administração", icon: Shield },
   { to: "/settings", label: "Configurações", icon: Settings },
 ] as const;
 
@@ -149,7 +152,10 @@ function pageTitle(path: string) {
   if (path.startsWith("/alerts")) return "Central de alertas";
   if (path.startsWith("/health")) return "Health Score";
   if (path.startsWith("/reports")) return "Relatórios IA";
+  if (path.startsWith("/whatsapp")) return "WhatsApp";
+  if (path.startsWith("/integrations")) return "Integrações";
   if (path.startsWith("/activity")) return "Feed operacional";
+  if (path.startsWith("/admin")) return "Administração";
   if (path.startsWith("/settings")) return "Configurações";
   return "";
 }
