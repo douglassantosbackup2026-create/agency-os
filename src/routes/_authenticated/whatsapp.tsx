@@ -198,6 +198,6 @@ function WhatsApp() {
           )}
         </Card>
       )}
-    </div>
+    </motion.div>
   );
 }
