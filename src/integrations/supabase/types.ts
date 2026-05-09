@@ -381,7 +381,9 @@ export type Database = {
       }
       integrations: {
         Row: {
+          account_id: string | null
           agency_id: string
+          api_key_encrypted: string | null
           config: Json | null
           created_at: string
           id: string
@@ -391,7 +393,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          account_id?: string | null
           agency_id: string
+          api_key_encrypted?: string | null
           config?: Json | null
           created_at?: string
           id?: string
@@ -401,7 +405,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          account_id?: string | null
           agency_id?: string
+          api_key_encrypted?: string | null
           config?: Json | null
           created_at?: string
           id?: string
@@ -683,6 +689,42 @@ export type Database = {
           },
         ]
       }
+      subscriptions: {
+        Row: {
+          agency_id: string
+          created_at: string
+          current_period_end: string | null
+          id: string
+          max_alerts: number
+          max_clients: number
+          plan: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          max_alerts?: number
+          max_clients?: number
+          plan?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          max_alerts?: number
+          max_clients?: number
+          plan?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           agency_id: string
@@ -825,6 +867,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      whatsapp_templates: {
+        Row: {
+          agency_id: string
+          body: string
+          created_at: string
+          id: string
+          name: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          agency_id: string
+          body: string
+          created_at?: string
+          id?: string
+          name: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          agency_id?: string
+          body?: string
+          created_at?: string
+          id?: string
+          name?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
     }
     Views: {
