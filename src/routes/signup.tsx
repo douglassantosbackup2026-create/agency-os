@@ -1,4 +1,9 @@
-import { createFileRoute, Link, useNavigate, redirect } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  useNavigate,
+  redirect,
+} from "@tanstack/react-router";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -40,26 +45,47 @@ function Signup() {
     // try seed automatically
     try {
       await supabase.functions.invoke("seed-demo-data");
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     setLoading(false);
     toast.success("Agência criada. Bem-vindo ao Retentio.");
-    navigate({ to: "/dashboard" });
+    navigate({ to: "/onboarding" });
   }
 
   return (
-    <AuthShell title="Criar sua agência" subtitle="Você cria uma conta de owner com workspace próprio">
+    <AuthShell
+      title="Criar sua agência"
+      subtitle="Você cria uma conta de owner com workspace próprio"
+    >
       <form onSubmit={submit} className="space-y-3">
-        <Field label="Nome da agência" value={agencyName} onChange={setAgencyName} autoFocus />
+        <Field
+          label="Nome da agência"
+          value={agencyName}
+          onChange={setAgencyName}
+          autoFocus
+        />
         <Field label="Seu nome" value={name} onChange={setName} />
         <Field label="E-mail" type="email" value={email} onChange={setEmail} />
-        <Field label="Senha" type="password" value={password} onChange={setPassword} />
-        <button disabled={loading} className="mt-2 inline-flex h-10 w-full items-center justify-center rounded-md bg-primary text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60 transition">
+        <Field
+          label="Senha"
+          type="password"
+          value={password}
+          onChange={setPassword}
+        />
+        <button
+          disabled={loading}
+          className="mt-2 inline-flex h-10 w-full items-center justify-center rounded-md bg-primary text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60 transition"
+        >
           {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Criar agência
         </button>
       </form>
       <p className="mt-4 text-center text-sm text-muted-foreground">
-        Já tem conta? <Link to="/login" className="text-primary hover:underline">Entrar</Link>
+        Já tem conta?{" "}
+        <Link to="/login" className="text-primary hover:underline">
+          Entrar
+        </Link>
       </p>
     </AuthShell>
   );

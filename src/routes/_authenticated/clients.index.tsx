@@ -5,8 +5,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { brl } from "@/lib/format";
 import { Plus, Search } from "lucide-react";
-import { Card, CardHeader, Empty, PageSkeleton, RiskDot, ScoreBar } from "./dashboard";
+import {
+  Card,
+  CardHeader,
+  Empty,
+  PageSkeleton,
+  RiskDot,
+  ScoreBar,
+} from "./dashboard";
 import { toast } from "sonner";
+import { useSubscriptionLimits } from "@/hooks/use-subscription-limits";
+import {
+  canCreateClient,
+  type SubscriptionLimits,
+} from "@/lib/subscription-limits";
 
 export const Route = createFileRoute("/_authenticated/clients/")({
   component: Clients,
@@ -19,39 +31,73 @@ function Clients() {
   const search = Route.useSearch();
   const [creating, setCreating] = useState(!!search.new);
   const [q, setQ] = useState("");
+  const limits = useSubscriptionLimits();
 
-  useEffect(() => { setCreating(!!search.new); }, [search.new]);
+  useEffect(() => {
+    setCreating(!!search.new);
+  }, [search.new]);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["clients", agency?.id],
     enabled: !!agency,
     queryFn: async () => {
       const [clients, health] = await Promise.all([
-        supabase.from("clients").select("*").eq("agency_id", agency!.id).order("created_at", { ascending: false }),
-        supabase.from("health_scores").select("client_id, score, risk, recorded_at").eq("agency_id", agency!.id).order("recorded_at", { ascending: false }),
+        supabase
+          .from("clients")
+          .select("*")
+          .eq("agency_id", agency!.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("health_scores")
+          .select("client_id, score, risk, recorded_at")
+          .eq("agency_id", agency!.id)
+          .order("recorded_at", { ascending: false }),
       ]);
       const latest = new Map<string, { score: number; risk: string }>();
-      for (const h of health.data ?? []) if (!latest.has(h.client_id)) latest.set(h.client_id, h);
+      for (const h of health.data ?? [])
+        if (!latest.has(h.client_id)) latest.set(h.client_id, h);
       return { clients: clients.data ?? [], latest };
     },
   });
 
   if (isLoading || !data) return <PageSkeleton />;
-  const filtered = data.clients.filter(c => !q || c.name.toLowerCase().includes(q.toLowerCase()));
+  const filtered = data.clients.filter(
+    (c) => !q || c.name.toLowerCase().includes(q.toLowerCase()),
+  );
 
   return (
     <div className="space-y-5 p-6">
       <header className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Clientes</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">{data.clients.length} cliente(s) na operação</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {data.clients.length} cliente(s) na operação
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
             <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-            <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar..." className="h-9 w-56 rounded-md border border-border bg-background pl-8 pr-3 text-sm outline-none focus:border-primary/60" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Buscar..."
+              className="h-9 w-56 rounded-md border border-border bg-background pl-8 pr-3 text-sm outline-none focus:border-primary/60"
+            />
           </div>
-          <button onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition">
+          <button
+            onClick={() => {
+              const sub = limits.data?.subscription;
+              const n = limits.data?.clientCount ?? 0;
+              if (!canCreateClient(n, sub)) {
+                toast.error(
+                  `Limite do plano atingido (${sub?.max_clients ?? 5} clientes). Faça upgrade em Admin.`,
+                );
+                return;
+              }
+              setCreating(true);
+            }}
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition"
+          >
             <Plus className="h-3.5 w-3.5" /> Novo cliente
           </button>
         </div>
@@ -66,20 +112,37 @@ function Clients() {
           <div className="col-span-2 text-right">Health</div>
         </div>
         {filtered.length === 0 && <Empty label="Nenhum cliente." />}
-        {filtered.map(c => {
+        {filtered.map((c) => {
           const h = data.latest.get(c.id);
           return (
-            <Link key={c.id} to="/clients/$clientId" params={{ clientId: c.id }} className="grid grid-cols-12 items-center border-b border-border px-4 py-3 text-sm last:border-0 hover:bg-surface-2 transition">
+            <Link
+              key={c.id}
+              to="/clients/$clientId"
+              params={{ clientId: c.id }}
+              className="grid grid-cols-12 items-center border-b border-border px-4 py-3 text-sm last:border-0 hover:bg-surface-2 transition"
+            >
               <div className="col-span-4 flex items-center gap-2.5">
-                <div className="grid h-7 w-7 place-items-center rounded-md bg-primary/15 text-[11px] font-semibold text-primary">{c.name.slice(0, 2).toUpperCase()}</div>
+                <div className="grid h-7 w-7 place-items-center rounded-md bg-primary/15 text-[11px] font-semibold text-primary">
+                  {c.name.slice(0, 2).toUpperCase()}
+                </div>
                 <div className="min-w-0">
                   <div className="truncate font-medium">{c.name}</div>
-                  {c.segment && <div className="truncate text-[11px] text-muted-foreground">{c.segment}</div>}
+                  {c.segment && (
+                    <div className="truncate text-[11px] text-muted-foreground">
+                      {c.segment}
+                    </div>
+                  )}
                 </div>
               </div>
-              <div className="col-span-2"><StatusPill status={c.status} /></div>
-              <div className="col-span-2 font-mono tabular text-sm">{brl(c.mrr)}</div>
-              <div className="col-span-2 font-mono tabular text-sm text-muted-foreground">{brl(c.monthly_budget)}</div>
+              <div className="col-span-2">
+                <StatusPill status={c.status} />
+              </div>
+              <div className="col-span-2 font-mono tabular text-sm">
+                {brl(c.mrr)}
+              </div>
+              <div className="col-span-2 font-mono tabular text-sm text-muted-foreground">
+                {brl(c.monthly_budget)}
+              </div>
               <div className="col-span-2 flex items-center justify-end gap-2">
                 {h ? (
                   <>
@@ -96,7 +159,19 @@ function Clients() {
         })}
       </Card>
 
-      {creating && <NewClientDialog onClose={() => { setCreating(false); navigate({ to: "/clients", search: {} }); refetch(); }} agencyId={agency!.id} />}
+      {creating && (
+        <NewClientDialog
+          onClose={() => {
+            setCreating(false);
+            navigate({ to: "/clients", search: {} });
+            refetch();
+            limits.refetch();
+          }}
+          agencyId={agency!.id}
+          clientCount={limits.data?.clientCount ?? 0}
+          subscription={limits.data?.subscription ?? null}
+        />
+      )}
     </div>
   );
 }
@@ -108,10 +183,26 @@ function StatusPill({ status }: { status: string }) {
     onboarding: "bg-info/15 text-info",
     churned: "bg-destructive/15 text-destructive",
   };
-  return <span className={`rounded-md px-2 py-0.5 text-[11px] font-medium ${map[status] ?? "bg-muted text-muted-foreground"}`}>{status}</span>;
+  return (
+    <span
+      className={`rounded-md px-2 py-0.5 text-[11px] font-medium ${map[status] ?? "bg-muted text-muted-foreground"}`}
+    >
+      {status}
+    </span>
+  );
 }
 
-function NewClientDialog({ onClose, agencyId }: { onClose: () => void; agencyId: string }) {
+function NewClientDialog({
+  onClose,
+  agencyId,
+  clientCount,
+  subscription,
+}: {
+  onClose: () => void;
+  agencyId: string;
+  clientCount: number;
+  subscription: SubscriptionLimits | null;
+}) {
   const [name, setName] = useState("");
   const [segment, setSegment] = useState("");
   const [mrr, setMrr] = useState("");
@@ -120,11 +211,24 @@ function NewClientDialog({ onClose, agencyId }: { onClose: () => void; agencyId:
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!canCreateClient(clientCount, subscription)) {
+      toast.error(
+        `Limite do plano: máximo ${subscription?.max_clients ?? 5} clientes.`,
+      );
+      return;
+    }
     setLoading(true);
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") + "-" + Math.random().toString(36).slice(2, 6);
+    const slug =
+      name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "") +
+      "-" +
+      Math.random().toString(36).slice(2, 6);
     const { error } = await supabase.from("clients").insert({
       agency_id: agencyId,
-      name, segment: segment || null,
+      name,
+      segment: segment || null,
       mrr: Number(mrr) || 0,
       monthly_budget: Number(budget) || 0,
       portal_slug: slug,
@@ -136,19 +240,51 @@ function NewClientDialog({ onClose, agencyId }: { onClose: () => void; agencyId:
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-sm" onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} className="surface-card w-full max-w-md rounded-xl border border-border p-5 shadow-2xl">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="surface-card w-full max-w-md rounded-xl border border-border p-5 shadow-2xl"
+      >
         <CardHeader title="Novo cliente" />
         <form onSubmit={submit} className="space-y-3 pt-4">
           <DField label="Nome" value={name} onChange={setName} autoFocus />
-          <DField label="Segmento" value={segment} onChange={setSegment} placeholder="E-commerce, SaaS, ..." />
+          <DField
+            label="Segmento"
+            value={segment}
+            onChange={setSegment}
+            placeholder="E-commerce, SaaS, ..."
+          />
           <div className="grid grid-cols-2 gap-3">
-            <DField label="MRR (R$)" value={mrr} onChange={setMrr} type="number" />
-            <DField label="Orçamento mensal (R$)" value={budget} onChange={setBudget} type="number" />
+            <DField
+              label="MRR (R$)"
+              value={mrr}
+              onChange={setMrr}
+              type="number"
+            />
+            <DField
+              label="Orçamento mensal (R$)"
+              value={budget}
+              onChange={setBudget}
+              type="number"
+            />
           </div>
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="rounded-md border border-border px-3 py-2 text-sm hover:bg-surface transition">Cancelar</button>
-            <button disabled={loading || !name} className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 transition">Criar cliente</button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md border border-border px-3 py-2 text-sm hover:bg-surface transition"
+            >
+              Cancelar
+            </button>
+            <button
+              disabled={loading || !name}
+              className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50 transition"
+            >
+              Criar cliente
+            </button>
           </div>
         </form>
       </div>
@@ -156,11 +292,34 @@ function NewClientDialog({ onClose, agencyId }: { onClose: () => void; agencyId:
   );
 }
 
-function DField({ label, value, onChange, type = "text", placeholder, autoFocus }: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string; autoFocus?: boolean }) {
+function DField({
+  label,
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+  autoFocus,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  placeholder?: string;
+  autoFocus?: boolean;
+}) {
   return (
     <label className="block">
-      <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</span>
-      <input type={type} value={value} placeholder={placeholder} autoFocus={autoFocus} onChange={e => onChange(e.target.value)} className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm outline-none focus:border-primary/60" />
+      <span className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
+      <input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        autoFocus={autoFocus}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm outline-none focus:border-primary/60"
+      />
     </label>
   );
 }

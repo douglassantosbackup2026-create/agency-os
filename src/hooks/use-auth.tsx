@@ -1,4 +1,10 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -29,10 +35,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadAgency = async (userId: string) => {
     const { data: profile } = await supabase
       .from("profiles")
-      .select("agency_id, agencies:agency_id(id, name, slug, logo_url, primary_color)")
+      .select(
+        "agency_id, agencies:agency_id(id, name, slug, logo_url, primary_color)",
+      )
       .eq("id", userId)
       .maybeSingle();
-    setAgency((profile as unknown as { agencies: AgencyContext })?.agencies ?? null);
+    setAgency(
+      (profile as unknown as { agencies: AgencyContext })?.agencies ?? null,
+    );
   };
 
   useEffect(() => {

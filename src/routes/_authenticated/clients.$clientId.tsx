@@ -1,56 +1,219 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
 import { brl, num, pct, timeAgo } from "@/lib/format";
-import { useState } from "react";
-import { ArrowLeft, Sparkles, Loader2, RefreshCw } from "lucide-react";
-import { Card, CardHeader, Empty, PageSkeleton, Row, RiskDot, ScoreBar, Stat } from "./dashboard";
+import { useMemo, useState } from "react";
+import {
+  ArrowLeft,
+  Sparkles,
+  Loader2,
+  RefreshCw,
+  Activity as ActivityIcon,
+} from "lucide-react";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+import {
+  Card,
+  CardHeader,
+  Empty,
+  PageSkeleton,
+  Row,
+  RiskDot,
+  ScoreBar,
+  Stat,
+} from "./dashboard";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/clients/$clientId")({
   component: ClientDetail,
 });
 
+type ClientTab =
+  | "overview"
+  | "metrics"
+  | "health_timeline"
+  | "campaigns"
+  | "alerts"
+  | "reports"
+  | "notes"
+  | "tasks"
+  | "activity";
+
+const TAB_ORDER: ClientTab[] = [
+  "overview",
+  "metrics",
+  "health_timeline",
+  "campaigns",
+  "alerts",
+  "reports",
+  "notes",
+  "tasks",
+  "activity",
+];
+
+function tabLabel(t: ClientTab): string {
+  const m: Record<ClientTab, string> = {
+    overview: "Visão geral",
+    metrics: "Métricas",
+    health_timeline: "Health",
+    campaigns: "Campanhas",
+    alerts: "Alertas",
+    reports: "Relatórios",
+    notes: "Notas",
+    tasks: "Tarefas",
+    activity: "Atividade",
+  };
+  return m[t];
+}
+
 function ClientDetail() {
   const { clientId } = Route.useParams();
-  const { agency } = useAuth();
-  const [tab, setTab] = useState<"overview" | "campaigns" | "alerts" | "reports" | "notes">("overview");
+  const [tab, setTab] = useState<ClientTab>("overview");
   const [generating, setGenerating] = useState(false);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["client", clientId],
     queryFn: async () => {
-      const [client, metrics, campaigns, alerts, reports, notes, health] = await Promise.all([
+      const [
+        client,
+        metrics,
+        campaigns,
+        alerts,
+        reports,
+        notes,
+        health,
+        tasks,
+        activities,
+      ] = await Promise.all([
         supabase.from("clients").select("*").eq("id", clientId).maybeSingle(),
-        supabase.from("metrics_daily").select("*").eq("client_id", clientId).order("date", { ascending: false }).limit(60),
-        supabase.from("campaigns").select("*").eq("client_id", clientId).order("created_at", { ascending: false }),
-        supabase.from("alerts").select("*").eq("client_id", clientId).order("created_at", { ascending: false }).limit(20),
-        supabase.from("reports").select("*").eq("client_id", clientId).order("created_at", { ascending: false }).limit(10),
-        supabase.from("notes").select("*").eq("client_id", clientId).order("created_at", { ascending: false }).limit(20),
-        supabase.from("health_scores").select("*").eq("client_id", clientId).order("recorded_at", { ascending: false }).limit(30),
+        supabase
+          .from("metrics_daily")
+          .select("*")
+          .eq("client_id", clientId)
+          .is("campaign_id", null)
+          .order("date", { ascending: false })
+          .limit(60),
+        supabase
+          .from("campaigns")
+          .select("*")
+          .eq("client_id", clientId)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("alerts")
+          .select("*")
+          .eq("client_id", clientId)
+          .order("created_at", { ascending: false })
+          .limit(20),
+        supabase
+          .from("reports")
+          .select("*")
+          .eq("client_id", clientId)
+          .order("created_at", { ascending: false })
+          .limit(10),
+        supabase
+          .from("notes")
+          .select("*")
+          .eq("client_id", clientId)
+          .order("created_at", { ascending: false })
+          .limit(20),
+        supabase
+          .from("health_scores")
+          .select("*")
+          .eq("client_id", clientId)
+          .order("recorded_at", { ascending: false })
+          .limit(30),
+        supabase
+          .from("tasks")
+          .select("*")
+          .eq("client_id", clientId)
+          .order("created_at", { ascending: false })
+          .limit(50),
+        supabase
+          .from("activities")
+          .select("*")
+          .eq("client_id", clientId)
+          .order("created_at", { ascending: false })
+          .limit(50),
       ]);
-      return { client: client.data, metrics: metrics.data ?? [], campaigns: campaigns.data ?? [], alerts: alerts.data ?? [], reports: reports.data ?? [], notes: notes.data ?? [], health: health.data ?? [] };
+      return {
+        client: client.data,
+        metrics: metrics.data ?? [],
+        campaigns: campaigns.data ?? [],
+        alerts: alerts.data ?? [],
+        reports: reports.data ?? [],
+        notes: notes.data ?? [],
+        health: health.data ?? [],
+        tasks: tasks.data ?? [],
+        activities: activities.data ?? [],
+      };
     },
   });
 
+  const metricsSeries = useMemo(() => {
+    const metrics = data?.metrics ?? [];
+    const sorted = [...metrics].sort((a, b) =>
+      String(a.date).localeCompare(String(b.date)),
+    );
+    return sorted.slice(-30).map((m) => ({
+      date: String(m.date).slice(5),
+      spend: Number(m.spend ?? 0),
+      revenue: Number(m.revenue ?? 0),
+      roas: Number(m.roas ?? 0),
+    }));
+  }, [data?.metrics]);
+
+  const healthSeries = useMemo(() => {
+    const health = data?.health ?? [];
+    const sorted = [...health].sort((a, b) =>
+      String(a.recorded_at).localeCompare(String(b.recorded_at)),
+    );
+    return sorted.slice(-14).map((h) => ({
+      t: new Date(h.recorded_at).toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "short",
+      }),
+      score: h.score,
+    }));
+  }, [data?.health]);
+
   if (isLoading || !data) return <PageSkeleton />;
-  if (!data.client) return <div className="p-6 text-sm text-muted-foreground">Cliente não encontrado.</div>;
+  if (!data.client)
+    return (
+      <div className="p-6 text-sm text-muted-foreground">
+        Cliente não encontrado.
+      </div>
+    );
 
   const c = data.client;
   const last30 = data.metrics.slice(0, 30);
   const spend = last30.reduce((a, b) => a + Number(b.spend ?? 0), 0);
   const revenue = last30.reduce((a, b) => a + Number(b.revenue ?? 0), 0);
   const roas = spend > 0 ? revenue / spend : 0;
-  const cpa = last30.reduce((a, b) => a + Number(b.conversions ?? 0), 0) > 0 ? spend / last30.reduce((a, b) => a + Number(b.conversions ?? 0), 0) : 0;
-  const ctr = last30.length ? last30.reduce((a, b) => a + Number(b.ctr ?? 0), 0) / last30.length : 0;
+  const cpa =
+    last30.reduce((a, b) => a + Number(b.conversions ?? 0), 0) > 0
+      ? spend / last30.reduce((a, b) => a + Number(b.conversions ?? 0), 0)
+      : 0;
+  const ctr = last30.length
+    ? last30.reduce((a, b) => a + Number(b.ctr ?? 0), 0) / last30.length
+    : 0;
   const latestHealth = data.health[0];
 
   async function generateReport() {
     setGenerating(true);
-    const { data: res, error } = await supabase.functions.invoke("generate-report", { body: { client_id: clientId } });
+    const { data: res, error } = await supabase.functions.invoke(
+      "generate-report",
+      { body: { client_id: clientId } },
+    );
     setGenerating(false);
-    if (error || !res) return toast.error(error?.message ?? "Erro ao gerar relatório.");
+    if (error || !res)
+      return toast.error(error?.message ?? "Erro ao gerar relatório.");
     toast.success("Relatório gerado pela IA.");
     refetch();
     setTab("reports");
@@ -58,124 +221,433 @@ function ClientDetail() {
 
   return (
     <div className="space-y-5 p-6">
-      <Link to="/clients" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+      <Link
+        to="/clients"
+        className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-3 w-3" /> Clientes
       </Link>
 
       <header className="flex items-end justify-between">
         <div className="flex items-center gap-3">
-          <div className="grid h-12 w-12 place-items-center rounded-xl bg-primary/15 text-base font-semibold text-primary">{c.name.slice(0, 2).toUpperCase()}</div>
+          <div className="grid h-12 w-12 place-items-center rounded-xl bg-primary/15 text-base font-semibold text-primary">
+            {c.name.slice(0, 2).toUpperCase()}
+          </div>
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">{c.name}</h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">{c.segment ?? "—"} · {c.status}</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {c.segment ?? "—"} · {c.status}
+            </p>
           </div>
         </div>
         <div className="flex gap-2">
-          <button onClick={generateReport} disabled={generating} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60 transition">
-            {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+          <button
+            onClick={generateReport}
+            disabled={generating}
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60 transition"
+          >
+            {generating ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Sparkles className="h-3.5 w-3.5" />
+            )}
             Gerar relatório IA
           </button>
         </div>
       </header>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-        <Stat icon={Sparkles} label="ROAS 30d" value={`${roas.toFixed(2)}x`} accent={roas >= 2 ? "text-success" : "text-warning"} />
+        <Stat
+          icon={Sparkles}
+          label="ROAS 30d"
+          value={`${roas.toFixed(2)}x`}
+          accent={roas >= 2 ? "text-success" : "text-warning"}
+        />
         <Stat icon={Sparkles} label="Spend 30d" value={brl(spend)} />
-        <Stat icon={Sparkles} label="Receita 30d" value={brl(revenue)} accent="text-success" />
+        <Stat
+          icon={Sparkles}
+          label="Receita 30d"
+          value={brl(revenue)}
+          accent="text-success"
+        />
         <Stat icon={Sparkles} label="CPA médio" value={brl(cpa)} />
         <Stat icon={Sparkles} label="CTR médio" value={pct(ctr)} />
       </div>
 
-      <nav className="flex gap-1 border-b border-border">
-        {(["overview","campaigns","alerts","reports","notes"] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} className={`relative px-3 py-2 text-sm capitalize transition ${tab === t ? "text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-            {t === "overview" ? "Visão geral" : t === "campaigns" ? "Campanhas" : t === "alerts" ? "Alertas" : t === "reports" ? "Relatórios" : "Notas"}
-            {tab === t && <span className="absolute inset-x-2 -bottom-px h-px bg-primary" />}
+      <nav className="-mx-1 flex gap-1 overflow-x-auto border-b border-border pb-px">
+        {TAB_ORDER.map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setTab(t)}
+            className={`shrink-0 rounded-t-md px-3 py-2 text-sm whitespace-nowrap transition ${tab === t ? "bg-primary/15 text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            {tabLabel(t)}
           </button>
         ))}
       </nav>
 
       {tab === "overview" && (
-        <div className="grid gap-4 lg:grid-cols-3">
-          <Card>
-            <CardHeader title="Health Score" />
-            <div className="space-y-4 p-4">
-              <div className="flex items-center gap-3">
-                <div className="font-mono text-4xl font-semibold tabular">{latestHealth?.score ?? "--"}</div>
-                {latestHealth && <RiskDot risk={latestHealth.risk} />}
+        <>
+          <div className="grid gap-4 lg:grid-cols-3">
+            <Card>
+              <CardHeader title="Health Score" />
+              <div className="space-y-4 p-4">
+                <div className="flex items-center gap-3">
+                  <div className="font-mono text-4xl font-semibold tabular">
+                    {latestHealth?.score ?? "--"}
+                  </div>
+                  {latestHealth && <RiskDot risk={latestHealth.risk} />}
+                </div>
+                {latestHealth && <ScoreBar score={latestHealth.score} />}
+                <div className="space-y-2 pt-2">
+                  <Row
+                    label="Performance"
+                    value={String(latestHealth?.performance_score ?? "—")}
+                  />
+                  <Row
+                    label="Otimização"
+                    value={String(latestHealth?.optimization_score ?? "—")}
+                  />
+                  <Row
+                    label="Comunicação"
+                    value={String(latestHealth?.communication_score ?? "—")}
+                  />
+                  <Row
+                    label="Estabilidade"
+                    value={String(latestHealth?.stability_score ?? "—")}
+                  />
+                  <Row
+                    label="Engajamento"
+                    value={String(latestHealth?.engagement_score ?? "—")}
+                  />
+                </div>
               </div>
-              {latestHealth && <ScoreBar score={latestHealth.score} />}
-              <div className="space-y-2 pt-2">
-                <Row label="Performance" value={String(latestHealth?.performance_score ?? "—")} />
-                <Row label="Otimização" value={String(latestHealth?.optimization_score ?? "—")} />
-                <Row label="Comunicação" value={String(latestHealth?.communication_score ?? "—")} />
-                <Row label="Estabilidade" value={String(latestHealth?.stability_score ?? "—")} />
-                <Row label="Engajamento" value={String(latestHealth?.engagement_score ?? "—")} />
-              </div>
-            </div>
-          </Card>
+            </Card>
 
-          <Card className="lg:col-span-2">
-            <CardHeader title="Métricas (últimos 30 dias)" />
-            <div className="grid grid-cols-2 gap-3 p-4">
-              <Row label="Investimento" value={brl(spend)} />
-              <Row label="Receita" value={brl(revenue)} accent="text-success" />
-              <Row label="ROAS" value={`${roas.toFixed(2)}x`} accent={roas >= 2 ? "text-success" : "text-warning"} />
-              <Row label="CPA" value={brl(cpa)} />
-              <Row label="CTR médio" value={pct(ctr)} />
-              <Row label="MRR" value={brl(c.mrr)} />
+            <Card className="lg:col-span-2">
+              <CardHeader title="Métricas (últimos 30 dias)" />
+              <div className="grid grid-cols-2 gap-3 p-4">
+                <Row label="Investimento" value={brl(spend)} />
+                <Row
+                  label="Receita"
+                  value={brl(revenue)}
+                  accent="text-success"
+                />
+                <Row
+                  label="ROAS"
+                  value={`${roas.toFixed(2)}x`}
+                  accent={roas >= 2 ? "text-success" : "text-warning"}
+                />
+                <Row label="CPA" value={brl(cpa)} />
+                <Row label="CTR médio" value={pct(ctr)} />
+                <Row label="MRR" value={brl(c.mrr)} />
+              </div>
+            </Card>
+          </div>
+
+          {data.alerts.some(
+            (a: { status?: string; recommended_action?: string | null }) =>
+              a.status === "open" && a.recommended_action,
+          ) && (
+            <Card>
+              <CardHeader title="Alertas abertos — ações sugeridas" />
+              <div className="divide-y divide-border">
+                {data.alerts
+                  .filter(
+                    (a: {
+                      status?: string;
+                      recommended_action?: string | null;
+                    }) => a.status === "open" && a.recommended_action,
+                  )
+                  .map(
+                    (a: {
+                      id: string;
+                      title: string;
+                      recommended_action?: string | null;
+                    }) => (
+                      <div key={a.id} className="px-4 py-3 text-xs">
+                        <div className="font-medium">{a.title}</div>
+                        <div className="mt-1 text-muted-foreground">
+                          {a.recommended_action}
+                        </div>
+                      </div>
+                    ),
+                  )}
+              </div>
+            </Card>
+          )}
+        </>
+      )}
+
+      {tab === "metrics" && (
+        <Card>
+          <CardHeader title="Série diária (até 30 pontos)" />
+          <div className="h-72 p-4">
+            {metricsSeries.length === 0 ? (
+              <Empty label="Sem dados de métricas." />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={metricsSeries}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    className="stroke-border"
+                  />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip
+                    contentStyle={{
+                      background: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="spend"
+                    name="Spend"
+                    stroke="hsl(var(--primary))"
+                    dot={false}
+                    strokeWidth={2}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="revenue"
+                    name="Receita"
+                    stroke="hsl(142 76% 36%)"
+                    dot={false}
+                    strokeWidth={2}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+          <div className="h-56 border-t border-border p-4">
+            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              ROAS (linha)
+            </p>
+            {metricsSeries.length === 0 ? null : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={metricsSeries}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    className="stroke-border"
+                  />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip />
+                  <Line
+                    type="monotone"
+                    dataKey="roas"
+                    name="ROAS"
+                    stroke="hsl(var(--warning))"
+                    dot={false}
+                    strokeWidth={2}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {tab === "health_timeline" && (
+        <Card>
+          <CardHeader title="Evolução do Health Score" />
+          <div className="h-80 p-4">
+            {healthSeries.length === 0 ? (
+              <Empty label="Sem histórico de health." />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={healthSeries}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    className="stroke-border"
+                  />
+                  <XAxis dataKey="t" tick={{ fontSize: 10 }} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
+                  <Tooltip />
+                  <Line
+                    type="monotone"
+                    dataKey="score"
+                    name="Score"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2}
+                    dot
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {tab === "tasks" && (
+        <Card>
+          {data.tasks.length === 0 ? (
+            <Empty label="Nenhuma tarefa para este cliente." />
+          ) : (
+            <div className="divide-y divide-border">
+              {data.tasks.map((tk: Record<string, unknown>) => (
+                <div
+                  key={String(tk.id)}
+                  className="flex items-start justify-between px-4 py-3 text-sm"
+                >
+                  <div>
+                    <div className="font-medium">{String(tk.title)}</div>
+                    {tk.description ? (
+                      <div className="mt-0.5 text-xs text-muted-foreground">
+                        {String(tk.description)}
+                      </div>
+                    ) : null}
+                  </div>
+                  <span className="rounded bg-surface px-2 py-0.5 text-[10px] uppercase">
+                    {String(tk.status)}
+                  </span>
+                </div>
+              ))}
             </div>
-          </Card>
-        </div>
+          )}
+        </Card>
+      )}
+
+      {tab === "activity" && (
+        <Card>
+          {data.activities.length === 0 ? (
+            <Empty label="Sem atividades registradas." />
+          ) : (
+            <div className="divide-y divide-border">
+              {data.activities.map((ev: Record<string, unknown>) => (
+                <div key={String(ev.id)} className="flex gap-3 px-4 py-3">
+                  <ActivityIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm">{String(ev.title)}</div>
+                    {ev.description ? (
+                      <div className="text-xs text-muted-foreground">
+                        {String(ev.description)}
+                      </div>
+                    ) : null}
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      {timeAgo(String(ev.created_at))}
+                    </div>
+                  </div>
+                  <span className="shrink-0 rounded bg-surface px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
+                    {String(ev.type)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
       )}
 
       {tab === "campaigns" && (
         <Card>
-          {data.campaigns.length === 0 ? <Empty label="Nenhuma campanha cadastrada." /> :
+          {data.campaigns.length === 0 ? (
+            <Empty label="Nenhuma campanha cadastrada." />
+          ) : (
             <div className="divide-y divide-border">
-              {data.campaigns.map(cm => (
-                <div key={cm.id} className="grid grid-cols-12 items-center px-4 py-3 text-sm">
+              {data.campaigns.map((cm) => (
+                <div
+                  key={cm.id}
+                  className="grid grid-cols-12 items-center px-4 py-3 text-sm"
+                >
                   <div className="col-span-5">
                     <div className="font-medium">{cm.name}</div>
-                    <div className="text-xs text-muted-foreground">{cm.platform} · {cm.objective ?? "—"}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {cm.platform} · {cm.objective ?? "—"}
+                    </div>
                   </div>
-                  <div className="col-span-3"><span className="rounded bg-surface px-2 py-0.5 text-[11px] uppercase">{cm.status}</span></div>
-                  <div className="col-span-2 font-mono text-xs tabular text-muted-foreground">Diário</div>
-                  <div className="col-span-2 text-right font-mono tabular">{brl(cm.daily_budget)}</div>
+                  <div className="col-span-3">
+                    <span className="rounded bg-surface px-2 py-0.5 text-[11px] uppercase">
+                      {cm.status}
+                    </span>
+                  </div>
+                  <div className="col-span-2 font-mono text-xs tabular text-muted-foreground">
+                    Diário
+                  </div>
+                  <div className="col-span-2 text-right font-mono tabular">
+                    {brl(cm.daily_budget)}
+                  </div>
                 </div>
               ))}
-            </div>}
+            </div>
+          )}
         </Card>
       )}
 
       {tab === "alerts" && (
         <Card>
-          {data.alerts.length === 0 ? <Empty label="Sem alertas." /> :
+          {data.alerts.length === 0 ? (
+            <Empty label="Sem alertas." />
+          ) : (
             <div className="divide-y divide-border">
-              {data.alerts.map(a => (
+              {data.alerts.map((a) => (
                 <div key={a.id} className="px-4 py-3">
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-medium">{a.title}</div>
-                    <span className="text-[11px] uppercase text-muted-foreground">{a.priority}</span>
+                    <span className="text-[11px] uppercase text-muted-foreground">
+                      {a.priority}
+                    </span>
                   </div>
-                  {a.description && <div className="mt-0.5 text-xs text-muted-foreground">{a.description}</div>}
-                  <div className="mt-1 text-[11px] text-muted-foreground">{timeAgo(a.created_at)}</div>
+                  {a.description && (
+                    <div className="mt-0.5 text-xs text-muted-foreground">
+                      {a.description}
+                    </div>
+                  )}
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    {timeAgo(a.created_at)}
+                  </div>
                 </div>
               ))}
-            </div>}
+            </div>
+          )}
         </Card>
       )}
 
       {tab === "reports" && (
         <div className="space-y-3">
-          {data.reports.length === 0 && <Card><Empty label="Nenhum relatório IA. Clique em 'Gerar relatório IA'." /></Card>}
-          {data.reports.map(r => (
+          {data.reports.length === 0 && (
+            <Card>
+              <Empty label="Nenhum relatório IA. Clique em 'Gerar relatório IA'." />
+            </Card>
+          )}
+          {data.reports.map((r) => (
             <Card key={r.id}>
-              <CardHeader title={`Relatório · ${new Date(r.created_at).toLocaleDateString("pt-BR")}`} action={<button onClick={() => navigator.clipboard.writeText([r.executive_summary,r.positives,r.problems,r.opportunities,r.next_steps].filter(Boolean).join("\n\n"))} className="text-xs text-primary hover:underline">Copiar</button>} />
+              <CardHeader
+                title={`Relatório · ${new Date(r.created_at).toLocaleDateString("pt-BR")}`}
+                action={
+                  <button
+                    onClick={() =>
+                      navigator.clipboard.writeText(
+                        [
+                          r.executive_summary,
+                          r.positives,
+                          r.problems,
+                          r.opportunities,
+                          r.next_steps,
+                        ]
+                          .filter(Boolean)
+                          .join("\n\n"),
+                      )
+                    }
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Copiar
+                  </button>
+                }
+              />
               <div className="space-y-3 p-4 text-sm">
-                <ReportSection title="Resumo executivo" body={r.executive_summary} />
+                <ReportSection
+                  title="Resumo executivo"
+                  body={r.executive_summary}
+                />
                 <ReportSection title="Pontos positivos" body={r.positives} />
-                <ReportSection title="Problemas identificados" body={r.problems} />
+                <ReportSection
+                  title="Problemas identificados"
+                  body={r.problems}
+                />
                 <ReportSection title="Oportunidades" body={r.opportunities} />
                 <ReportSection title="Próximos passos" body={r.next_steps} />
               </div>
@@ -186,27 +658,42 @@ function ClientDetail() {
 
       {tab === "notes" && (
         <Card>
-          {data.notes.length === 0 ? <Empty label="Sem notas." /> :
+          {data.notes.length === 0 ? (
+            <Empty label="Sem notas." />
+          ) : (
             <div className="divide-y divide-border">
-              {data.notes.map(n => (
+              {data.notes.map((n) => (
                 <div key={n.id} className="px-4 py-3 text-sm">
                   <p>{n.content}</p>
-                  <div className="mt-1 text-[11px] text-muted-foreground">{timeAgo(n.created_at)}</div>
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    {timeAgo(n.created_at)}
+                  </div>
                 </div>
               ))}
-            </div>}
+            </div>
+          )}
         </Card>
       )}
     </div>
   );
 }
 
-function ReportSection({ title, body }: { title: string; body: string | null }) {
+function ReportSection({
+  title,
+  body,
+}: {
+  title: string;
+  body: string | null;
+}) {
   if (!body) return null;
   return (
     <div>
-      <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-primary">{title}</div>
-      <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/90">{body}</p>
+      <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-primary">
+        {title}
+      </div>
+      <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/90">
+        {body}
+      </p>
     </div>
   );
 }

@@ -1,25 +1,84 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from "@/components/ui/command";
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "@/components/ui/command";
 import { supabase } from "@/integrations/supabase/client";
-import { Bell, LayoutDashboard, ShieldCheck, Sparkles, Users, Settings, Plus, Database, MessageSquare, Plug, ShieldAlert, RefreshCw, FileText, Sun, Moon, LogOut, CheckSquare } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import {
+  Bell,
+  LayoutDashboard,
+  ShieldCheck,
+  Sparkles,
+  Users,
+  Settings,
+  Plus,
+  Database,
+  MessageSquare,
+  Plug,
+  ShieldAlert,
+  RefreshCw,
+  FileText,
+  Sun,
+  Moon,
+  LogOut,
+  CheckSquare,
+  Activity as ActivityIcon,
+} from "lucide-react";
 import { toast } from "sonner";
 
 type ClientItem = { id: string; name: string };
 
-export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+export function CommandPalette({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
   const navigate = useNavigate();
+  const { agency } = useAuth();
   const [clients, setClients] = useState<ClientItem[]>([]);
+  const [openAlerts, setOpenAlerts] = useState<ClientItem[]>([]);
 
   useEffect(() => {
-    if (!open) return;
-    supabase.from("clients").select("id, name").order("name").limit(20).then(({ data }) => {
-      setClients(data ?? []);
-    });
-  }, [open]);
+    if (!open || !agency?.id) return;
+    supabase
+      .from("clients")
+      .select("id, name")
+      .eq("agency_id", agency.id)
+      .order("name")
+      .limit(30)
+      .then(({ data }) => {
+        setClients(data ?? []);
+      });
+  }, [open, agency?.id]);
+
+  useEffect(() => {
+    if (!open || !agency) return;
+    supabase
+      .from("alerts")
+      .select("id, title")
+      .eq("agency_id", agency.id)
+      .eq("status", "open")
+      .order("created_at", { ascending: false })
+      .limit(20)
+      .then(({ data }) => {
+        setOpenAlerts((data ?? []).map((a) => ({ id: a.id, name: a.title })));
+      });
+  }, [open, agency]);
 
   const close = () => onOpenChange(false);
-  const go = (to: string) => { close(); navigate({ to }); };
+  const go = (to: string) => {
+    close();
+    navigate({ to });
+  };
 
   const seed = async () => {
     close();
@@ -36,7 +95,8 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
     const tid = toast.loading("Recalculando health scores...");
     const { error } = await supabase.functions.invoke("compute-health-scores");
     toast.dismiss(tid);
-    error ? toast.error(error.message) : toast.success("Health scores atualizados.");
+    if (error) toast.error(error.message);
+    else toast.success("Health scores atualizados.");
   };
 
   const evalAlerts = async () => {
@@ -44,15 +104,19 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
     const tid = toast.loading("Avaliando alertas...");
     const { error } = await supabase.functions.invoke("evaluate-alerts");
     toast.dismiss(tid);
-    error ? toast.error(error.message) : toast.success("Alertas reavaliados.");
+    if (error) toast.error(error.message);
+    else toast.success("Alertas reavaliados.");
   };
 
   const runDailySummary = async () => {
     close();
     const tid = toast.loading("Disparando resumos diários...");
-    const { error } = await supabase.functions.invoke("whatsapp-summary?period=daily");
+    const { error } = await supabase.functions.invoke(
+      "whatsapp-summary?period=daily",
+    );
     toast.dismiss(tid);
-    error ? toast.error(error.message) : toast.success("Resumos enviados.");
+    if (error) toast.error(error.message);
+    else toast.success("Resumos enviados.");
   };
 
   const toggleTheme = () => {
@@ -60,7 +124,11 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
     const root = document.documentElement;
     const next = root.classList.contains("dark") ? "light" : "dark";
     root.classList.toggle("dark");
-    try { localStorage.setItem("theme", next); } catch {}
+    try {
+      localStorage.setItem("theme", next);
+    } catch {
+      /* ignore storage */
+    }
   };
 
   const signOut = async () => {
@@ -75,37 +143,100 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
       <CommandList>
         <CommandEmpty>Nada encontrado.</CommandEmpty>
         <CommandGroup heading="Navegar">
-          <CommandItem onSelect={() => go("/dashboard")}><LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard</CommandItem>
-          <CommandItem onSelect={() => go("/clients")}><Users className="mr-2 h-4 w-4" /> Clientes</CommandItem>
-          <CommandItem onSelect={() => go("/alerts")}><Bell className="mr-2 h-4 w-4" /> Alertas</CommandItem>
-          <CommandItem onSelect={() => go("/health")}><ShieldCheck className="mr-2 h-4 w-4" /> Health Score</CommandItem>
-          <CommandItem onSelect={() => go("/reports")}><Sparkles className="mr-2 h-4 w-4" /> Relatórios IA</CommandItem>
-          <CommandItem onSelect={() => go("/whatsapp")}><MessageSquare className="mr-2 h-4 w-4" /> WhatsApp</CommandItem>
-          <CommandItem onSelect={() => go("/integrations")}><Plug className="mr-2 h-4 w-4" /> Integrações</CommandItem>
-          <CommandItem onSelect={() => go("/admin")}><ShieldAlert className="mr-2 h-4 w-4" /> Admin</CommandItem>
-          <CommandItem onSelect={() => go("/settings")}><Settings className="mr-2 h-4 w-4" /> Configurações</CommandItem>
+          <CommandItem onSelect={() => go("/dashboard")}>
+            <LayoutDashboard className="mr-2 h-4 w-4" /> Dashboard
+          </CommandItem>
+          <CommandItem onSelect={() => go("/clients")}>
+            <Users className="mr-2 h-4 w-4" /> Clientes
+          </CommandItem>
+          <CommandItem onSelect={() => go("/alerts")}>
+            <Bell className="mr-2 h-4 w-4" /> Alertas
+          </CommandItem>
+          <CommandItem onSelect={() => go("/health")}>
+            <ShieldCheck className="mr-2 h-4 w-4" /> Health Score
+          </CommandItem>
+          <CommandItem onSelect={() => go("/reports")}>
+            <Sparkles className="mr-2 h-4 w-4" /> Relatórios IA
+          </CommandItem>
+          <CommandItem onSelect={() => go("/whatsapp")}>
+            <MessageSquare className="mr-2 h-4 w-4" /> WhatsApp
+          </CommandItem>
+          <CommandItem onSelect={() => go("/integrations")}>
+            <Plug className="mr-2 h-4 w-4" /> Integrações
+          </CommandItem>
+          <CommandItem onSelect={() => go("/activity")}>
+            <ActivityIcon className="mr-2 h-4 w-4" /> Atividade
+          </CommandItem>
+          <CommandItem onSelect={() => go("/onboarding")}>
+            <Sparkles className="mr-2 h-4 w-4" /> Onboarding
+          </CommandItem>
+          <CommandItem onSelect={() => go("/admin")}>
+            <ShieldAlert className="mr-2 h-4 w-4" /> Admin
+          </CommandItem>
+          <CommandItem onSelect={() => go("/settings")}>
+            <Settings className="mr-2 h-4 w-4" /> Configurações
+          </CommandItem>
         </CommandGroup>
         <CommandSeparator />
         <CommandGroup heading="Ações rápidas">
-          <CommandItem onSelect={() => go("/clients?new=1")}><Plus className="mr-2 h-4 w-4" /> Novo cliente</CommandItem>
-          <CommandItem onSelect={() => go("/reports")}><FileText className="mr-2 h-4 w-4" /> Gerar relatório IA</CommandItem>
-          <CommandItem onSelect={() => go("/whatsapp")}><MessageSquare className="mr-2 h-4 w-4" /> Enviar WhatsApp</CommandItem>
-          <CommandItem onSelect={recomputeHealth}><RefreshCw className="mr-2 h-4 w-4" /> Recalcular health scores</CommandItem>
-          <CommandItem onSelect={evalAlerts}><CheckSquare className="mr-2 h-4 w-4" /> Reavaliar alertas</CommandItem>
-          <CommandItem onSelect={runDailySummary}><MessageSquare className="mr-2 h-4 w-4" /> Disparar resumos do dia</CommandItem>
-          <CommandItem onSelect={seed}><Database className="mr-2 h-4 w-4" /> Gerar dados de exemplo</CommandItem>
+          <CommandItem onSelect={() => go("/clients?new=1")}>
+            <Plus className="mr-2 h-4 w-4" /> Novo cliente
+          </CommandItem>
+          <CommandItem onSelect={() => go("/reports")}>
+            <FileText className="mr-2 h-4 w-4" /> Gerar relatório IA
+          </CommandItem>
+          <CommandItem onSelect={() => go("/whatsapp")}>
+            <MessageSquare className="mr-2 h-4 w-4" /> Enviar WhatsApp
+          </CommandItem>
+          <CommandItem onSelect={recomputeHealth}>
+            <RefreshCw className="mr-2 h-4 w-4" /> Recalcular health scores
+          </CommandItem>
+          <CommandItem onSelect={evalAlerts}>
+            <CheckSquare className="mr-2 h-4 w-4" /> Reavaliar alertas
+          </CommandItem>
+          <CommandItem onSelect={runDailySummary}>
+            <MessageSquare className="mr-2 h-4 w-4" /> Disparar resumos do dia
+          </CommandItem>
+          <CommandItem onSelect={seed}>
+            <Database className="mr-2 h-4 w-4" /> Gerar dados de exemplo
+          </CommandItem>
         </CommandGroup>
         <CommandSeparator />
         <CommandGroup heading="Conta">
-          <CommandItem onSelect={toggleTheme}><Sun className="mr-2 h-4 w-4 dark:hidden" /><Moon className="mr-2 hidden h-4 w-4 dark:block" /> Alternar tema</CommandItem>
-          <CommandItem onSelect={signOut}><LogOut className="mr-2 h-4 w-4" /> Sair</CommandItem>
+          <CommandItem onSelect={toggleTheme}>
+            <Sun className="mr-2 h-4 w-4 dark:hidden" />
+            <Moon className="mr-2 hidden h-4 w-4 dark:block" /> Alternar tema
+          </CommandItem>
+          <CommandItem onSelect={signOut}>
+            <LogOut className="mr-2 h-4 w-4" /> Sair
+          </CommandItem>
         </CommandGroup>
+        {openAlerts.length > 0 && (
+          <>
+            <CommandSeparator />
+            <CommandGroup heading="Alertas abertos">
+              {openAlerts.map((a) => (
+                <CommandItem
+                  key={a.id}
+                  value={`alert-${a.name}-${a.id}`}
+                  onSelect={() => go("/alerts")}
+                >
+                  <Bell className="mr-2 h-4 w-4" /> {a.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </>
+        )}
         {clients.length > 0 && (
           <>
             <CommandSeparator />
             <CommandGroup heading="Clientes">
-              {clients.map(c => (
-                <CommandItem key={c.id} onSelect={() => go(`/clients/${c.id}`)}>
+              {clients.map((c) => (
+                <CommandItem
+                  key={c.id}
+                  value={`client-${c.name}-${c.id}`}
+                  onSelect={() => go(`/clients/${c.id}`)}
+                >
                   <Users className="mr-2 h-4 w-4" /> {c.name}
                 </CommandItem>
               ))}

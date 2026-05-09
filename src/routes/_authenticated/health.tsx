@@ -5,7 +5,9 @@ import { useAuth } from "@/hooks/use-auth";
 import { brl } from "@/lib/format";
 import { Card, Empty, PageSkeleton, RiskDot, ScoreBar } from "./dashboard";
 
-export const Route = createFileRoute("/_authenticated/health")({ component: Health });
+export const Route = createFileRoute("/_authenticated/health")({
+  component: Health,
+});
 
 function Health() {
   const { agency } = useAuth();
@@ -14,18 +16,31 @@ function Health() {
     enabled: !!agency,
     queryFn: async () => {
       const [clients, scores] = await Promise.all([
-        supabase.from("clients").select("id, name, mrr, segment").eq("agency_id", agency!.id),
-        supabase.from("health_scores").select("*").eq("agency_id", agency!.id).order("recorded_at", { ascending: false }),
+        supabase
+          .from("clients")
+          .select("id, name, mrr, segment")
+          .eq("agency_id", agency!.id),
+        supabase
+          .from("health_scores")
+          .select("*")
+          .eq("agency_id", agency!.id)
+          .order("recorded_at", { ascending: false }),
       ]);
       const latest = new Map<string, any>();
-      for (const h of scores.data ?? []) if (!latest.has(h.client_id)) latest.set(h.client_id, h);
+      for (const h of scores.data ?? [])
+        if (!latest.has(h.client_id)) latest.set(h.client_id, h);
       return { clients: clients.data ?? [], latest };
     },
   });
 
   if (isLoading || !data) return <PageSkeleton />;
 
-  const grouped = { high: [] as any[], medium: [] as any[], low: [] as any[], none: [] as any[] };
+  const grouped = {
+    high: [] as any[],
+    medium: [] as any[],
+    low: [] as any[],
+    none: [] as any[],
+  };
   for (const c of data.clients) {
     const h = data.latest.get(c.id);
     if (!h) grouped.none.push({ ...c });
@@ -36,7 +51,10 @@ function Health() {
     <div className="space-y-5 p-6">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Health Score</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">Risco de churn por cliente, calculado a partir de performance, otimização, comunicação, estabilidade e engajamento.</p>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          Risco de churn por cliente, calculado a partir de performance,
+          otimização, comunicação, estabilidade e engajamento.
+        </p>
       </header>
       <div className="grid gap-4 lg:grid-cols-3">
         <RiskColumn title="Alto risco" risk="high" items={grouped.high} />
@@ -45,10 +63,19 @@ function Health() {
       </div>
       {grouped.none.length > 0 && (
         <Card>
-          <div className="px-4 py-3 text-xs uppercase tracking-wide text-muted-foreground">Sem score calculado</div>
+          <div className="px-4 py-3 text-xs uppercase tracking-wide text-muted-foreground">
+            Sem score calculado
+          </div>
           <div className="divide-y divide-border">
-            {grouped.none.map(c => (
-              <Link key={c.id} to="/clients/$clientId" params={{ clientId: c.id }} className="block px-4 py-3 text-sm hover:bg-surface-2">{c.name}</Link>
+            {grouped.none.map((c) => (
+              <Link
+                key={c.id}
+                to="/clients/$clientId"
+                params={{ clientId: c.id }}
+                className="block px-4 py-3 text-sm hover:bg-surface-2"
+              >
+                {c.name}
+              </Link>
             ))}
           </div>
         </Card>
@@ -57,7 +84,15 @@ function Health() {
   );
 }
 
-function RiskColumn({ title, risk, items }: { title: string; risk: string; items: any[] }) {
+function RiskColumn({
+  title,
+  risk,
+  items,
+}: {
+  title: string;
+  risk: string;
+  items: any[];
+}) {
   return (
     <Card>
       <div className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -65,21 +100,35 @@ function RiskColumn({ title, risk, items }: { title: string; risk: string; items
           <RiskDot risk={risk} />
           <h3 className="text-sm font-semibold">{title}</h3>
         </div>
-        <span className="font-mono text-xs text-muted-foreground tabular">{items.length}</span>
+        <span className="font-mono text-xs text-muted-foreground tabular">
+          {items.length}
+        </span>
       </div>
-      {items.length === 0 ? <Empty label="—" /> :
+      {items.length === 0 ? (
+        <Empty label="—" />
+      ) : (
         <div className="divide-y divide-border">
-          {items.map(c => (
-            <Link key={c.id} to="/clients/$clientId" params={{ clientId: c.id }} className="block px-4 py-3 hover:bg-surface-2 transition">
+          {items.map((c) => (
+            <Link
+              key={c.id}
+              to="/clients/$clientId"
+              params={{ clientId: c.id }}
+              className="block px-4 py-3 hover:bg-surface-2 transition"
+            >
               <div className="flex items-center justify-between gap-2">
                 <span className="truncate text-sm font-medium">{c.name}</span>
                 <span className="font-mono text-sm tabular">{c.score}</span>
               </div>
-              <div className="mt-1.5"><ScoreBar score={c.score} /></div>
-              <div className="mt-1 text-[11px] text-muted-foreground">{brl(c.mrr)} MRR · {c.segment ?? "—"}</div>
+              <div className="mt-1.5">
+                <ScoreBar score={c.score} />
+              </div>
+              <div className="mt-1 text-[11px] text-muted-foreground">
+                {brl(c.mrr)} MRR · {c.segment ?? "—"}
+              </div>
             </Link>
           ))}
-        </div>}
+        </div>
+      )}
     </Card>
   );
 }

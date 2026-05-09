@@ -16,7 +16,8 @@ function ResetPassword() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (password.length < 8) return toast.error("Senha deve ter ao menos 8 caracteres.");
+    if (password.length < 8)
+      return toast.error("Senha deve ter ao menos 8 caracteres.");
     setLoading(true);
     const { error } = await supabase.auth.updateUser({ password });
     setLoading(false);
@@ -28,8 +29,17 @@ function ResetPassword() {
   return (
     <AuthShell title="Definir nova senha" subtitle="Escolha uma senha forte.">
       <form onSubmit={submit} className="space-y-3">
-        <Field label="Nova senha" type="password" value={password} onChange={setPassword} autoFocus />
-        <button disabled={loading} className="mt-2 inline-flex h-10 w-full items-center justify-center rounded-md bg-primary text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60 transition">
+        <Field
+          label="Nova senha"
+          type="password"
+          value={password}
+          onChange={setPassword}
+          autoFocus
+        />
+        <button
+          disabled={loading}
+          className="mt-2 inline-flex h-10 w-full items-center justify-center rounded-md bg-primary text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60 transition"
+        >
           {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Salvar nova senha
         </button>

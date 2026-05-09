@@ -3,36 +3,82 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { brl, num, timeAgo } from "@/lib/format";
-import { useState } from "react";
-import { Sparkles, Loader2, Copy, Check, FileDown } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  Sparkles,
+  Loader2,
+  Copy,
+  Check,
+  FileDown,
+  MessageSquare,
+} from "lucide-react";
 import { Card, Empty, PageSkeleton } from "./dashboard";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import jsPDF from "jspdf";
 
-export const Route = createFileRoute("/_authenticated/reports")({ component: Reports });
+export const Route = createFileRoute("/_authenticated/reports")({
+  component: Reports,
+});
 
 function Reports() {
   const { agency } = useAuth();
   const [selected, setSelected] = useState<any>(null);
   const [generating, setGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [filterClientId, setFilterClientId] = useState<string>("all");
+  const [createdFrom, setCreatedFrom] = useState("");
+  const [createdTo, setCreatedTo] = useState("");
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["reports", agency?.id],
     enabled: !!agency,
     queryFn: async () => {
       const [reports, clients] = await Promise.all([
-        supabase.from("reports").select("*, clients(id, name)").eq("agency_id", agency!.id).order("created_at", { ascending: false }).limit(100),
-        supabase.from("clients").select("id, name").eq("agency_id", agency!.id).order("name"),
+        supabase
+          .from("reports")
+          .select("*, clients(id, name, contact_phone)")
+          .eq("agency_id", agency!.id)
+          .order("created_at", { ascending: false })
+          .limit(100),
+        supabase
+          .from("clients")
+          .select("id, name")
+          .eq("agency_id", agency!.id)
+          .order("name"),
       ]);
       return { reports: reports.data ?? [], clients: clients.data ?? [] };
     },
   });
 
+  const filteredReports = useMemo(() => {
+    if (!data?.reports) return [];
+    let list = data.reports as any[];
+    if (filterClientId !== "all") {
+      list = list.filter((r) => r.client_id === filterClientId);
+    }
+    if (createdFrom.trim()) {
+      const start = new Date(createdFrom);
+      start.setHours(0, 0, 0, 0);
+      list = list.filter(
+        (r) => new Date(r.created_at).getTime() >= start.getTime(),
+      );
+    }
+    if (createdTo.trim()) {
+      const end = new Date(createdTo);
+      end.setHours(23, 59, 59, 999);
+      list = list.filter(
+        (r) => new Date(r.created_at).getTime() <= end.getTime(),
+      );
+    }
+    return list;
+  }, [data?.reports, filterClientId, createdFrom, createdTo]);
+
   async function generateFor(clientId: string) {
     setGenerating(true);
-    const { error } = await supabase.functions.invoke("generate-report", { body: { client_id: clientId } });
+    const { error } = await supabase.functions.invoke("generate-report", {
+      body: { client_id: clientId },
+    });
     setGenerating(false);
     if (error) return toast.error(error.message);
     toast.success("Relatório gerado.");
@@ -42,7 +88,38 @@ function Reports() {
   function copyToClipboard(r: any) {
     const txt = `${r.executive_summary ?? ""}\n\nPositivos:\n${r.positives ?? "-"}\n\nProblemas:\n${r.problems ?? "-"}\n\nOportunidades:\n${r.opportunities ?? "-"}\n\nPróximos passos:\n${r.next_steps ?? "-"}`;
     navigator.clipboard.writeText(txt);
-    setCopied(true); setTimeout(() => setCopied(false), 1500);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
+
+  async function sendWhatsAppSummary(r: any) {
+    const defaultPhone = r.clients?.contact_phone as string | undefined;
+    const recipient =
+      defaultPhone ||
+      window.prompt("Telefone (DDI + DDD + número, só dígitos)") ||
+      "";
+    if (!recipient.trim()) return;
+    const text = [
+      r.executive_summary,
+      r.positives ? `Positivos:\n${r.positives}` : "",
+      r.problems ? `Problemas:\n${r.problems}` : "",
+      r.next_steps ? `Próximos passos:\n${r.next_steps}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n")
+      .slice(0, 3900);
+    const tid = toast.loading("Enviando...");
+    const { error } = await supabase.functions.invoke("send-whatsapp", {
+      body: {
+        recipient: recipient.trim(),
+        message: text,
+        client_id: r.client_id,
+        template: "report_summary",
+      },
+    });
+    toast.dismiss(tid);
+    if (error) toast.error(error.message);
+    else toast.success("Enfileirado / enviado via WhatsApp.");
   }
 
   function exportPDF(r: any) {
@@ -57,8 +134,16 @@ function Reports() {
     doc.setFont("helvetica", "bold").setFontSize(20);
     doc.text(r.clients?.name ?? "Relatório", margin, y + 24);
     doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(120);
-    doc.text(`Período: ${r.period_start ?? "-"} → ${r.period_end ?? "-"}`, margin, y + 42);
-    doc.text(`Gerado em ${new Date(r.created_at).toLocaleString("pt-BR")}`, margin, y + 56);
+    doc.text(
+      `Período: ${r.period_start ?? "-"} → ${r.period_end ?? "-"}`,
+      margin,
+      y + 42,
+    );
+    doc.text(
+      `Gerado em ${new Date(r.created_at).toLocaleString("pt-BR")}`,
+      margin,
+      y + 56,
+    );
     y += 84;
 
     const sections: Array<[string, string | null]> = [
@@ -72,14 +157,20 @@ function Reports() {
 
     for (const [title, body] of sections) {
       if (!body) continue;
-      if (y > 760) { doc.addPage(); y = margin; }
+      if (y > 760) {
+        doc.addPage();
+        y = margin;
+      }
       doc.setFont("helvetica", "bold").setFontSize(12).setTextColor(20);
       doc.text(title, margin, y);
       y += 16;
       doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(60);
       const lines = doc.splitTextToSize(body, W - margin * 2);
       for (const line of lines) {
-        if (y > 800) { doc.addPage(); y = margin; }
+        if (y > 800) {
+          doc.addPage();
+          y = margin;
+        }
         doc.text(line, margin, y);
         y += 14;
       }
@@ -87,7 +178,10 @@ function Reports() {
     }
 
     if (r.raw_data) {
-      if (y > 740) { doc.addPage(); y = margin; }
+      if (y > 740) {
+        doc.addPage();
+        y = margin;
+      }
       doc.setFont("helvetica", "bold").setFontSize(12).setTextColor(20);
       doc.text("Dados base", margin, y);
       y += 18;
@@ -98,10 +192,15 @@ function Reports() {
         `ROAS: ${Number(r.raw_data.roas ?? 0).toFixed(2)}x`,
         `Conversões: ${r.raw_data.conv ?? 0}`,
       ];
-      for (const row of rows) { doc.text(row, margin, y); y += 14; }
+      for (const row of rows) {
+        doc.text(row, margin, y);
+        y += 14;
+      }
     }
 
-    doc.save(`relatorio-${(r.clients?.name ?? "cliente").toLowerCase().replace(/\s+/g, "-")}-${r.period_end ?? "atual"}.pdf`);
+    doc.save(
+      `relatorio-${(r.clients?.name ?? "cliente").toLowerCase().replace(/\s+/g, "-")}-${r.period_end ?? "atual"}.pdf`,
+    );
   }
 
   if (isLoading || !data) return <PageSkeleton />;
@@ -110,35 +209,95 @@ function Reports() {
     <div className="grid h-[calc(100vh-3.5rem)] grid-cols-1 lg:grid-cols-[360px_1fr]">
       <aside className="overflow-y-auto border-r border-border">
         <div className="border-b border-border p-4">
-          <h1 className="text-lg font-semibold tracking-tight">Relatórios IA</h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">{data.reports.length} relatórios gerados</p>
+          <h1 className="text-lg font-semibold tracking-tight">
+            Relatórios IA
+          </h1>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {filteredReports.length} de {data.reports.length} após filtros
+          </p>
+        </div>
+        <div className="border-b border-border px-3 pb-3 pt-1">
+          <div className="flex flex-col gap-2 text-xs">
+            <select
+              value={filterClientId}
+              onChange={(e) => setFilterClientId(e.target.value)}
+              className="h-9 w-full rounded-md border border-border bg-background px-2"
+            >
+              <option value="all">Todos os clientes</option>
+              {(data.clients ?? []).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={createdFrom}
+                onChange={(e) => setCreatedFrom(e.target.value)}
+                className="h-9 min-w-0 flex-1 rounded-md border border-border bg-background px-2"
+                title="Gerado desde"
+              />
+              <input
+                type="date"
+                value={createdTo}
+                onChange={(e) => setCreatedTo(e.target.value)}
+                className="h-9 min-w-0 flex-1 rounded-md border border-border bg-background px-2"
+                title="Gerado até"
+              />
+            </div>
+          </div>
         </div>
         <div className="border-b border-border p-3">
           <details className="group">
             <summary className="cursor-pointer rounded-md bg-primary px-3 py-2 text-center text-sm font-medium text-primary-foreground hover:opacity-90">
-              <Sparkles className="mr-1.5 inline h-3.5 w-3.5" /> Gerar novo relatório
+              <Sparkles className="mr-1.5 inline h-3.5 w-3.5" /> Gerar novo
+              relatório
             </summary>
             <div className="mt-2 max-h-64 overflow-y-auto rounded-md border border-border">
-              {data.clients.map(c => (
-                <button key={c.id} onClick={() => generateFor(c.id)} disabled={generating} className="block w-full px-3 py-2 text-left text-xs hover:bg-surface disabled:opacity-50">
+              {data.clients.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => generateFor(c.id)}
+                  disabled={generating}
+                  className="block w-full px-3 py-2 text-left text-xs hover:bg-surface disabled:opacity-50"
+                >
                   {c.name}
                 </button>
               ))}
             </div>
-            {generating && <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> Gerando...</div>}
+            {generating && (
+              <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" /> Gerando...
+              </div>
+            )}
           </details>
         </div>
         {data.reports.length === 0 ? (
-          <div className="p-6"><Empty label="Nenhum relatório ainda." /></div>
+          <div className="p-6">
+            <Empty label="Nenhum relatório ainda." />
+          </div>
+        ) : filteredReports.length === 0 ? (
+          <div className="p-6">
+            <Empty label="Nenhum relatório com os filtros atuais." />
+          </div>
         ) : (
           <div className="divide-y divide-border">
-            {data.reports.map((r: any) => (
-              <button key={r.id} onClick={() => setSelected(r)} className={`block w-full px-4 py-3 text-left transition hover:bg-surface ${selected?.id === r.id ? "bg-surface-2" : ""}`}>
+            {filteredReports.map((r: any) => (
+              <button
+                key={r.id}
+                onClick={() => setSelected(r)}
+                className={`block w-full px-4 py-3 text-left transition hover:bg-surface ${selected?.id === r.id ? "bg-surface-2" : ""}`}
+              >
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-medium">{r.clients?.name}</div>
-                  <div className="text-[10px] text-muted-foreground">{timeAgo(r.created_at)}</div>
+                  <div className="text-[10px] text-muted-foreground">
+                    {timeAgo(r.created_at)}
+                  </div>
                 </div>
-                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{r.executive_summary}</p>
+                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                  {r.executive_summary}
+                </p>
               </button>
             ))}
           </div>
@@ -160,43 +319,100 @@ function Reports() {
               transition={{ duration: 0.2 }}
               className="mx-auto max-w-3xl space-y-5"
             >
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-xl font-semibold tracking-tight">{selected.clients?.name}</h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">Período: {selected.period_start} → {selected.period_end}</p>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={() => exportPDF(selected)} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface-2">
-                  <FileDown className="h-3 w-3" /> PDF
-                </button>
-                <button onClick={() => copyToClipboard(selected)} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface-2">
-                  {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
-                  {copied ? "Copiado" : "Copiar"}
-                </button>
-              </div>
-            </div>
-            <Section title="Resumo executivo" body={selected.executive_summary} />
-            <Section title="Pontos positivos" body={selected.positives} accent="emerald" />
-            <Section title="Problemas detectados" body={selected.problems} accent="amber" />
-            <Section title="Oportunidades" body={selected.opportunities} accent="primary" />
-            <Section title="Próximos passos" body={selected.next_steps} />
-            {selected.client_friendly_summary && (
-              <Section title="Versão para o cliente" body={selected.client_friendly_summary} />
-            )}
-            {selected.raw_data && (
-              <Card>
-                <div className="border-b border-border px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Dados base</div>
-                <div className="grid grid-cols-2 gap-3 p-4 text-xs sm:grid-cols-4">
-                  <Metric label="Investimento" value={brl(selected.raw_data.spend)} />
-                  <Metric label="Receita" value={brl(selected.raw_data.revenue)} />
-                  <Metric label="ROAS" value={`${num(selected.raw_data.roas, 2)}x`} />
-                  <Metric label="Conversões" value={String(selected.raw_data.conv ?? 0)} />
+              <div className="flex items-start justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold tracking-tight">
+                    {selected.clients?.name}
+                  </h2>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Período: {selected.period_start} → {selected.period_end}
+                  </p>
                 </div>
-              </Card>
-            )}
-            <Link to="/clients/$clientId" params={{ clientId: selected.client_id }} className="inline-block text-xs text-primary hover:underline">
-              Ver cliente →
-            </Link>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => exportPDF(selected)}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface-2"
+                  >
+                    <FileDown className="h-3 w-3" /> PDF
+                  </button>
+                  <button
+                    onClick={() => copyToClipboard(selected)}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface-2"
+                  >
+                    {copied ? (
+                      <Check className="h-3 w-3 text-emerald-500" />
+                    ) : (
+                      <Copy className="h-3 w-3" />
+                    )}
+                    {copied ? "Copiado" : "Copiar"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => sendWhatsAppSummary(selected)}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface-2"
+                  >
+                    <MessageSquare className="h-3 w-3" /> WhatsApp
+                  </button>
+                </div>
+              </div>
+              <Section
+                title="Resumo executivo"
+                body={selected.executive_summary}
+              />
+              <Section
+                title="Pontos positivos"
+                body={selected.positives}
+                accent="emerald"
+              />
+              <Section
+                title="Problemas detectados"
+                body={selected.problems}
+                accent="amber"
+              />
+              <Section
+                title="Oportunidades"
+                body={selected.opportunities}
+                accent="primary"
+              />
+              <Section title="Próximos passos" body={selected.next_steps} />
+              {selected.client_friendly_summary && (
+                <Section
+                  title="Versão para o cliente"
+                  body={selected.client_friendly_summary}
+                />
+              )}
+              {selected.raw_data && (
+                <Card>
+                  <div className="border-b border-border px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    Dados base
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 p-4 text-xs sm:grid-cols-4">
+                    <Metric
+                      label="Investimento"
+                      value={brl(selected.raw_data.spend)}
+                    />
+                    <Metric
+                      label="Receita"
+                      value={brl(selected.raw_data.revenue)}
+                    />
+                    <Metric
+                      label="ROAS"
+                      value={`${num(selected.raw_data.roas, 2)}x`}
+                    />
+                    <Metric
+                      label="Conversões"
+                      value={String(selected.raw_data.conv ?? 0)}
+                    />
+                  </div>
+                </Card>
+              )}
+              <Link
+                to="/clients/$clientId"
+                params={{ clientId: selected.client_id }}
+                className="inline-block text-xs text-primary hover:underline"
+              >
+                Ver cliente →
+              </Link>
             </motion.div>
           </AnimatePresence>
         )}
@@ -205,16 +421,33 @@ function Reports() {
   );
 }
 
-function Section({ title, body, accent }: { title: string; body: string | null; accent?: "emerald" | "amber" | "primary" }) {
+function Section({
+  title,
+  body,
+  accent,
+}: {
+  title: string;
+  body: string | null;
+  accent?: "emerald" | "amber" | "primary";
+}) {
   if (!body) return null;
-  const dot = accent === "emerald" ? "bg-emerald-500" : accent === "amber" ? "bg-amber-500" : accent === "primary" ? "bg-primary" : "bg-muted-foreground";
+  const dot =
+    accent === "emerald"
+      ? "bg-emerald-500"
+      : accent === "amber"
+        ? "bg-amber-500"
+        : accent === "primary"
+          ? "bg-primary"
+          : "bg-muted-foreground";
   return (
     <div className="rounded-lg border border-border bg-card p-4">
       <div className="mb-2 flex items-center gap-2">
         <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
         <h3 className="text-sm font-semibold">{title}</h3>
       </div>
-      <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/90">{body}</p>
+      <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/90">
+        {body}
+      </p>
     </div>
   );
 }
@@ -222,7 +455,9 @@ function Section({ title, body, accent }: { title: string; body: string | null; 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        {label}
+      </div>
       <div className="mt-0.5 font-medium">{value}</div>
     </div>
   );

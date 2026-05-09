@@ -26,21 +26,44 @@ function ForgotPassword() {
   }
 
   return (
-    <AuthShell title="Recuperar senha" subtitle="Enviaremos um link para seu e-mail.">
+    <AuthShell
+      title="Recuperar senha"
+      subtitle="Enviaremos um link para seu e-mail."
+    >
       {sent ? (
         <div className="space-y-3 text-sm">
-          <p>Se existe uma conta para <span className="font-medium">{email}</span>, você receberá um link em instantes.</p>
-          <Link to="/login" className="inline-block text-primary hover:underline">Voltar ao login</Link>
+          <p>
+            Se existe uma conta para{" "}
+            <span className="font-medium">{email}</span>, você receberá um link
+            em instantes.
+          </p>
+          <Link
+            to="/login"
+            className="inline-block text-primary hover:underline"
+          >
+            Voltar ao login
+          </Link>
         </div>
       ) : (
         <form onSubmit={submit} className="space-y-3">
-          <Field label="E-mail" type="email" value={email} onChange={setEmail} autoFocus />
-          <button disabled={loading} className="mt-2 inline-flex h-10 w-full items-center justify-center rounded-md bg-primary text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60 transition">
+          <Field
+            label="E-mail"
+            type="email"
+            value={email}
+            onChange={setEmail}
+            autoFocus
+          />
+          <button
+            disabled={loading}
+            className="mt-2 inline-flex h-10 w-full items-center justify-center rounded-md bg-primary text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60 transition"
+          >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Enviar link
           </button>
           <p className="text-center text-sm text-muted-foreground">
-            <Link to="/login" className="text-primary hover:underline">Voltar ao login</Link>
+            <Link to="/login" className="text-primary hover:underline">
+              Voltar ao login
+            </Link>
           </p>
         </form>
       )}

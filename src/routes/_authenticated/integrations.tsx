@@ -9,13 +9,19 @@ import { motion } from "framer-motion";
 import { Card, CardHeader, PageSkeleton } from "./dashboard";
 import { timeAgo } from "@/lib/format";
 
-export const Route = createFileRoute("/_authenticated/integrations")({ component: Integrations });
+export const Route = createFileRoute("/_authenticated/integrations")({
+  component: Integrations,
+});
 
 const PROVIDERS = [
   { key: "meta_ads", name: "Meta Ads", desc: "Facebook & Instagram Ads" },
   { key: "google_ads", name: "Google Ads", desc: "Search, Display, YouTube" },
   { key: "tiktok_ads", name: "TikTok Ads", desc: "TikTok For Business" },
-  { key: "google_analytics", name: "Google Analytics 4", desc: "GA4 conversões e receita" },
+  {
+    key: "google_analytics",
+    name: "Google Analytics 4",
+    desc: "GA4 conversões e receita",
+  },
 ];
 
 function Integrations() {
@@ -31,7 +37,11 @@ function Integrations() {
     queryFn: async () => {
       const [integ, clients] = await Promise.all([
         supabase.from("integrations").select("*").eq("agency_id", agency!.id),
-        supabase.from("clients").select("id, name").eq("agency_id", agency!.id).order("name"),
+        supabase
+          .from("clients")
+          .select("id, name")
+          .eq("agency_id", agency!.id)
+          .order("name"),
       ]);
       return { integ: integ.data ?? [], clients: clients.data ?? [] };
     },
@@ -39,27 +49,40 @@ function Integrations() {
 
   async function save(provider: string) {
     if (!apiKey.trim()) return toast.error("Informe a API key");
-    const existing = data?.integ.find(i => i.provider === provider);
+    const existing = data?.integ.find((i) => i.provider === provider);
     if (existing) {
-      const { error } = await supabase.from("integrations").update({
-        status: "connected", api_key_encrypted: apiKey, account_id: accountId || null,
-      }).eq("id", existing.id);
+      const { error } = await supabase
+        .from("integrations")
+        .update({
+          status: "connected",
+          api_key_encrypted: apiKey,
+          account_id: accountId || null,
+        })
+        .eq("id", existing.id);
       if (error) return toast.error(error.message);
     } else {
       const { error } = await supabase.from("integrations").insert({
-        agency_id: agency!.id, provider: provider as any, status: "connected",
-        api_key_encrypted: apiKey, account_id: accountId || null,
+        agency_id: agency!.id,
+        provider: provider as any,
+        status: "connected",
+        api_key_encrypted: apiKey,
+        account_id: accountId || null,
       });
       if (error) return toast.error(error.message);
     }
     toast.success("Integração conectada.");
-    setEditing(null); setApiKey(""); setAccountId("");
+    setEditing(null);
+    setApiKey("");
+    setAccountId("");
     refetch();
   }
 
   async function disconnect(id: string) {
     if (!confirm("Desconectar integração?")) return;
-    const { error } = await supabase.from("integrations").update({ status: "disconnected", api_key_encrypted: null }).eq("id", id);
+    const { error } = await supabase
+      .from("integrations")
+      .update({ status: "disconnected", api_key_encrypted: null })
+      .eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Desconectada.");
     refetch();
@@ -68,10 +91,14 @@ function Integrations() {
   async function syncAll(provider: string) {
     if (!data) return;
     setSyncing(provider);
-    let ok = 0, fail = 0;
+    let ok = 0,
+      fail = 0;
     for (const c of data.clients) {
-      const { error } = await supabase.functions.invoke("sync-platform", { body: { provider, client_id: c.id } });
-      if (error) fail++; else ok++;
+      const { error } = await supabase.functions.invoke("sync-platform", {
+        body: { provider, client_id: c.id },
+      });
+      if (error) fail++;
+      else ok++;
     }
     setSyncing(null);
     toast[fail ? "error" : "success"](`Sync: ${ok} ok, ${fail} falhas`);
@@ -80,15 +107,23 @@ function Integrations() {
   if (isLoading || !data) return <PageSkeleton />;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-5 p-6">
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25 }}
+      className="space-y-5 p-6"
+    >
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Integrações</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">Conecte suas plataformas de mídia e analytics para puxar métricas reais.</p>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          Conecte suas plataformas de mídia e analytics para puxar métricas
+          reais.
+        </p>
       </header>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        {PROVIDERS.map(p => {
-          const conn = data.integ.find(i => i.provider === p.key);
+        {PROVIDERS.map((p) => {
+          const conn = data.integ.find((i) => i.provider === p.key);
           const isConnected = conn?.status === "connected";
           const isEditing = editing === p.key;
           return (
@@ -106,41 +141,95 @@ function Integrations() {
                         <XCircle className="h-3 w-3" /> Desconectado
                       </span>
                     )}
-                    <span className="text-xs text-muted-foreground">{p.desc}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {p.desc}
+                    </span>
                   </div>
                 </div>
 
                 {isConnected && (
                   <div className="space-y-1 text-xs text-muted-foreground">
-                    {conn?.account_id && <div>Conta: <span className="font-mono">{conn.account_id}</span></div>}
-                    <div>Última sync: {conn?.last_sync_at ? timeAgo(conn.last_sync_at) : "—"}</div>
+                    {conn?.account_id && (
+                      <div>
+                        Conta:{" "}
+                        <span className="font-mono">{conn.account_id}</span>
+                      </div>
+                    )}
+                    <div>
+                      Última sync:{" "}
+                      {conn?.last_sync_at ? timeAgo(conn.last_sync_at) : "—"}
+                    </div>
                   </div>
                 )}
 
                 {isEditing && (
                   <div className="space-y-2 rounded-md border border-border bg-surface p-3">
-                    <input value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="API key / token" className="h-8 w-full rounded-md border border-border bg-background px-2 font-mono text-xs" />
-                    <input value={accountId} onChange={e => setAccountId(e.target.value)} placeholder="Account ID (opcional)" className="h-8 w-full rounded-md border border-border bg-background px-2 font-mono text-xs" />
+                    <input
+                      value={apiKey}
+                      onChange={(e) => setApiKey(e.target.value)}
+                      placeholder="API key / token"
+                      className="h-8 w-full rounded-md border border-border bg-background px-2 font-mono text-xs"
+                    />
+                    <input
+                      value={accountId}
+                      onChange={(e) => setAccountId(e.target.value)}
+                      placeholder="Account ID (opcional)"
+                      className="h-8 w-full rounded-md border border-border bg-background px-2 font-mono text-xs"
+                    />
                     <div className="flex gap-2">
-                      <button onClick={() => save(p.key)} className="rounded bg-primary px-3 py-1 text-xs font-medium text-primary-foreground">Salvar</button>
-                      <button onClick={() => { setEditing(null); setApiKey(""); }} className="rounded border border-border px-3 py-1 text-xs">Cancelar</button>
+                      <button
+                        onClick={() => save(p.key)}
+                        className="rounded bg-primary px-3 py-1 text-xs font-medium text-primary-foreground"
+                      >
+                        Salvar
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditing(null);
+                          setApiKey("");
+                        }}
+                        className="rounded border border-border px-3 py-1 text-xs"
+                      >
+                        Cancelar
+                      </button>
                     </div>
                   </div>
                 )}
 
                 <div className="flex flex-wrap gap-2">
                   {!isEditing && (
-                    <button onClick={() => { setEditing(p.key); setApiKey(""); setAccountId(conn?.account_id ?? ""); }} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface-2">
-                      <Plug className="h-3 w-3" /> {isConnected ? "Reconectar" : "Conectar"}
+                    <button
+                      onClick={() => {
+                        setEditing(p.key);
+                        setApiKey("");
+                        setAccountId(conn?.account_id ?? "");
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface-2"
+                    >
+                      <Plug className="h-3 w-3" />{" "}
+                      {isConnected ? "Reconectar" : "Conectar"}
                     </button>
                   )}
                   {isConnected && (
                     <>
-                      <button disabled={syncing === p.key} onClick={() => syncAll(p.key)} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60">
-                        {syncing === p.key ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                      <button
+                        disabled={syncing === p.key}
+                        onClick={() => syncAll(p.key)}
+                        className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
+                      >
+                        {syncing === p.key ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <RefreshCw className="h-3 w-3" />
+                        )}
                         Sincronizar todos clientes
                       </button>
-                      <button onClick={() => disconnect(conn!.id)} className="rounded-md px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10">Desconectar</button>
+                      <button
+                        onClick={() => disconnect(conn!.id)}
+                        className="rounded-md px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10"
+                      >
+                        Desconectar
+                      </button>
                     </>
                   )}
                 </div>
@@ -153,9 +242,28 @@ function Integrations() {
       <Card>
         <CardHeader title="Como funciona" />
         <div className="space-y-2 p-4 text-xs text-muted-foreground">
-          <p>• Cole a API key/token gerado no painel de cada plataforma.</p>
-          <p>• Clique em "Sincronizar" para puxar métricas dos últimos 7 dias para todos os clientes.</p>
-          <p>• Por enquanto, a sync usa dados simulados baseados no orçamento mensal de cada cliente. OAuth real para Meta/Google/TikTok/GA4 exige apps aprovados em cada plataforma — disponível como upgrade.</p>
+          <p>
+            • <strong>Meta Ads:</strong> token + <strong>Account ID</strong>.
+            Sync via Marketing API: insights por <strong>campanha</strong>{" "}
+            (fallback nível conta) — últimos 7 dias — atualiza também a tabela{" "}
+            <code className="rounded bg-surface px-1">campaigns</code>.
+          </p>
+          <p>
+            • <strong>Google Analytics 4:</strong>{" "}
+            <strong>access token OAuth</strong> com escopo de leitura (ex.{" "}
+            <code className="text-[10px]">analytics.readonly</code>) no campo
+            API key + <strong>Property ID</strong> no campo Account (número ou{" "}
+            <code className="text-[10px]">properties/123</code>).
+          </p>
+          <p>
+            • <strong>Google Ads / TikTok:</strong> credenciais na UI são
+            guardadas; métricas diárias permanecem <strong>simuladas</strong>{" "}
+            até integração própria.
+          </p>
+          <p>
+            • Use &quot;Sincronizar todos clientes&quot; após conectar cada
+            provedor.
+          </p>
         </div>
       </Card>
     </motion.div>

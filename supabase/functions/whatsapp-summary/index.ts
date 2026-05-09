@@ -2,18 +2,26 @@
 // Iterates all clients across all agencies, builds a summary using recent
 // metrics + the agency's matching template, and dispatches via Evolution API.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { assertCronOrUser } from "../_shared/cron-auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 function fmtBRL(n: number) {
-  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+  return n.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 0,
+  });
 }
 
 function render(template: string, vars: Record<string, string | number>) {
-  return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) => String(vars[k] ?? ""));
+  return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) =>
+    String(vars[k] ?? ""),
+  );
 }
 
 async function sendEvolution(recipient: string, message: string) {
@@ -26,17 +34,24 @@ async function sendEvolution(recipient: string, message: string) {
       headers: { "Content-Type": "application/json", apikey: key },
       body: JSON.stringify({ number: recipient, text: message }),
     });
-    return r.ok ? { status: "sent" as const, error: null } : { status: "failed" as const, error: `HTTP ${r.status}` };
+    return r.ok
+      ? { status: "sent" as const, error: null }
+      : { status: "failed" as const, error: `HTTP ${r.status}` };
   } catch (e) {
     return { status: "failed" as const, error: (e as Error).message };
   }
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS")
+    return new Response(null, { headers: corsHeaders });
+  const denied = await assertCronOrUser(req);
+  if (denied) return denied;
   try {
     const url = new URL(req.url);
-    const period = (url.searchParams.get("period") ?? "daily") as "daily" | "weekly";
+    const period = (url.searchParams.get("period") ?? "daily") as
+      | "daily"
+      | "weekly";
     const days = period === "weekly" ? 7 : 1;
 
     const supabase = createClient(
@@ -44,7 +59,9 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+    const since = new Date(Date.now() - days * 86400000)
+      .toISOString()
+      .slice(0, 10);
 
     const { data: clients } = await supabase
       .from("clients")
@@ -52,20 +69,35 @@ Deno.serve(async (req) => {
       .eq("status", "active")
       .not("contact_phone", "is", null);
 
-    let sent = 0, skipped = 0, failed = 0;
+    let sent = 0,
+      skipped = 0,
+      failed = 0;
 
     for (const c of clients ?? []) {
-      if (!c.contact_phone) { skipped++; continue; }
+      if (!c.contact_phone) {
+        skipped++;
+        continue;
+      }
 
       const { data: metrics } = await supabase
         .from("metrics_daily")
         .select("spend, revenue, conversions, roas")
         .eq("client_id", c.id)
+        .is("campaign_id", null)
         .gte("date", since);
 
-      const spend = (metrics ?? []).reduce((a, m) => a + Number(m.spend ?? 0), 0);
-      const revenue = (metrics ?? []).reduce((a, m) => a + Number(m.revenue ?? 0), 0);
-      const conv = (metrics ?? []).reduce((a, m) => a + Number(m.conversions ?? 0), 0);
+      const spend = (metrics ?? []).reduce(
+        (a, m) => a + Number(m.spend ?? 0),
+        0,
+      );
+      const revenue = (metrics ?? []).reduce(
+        (a, m) => a + Number(m.revenue ?? 0),
+        0,
+      );
+      const conv = (metrics ?? []).reduce(
+        (a, m) => a + Number(m.conversions ?? 0),
+        0,
+      );
       const roas = spend > 0 ? (revenue / spend).toFixed(2) : "0";
 
       const { data: tpl } = await supabase
@@ -76,12 +108,17 @@ Deno.serve(async (req) => {
         .limit(1)
         .maybeSingle();
 
-      const fallback = period === "weekly"
-        ? `Boa noite {{cliente}}! Resumo da semana: ROAS médio {{roas}}x, investimento {{spend}}, {{conv}} conversões.`
-        : `Olá {{cliente}}! Resumo de hoje: ROAS {{roas}}x, investimento {{spend}}, {{conv}} conversões.`;
+      const fallback =
+        period === "weekly"
+          ? `Boa noite {{cliente}}! Resumo da semana: ROAS médio {{roas}}x, investimento {{spend}}, {{conv}} conversões.`
+          : `Olá {{cliente}}! Resumo de hoje: ROAS {{roas}}x, investimento {{spend}}, {{conv}} conversões.`;
 
       const message = render(tpl?.body ?? fallback, {
-        cliente: c.name, roas, spend: fmtBRL(spend), revenue: fmtBRL(revenue), conv,
+        cliente: c.name,
+        roas,
+        spend: fmtBRL(spend),
+        revenue: fmtBRL(revenue),
+        conv,
       });
 
       const result = await sendEvolution(c.contact_phone, message);
@@ -95,15 +132,27 @@ Deno.serve(async (req) => {
         error: result.error,
         sent_at: result.status === "sent" ? new Date().toISOString() : null,
       });
-      if (result.status === "sent") sent++; else failed++;
+      if (result.status === "sent") sent++;
+      else failed++;
     }
 
-    return new Response(JSON.stringify({ ok: true, period, sent, failed, skipped, total: clients?.length ?? 0 }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        period,
+        sent,
+        failed,
+        skipped,
+        total: clients?.length ?? 0,
+      }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (e) {
     return new Response(JSON.stringify({ error: (e as Error).message }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
