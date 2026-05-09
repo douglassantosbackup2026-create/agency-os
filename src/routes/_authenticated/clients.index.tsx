@@ -32,6 +32,8 @@ import { ACTION_CENTER_OPEN_STATUSES } from "@/lib/action-center-status";
 import { rowsToCsv } from "@/lib/csv";
 import { PageHeader } from "@/components/page-header";
 import { ClientCockpitRow } from "@/components/client-cockpit-row";
+import { QueryErrorState } from "@/components/query-error-state";
+import { throwIfSupabaseError } from "@/lib/supabase-result";
 
 type HealthScoreRow = Database["public"]["Tables"]["health_scores"]["Row"];
 
@@ -57,25 +59,37 @@ function Clients() {
     setCreating(!!search.new);
   }, [search.new]);
 
-  const { data, isLoading, refetch } = useQuery({
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery({
     queryKey: ["clients", agency?.id],
     enabled: !!agency,
     queryFn: async () => {
-      const { data: myRoles } = await supabase
+      const myRolesRes = await supabase
         .from("user_roles")
         .select("role")
         .eq("agency_id", agency!.id)
         .eq("user_id", user!.id);
-      const canSeeAll = (myRoles ?? []).some(
+      throwIfSupabaseError(myRolesRes.error, "clients_page.user_roles");
+      const myRoles = myRolesRes.data ?? [];
+      const canSeeAll = myRoles.some(
         (r) => r.role === "owner" || r.role === "admin",
       );
-      const { data: scopedRows } = canSeeAll
-        ? { data: [] as { client_id: string }[] }
-        : await supabase
-            .from("client_member_scopes")
-            .select("client_id")
-            .eq("agency_id", agency!.id)
-            .eq("user_id", user!.id);
+
+      let scopedRows: { client_id: string }[] = [];
+      if (!canSeeAll) {
+        const scopedRes = await supabase
+          .from("client_member_scopes")
+          .select("client_id")
+          .eq("agency_id", agency!.id)
+          .eq("user_id", user!.id);
+        throwIfSupabaseError(scopedRes.error, "clients_page.scopes");
+        scopedRows = (scopedRes.data ?? []) as { client_id: string }[];
+      }
 
       let clientQuery = supabase
         .from("clients")
@@ -83,7 +97,7 @@ function Clients() {
         .eq("agency_id", agency!.id)
         .order("created_at", { ascending: false });
       if (!canSeeAll) {
-        const ids = (scopedRows ?? []).map((x) => x.client_id);
+        const ids = scopedRows.map((x) => x.client_id);
         clientQuery = ids.length
           ? clientQuery.in("id", ids)
           : clientQuery.limit(0);
@@ -130,6 +144,13 @@ function Clients() {
           .order("created_at", { ascending: false })
           .limit(800),
       ]);
+      throwIfSupabaseError(clients.error, "clients_page.clients");
+      throwIfSupabaseError(health.error, "clients_page.health_scores");
+      throwIfSupabaseError(openAlerts.error, "clients_page.alerts");
+      throwIfSupabaseError(auditsSnap.error, "clients_page.audits");
+      throwIfSupabaseError(openActionsSnap.error, "clients_page.action_center");
+      throwIfSupabaseError(syncRunsSnap.error, "clients_page.sync_runs");
+
       const latest = new Map<string, HealthScoreRow>();
       for (const h of health.data ?? []) {
         if (!latest.has(h.client_id)) latest.set(h.client_id, h);
@@ -194,6 +215,32 @@ function Clients() {
       };
     },
   });
+
+  if (limits.isError) {
+    return (
+      <QueryErrorState
+        title="Não foi possível carregar limites do plano"
+        message={
+          limits.error instanceof Error
+            ? limits.error.message
+            : String(limits.error ?? "Erro")
+        }
+        onRetry={() => void limits.refetch()}
+      />
+    );
+  }
+
+  if (isError) {
+    return (
+      <QueryErrorState
+        title="Não foi possível carregar os clientes"
+        message={
+          error instanceof Error ? error.message : String(error ?? "Erro")
+        }
+        onRetry={() => void refetch()}
+      />
+    );
+  }
 
   if (isLoading || !data) return <PageSkeleton />;
   const filtered = data.clients.filter(

@@ -77,6 +77,10 @@ Para métricas **Google Ads** via `sync-platform`, mantém-se **`GOOGLE_ADS_DEVE
 
 Depois de alterar secrets ou políticas sensíveis, execute uma passagem pelos **Supabase Advisors** (Dashboard ou MCP) para rever performance e segurança.
 
+**Antes do primeiro utilizador real:** checklist operacional em [`docs/prelaunch-operator-checklist.md`](docs/prelaunch-operator-checklist.md) e auditoria RLS em [`docs/security-rls-checklist.md`](docs/security-rls-checklist.md).
+
+**Pagamentos (futuro):** desenho técnico Mercado Pago em [`docs/MERCADO_PAGO_INTEGRATION.md`](docs/MERCADO_PAGO_INTEGRATION.md).
+
 ### Crons (`pg_cron` + `pg_net`)
 
 A migration `20260508160000_unschedule_hardcoded_cron_jobs.sql` remove jobs que continham URL/chave fixas do repositório. Há um modelo com placeholders em [`supabase/cron-jobs.example.sql`](supabase/cron-jobs.example.sql) e, para o projeto Trafego já com ref na URL, [`supabase/cron-jobs.deploy-trafego.sql`](supabase/cron-jobs.deploy-trafego.sql) (substituir `__CRON_SECRET_HERE__` e colar no **SQL Editor** do Supabase).

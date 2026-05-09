@@ -2,6 +2,8 @@
 
 Use em **staging** antes de promover migrações ou alterações de políticas.
 
+**Secrets e operação pré-lançamento:** ver também [`prelaunch-operator-checklist.md`](prelaunch-operator-checklist.md) (`CRON_SECRET`, `PORTAL_ALLOWED_ORIGINS`, smoke manual).
+
 ## 1. Migração crítica aplicada
 
 Confirme que a migração `20260517140000_fix_rls_critical_policies.sql` foi aplicada (`npx supabase db push` ou histórico no Dashboard).

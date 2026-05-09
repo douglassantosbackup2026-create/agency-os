@@ -5,6 +5,7 @@ import {
   mergeSubscription,
   type SubscriptionLimits,
 } from "@/lib/subscription-limits";
+import { throwIfSupabaseError } from "@/lib/supabase-result";
 
 export function useSubscriptionLimits() {
   const { agency } = useAuth();
@@ -29,6 +30,10 @@ export function useSubscriptionLimits() {
           .eq("agency_id", agency!.id)
           .eq("status", "open"),
       ]);
+
+      throwIfSupabaseError(sub.error, "subscription-limits.subscriptions");
+      throwIfSupabaseError(clientsCt.error, "subscription-limits.clients_count");
+      throwIfSupabaseError(alertsCt.error, "subscription-limits.alerts_count");
 
       const subscription = mergeSubscription(
         sub.data as SubscriptionLimits | null,

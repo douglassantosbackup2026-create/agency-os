@@ -14,6 +14,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ONBOARDING_CHECKLIST_STEPS } from "@/lib/onboarding-checklist";
+import { throwIfSupabaseError } from "@/lib/supabase-result";
+import { QueryErrorState } from "@/components/query-error-state";
 
 export const Route = createFileRoute("/_authenticated/onboarding")({
   component: Onboarding,
@@ -33,7 +35,12 @@ function Onboarding() {
   const [quickBudget, setQuickBudget] = useState("");
   const [quickMrr, setQuickMrr] = useState("");
 
-  const { data: checklistData, refetch: refetchChecklist } = useQuery({
+  const {
+    data: checklistData,
+    isError: checklistError,
+    error: checklistErr,
+    refetch: refetchChecklist,
+  } = useQuery({
     queryKey: ["onboarding-checklist", agency?.id],
     enabled: !!agency,
     queryFn: async () => {
@@ -48,6 +55,8 @@ function Onboarding() {
           .select("id, client_id, step_key, status")
           .eq("agency_id", agency!.id),
       ]);
+      throwIfSupabaseError(clientsRes.error, "onboarding.clients");
+      throwIfSupabaseError(itemsRes.error, "onboarding.checklist_items");
       const clients = (clientsRes.data ?? []) as Array<{
         id: string;
         name: string;
@@ -183,6 +192,22 @@ function Onboarding() {
         refetchChecklist();
       }
     }
+  }
+
+  if (checklistError) {
+    return (
+      <div className="p-6">
+        <QueryErrorState
+          title="Não foi possível carregar o checklist"
+          message={
+            checklistErr instanceof Error
+              ? checklistErr.message
+              : String(checklistErr ?? "Erro")
+          }
+          onRetry={() => void refetchChecklist()}
+        />
+      </div>
+    );
   }
 
   return (
