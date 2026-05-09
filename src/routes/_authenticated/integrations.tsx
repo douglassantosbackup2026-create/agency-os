@@ -46,7 +46,7 @@ function Integrations() {
       if (error) return toast.error(error.message);
     } else {
       const { error } = await supabase.from("integrations").insert({
-        agency_id: agency!.id, provider, status: "connected",
+        agency_id: agency!.id, provider: provider as any, status: "connected",
         api_key_encrypted: apiKey, account_id: accountId || null,
       });
       if (error) return toast.error(error.message);
