@@ -13,8 +13,10 @@ Crie `.env` na raiz (ou configure no host de deploy):
 
 | Variável                        | Descrição                                  |
 | ------------------------------- | ------------------------------------------ |
-| `VITE_SUPABASE_URL`             | URL do projeto (`https://xxx.supabase.co`) |
+| `VITE_SUPABASE_URL`             | URL do projeto (ex.: `https://uvuotaxikuxejfeitlaw.supabase.co` para o ambiente Trafego) |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Chave publicável (anon / publishable)      |
+
+Modelo: copie [`.env.example`](.env.example) para `.env` e preencha as chaves (o ficheiro `.env` não deve ser commitado).
 
 ## Comandos
 

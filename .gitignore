@@ -33,3 +33,8 @@ dist-ssr
 
 # Supabase CLI (link / local state)
 supabase/.temp/
+
+# Ambiente (nunca commitar segredos)
+.env
+.env.local
+.env.*.local
