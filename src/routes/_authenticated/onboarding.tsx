@@ -12,7 +12,7 @@ import {
 import { useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_authenticated/onboarding")({
   component: Onboarding,
@@ -20,6 +20,7 @@ export const Route = createFileRoute("/_authenticated/onboarding")({
 
 function Onboarding() {
   const { agency } = useAuth();
+  const queryClient = useQueryClient();
   const slugHint = agency?.slug
     ? `/p/${agency.slug}`
     : "/p/seu-slug-do-cliente";
@@ -105,6 +106,9 @@ function Onboarding() {
       return;
     }
     refetchChecklist();
+    void queryClient.invalidateQueries({
+      queryKey: ["layout-nav-meta", agency?.id],
+    });
   }
 
   async function sendInvite(e: FormEvent<HTMLFormElement>) {

@@ -28,6 +28,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { SlidersHorizontal } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/alerts")({
   component: Alerts,
@@ -44,6 +51,7 @@ function Alerts() {
   const [clientFilter, setClientFilter] = useState<string>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [groupBy, setGroupBy] = useState<"none" | "client">("none");
+  const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
   const [desktopNotifications, setDesktopNotifications] = useState<boolean>(
     () => {
       try {
@@ -241,7 +249,7 @@ function Alerts() {
               waMuteUntil.get(String(a.client_id)) &&
               new Date(waMuteUntil.get(String(a.client_id))!).getTime() >
                 Date.now() && (
-                <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                <span className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground">
                   WhatsApp silenciado até{" "}
                   {new Date(
                     waMuteUntil.get(String(a.client_id))!,
@@ -442,7 +450,99 @@ function Alerts() {
         </Button>
       </header>
 
-      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+      <div className="flex md:hidden">
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 w-full gap-2"
+          onClick={() => setFiltersSheetOpen(true)}
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          Busca e filtros
+        </Button>
+      </div>
+
+      <Sheet open={filtersSheetOpen} onOpenChange={setFiltersSheetOpen}>
+        <SheetContent
+          side="bottom"
+          className="flex max-h-[90vh] flex-col gap-0 p-0"
+        >
+          <SheetHeader className="border-b border-border px-4 py-4 text-left">
+            <SheetTitle>Busca e filtros</SheetTitle>
+          </SheetHeader>
+          <div className="flex flex-col gap-3 overflow-y-auto px-4 py-4">
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar título, cliente ou descrição..."
+              className="h-11 min-h-[44px]"
+            />
+            <Select value={priority} onValueChange={setPriority}>
+              <SelectTrigger className="h-11 w-full">
+                <SelectValue placeholder="Prioridade" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas prioridades</SelectItem>
+                <SelectItem value="critical">Crítico</SelectItem>
+                <SelectItem value="high">Alto</SelectItem>
+                <SelectItem value="medium">Médio</SelectItem>
+                <SelectItem value="low">Baixo</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={clientFilter} onValueChange={setClientFilter}>
+              <SelectTrigger className="h-11 w-full">
+                <SelectValue placeholder="Cliente" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos clientes</SelectItem>
+                {(clientOptions ?? []).map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+              <SelectTrigger className="h-11 w-full">
+                <SelectValue placeholder="Responsável" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos responsáveis</SelectItem>
+                <SelectItem value="unassigned">Sem responsável</SelectItem>
+                {user?.id && (
+                  <SelectItem value="me">Atribuídos a mim</SelectItem>
+                )}
+                {(teammates ?? []).map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.display_name || t.email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={groupBy}
+              onValueChange={(v) => setGroupBy(v as "none" | "client")}
+            >
+              <SelectTrigger className="h-11 w-full">
+                <SelectValue placeholder="Visualização" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Lista única</SelectItem>
+                <SelectItem value="client">Agrupar por cliente</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              className="h-11 w-full"
+              onClick={() => setFiltersSheetOpen(false)}
+            >
+              Fechar
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <div className="hidden md:flex md:flex-row md:flex-wrap md:items-center md:gap-2">
         <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -505,7 +605,26 @@ function Alerts() {
 
       <Card>
         {filtered.length === 0 ? (
-          <Empty label="Sem alertas para os filtros atuais." />
+          <Empty
+            label="Sem alertas para os filtros atuais."
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSearch("");
+                  setPriority("all");
+                  setClientFilter("all");
+                  setAssigneeFilter("all");
+                  setGroupBy("none");
+                  setFilter("open");
+                }}
+              >
+                Repor filtros
+              </Button>
+            }
+          />
         ) : groupBy === "none" ? (
           <div className="divide-y divide-border">
             {filtered.map((a) => alertRow(a))}

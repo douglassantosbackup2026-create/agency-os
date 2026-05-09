@@ -15,6 +15,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { SlidersHorizontal } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 
 type ActionCenterRow = Database["public"]["Tables"]["action_center"]["Row"] & {
@@ -132,6 +139,7 @@ function ActionsCenter() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkAssignee, setBulkAssignee] = useState<string>("__none__");
   const [bulkStatus, setBulkStatus] = useState<string>("pendente");
+  const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -350,7 +358,143 @@ function ActionsCenter() {
         </Link>
       </header>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex md:hidden">
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 w-full gap-2"
+          onClick={() => setFiltersSheetOpen(true)}
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          Filtros da lista
+        </Button>
+      </div>
+
+      <Sheet open={filtersSheetOpen} onOpenChange={setFiltersSheetOpen}>
+        <SheetContent
+          side="bottom"
+          className="flex max-h-[90vh] flex-col gap-0 p-0"
+        >
+          <SheetHeader className="border-b border-border px-4 py-4 text-left">
+            <SheetTitle>Filtros</SheetTitle>
+          </SheetHeader>
+          <div className="flex flex-col gap-3 overflow-y-auto px-4 py-4">
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger className="h-11 w-full">
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos estados</SelectItem>
+                <SelectItem value="pendente">Pendente</SelectItem>
+                <SelectItem value="revisar_depois">Revisar depois</SelectItem>
+                <SelectItem value="adiado">Adiado</SelectItem>
+                <SelectItem value="feito">Feito</SelectItem>
+                <SelectItem value="ignorado">Ignorado</SelectItem>
+                <SelectItem value="enviado_cliente">
+                  Enviado ao cliente
+                </SelectItem>
+                <SelectItem value="anotacao">Anotação</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={sourceType} onValueChange={setSourceType}>
+              <SelectTrigger className="h-11 w-full">
+                <SelectValue placeholder="Origem" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas origens</SelectItem>
+                <SelectItem value="alerta_ia">Alerta IA</SelectItem>
+                <SelectItem value="relatorio_ia">Relatório IA</SelectItem>
+                <SelectItem value="manual">Manual</SelectItem>
+                <SelectItem value="whatsapp">WhatsApp</SelectItem>
+                <SelectItem value="briefing">Briefing</SelectItem>
+                <SelectItem value="auditoria_campanhas_ia">
+                  Auditoria campanhas IA
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={priority} onValueChange={setPriority}>
+              <SelectTrigger className="h-11 w-full">
+                <SelectValue placeholder="Prioridade" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas prioridades</SelectItem>
+                <SelectItem value="critica">Crítica</SelectItem>
+                <SelectItem value="alta">Alta</SelectItem>
+                <SelectItem value="media">Média</SelectItem>
+                <SelectItem value="baixa">Baixa</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={clientFilter} onValueChange={setClientFilter}>
+              <SelectTrigger className="h-11 w-full">
+                <SelectValue placeholder="Cliente" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos clientes</SelectItem>
+                {data.clients.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select
+              value={slaFilter}
+              onValueChange={(v) => setSlaFilter(v as typeof slaFilter)}
+            >
+              <SelectTrigger className="h-11 w-full">
+                <SelectValue placeholder="Prazo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos prazos</SelectItem>
+                <SelectItem value="overdue">Só atrasadas (SLA)</SelectItem>
+                <SelectItem value="soon_3">Vence em até 3 dias</SelectItem>
+                <SelectItem value="soon_7">Vence em até 7 dias</SelectItem>
+                <SelectItem value="range">Intervalo de due date</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select
+              value={sortDue}
+              onValueChange={(v) => setSortDue(v as typeof sortDue)}
+            >
+              <SelectTrigger className="h-11 w-full">
+                <SelectValue placeholder="Ordenar" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Ordenação: recentes</SelectItem>
+                <SelectItem value="due_asc">Prazo crescente</SelectItem>
+                <SelectItem value="due_desc">Prazo decrescente</SelectItem>
+              </SelectContent>
+            </Select>
+            {slaFilter === "range" && (
+              <div className="flex flex-col gap-2 text-sm">
+                <span className="text-muted-foreground">Due date entre</span>
+                <input
+                  type="date"
+                  value={dueFrom}
+                  onChange={(e) => setDueFrom(e.target.value)}
+                  className="h-11 rounded-md border border-border bg-background px-3 text-sm"
+                />
+                <span className="text-muted-foreground">e</span>
+                <input
+                  type="date"
+                  value={dueTo}
+                  onChange={(e) => setDueTo(e.target.value)}
+                  className="h-11 rounded-md border border-border bg-background px-3 text-sm"
+                />
+              </div>
+            )}
+            <Button
+              type="button"
+              className="h-11 w-full"
+              onClick={() => setFiltersSheetOpen(false)}
+            >
+              Aplicar e fechar
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <div className="hidden flex-wrap gap-2 md:flex">
         <Select value={status} onValueChange={setStatus}>
           <SelectTrigger className="h-9 w-[min(100%,220px)] shrink-0">
             <SelectValue placeholder="Estado" />
@@ -516,7 +660,28 @@ function ActionsCenter() {
 
       <Card>
         {filtered.length === 0 ? (
-          <Empty label="Nenhuma ação para os filtros." />
+          <Empty
+            label="Nenhuma ação para os filtros."
+            action={
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setStatus("all");
+                  setSourceType("all");
+                  setPriority("all");
+                  setClientFilter("all");
+                  setSlaFilter("all");
+                  setSortDue("none");
+                  setDueFrom("");
+                  setDueTo("");
+                }}
+              >
+                Limpar filtros
+              </Button>
+            }
+          />
         ) : (
           <div className="divide-y divide-border">
             <div className="flex items-center gap-3 px-4 py-2 text-xs text-muted-foreground">

@@ -6,11 +6,14 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import type { LucideIcon } from "lucide-react";
 import {
   Activity,
   Bell,
+  ChevronDown,
   Command,
   LayoutDashboard,
   ListTodo,
@@ -37,6 +40,11 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
@@ -46,19 +54,49 @@ export const Route = createFileRoute("/_authenticated")({
   component: AuthenticatedLayout,
 });
 
-const NAV = [
-  { to: "/onboarding", label: "Começar", icon: Rocket },
-  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/clients", label: "Clientes", icon: Users },
-  { to: "/actions", label: "Central de Ações", icon: ListTodo },
-  { to: "/alerts", label: "Alertas", icon: Bell },
-  { to: "/ai-review", label: "Revisão IA", icon: ScanSearch },
-  { to: "/health", label: "Health Score", icon: ShieldCheck },
-  { to: "/reports", label: "Relatórios IA", icon: Sparkles },
-  { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },
-  { to: "/integrations", label: "Integrações", icon: Plug },
-  { to: "/activity", label: "Atividade", icon: Activity },
+/** Mantém-se alinhado a onboarding.tsx — cliente só sai da vista quando todas as etapas estão feitas. */
+const ONBOARDING_STEP_KEYS = [
+  "platform_access",
+  "budget_goal",
+  "portal_sent",
+  "first_report",
+  "diagnostic_run",
 ] as const;
+
+type NavItemDef = { to: string; label: string; icon: LucideIcon };
+
+const NAV_GROUPS: { id: string; label: string; items: NavItemDef[] }[] = [
+  {
+    id: "operation",
+    label: "Operação",
+    items: [
+      { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { to: "/clients", label: "Clientes", icon: Users },
+      { to: "/actions", label: "Central de Ações", icon: ListTodo },
+      { to: "/alerts", label: "Alertas", icon: Bell },
+      { to: "/activity", label: "Atividade", icon: Activity },
+    ],
+  },
+  {
+    id: "intel",
+    label: "Inteligência",
+    items: [
+      { to: "/ai-review", label: "Revisão IA", icon: ScanSearch },
+      { to: "/health", label: "Health Score", icon: ShieldCheck },
+      { to: "/reports", label: "Relatórios IA", icon: Sparkles },
+    ],
+  },
+  {
+    id: "comms",
+    label: "Comunicação",
+    items: [{ to: "/whatsapp", label: "WhatsApp", icon: MessageSquare }],
+  },
+  {
+    id: "data",
+    label: "Dados",
+    items: [{ to: "/integrations", label: "Integrações", icon: Plug }],
+  },
+];
 
 const SECONDARY = [
   { to: "/admin", label: "Administração", icon: Shield },
@@ -83,9 +121,7 @@ function AgencyBrandMark({
   size?: "sm" | "md";
 }) {
   const cls =
-    size === "sm"
-      ? "h-7 w-7 rounded-md text-[11px]"
-      : "h-8 w-8 rounded-md text-xs";
+    size === "sm" ? "h-7 w-7 rounded-md text-xs" : "h-8 w-8 rounded-md text-xs";
   if (logoUrl) {
     return <img src={logoUrl} alt="" className={`${cls} object-cover`} />;
   }
@@ -102,10 +138,14 @@ function NavLinks({
   path,
   onNavigate,
   variant = "sidebar",
+  showOnboardingLink,
+  openAlertsCount,
 }: {
   path: string;
   onNavigate?: () => void;
   variant?: "sidebar" | "sheet";
+  showOnboardingLink: boolean;
+  openAlertsCount: number;
 }) {
   const base =
     variant === "sidebar"
@@ -117,27 +157,67 @@ function NavLinks({
           active: "bg-accent text-accent-foreground",
           idle: "text-foreground hover:bg-accent/80 bg-transparent",
         };
+  const groupBorder =
+    variant === "sidebar" ? "border-sidebar-border" : "border-border";
+  const groupTriggerCls =
+    variant === "sidebar"
+      ? "text-sidebar-foreground/70 hover:bg-sidebar-accent/40"
+      : "text-muted-foreground hover:bg-accent/60";
   return (
     <>
-      <nav className="flex-1 space-y-0.5 px-2">
-        {NAV.map((item) => {
-          const active = path.startsWith(item.to);
-          return (
-            <Link
-              key={item.to}
-              to={item.to}
-              onClick={() => onNavigate?.()}
-              className={`flex items-center gap-2.5 rounded-md px-2.5 py-2.5 text-sm transition md:py-2 ${active ? base.active : base.idle}`}
+      <nav className="flex-1 space-y-2 overflow-y-auto px-2 pb-2">
+        {showOnboardingLink && (
+          <Link
+            to="/onboarding"
+            onClick={() => onNavigate?.()}
+            className={`flex min-h-11 items-center gap-2.5 rounded-md px-2.5 py-2.5 text-sm font-medium transition md:py-2 ${path.startsWith("/onboarding") ? base.active : base.idle}`}
+          >
+            <Rocket className="h-4 w-4 shrink-0" />
+            <span>Começar</span>
+          </Link>
+        )}
+        {NAV_GROUPS.map((group) => (
+          <Collapsible key={group.id} defaultOpen className="space-y-0.5">
+            <CollapsibleTrigger
+              className={`group flex min-h-10 w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs font-semibold uppercase tracking-wide ${groupTriggerCls}`}
             >
-              <item.icon className="h-4 w-4 shrink-0" />
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
+              {group.label}
+              <ChevronDown className="h-4 w-4 shrink-0 opacity-70 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+            </CollapsibleTrigger>
+            <CollapsibleContent className="space-y-0.5 pt-0.5">
+              {group.items.map((item) => {
+                const active =
+                  item.to === "/clients"
+                    ? path === "/clients" || path.startsWith("/clients/")
+                    : path.startsWith(item.to);
+                const badge =
+                  item.to === "/alerts" && openAlertsCount > 0
+                    ? openAlertsCount > 99
+                      ? "99+"
+                      : String(openAlertsCount)
+                    : null;
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => onNavigate?.()}
+                    className={`flex min-h-11 items-center gap-2.5 rounded-md px-2.5 py-2.5 text-sm transition md:py-2 ${active ? base.active : base.idle}`}
+                  >
+                    <item.icon className="h-4 w-4 shrink-0" />
+                    <span className="flex-1 truncate">{item.label}</span>
+                    {badge && (
+                      <span className="rounded-full bg-primary/25 px-2 py-0.5 text-xs font-semibold tabular-nums text-primary">
+                        {badge}
+                      </span>
+                    )}
+                  </Link>
+                );
+              })}
+            </CollapsibleContent>
+          </Collapsible>
+        ))}
       </nav>
-      <div
-        className={`space-y-0.5 border-t px-2 py-2 ${variant === "sidebar" ? "border-sidebar-border" : "border-border"}`}
-      >
+      <div className={`space-y-0.5 border-t px-2 py-2 ${groupBorder}`}>
         {SECONDARY.map((item) => {
           const active = path.startsWith(item.to);
           return (
@@ -145,7 +225,7 @@ function NavLinks({
               key={item.to}
               to={item.to}
               onClick={() => onNavigate?.()}
-              className={`flex items-center gap-2.5 rounded-md px-2.5 py-2.5 text-sm transition md:py-2 ${active ? base.active : base.idle}`}
+              className={`flex min-h-11 items-center gap-2.5 rounded-md px-2.5 py-2.5 text-sm transition md:py-2 ${active ? base.active : base.idle}`}
             >
               <item.icon className="h-4 w-4 shrink-0" />
               <span>{item.label}</span>
@@ -163,6 +243,50 @@ function AuthenticatedLayout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [memberRole, setMemberRole] = useState<string | null>(null);
   const path = useRouterState({ select: (s) => s.location.pathname });
+
+  const { data: navMeta } = useQuery({
+    queryKey: ["layout-nav-meta", agency?.id],
+    enabled: !!agency?.id,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const [clientsRes, itemsRes, alertsCountRes] = await Promise.all([
+        supabase.from("clients").select("id").eq("agency_id", agency!.id),
+        supabase
+          .from("onboarding_checklist_items")
+          .select("client_id, step_key, status")
+          .eq("agency_id", agency!.id),
+        supabase
+          .from("alerts")
+          .select("id", { count: "exact", head: true })
+          .eq("agency_id", agency!.id)
+          .eq("status", "open"),
+      ]);
+      const clients = (clientsRes.data ?? []) as { id: string }[];
+      const items = (itemsRes.data ?? []) as Array<{
+        client_id: string;
+        step_key: string;
+        status: string;
+      }>;
+      let showOnboardingLink = clients.length === 0;
+      if (!showOnboardingLink) {
+        outer: for (const c of clients) {
+          for (const stepKey of ONBOARDING_STEP_KEYS) {
+            const row = items.find(
+              (i) => i.client_id === c.id && i.step_key === stepKey,
+            );
+            if (!row || row.status !== "done") {
+              showOnboardingLink = true;
+              break outer;
+            }
+          }
+        }
+      }
+      return {
+        showOnboardingLink,
+        openAlertsCount: alertsCountRes.count ?? 0,
+      };
+    },
+  });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -238,19 +362,25 @@ function AuthenticatedLayout() {
           </div>
         </div>
 
-        <button
+        <Button
           type="button"
+          variant="outline"
+          className="mx-3 mb-3 h-10 w-auto justify-start gap-2 border-sidebar-border bg-background/40 text-sm font-normal text-muted-foreground hover:bg-background"
           onClick={() => setPaletteOpen(true)}
-          className="mx-3 mb-3 flex items-center gap-2 rounded-md border border-sidebar-border bg-background/40 px-3 py-2 text-left text-sm text-muted-foreground transition hover:bg-background"
         >
-          <Search className="h-3.5 w-3.5" />
-          <span className="flex-1">Buscar...</span>
-          <kbd className="hidden rounded bg-surface-2 px-1.5 py-0.5 text-[10px] sm:inline">
+          <Search className="h-4 w-4 shrink-0" />
+          <span className="flex-1 text-left">Buscar...</span>
+          <kbd className="hidden rounded bg-surface-2 px-1.5 py-1 text-xs sm:inline">
             ⌘K
           </kbd>
-        </button>
+        </Button>
 
-        <NavLinks path={path} variant="sidebar" />
+        <NavLinks
+          path={path}
+          variant="sidebar"
+          showOnboardingLink={navMeta?.showOnboardingLink ?? true}
+          openAlertsCount={navMeta?.openAlertsCount ?? 0}
+        />
 
         <div className="border-t border-sidebar-border p-3">
           <div className="flex items-center gap-2">
@@ -267,14 +397,16 @@ function AuthenticatedLayout() {
                 </div>
               )}
             </div>
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon"
+              className="h-11 w-11 shrink-0 text-muted-foreground hover:text-foreground"
               onClick={signOut}
-              className="rounded p-1.5 text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
               title="Sair"
             >
-              <LogOut className="h-3.5 w-3.5" />
-            </button>
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </aside>
@@ -306,6 +438,8 @@ function AuthenticatedLayout() {
               path={path}
               variant="sheet"
               onNavigate={() => setMobileNavOpen(false)}
+              showOnboardingLink={navMeta?.showOnboardingLink ?? true}
+              openAlertsCount={navMeta?.openAlertsCount ?? 0}
             />
           </div>
           <div className="border-t border-border p-3">
@@ -368,18 +502,23 @@ function AuthenticatedLayout() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
+              className="hidden h-9 gap-1.5 md:inline-flex"
               onClick={() => setPaletteOpen(true)}
-              className="hidden items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs text-muted-foreground transition hover:bg-surface-2 md:inline-flex"
             >
-              <Command className="h-3 w-3" /> K
-            </button>
+              <Command className="h-3.5 w-3.5" /> K
+            </Button>
             <Link
               to="/alerts"
-              className="rounded-md p-2 text-muted-foreground transition hover:bg-surface hover:text-foreground"
+              className="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground transition hover:bg-surface hover:text-foreground"
             >
               <Bell className="h-4 w-4" />
+              {(navMeta?.openAlertsCount ?? 0) > 0 && (
+                <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-primary" />
+              )}
             </Link>
           </div>
         </header>
@@ -397,6 +536,8 @@ function AuthenticatedLayout() {
 function pageTitle(path: string) {
   if (path.startsWith("/onboarding")) return "Começar";
   if (path.startsWith("/dashboard")) return "Dashboard operacional";
+  if (path.startsWith("/clients/") && path.split("/").length > 2)
+    return "Clientes › Ficha";
   if (path.startsWith("/clients")) return "Clientes";
   if (path.startsWith("/actions")) return "Central de Ações";
   if (path.startsWith("/alerts")) return "Central de alertas";

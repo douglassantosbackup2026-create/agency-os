@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
+  Link,
   createRootRouteWithContext,
   useRouter,
   HeadContent,
@@ -10,6 +11,7 @@ import {
 import appCss from "../styles.css?url";
 import { AuthProvider } from "@/hooks/use-auth";
 import { Toaster } from "@/components/ui/sonner";
+import { Button } from "@/components/ui/button";
 import { useEffect, useSyncExternalStore } from "react";
 import { getSnapshotTheme, subscribeTheme } from "@/lib/theme";
 
@@ -26,12 +28,9 @@ function NotFoundComponent() {
         <p className="mt-3 text-sm text-muted-foreground">
           O recurso que você procura não existe ou foi movido.
         </p>
-        <a
-          href="/"
-          className="mt-6 inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90 transition"
-        >
-          Voltar
-        </a>
+        <Button asChild className="mt-6 h-11">
+          <Link to="/">Voltar ao início</Link>
+        </Button>
       </div>
     </div>
   );
@@ -45,22 +44,20 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold">Algo deu errado</h1>
         <p className="mt-2 text-sm text-muted-foreground">{error.message}</p>
-        <div className="mt-6 flex justify-center gap-2">
-          <button
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          <Button
+            type="button"
+            className="h-11 px-6"
             onClick={() => {
               router.invalidate();
               reset();
             }}
-            className="h-9 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground"
           >
             Tentar novamente
-          </button>
-          <a
-            href="/"
-            className="h-9 rounded-md border border-border px-4 text-sm font-medium inline-flex items-center"
-          >
-            Início
-          </a>
+          </Button>
+          <Button variant="outline" asChild className="h-11">
+            <Link to="/">Início</Link>
+          </Button>
         </div>
       </div>
     </div>

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { brl } from "@/lib/format";
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, SlidersHorizontal } from "lucide-react";
 import {
   Card,
   CardHeader,
@@ -14,6 +14,13 @@ import {
   ScoreBar,
 } from "./dashboard";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { useSubscriptionLimits } from "@/hooks/use-subscription-limits";
 import {
   canCreateClient,
@@ -54,6 +61,7 @@ function Clients() {
   const search = Route.useSearch();
   const [creating, setCreating] = useState(!!search.new);
   const [q, setQ] = useState("");
+  const [listToolbarOpen, setListToolbarOpen] = useState(false);
   const limits = useSubscriptionLimits();
 
   useEffect(() => {
@@ -262,24 +270,37 @@ function Clients() {
 
   return (
     <div className="space-y-5 p-6">
-      <header className="flex items-center justify-between gap-3">
+      <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Clientes</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {data.clients.length} cliente(s) na operação
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="relative hidden md:block">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Buscar..."
-              className="h-9 w-56 rounded-md border border-border bg-background pl-8 pr-3 text-sm outline-none focus:border-primary/60"
+              className="h-11 w-56 rounded-md border border-border bg-background pl-9 pr-3 text-sm outline-none focus:border-primary/60"
             />
           </div>
-          <button
+          <div className="flex gap-2 md:hidden">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11 flex-1 gap-2"
+              onClick={() => setListToolbarOpen(true)}
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              Buscar
+            </Button>
+          </div>
+          <Button
+            type="button"
+            className="h-11 gap-2 md:w-auto"
             onClick={() => {
               const sub = limits.data?.subscription;
               const n = limits.data?.clientCount ?? 0;
@@ -291,12 +312,37 @@ function Clients() {
               }
               setCreating(true);
             }}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition"
           >
-            <Plus className="h-3.5 w-3.5" /> Novo cliente
-          </button>
+            <Plus className="h-4 w-4" /> Novo cliente
+          </Button>
         </div>
       </header>
+
+      <Sheet open={listToolbarOpen} onOpenChange={setListToolbarOpen}>
+        <SheetContent side="bottom" className="p-0">
+          <SheetHeader className="border-b border-border px-4 py-4 text-left">
+            <SheetTitle>Buscar clientes</SheetTitle>
+          </SheetHeader>
+          <div className="space-y-3 px-4 py-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Nome do cliente..."
+                className="h-11 w-full rounded-md border border-border bg-background pl-10 pr-3 text-sm outline-none focus:border-primary/60"
+              />
+            </div>
+            <Button
+              type="button"
+              className="h-11 w-full"
+              onClick={() => setListToolbarOpen(false)}
+            >
+              Fechar
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       <Card>
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
@@ -304,21 +350,85 @@ function Clients() {
             <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Cockpit operacional
             </div>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               Health, ações abertas, último sync e auditoria IA — útil para
               stand-up.
             </p>
           </div>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
+            className="h-11 shrink-0 md:h-9"
             onClick={downloadCockpitCsv}
-            className="shrink-0 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-surface"
           >
             Exportar CSV
-          </button>
+          </Button>
         </div>
-        <div className="overflow-x-auto">
-          <div className="grid min-w-[760px] grid-cols-12 gap-2 border-b border-border px-4 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <div className="space-y-3 border-b border-border p-4 md:hidden">
+          {filtered.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Nenhum cliente na lista.
+            </p>
+          ) : (
+            filtered.map((c) => {
+              const h = data.latest.get(c.id);
+              const openN = data.openActionsByClient.get(c.id) ?? 0;
+              const sync = data.latestSyncByClient.get(c.id);
+              const au = data.latestAuditByClient.get(c.id);
+              const syncTone =
+                sync?.status === "error"
+                  ? "text-destructive"
+                  : sync?.status === "warning"
+                    ? "text-amber-700 dark:text-amber-400"
+                    : "text-muted-foreground";
+              return (
+                <Link
+                  key={`cockpit-m-${c.id}`}
+                  to="/clients/$clientId"
+                  params={{ clientId: c.id }}
+                  className="surface-card block rounded-xl border border-border p-4 text-sm shadow-sm transition hover:bg-surface-2"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-semibold">{c.name}</span>
+                    {h ? (
+                      <span className="flex items-center gap-2 font-mono text-xs tabular">
+                        <RiskDot risk={h.risk} />
+                        {h.score}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                    <div>
+                      <div className="font-medium text-foreground">Ações</div>
+                      <div className="font-mono tabular">{openN}</div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-foreground">Sync</div>
+                      <div className={`tabular ${syncTone}`}>
+                        {sync?.status ?? "—"}
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      <div className="font-medium text-foreground">
+                        Auditoria IA
+                      </div>
+                      <div className="tabular">
+                        {au?.created_at
+                          ? String(au.created_at).slice(0, 10)
+                          : "—"}
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })
+          )}
+        </div>
+        <div className="hidden overflow-x-auto md:block">
+          <div className="grid min-w-[760px] grid-cols-12 gap-2 border-b border-border px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             <div className="col-span-3">Cliente</div>
             <div className="col-span-2">Health</div>
             <div className="col-span-2 text-center">Ações</div>
@@ -370,7 +480,7 @@ function Clients() {
                     {sync ? (
                       <>
                         <span className="font-medium">{sync.status}</span>
-                        <span className="block text-[10px] text-muted-foreground">
+                        <span className="block text-xs text-muted-foreground">
                           {sync.created_at.slice(0, 19).replace("T", " ")}
                         </span>
                       </>
@@ -443,7 +553,7 @@ function Clients() {
                       <div className="font-medium">{item.client.name}</div>
                       <Link
                         to="/actions"
-                        className="shrink-0 text-[10px] text-primary hover:underline"
+                        className="inline-flex min-h-11 shrink-0 items-center text-xs text-primary hover:underline"
                       >
                         Ações
                       </Link>
@@ -452,29 +562,29 @@ function Clients() {
                       risco {item.health.risk} · health {item.health.score}
                     </div>
                     {roasHint && (
-                      <p className="mt-1 text-[10px] text-muted-foreground">
+                      <p className="mt-1 text-xs text-muted-foreground">
                         {roasHint}
                       </p>
                     )}
                     {trackHint && (
-                      <p className="mt-0.5 text-[10px] text-amber-700 dark:text-amber-400">
+                      <p className="mt-0.5 text-xs text-amber-700 dark:text-amber-400">
                         {trackHint}
                       </p>
                     )}
                     {ga4Alert && (
-                      <p className="mt-1 text-[10px] text-muted-foreground">
+                      <p className="mt-1 text-xs text-muted-foreground">
                         Alerta GA4: {ga4Alert.title}
                       </p>
                     )}
                     {bullets.length > 0 && (
-                      <ul className="mt-1.5 list-inside list-disc text-[10px] text-muted-foreground">
+                      <ul className="mt-1.5 list-inside list-disc text-xs text-muted-foreground">
                         {bullets.map((b, i) => (
                           <li key={i}>{b}</li>
                         ))}
                       </ul>
                     )}
                     {expl?.suggested_next_step && (
-                      <p className="mt-2 rounded bg-primary/10 px-2 py-1 text-[10px] font-medium text-foreground">
+                      <p className="mt-2 rounded bg-primary/10 px-2 py-2 text-xs font-medium text-foreground">
                         Próximo passo: {expl.suggested_next_step}
                       </p>
                     )}
@@ -484,80 +594,220 @@ function Clients() {
             )}
           </div>
         </div>
-        <div className="grid grid-cols-12 border-b border-border px-4 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-          <div className="col-span-4">Cliente</div>
-          <div className="col-span-2">Status</div>
-          <div className="col-span-2">MRR</div>
-          <div className="col-span-2">Orçamento</div>
-          <div className="col-span-2 text-right">Health</div>
-        </div>
-        {filtered.length === 0 && <Empty label="Nenhum cliente." />}
-        {filtered.map((c) => {
-          const h = data.latest.get(c.id);
-          const au = data.latestAuditByClient.get(c.id);
-          const auStatus = au
-            ? auditOverallStatus(au.result_json as Record<string, unknown>)
-            : null;
-          const auditBadgeTone =
-            auStatus === "critical"
-              ? "bg-destructive/15 text-destructive"
-              : auStatus === "risk"
-                ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
-                : auStatus === "attention"
-                  ? "bg-warning/15 text-warning"
-                  : "";
-          return (
-            <Link
-              key={c.id}
-              to="/clients/$clientId"
-              params={{ clientId: c.id }}
-              className="grid grid-cols-12 items-center border-b border-border px-4 py-3 text-sm last:border-0 hover:bg-surface-2 transition"
-            >
-              <div className="col-span-4 flex items-center gap-2.5">
-                <div className="grid h-7 w-7 place-items-center rounded-md bg-primary/15 text-[11px] font-semibold text-primary">
-                  {c.name.slice(0, 2).toUpperCase()}
-                </div>
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="truncate font-medium">{c.name}</span>
-                    {auStatus && auditBadgeTone ? (
-                      <span
-                        className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${auditBadgeTone}`}
-                      >
-                        IA {auStatus}
-                      </span>
-                    ) : null}
-                  </div>
-                  {c.segment && (
-                    <div className="truncate text-[11px] text-muted-foreground">
-                      {c.segment}
+        <div className="space-y-3 border-b border-border p-4 md:hidden">
+          {filtered.length === 0 ? (
+            <Empty
+              label="Nenhum cliente."
+              action={
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-11 sm:h-9"
+                  onClick={() => {
+                    const sub = limits.data?.subscription;
+                    const n = limits.data?.clientCount ?? 0;
+                    if (!canCreateClient(n, sub)) {
+                      toast.error(
+                        `Limite do plano atingido (${sub?.max_clients ?? 5} clientes). Faça upgrade em Admin.`,
+                      );
+                      return;
+                    }
+                    setCreating(true);
+                  }}
+                >
+                  Criar primeiro cliente
+                </Button>
+              }
+            />
+          ) : (
+            filtered.map((c) => {
+              const h = data.latest.get(c.id);
+              const au = data.latestAuditByClient.get(c.id);
+              const auStatus = au
+                ? auditOverallStatus(au.result_json as Record<string, unknown>)
+                : null;
+              const auditBadgeTone =
+                auStatus === "critical"
+                  ? "bg-destructive/15 text-destructive"
+                  : auStatus === "risk"
+                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                    : auStatus === "attention"
+                      ? "bg-warning/15 text-warning"
+                      : "";
+              return (
+                <Link
+                  key={`list-m-${c.id}`}
+                  to="/clients/$clientId"
+                  params={{ clientId: c.id }}
+                  className="surface-card block rounded-xl border border-border p-4 text-sm shadow-sm transition hover:bg-surface-2"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <div className="grid h-10 w-10 shrink-0 place-items-center rounded-md bg-primary/15 text-xs font-semibold text-primary">
+                        {c.name.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="truncate font-semibold">
+                            {c.name}
+                          </span>
+                          {auStatus && auditBadgeTone ? (
+                            <span
+                              className={`shrink-0 rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wide ${auditBadgeTone}`}
+                            >
+                              IA {auStatus}
+                            </span>
+                          ) : null}
+                        </div>
+                        {c.segment && (
+                          <div className="truncate text-xs text-muted-foreground">
+                            {c.segment}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              </div>
-              <div className="col-span-2">
-                <StatusPill status={c.status} />
-              </div>
-              <div className="col-span-2 font-mono tabular text-sm">
-                {brl(c.mrr)}
-              </div>
-              <div className="col-span-2 font-mono tabular text-sm text-muted-foreground">
-                {brl(c.monthly_budget)}
-              </div>
-              <div className="col-span-2 flex items-center justify-end gap-2">
-                {h ? (
-                  <>
-                    <RiskDot risk={h.risk} />
-                    <span className="font-mono tabular text-sm">{h.score}</span>
-                    <ScoreBar score={h.score} />
-                  </>
-                ) : (
-                  <span className="text-xs text-muted-foreground">—</span>
-                )}
-              </div>
-            </Link>
-          );
-        })}
+                    <StatusPill status={c.status} />
+                  </div>
+                  <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <div className="font-medium text-muted-foreground">
+                        MRR
+                      </div>
+                      <div className="font-mono tabular text-sm">
+                        {brl(c.mrr)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-medium text-muted-foreground">
+                        Orçamento
+                      </div>
+                      <div className="font-mono tabular text-sm text-muted-foreground">
+                        {brl(c.monthly_budget)}
+                      </div>
+                    </div>
+                    <div className="col-span-2 flex items-center justify-between gap-2 border-t border-border pt-3">
+                      <span className="text-muted-foreground">Health</span>
+                      {h ? (
+                        <span className="flex items-center gap-2 font-mono text-sm tabular">
+                          <RiskDot risk={h.risk} />
+                          {h.score}
+                          <ScoreBar score={h.score} />
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              );
+            })
+          )}
+        </div>
+        <div className="hidden md:block">
+          <div className="grid grid-cols-12 border-b border-border px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <div className="col-span-4">Cliente</div>
+            <div className="col-span-2">Status</div>
+            <div className="col-span-2">MRR</div>
+            <div className="col-span-2">Orçamento</div>
+            <div className="col-span-2 text-right">Health</div>
+          </div>
+          {filtered.length === 0 ? (
+            <Empty
+              label="Nenhum cliente."
+              action={
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-11 sm:h-9"
+                  onClick={() => {
+                    const sub = limits.data?.subscription;
+                    const n = limits.data?.clientCount ?? 0;
+                    if (!canCreateClient(n, sub)) {
+                      toast.error(
+                        `Limite do plano atingido (${sub?.max_clients ?? 5} clientes). Faça upgrade em Admin.`,
+                      );
+                      return;
+                    }
+                    setCreating(true);
+                  }}
+                >
+                  Criar primeiro cliente
+                </Button>
+              }
+            />
+          ) : (
+            filtered.map((c) => {
+              const h = data.latest.get(c.id);
+              const au = data.latestAuditByClient.get(c.id);
+              const auStatus = au
+                ? auditOverallStatus(au.result_json as Record<string, unknown>)
+                : null;
+              const auditBadgeTone =
+                auStatus === "critical"
+                  ? "bg-destructive/15 text-destructive"
+                  : auStatus === "risk"
+                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                    : auStatus === "attention"
+                      ? "bg-warning/15 text-warning"
+                      : "";
+              return (
+                <Link
+                  key={c.id}
+                  to="/clients/$clientId"
+                  params={{ clientId: c.id }}
+                  className="grid grid-cols-12 items-center border-b border-border px-4 py-3 text-sm last:border-0 hover:bg-surface-2 transition"
+                >
+                  <div className="col-span-4 flex items-center gap-2.5">
+                    <div className="grid h-8 w-8 place-items-center rounded-md bg-primary/15 text-xs font-semibold text-primary">
+                      {c.name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="truncate font-medium">{c.name}</span>
+                        {auStatus && auditBadgeTone ? (
+                          <span
+                            className={`shrink-0 rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wide ${auditBadgeTone}`}
+                          >
+                            IA {auStatus}
+                          </span>
+                        ) : null}
+                      </div>
+                      {c.segment && (
+                        <div className="truncate text-xs text-muted-foreground">
+                          {c.segment}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="col-span-2">
+                    <StatusPill status={c.status} />
+                  </div>
+                  <div className="col-span-2 font-mono tabular text-sm">
+                    {brl(c.mrr)}
+                  </div>
+                  <div className="col-span-2 font-mono tabular text-sm text-muted-foreground">
+                    {brl(c.monthly_budget)}
+                  </div>
+                  <div className="col-span-2 flex min-h-11 items-center justify-end gap-2">
+                    {h ? (
+                      <>
+                        <RiskDot risk={h.risk} />
+                        <span className="font-mono tabular text-sm">
+                          {h.score}
+                        </span>
+                        <ScoreBar score={h.score} />
+                      </>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </div>
+                </Link>
+              );
+            })
+          )}
+        </div>
       </Card>
 
       {creating && (
@@ -586,7 +836,7 @@ function StatusPill({ status }: { status: string }) {
   };
   return (
     <span
-      className={`rounded-md px-2 py-0.5 text-[11px] font-medium ${map[status] ?? "bg-muted text-muted-foreground"}`}
+      className={`rounded-md px-2 py-1 text-xs font-medium ${map[status] ?? "bg-muted text-muted-foreground"}`}
     >
       {status}
     </span>

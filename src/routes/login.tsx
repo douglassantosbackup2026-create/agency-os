@@ -8,6 +8,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/login")({
   beforeLoad: async () => {
@@ -61,13 +62,14 @@ function Login() {
           value={password}
           onChange={setPassword}
         />
-        <button
+        <Button
+          type="submit"
           disabled={loading}
-          className="mt-2 inline-flex h-10 w-full items-center justify-center rounded-md bg-primary text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60 transition"
+          className="mt-2 h-11 w-full text-sm font-semibold"
         >
           {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Entrar
-        </button>
+        </Button>
       </form>
       <div className="mt-4 flex items-center justify-between text-sm">
         <Link

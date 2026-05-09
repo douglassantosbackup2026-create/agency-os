@@ -48,6 +48,14 @@ import {
   Stat,
 } from "./dashboard";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/_authenticated/clients/$clientId")({
   component: ClientDetail,
@@ -70,20 +78,31 @@ type ClientTab =
   | "tasks"
   | "activity";
 
-const TAB_ORDER: ClientTab[] = [
-  "overview",
-  "metrics",
-  "health_timeline",
-  "insights",
-  "ad_accounts",
-  "campaigns",
-  "campaign_audit",
-  "alerts",
-  "reports",
-  "notes",
-  "tasks",
-  "activity",
-];
+type ClientSection = "resumo" | "dados" | "campanhas" | "gestao";
+
+const SECTION_TABS: Record<ClientSection, ClientTab[]> = {
+  resumo: ["overview"],
+  dados: ["metrics", "health_timeline", "insights"],
+  campanhas: ["ad_accounts", "campaigns", "campaign_audit"],
+  gestao: ["alerts", "reports", "notes", "tasks", "activity"],
+};
+
+const CLIENT_OPEN_ACTION_STATUSES = new Set([
+  "pendente",
+  "revisar_depois",
+  "adiado",
+  "anotacao",
+  "enviado_cliente",
+]);
+
+function sectionForTab(t: ClientTab): ClientSection {
+  if (t === "overview") return "resumo";
+  if (t === "metrics" || t === "health_timeline" || t === "insights")
+    return "dados";
+  if (t === "ad_accounts" || t === "campaigns" || t === "campaign_audit")
+    return "campanhas";
+  return "gestao";
+}
 
 function tabLabel(t: ClientTab): string {
   const m: Record<ClientTab, string> = {
@@ -417,6 +436,48 @@ function ClientDetail() {
     : 0;
   const latestHealth = data.health[0];
 
+  const clientNextStep = (() => {
+    const actionsOpen = (data.actions ?? []).filter((a: { status?: string }) =>
+      CLIENT_OPEN_ACTION_STATUSES.has(String(a.status ?? "")),
+    );
+    const firstAction = actionsOpen[0] as { title?: string } | undefined;
+    const openAlert = (data.alerts ?? []).find(
+      (a: { status?: string }) => a.status === "open",
+    ) as { title?: string } | undefined;
+    const reports = data.reports ?? [];
+    if (firstAction) {
+      return {
+        title: "Resolver ação em aberto",
+        description: String(firstAction.title ?? "Tarefa na Central de Ações"),
+        cta: "Ver tarefas neste cliente",
+        tab: "tasks" as ClientTab,
+      };
+    }
+    if (openAlert) {
+      return {
+        title: "Tratar alerta aberto",
+        description: String(openAlert.title ?? ""),
+        cta: "Ver alertas",
+        tab: "alerts" as ClientTab,
+      };
+    }
+    if (reports.length === 0) {
+      return {
+        title: "Gerar o primeiro relatório IA",
+        description:
+          "Documente valor e contexto para reuniões com um relatório automático.",
+        cta: "Ir aos relatórios",
+        tab: "reports" as ClientTab,
+      };
+    }
+    return {
+      title: "Revisar tendência de métricas",
+      description: "Compare série diária e health nos últimos dias.",
+      cta: "Abrir métricas",
+      tab: "metrics" as ClientTab,
+    };
+  })();
+
   const campaignAuditsList = data.campaignAudits ?? [];
   const latestAudit = campaignAuditsList[0] as
     | Record<string, unknown>
@@ -701,7 +762,7 @@ function ClientDetail() {
         <ArrowLeft className="h-3 w-3" /> Clientes
       </Link>
 
-      <header className="flex items-end justify-between">
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex items-center gap-3">
           <div className="grid h-12 w-12 place-items-center rounded-xl bg-primary/15 text-base font-semibold text-primary">
             {c.name.slice(0, 2).toUpperCase()}
@@ -713,49 +774,62 @@ function ClientDetail() {
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <select
+        <div className="flex flex-wrap items-center gap-2">
+          <Select
             value={clickContext}
-            onChange={(e) =>
+            onValueChange={(v) =>
               setClickContext(
-                e.target.value as
+                v as
                   | "reuniao"
                   | "pos_ajuste"
                   | "suspeita_problema"
                   | "checkin_rotina",
               )
             }
-            className="h-9 rounded-md border border-border bg-background px-2 text-xs"
           >
-            <option value="checkin_rotina">Check-in de rotina</option>
-            <option value="reuniao">Antes de reunião</option>
-            <option value="pos_ajuste">Após ajuste de campanha</option>
-            <option value="suspeita_problema">Suspeita de problema</option>
-          </select>
-          <button
+            <SelectTrigger className="h-11 w-[min(100%,260px)] text-xs">
+              <SelectValue placeholder="Contexto" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="checkin_rotina">Check-in de rotina</SelectItem>
+              <SelectItem value="reuniao">Antes de reunião</SelectItem>
+              <SelectItem value="pos_ajuste">
+                Após ajuste de campanha
+              </SelectItem>
+              <SelectItem value="suspeita_problema">
+                Suspeita de problema
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            type="button"
+            variant="outline"
+            size="default"
+            className="h-11 gap-1.5"
             onClick={analyzeNow}
             disabled={analyzingNow}
-            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm hover:bg-surface disabled:opacity-60 transition"
           >
             {analyzingNow ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <RefreshCw className="h-3.5 w-3.5" />
+              <RefreshCw className="h-4 w-4" />
             )}
             Analisar agora
-          </button>
-          <button
+          </Button>
+          <Button
+            type="button"
+            size="default"
+            className="h-11 gap-1.5"
             onClick={generateReport}
             disabled={generating}
-            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60 transition"
           >
             {generating ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
-              <Sparkles className="h-3.5 w-3.5" />
+              <Sparkles className="h-4 w-4" />
             )}
             Gerar relatório IA
-          </button>
+          </Button>
         </div>
       </header>
 
@@ -777,18 +851,65 @@ function ClientDetail() {
         <Stat icon={Sparkles} label="CTR médio" value={pct(ctr)} />
       </div>
 
-      <nav className="-mx-1 flex gap-1 overflow-x-auto border-b border-border pb-px">
-        {TAB_ORDER.map((t) => (
-          <button
-            key={t}
+      <Card className="border-primary/20 bg-primary/[0.06]">
+        <CardHeader title="Próximo passo sugerido" />
+        <div className="flex flex-col gap-4 p-4 pt-0 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-medium">{clientNextStep.title}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {clientNextStep.description}
+            </p>
+          </div>
+          <Button
             type="button"
-            onClick={() => setTab(t)}
-            className={`shrink-0 rounded-t-md px-3 py-2 text-sm whitespace-nowrap transition ${tab === t ? "bg-primary/15 text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            size="sm"
+            className="h-11 shrink-0 sm:h-9"
+            onClick={() => setTab(clientNextStep.tab)}
           >
-            {tabLabel(t)}
-          </button>
-        ))}
-      </nav>
+            {clientNextStep.cta}
+          </Button>
+        </div>
+      </Card>
+
+      <div className="flex flex-col gap-2">
+        <nav className="-mx-1 flex gap-1 overflow-x-auto border-b border-border pb-px">
+          {(
+            [
+              ["resumo", "Resumo"],
+              ["dados", "Dados & IA"],
+              ["campanhas", "Campanhas & Ads"],
+              ["gestao", "Gestão"],
+            ] as const
+          ).map(([sid, label]) => {
+            const sec = sid as ClientSection;
+            const active = sectionForTab(tab) === sec;
+            return (
+              <button
+                key={sid}
+                type="button"
+                onClick={() => setTab(SECTION_TABS[sec][0])}
+                className={`min-h-11 shrink-0 rounded-t-md px-3 py-2 text-sm whitespace-nowrap transition ${active ? "bg-primary/15 text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </nav>
+        {SECTION_TABS[sectionForTab(tab)].length > 1 && (
+          <nav className="-mx-1 flex gap-1 overflow-x-auto border-b border-border pb-px">
+            {SECTION_TABS[sectionForTab(tab)].map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTab(t)}
+                className={`min-h-11 shrink-0 rounded-t-md px-3 py-2 text-sm whitespace-nowrap transition ${tab === t ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                {tabLabel(t)}
+              </button>
+            ))}
+          </nav>
+        )}
+      </div>
 
       {tab === "overview" && (
         <>
@@ -902,7 +1023,14 @@ function ClientDetail() {
               <CardHeader title="Central de Ações" />
               <div className="divide-y divide-border">
                 {(data.actions ?? []).length === 0 ? (
-                  <Empty label="Sem ações abertas para este cliente." />
+                  <Empty
+                    label="Sem ações abertas para este cliente."
+                    action={
+                      <Button asChild variant="outline" size="sm">
+                        <Link to="/actions">Ir à Central de Ações</Link>
+                      </Button>
+                    }
+                  />
                 ) : (
                   (data.actions ?? []).slice(0, 5).map((a: any) => (
                     <div key={a.id} className="px-4 py-3 text-xs">
@@ -956,7 +1084,14 @@ function ClientDetail() {
           <CardHeader title="Série diária (até 30 pontos)" />
           <div className="h-72 p-4">
             {metricsSeries.length === 0 ? (
-              <Empty label="Sem dados de métricas." />
+              <Empty
+                label="Sem dados de métricas."
+                action={
+                  <Button asChild variant="outline" size="sm">
+                    <Link to="/integrations">Configurar integrações</Link>
+                  </Button>
+                }
+              />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={metricsSeries}>
@@ -964,8 +1099,8 @@ function ClientDetail() {
                     strokeDasharray="3 3"
                     className="stroke-border"
                   />
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} />
+                  <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
                   <Tooltip
                     contentStyle={{
                       background: "hsl(var(--card))",
@@ -995,7 +1130,7 @@ function ClientDetail() {
             )}
           </div>
           <div className="h-56 border-t border-border p-4">
-            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
               ROAS (linha)
             </p>
             {metricsSeries.length === 0 ? null : (
@@ -1005,8 +1140,8 @@ function ClientDetail() {
                     strokeDasharray="3 3"
                     className="stroke-border"
                   />
-                  <XAxis dataKey="date" tick={{ fontSize: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} />
+                  <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 12 }} />
                   <Tooltip />
                   <Line
                     type="monotone"
@@ -1028,7 +1163,19 @@ function ClientDetail() {
           <CardHeader title="Evolução do Health Score" />
           <div className="h-80 p-4">
             {healthSeries.length === 0 ? (
-              <Empty label="Sem histórico de health." />
+              <Empty
+                label="Sem histórico de health."
+                action={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setTab("overview")}
+                  >
+                    Voltar à visão geral
+                  </Button>
+                }
+              />
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={healthSeries}>
@@ -1036,8 +1183,8 @@ function ClientDetail() {
                     strokeDasharray="3 3"
                     className="stroke-border"
                   />
-                  <XAxis dataKey="t" tick={{ fontSize: 10 }} />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 10 }} />
+                  <XAxis dataKey="t" tick={{ fontSize: 12 }} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} />
                   <Tooltip />
                   <Line
                     type="monotone"
@@ -1060,7 +1207,19 @@ function ClientDetail() {
             <CardHeader title="Relatórios IA recentes" />
             <div className="space-y-3 p-4">
               {data.reports.length === 0 ? (
-                <Empty label="Gere um relatório IA para ver o resumo aqui." />
+                <Empty
+                  label="Gere um relatório IA para ver o resumo aqui."
+                  action={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setTab("reports")}
+                    >
+                      Ir aos relatórios
+                    </Button>
+                  }
+                />
               ) : (
                 <>
                   <p className="text-xs text-muted-foreground">
@@ -1112,12 +1271,19 @@ function ClientDetail() {
             <CardHeader title="Health — leitura rápida" />
             <div className="space-y-3 p-4 text-sm">
               {healthInsights.avg == null ? (
-                <Empty label="Sem pontos de health ainda." />
+                <Empty
+                  label="Sem pontos de health ainda."
+                  action={
+                    <Button variant="outline" size="sm" asChild>
+                      <Link to="/health">Health Score global</Link>
+                    </Button>
+                  }
+                />
               ) : (
                 <>
                   <div className="flex flex-wrap gap-4">
                     <div>
-                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground">
                         Média (últimos registos)
                       </div>
                       <div className="font-mono text-2xl font-semibold tabular">
@@ -1126,7 +1292,7 @@ function ClientDetail() {
                     </div>
                     {healthInsights.delta != null && (
                       <div>
-                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                        <div className="text-xs uppercase tracking-wide text-muted-foreground">
                           Tendência (1ª vs 2ª metade)
                         </div>
                         <div
@@ -1213,7 +1379,20 @@ function ClientDetail() {
             />
             <div className="space-y-2 p-4">
               {data.meetingReports.length === 0 ? (
-                <Empty label="Ainda sem pautas geradas." />
+                <Empty
+                  label="Ainda sem pautas geradas."
+                  action={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={generateMeetingReport}
+                      disabled={generatingMeeting}
+                    >
+                      Gerar pauta agora
+                    </Button>
+                  }
+                />
               ) : (
                 data.meetingReports.map((mr: any) => (
                   <div
@@ -1239,7 +1418,14 @@ function ClientDetail() {
       {tab === "tasks" && (
         <Card>
           {data.tasks.length === 0 ? (
-            <Empty label="Nenhuma tarefa para este cliente." />
+            <Empty
+              label="Nenhuma tarefa para este cliente."
+              action={
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/actions">Central de Ações</Link>
+                </Button>
+              }
+            />
           ) : (
             <div className="divide-y divide-border">
               {data.tasks.map((tk: Record<string, unknown>) => (
@@ -1255,7 +1441,7 @@ function ClientDetail() {
                       </div>
                     ) : null}
                   </div>
-                  <span className="rounded bg-surface px-2 py-0.5 text-[10px] uppercase">
+                  <span className="rounded bg-surface px-2 py-0.5 text-xs uppercase">
                     {String(tk.status)}
                   </span>
                 </div>
@@ -1268,7 +1454,19 @@ function ClientDetail() {
       {tab === "activity" && (
         <Card>
           {data.activities.length === 0 ? (
-            <Empty label="Sem atividades registradas." />
+            <Empty
+              label="Sem atividades registradas."
+              action={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTab("reports")}
+                >
+                  Gerar relatório ou análise
+                </Button>
+              }
+            />
           ) : (
             <div className="divide-y divide-border">
               {data.activities.map((ev: Record<string, unknown>) => (
@@ -1281,11 +1479,11 @@ function ClientDetail() {
                         {String(ev.description)}
                       </div>
                     ) : null}
-                    <div className="mt-1 text-[11px] text-muted-foreground">
+                    <div className="mt-1 text-xs text-muted-foreground">
                       {timeAgo(String(ev.created_at))}
                     </div>
                   </div>
-                  <span className="shrink-0 rounded bg-surface px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
+                  <span className="shrink-0 rounded bg-surface px-1.5 py-0.5 text-xs uppercase text-muted-foreground">
                     {String(ev.type)}
                   </span>
                 </div>
@@ -1298,7 +1496,14 @@ function ClientDetail() {
       {tab === "campaigns" && (
         <Card>
           {data.campaigns.length === 0 ? (
-            <Empty label="Nenhuma campanha cadastrada." />
+            <Empty
+              label="Nenhuma campanha cadastrada."
+              action={
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/integrations">Sincronizar contas</Link>
+                </Button>
+              }
+            />
           ) : (
             <div className="divide-y divide-border">
               {data.campaigns.map((cm) => (
@@ -1313,7 +1518,7 @@ function ClientDetail() {
                     </div>
                   </div>
                   <div className="col-span-3">
-                    <span className="rounded bg-surface px-2 py-0.5 text-[11px] uppercase">
+                    <span className="rounded bg-surface px-2 py-0.5 text-xs uppercase">
                       {cm.status}
                     </span>
                   </div>
@@ -1380,7 +1585,20 @@ function ClientDetail() {
             </div>
             {!latestAudit ? (
               <div className="p-6">
-                <Empty label="Ainda não há auditorias. Execute uma análise para gerar recomendações." />
+                <Empty
+                  label="Ainda não há auditorias. Execute uma análise para gerar recomendações."
+                  action={
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={runCampaignAiAudit}
+                      disabled={auditingCampaigns}
+                    >
+                      Executar auditoria IA
+                    </Button>
+                  }
+                />
               </div>
             ) : (
               <div className="space-y-4 p-4">
@@ -1415,7 +1633,7 @@ function ClientDetail() {
                 </div>
                 {latestAudit.executive_summary_markdown ? (
                   <div>
-                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-primary">
+                    <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-primary">
                       Resumo executivo
                     </div>
                     <div className="audit-md text-sm leading-relaxed text-foreground/90 [&_h1]:mb-2 [&_h1]:text-base [&_h2]:mt-3 [&_h2]:text-sm [&_h3]:text-sm [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:break-all [&_a]:text-primary [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_pre]:overflow-x-auto [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground">
@@ -1429,11 +1647,24 @@ function ClientDetail() {
                   </div>
                 ) : null}
                 {auditRecommendations.length === 0 ? (
-                  <Empty label="Sem recomendações estruturadas nesta auditoria." />
+                  <Empty
+                    label="Sem recomendações estruturadas nesta auditoria."
+                    action={
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={runCampaignAiAudit}
+                        disabled={auditingCampaigns}
+                      >
+                        Nova auditoria
+                      </Button>
+                    }
+                  />
                 ) : (
                   <div className="overflow-x-auto rounded-md border border-border">
                     <table className="w-full min-w-[720px] text-left text-sm">
-                      <thead className="border-b border-border bg-surface/80 text-[11px] uppercase text-muted-foreground">
+                      <thead className="border-b border-border bg-surface/80 text-xs uppercase text-muted-foreground">
                         <tr>
                           <th className="px-3 py-2 font-medium">Campanha</th>
                           <th className="px-3 py-2 font-medium">Sugestão</th>
@@ -1469,7 +1700,7 @@ function ClientDetail() {
                                   {String(rec.platform ?? "")}
                                 </div>
                                 {rec.requires_human_review ? (
-                                  <div className="mt-1 text-[10px] uppercase text-warning">
+                                  <div className="mt-1 text-xs uppercase text-warning">
                                     Requer revisão humana
                                   </div>
                                 ) : null}
@@ -1485,7 +1716,7 @@ function ClientDetail() {
                               <td className="whitespace-nowrap px-3 py-2 align-top text-xs">
                                 {String(rec.tracking_match ?? "—")}
                               </td>
-                              <td className="whitespace-nowrap px-3 py-2 align-top text-[11px] text-muted-foreground">
+                              <td className="whitespace-nowrap px-3 py-2 align-top text-xs text-muted-foreground">
                                 {stLabel}
                               </td>
                               <td className="px-3 py-2 align-top text-right">
@@ -1668,7 +1899,7 @@ function ClientDetail() {
                     </li>
                   </ul>
                   {recoTypeChanges.length > 0 ? (
-                    <div className="mt-2 max-h-40 overflow-y-auto rounded border border-border bg-background p-2 font-mono text-[11px]">
+                    <div className="mt-2 max-h-40 overflow-y-auto rounded border border-border bg-background p-2 font-mono text-xs">
                       {recoTypeChanges.slice(0, 12).map((id) => (
                         <div key={id}>
                           {id}:{" "}
@@ -1789,14 +2020,21 @@ function ClientDetail() {
       {tab === "alerts" && (
         <Card>
           {data.alerts.length === 0 ? (
-            <Empty label="Sem alertas." />
+            <Empty
+              label="Sem alertas."
+              action={
+                <Button variant="outline" size="sm" asChild>
+                  <Link to="/alerts">Central de alertas</Link>
+                </Button>
+              }
+            />
           ) : (
             <div className="divide-y divide-border">
               {data.alerts.map((a) => (
                 <div key={a.id} className="px-4 py-3">
                   <div className="flex items-center justify-between">
                     <div className="text-sm font-medium">{a.title}</div>
-                    <span className="text-[11px] uppercase text-muted-foreground">
+                    <span className="text-xs uppercase text-muted-foreground">
                       {a.priority}
                     </span>
                   </div>
@@ -1805,7 +2043,7 @@ function ClientDetail() {
                       {a.description}
                     </div>
                   )}
-                  <div className="mt-1 text-[11px] text-muted-foreground">
+                  <div className="mt-1 text-xs text-muted-foreground">
                     {timeAgo(a.created_at)}
                   </div>
                 </div>
@@ -1819,7 +2057,20 @@ function ClientDetail() {
         <div className="space-y-3">
           {data.reports.length === 0 && (
             <Card>
-              <Empty label="Nenhum relatório IA. Clique em 'Gerar relatório IA'." />
+              <Empty
+                label="Nenhum relatório IA. Clique em 'Gerar relatório IA'."
+                action={
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    onClick={generateReport}
+                    disabled={generating}
+                  >
+                    Gerar relatório IA
+                  </Button>
+                }
+              />
             </Card>
           )}
           {data.reports.map((r) => (
@@ -1868,13 +2119,25 @@ function ClientDetail() {
       {tab === "notes" && (
         <Card>
           {data.notes.length === 0 ? (
-            <Empty label="Sem notas." />
+            <Empty
+              label="Sem notas."
+              action={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTab("overview")}
+                >
+                  Voltar à visão geral
+                </Button>
+              }
+            />
           ) : (
             <div className="divide-y divide-border">
               {data.notes.map((n) => (
                 <div key={n.id} className="px-4 py-3 text-sm">
                   <p>{n.content}</p>
-                  <div className="mt-1 text-[11px] text-muted-foreground">
+                  <div className="mt-1 text-xs text-muted-foreground">
                     {timeAgo(n.created_at)}
                   </div>
                 </div>
@@ -1897,7 +2160,7 @@ function ReportSection({
   if (!body) return null;
   return (
     <div>
-      <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-primary">
+      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-primary">
         {title}
       </div>
       <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/90">

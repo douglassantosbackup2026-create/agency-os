@@ -9,20 +9,27 @@ import {
   ArrowDownRight,
   ArrowUpRight,
   Bell,
+  ChevronDown,
   Database,
   Heart,
   Sparkles,
+  Target,
   TrendingUp,
   Users,
   Wallet,
   Zap,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import {
   auditBulletsFromResult,
   auditOverallStatus,
@@ -31,6 +38,26 @@ import {
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
 });
+
+function DashboardCollapsibleBlock({
+  title,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <Collapsible defaultOpen={defaultOpen} className="space-y-3">
+      <CollapsibleTrigger className="group flex min-h-11 w-full items-center justify-between rounded-xl border border-border bg-surface px-4 py-3 text-left text-sm font-semibold shadow-sm hover:bg-surface-2">
+        <span>{title}</span>
+        <ChevronDown className="h-4 w-4 shrink-0 opacity-70 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="space-y-3">{children}</CollapsibleContent>
+    </Collapsible>
+  );
+}
 
 function Dashboard() {
   const { agency } = useAuth();
@@ -406,8 +433,10 @@ function Dashboard() {
             Comece gerando dados de exemplo para explorar o sistema, ou crie seu
             primeiro cliente.
           </p>
-          <div className="mt-6 flex justify-center gap-2">
-            <button
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            <Button
+              type="button"
+              className="h-11 gap-2"
               onClick={async () => {
                 const tid = toast.loading("Gerando dados...");
                 const { error } =
@@ -419,16 +448,17 @@ function Dashboard() {
                   refetch();
                 }
               }}
-              className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition"
             >
               <Database className="h-4 w-4" /> Gerar dados demo
-            </button>
-            <button
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-11"
               onClick={() => navigate({ to: "/clients" })}
-              className="rounded-md border border-border px-4 py-2 text-sm font-medium hover:bg-surface transition"
             >
               Criar cliente manualmente
-            </button>
+            </Button>
           </div>
         </div>
       </div>
@@ -447,64 +477,65 @@ function Dashboard() {
         <div className="text-xs text-muted-foreground">Últimos 30 dias</div>
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-12 lg:items-stretch">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:col-span-8">
-          <Stat
-            icon={Wallet}
-            label="Receita 30d"
-            value={brl(revenue)}
-            accent="text-success"
-            sub={`${mrrDeltaPct >= 0 ? "+" : ""}${mrrDeltaPct.toFixed(1)}% vs período anterior`}
-          />
-          <Stat
-            icon={TrendingUp}
-            label="ROAS médio"
-            value={`${roas.toFixed(2)}x`}
-            accent={roas >= 2 ? "text-success" : "text-warning"}
-          />
-          <Stat
-            icon={Zap}
-            label="Spend 30d"
-            value={brl(spend)}
-            sub={`${spendDeltaPct >= 0 ? "+" : ""}${spendDeltaPct.toFixed(1)}% vs período anterior`}
-          />
-          <Stat
-            icon={Heart}
-            label="Health médio"
-            value={`${avgHealth.toFixed(0)}`}
-            accent={
-              avgHealth >= 75
-                ? "text-success"
-                : avgHealth >= 50
-                  ? "text-warning"
-                  : "text-destructive"
-            }
-            sub={`${atRisk} em risco`}
-          />
-        </div>
-        <Card className="flex flex-col lg:col-span-4">
-          <CardHeader title="Próximo passo sugerido" />
-          <div className="flex flex-1 flex-col justify-between gap-4 p-4 pt-0">
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                {suggestedNext.title}
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {suggestedNext.description}
-              </p>
-            </div>
-            <Button asChild size="sm" className="w-full sm:w-auto">
-              <Link
-                to={suggestedNext.to}
-                {...(suggestedNext.params
-                  ? { params: suggestedNext.params }
-                  : {})}
-              >
-                {suggestedNext.cta}
-              </Link>
-            </Button>
+      <Card className="border-primary/25 bg-primary/[0.06] shadow-sm">
+        <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Prioridade agora
+            </p>
+            <p className="mt-1 text-lg font-semibold tracking-tight">
+              {suggestedNext.title}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {suggestedNext.description}
+            </p>
           </div>
-        </Card>
+          <Button asChild size="lg" className="h-12 w-full shrink-0 md:w-auto">
+            <Link
+              to={suggestedNext.to}
+              {...(suggestedNext.params
+                ? { params: suggestedNext.params }
+                : {})}
+            >
+              {suggestedNext.cta}
+            </Link>
+          </Button>
+        </div>
+      </Card>
+
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Stat
+          icon={Wallet}
+          label="Receita 30d"
+          value={brl(revenue)}
+          accent="text-success"
+          sub={`${mrrDeltaPct >= 0 ? "+" : ""}${mrrDeltaPct.toFixed(1)}% vs período anterior`}
+        />
+        <Stat
+          icon={TrendingUp}
+          label="ROAS médio"
+          value={`${roas.toFixed(2)}x`}
+          accent={roas >= 2 ? "text-success" : "text-warning"}
+        />
+        <Stat
+          icon={Zap}
+          label="Spend 30d"
+          value={brl(spend)}
+          sub={`${spendDeltaPct >= 0 ? "+" : ""}${spendDeltaPct.toFixed(1)}% vs período anterior`}
+        />
+        <Stat
+          icon={Heart}
+          label="Health médio"
+          value={`${avgHealth.toFixed(0)}`}
+          accent={
+            avgHealth >= 75
+              ? "text-success"
+              : avgHealth >= 50
+                ? "text-warning"
+                : "text-destructive"
+          }
+          sub={`${atRisk} em risco`}
+        />
       </div>
 
       <Tabs defaultValue="operacao" className="w-full space-y-4">
@@ -597,162 +628,191 @@ function Dashboard() {
                 </Link>
               </div>
             </Card>
-            <Card>
-              <CardHeader title="Central de Revisão IA" />
-              <div className="divide-y divide-border">
-                {(data.reportsReview ?? []).length === 0 ? (
-                  <Empty label="Sem itens pendentes de revisão humana." />
-                ) : (
-                  (data.reportsReview ?? []).map((r) => (
-                    <Link
-                      key={r.id}
-                      to="/ai-review"
-                      className="block px-4 py-3 text-sm hover:bg-surface-2"
-                    >
-                      <div className="font-medium">
-                        {(r.clients as { name?: string } | null | undefined)
-                          ?.name ?? "Cliente"}{" "}
-                        · confiança {r.confianca ?? "média"}
-                      </div>
-                      <div className="text-muted-foreground">
-                        {timeAgo(r.created_at)} · revisão obrigatória
-                      </div>
-                    </Link>
-                  ))
-                )}
-                <Link
-                  to="/ai-review"
-                  className="block px-4 py-2 text-sm font-medium text-primary hover:bg-surface-2"
-                >
-                  Ver fila completa
-                </Link>
-              </div>
-            </Card>
+            <DashboardCollapsibleBlock title="Central de Revisão IA">
+              <Card>
+                <CardHeader title="Central de Revisão IA" />
+                <div className="divide-y divide-border">
+                  {(data.reportsReview ?? []).length === 0 ? (
+                    <Empty
+                      label="Sem itens pendentes de revisão humana."
+                      action={
+                        <Button asChild variant="outline" size="sm">
+                          <Link to="/ai-review">Abrir fila de revisão</Link>
+                        </Button>
+                      }
+                    />
+                  ) : (
+                    (data.reportsReview ?? []).map((r) => (
+                      <Link
+                        key={r.id}
+                        to="/ai-review"
+                        className="block px-4 py-3 text-sm hover:bg-surface-2"
+                      >
+                        <div className="font-medium">
+                          {(r.clients as { name?: string } | null | undefined)
+                            ?.name ?? "Cliente"}{" "}
+                          · confiança {r.confianca ?? "média"}
+                        </div>
+                        <div className="text-muted-foreground">
+                          {timeAgo(r.created_at)} · revisão obrigatória
+                        </div>
+                      </Link>
+                    ))
+                  )}
+                  <Link
+                    to="/ai-review"
+                    className="block px-4 py-2 text-sm font-medium text-primary hover:bg-surface-2"
+                  >
+                    Ver fila completa
+                  </Link>
+                </div>
+              </Card>
+            </DashboardCollapsibleBlock>
           </div>
 
-          <Card>
-            <CardHeader
-              title="Auditoria de campanhas (IA)"
-              action={
-                <Link
-                  to="/clients"
-                  className="text-sm text-primary hover:underline"
-                >
-                  Ver clientes
-                </Link>
-              }
-            />
-            <div className="space-y-3 p-4 pt-0 text-sm">
-              {auditShowList.length === 0 ? (
-                <p className="text-muted-foreground">
-                  Ainda não há auditorias. Abra um cliente e use a aba
-                  &quot;Auditoria IA&quot;.
-                </p>
-              ) : (
-                <ul className="space-y-3">
-                  {auditShowList.map(({ row, st, bullets }) => {
-                    const cid = String(row.client_id ?? "");
-                    return (
-                      <li
-                        key={String(row.id)}
-                        className="rounded-lg border border-border bg-surface/80 px-3 py-2"
-                      >
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
-                          <Link
-                            to="/clients/$clientId"
-                            params={{ clientId: cid }}
-                            className="font-medium text-primary hover:underline"
-                          >
-                            {clientNameById(cid)}
-                          </Link>
-                          {st ? (
-                            <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
-                              {st}
+          <DashboardCollapsibleBlock title="Auditoria de campanhas (IA)">
+            <Card>
+              <CardHeader
+                title="Auditoria de campanhas (IA)"
+                action={
+                  <Link
+                    to="/clients"
+                    className="text-sm text-primary hover:underline"
+                  >
+                    Ver clientes
+                  </Link>
+                }
+              />
+              <div className="space-y-3 p-4 pt-0 text-sm">
+                {auditShowList.length === 0 ? (
+                  <p className="text-muted-foreground">
+                    Ainda não há auditorias. Abra um cliente e use a aba
+                    &quot;Auditoria IA&quot;.
+                  </p>
+                ) : (
+                  <ul className="space-y-3">
+                    {auditShowList.map(({ row, st, bullets }) => {
+                      const cid = String(row.client_id ?? "");
+                      return (
+                        <li
+                          key={String(row.id)}
+                          className="rounded-lg border border-border bg-surface/80 px-3 py-2"
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
+                            <Link
+                              to="/clients/$clientId"
+                              params={{ clientId: cid }}
+                              className="font-medium text-primary hover:underline"
+                            >
+                              {clientNameById(cid)}
+                            </Link>
+                            {st ? (
+                              <span className="rounded bg-muted px-1.5 py-1 text-xs uppercase text-muted-foreground">
+                                {st}
+                              </span>
+                            ) : null}
+                            <span className="text-xs text-muted-foreground">
+                              {timeAgo(String(row.created_at))}
                             </span>
-                          ) : null}
-                          <span className="text-[11px] text-muted-foreground">
-                            {timeAgo(String(row.created_at))}
-                          </span>
-                        </div>
-                        {bullets.length > 0 ? (
-                          <ul className="mt-2 list-inside list-disc text-xs text-muted-foreground">
-                            {bullets.map((b, i) => (
-                              <li key={i}>{b}</li>
-                            ))}
-                          </ul>
-                        ) : (
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Ver detalhes na ficha do cliente → Auditoria IA.
-                          </p>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-          </Card>
+                          </div>
+                          {bullets.length > 0 ? (
+                            <ul className="mt-2 list-inside list-disc text-xs text-muted-foreground">
+                              {bullets.map((b, i) => (
+                                <li key={i}>{b}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Ver detalhes na ficha do cliente → Auditoria IA.
+                            </p>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            </Card>
+          </DashboardCollapsibleBlock>
 
-          <Card>
-            <CardHeader
-              title="Alertas prioritários"
-              action={
-                <Link
-                  to="/alerts"
-                  className="text-sm text-primary hover:underline"
-                >
-                  Ver todos
-                </Link>
-              }
-            />
-            <div className="divide-y divide-border">
-              {data.alerts.length === 0 && (
-                <Empty label="Nenhum alerta aberto." />
-              )}
-              {data.alerts.map((a) => (
-                <Link
-                  key={a.id}
-                  to="/alerts"
-                  className="flex items-start gap-3 px-4 py-3 hover:bg-surface-2 transition"
-                >
-                  <PriorityDot p={a.priority} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate text-sm font-medium">
-                        {a.title}
-                      </span>
-                      <Badge>{a.type}</Badge>
-                    </div>
-                    <div className="mt-0.5 text-xs text-muted-foreground">
-                      {timeAgo(a.created_at)}
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </Card>
-
-          <Card>
-            <CardHeader title="Ações recomendadas" />
-            <div className="divide-y divide-border">
-              {recommended.length === 0 ? (
-                <Empty label="Nenhuma ação sugerida nos alertas abertos." />
-              ) : (
-                recommended.map((a) => (
-                  <div key={a.id} className="flex gap-2 px-4 py-3">
-                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
-                    <div className="min-w-0 text-sm">
-                      <div className="font-medium">{a.title}</div>
+          <DashboardCollapsibleBlock title="Alertas prioritários">
+            <Card>
+              <CardHeader
+                title="Alertas prioritários"
+                action={
+                  <Link
+                    to="/alerts"
+                    className="text-sm text-primary hover:underline"
+                  >
+                    Ver todos
+                  </Link>
+                }
+              />
+              <div className="divide-y divide-border">
+                {data.alerts.length === 0 && (
+                  <Empty
+                    label="Nenhum alerta aberto."
+                    action={
+                      <Button asChild variant="outline" size="sm">
+                        <Link to="/integrations">Ver integrações</Link>
+                      </Button>
+                    }
+                  />
+                )}
+                {data.alerts.map((a) => (
+                  <Link
+                    key={a.id}
+                    to="/alerts"
+                    className="flex items-start gap-3 px-4 py-3 hover:bg-surface-2 transition"
+                  >
+                    <PriorityDot p={a.priority} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-sm font-medium">
+                          {a.title}
+                        </span>
+                        <Badge>{a.type}</Badge>
+                      </div>
                       <div className="mt-0.5 text-xs text-muted-foreground">
-                        {a.recommended_action}
+                        {timeAgo(a.created_at)}
                       </div>
                     </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </Card>
+                  </Link>
+                ))}
+              </div>
+            </Card>
+          </DashboardCollapsibleBlock>
+
+          <DashboardCollapsibleBlock title="Ações recomendadas a partir de alertas">
+            <Card>
+              <CardHeader title="Ações recomendadas" />
+              <div className="divide-y divide-border">
+                {recommended.length === 0 ? (
+                  <Empty
+                    label="Nenhuma ação sugerida nos alertas abertos."
+                    action={
+                      <Button asChild variant="outline" size="sm">
+                        <Link to="/alerts">Abrir Central de alertas</Link>
+                      </Button>
+                    }
+                  />
+                ) : (
+                  recommended.map((a) => (
+                    <div key={a.id} className="flex gap-2 px-4 py-3">
+                      <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+                      <div className="min-w-0 text-sm">
+                        <div className="font-medium">{a.title}</div>
+                        <div className="mt-0.5 text-xs text-muted-foreground">
+                          {a.recommended_action}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </Card>
+          </DashboardCollapsibleBlock>
         </TabsContent>
 
         <TabsContent
@@ -933,7 +993,14 @@ function Dashboard() {
               />
               <div className="divide-y divide-border">
                 {data.activities.length === 0 && (
-                  <Empty label="Sem atividade recente." />
+                  <Empty
+                    label="Sem atividade recente."
+                    action={
+                      <Button asChild variant="outline" size="sm">
+                        <Link to="/clients">Abrir clientes</Link>
+                      </Button>
+                    }
+                  />
                 )}
                 {data.activities.map((a) => (
                   <div key={a.id} className="flex items-start gap-3 px-4 py-3">
@@ -1063,10 +1130,17 @@ export function CardHeader({
   );
 }
 
-export function Empty({ label }: { label: string }) {
+export function Empty({
+  label,
+  action,
+}: {
+  label: string;
+  action?: ReactNode;
+}) {
   return (
-    <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-      {label}
+    <div className="px-4 py-8 text-center">
+      <p className="text-sm text-muted-foreground">{label}</p>
+      {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
     </div>
   );
 }
@@ -1130,9 +1204,9 @@ export function ScoreBar({ score }: { score: number }) {
   );
 }
 
-export function Badge({ children }: { children: React.ReactNode }) {
+export function Badge({ children }: { children: ReactNode }) {
   return (
-    <span className="rounded-md border border-border bg-surface px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+    <span className="rounded-md border border-border bg-surface px-2 py-1 text-xs uppercase tracking-wide text-muted-foreground">
       {children}
     </span>
   );
