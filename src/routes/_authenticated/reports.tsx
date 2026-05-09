@@ -197,7 +197,8 @@ function Reports() {
             <Link to="/clients/$clientId" params={{ clientId: selected.client_id }} className="inline-block text-xs text-primary hover:underline">
               Ver cliente →
             </Link>
-          </div>
+            </motion.div>
+          </AnimatePresence>
         )}
       </section>
     </div>
