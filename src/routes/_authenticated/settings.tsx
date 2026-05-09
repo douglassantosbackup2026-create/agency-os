@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardHeader } from "./dashboard";
 import { toast } from "sonner";
-import { Database, Upload, Loader2, Globe } from "lucide-react";
+import { Database, Upload, Loader2 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/settings")({ component: Settings });
