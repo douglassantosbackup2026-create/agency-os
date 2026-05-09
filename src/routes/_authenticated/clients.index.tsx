@@ -70,18 +70,46 @@ function Clients() {
           : clientQuery.limit(0);
       }
 
-      const [clients, health] = await Promise.all([
+      const [clients, health, openAlerts] = await Promise.all([
         clientQuery,
         supabase
           .from("health_scores")
           .select("client_id, score, risk, recorded_at, score_explanation")
           .eq("agency_id", agency!.id)
           .order("recorded_at", { ascending: false }),
+        supabase
+          .from("alerts")
+          .select("client_id, title, type, created_at")
+          .eq("agency_id", agency!.id)
+          .eq("status", "open")
+          .order("created_at", { ascending: false })
+          .limit(200),
       ]);
       const latest = new Map<string, Record<string, unknown>>();
       for (const h of health.data ?? [])
         if (!latest.has(h.client_id)) latest.set(h.client_id, h as any);
-      return { clients: clients.data ?? [], latest };
+
+      const latestGa4AlertByClient = new Map<
+        string,
+        { title: string; created_at: string }
+      >();
+      for (const a of openAlerts.data ?? []) {
+        const cid = a.client_id as string | null;
+        if (!cid || latestGa4AlertByClient.has(cid)) continue;
+        const t =
+          `${String(a.type ?? "")} ${String(a.title ?? "")}`.toLowerCase();
+        if (!t.includes("ga4") && !t.includes("analytics")) continue;
+        latestGa4AlertByClient.set(cid, {
+          title: String(a.title ?? "Alerta GA4"),
+          created_at: String(a.created_at ?? ""),
+        });
+      }
+
+      return {
+        clients: clients.data ?? [],
+        latest,
+        latestGa4AlertByClient,
+      };
     },
   });
 
@@ -155,14 +183,40 @@ function Clients() {
               </div>
             ) : (
               riskRadar.map((item) => {
-                const pen = (
-                  (item.health?.score_explanation as { penalties?: unknown[] })
-                    ?.penalties ?? []
-                ).filter(Boolean) as Array<{ reason?: string }>;
+                const expl = item.health?.score_explanation as
+                  | {
+                      penalties?: Array<{ reason?: string }>;
+                      signals?: {
+                        roas_recent?: number;
+                        roas_delta_pct?: number;
+                        tracking_status?: string;
+                      };
+                      suggested_next_step?: string;
+                    }
+                  | undefined;
+                const pen = (expl?.penalties ?? []).filter(Boolean) as Array<{
+                  reason?: string;
+                }>;
                 const bullets = pen
                   .slice(0, 3)
                   .map((p) => p.reason)
                   .filter(Boolean);
+                const sig = expl?.signals;
+                const ga4Alert = data.latestGa4AlertByClient.get(
+                  item.client.id,
+                );
+                const roasHint =
+                  sig &&
+                  typeof sig.roas_recent === "number" &&
+                  typeof sig.roas_delta_pct === "number"
+                    ? `ROAS ${sig.roas_recent.toFixed(2)} (${sig.roas_delta_pct >= 0 ? "+" : ""}${sig.roas_delta_pct.toFixed(0)}% vs período anterior)`
+                    : null;
+                const trackHint =
+                  sig?.tracking_status === "critical"
+                    ? "Tracking GA4 em estado crítico."
+                    : sig?.tracking_status === "warning"
+                      ? "Tracking GA4 em atenção."
+                      : null;
                 return (
                   <div
                     key={item.client.id}
@@ -180,12 +234,32 @@ function Clients() {
                     <div className="text-muted-foreground">
                       risco {item.health.risk} · health {item.health.score}
                     </div>
+                    {roasHint && (
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        {roasHint}
+                      </p>
+                    )}
+                    {trackHint && (
+                      <p className="mt-0.5 text-[10px] text-amber-700 dark:text-amber-400">
+                        {trackHint}
+                      </p>
+                    )}
+                    {ga4Alert && (
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        Alerta GA4: {ga4Alert.title}
+                      </p>
+                    )}
                     {bullets.length > 0 && (
                       <ul className="mt-1.5 list-inside list-disc text-[10px] text-muted-foreground">
                         {bullets.map((b, i) => (
                           <li key={i}>{b}</li>
                         ))}
                       </ul>
+                    )}
+                    {expl?.suggested_next_step && (
+                      <p className="mt-2 rounded bg-primary/10 px-2 py-1 text-[10px] font-medium text-foreground">
+                        Próximo passo: {expl.suggested_next_step}
+                      </p>
                     )}
                   </div>
                 );

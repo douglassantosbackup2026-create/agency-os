@@ -75,27 +75,47 @@ function Admin() {
           .limit(20),
       ]);
       const sb = supabase as any;
-      const [clients, scopes, syncRuns, integrations] = await Promise.all([
-        supabase
-          .from("clients")
-          .select("id, name")
-          .eq("agency_id", agency!.id)
-          .order("name"),
-        sb
-          .from("client_member_scopes")
-          .select("id, user_id, client_id")
-          .eq("agency_id", agency!.id),
-        sb
-          .from("sync_runs")
-          .select("*")
-          .eq("agency_id", agency!.id)
-          .order("created_at", { ascending: false })
-          .limit(30),
-        supabase
-          .from("integrations")
-          .select("provider, status, token_expires_at, last_sync_at")
-          .eq("agency_id", agency!.id),
-      ]);
+      const sinceAi = new Date(Date.now() - 30 * 86400000)
+        .toISOString()
+        .slice(0, 10);
+      const [clients, scopes, syncRuns, syncRunErrors, aiUsage, integrations] =
+        await Promise.all([
+          supabase
+            .from("clients")
+            .select("id, name")
+            .eq("agency_id", agency!.id)
+            .order("name"),
+          sb
+            .from("client_member_scopes")
+            .select("id, user_id, client_id")
+            .eq("agency_id", agency!.id),
+          sb
+            .from("sync_runs")
+            .select("*")
+            .eq("agency_id", agency!.id)
+            .order("created_at", { ascending: false })
+            .limit(24),
+          sb
+            .from("sync_runs")
+            .select("*")
+            .eq("agency_id", agency!.id)
+            .eq("status", "error")
+            .order("created_at", { ascending: false })
+            .limit(50),
+          sb
+            .from("ai_usage_events")
+            .select(
+              "function_name, estimated_cost_usd, prompt_tokens, completion_tokens, day",
+            )
+            .eq("agency_id", agency!.id)
+            .gte("day", sinceAi)
+            .order("day", { ascending: false })
+            .limit(500),
+          supabase
+            .from("integrations")
+            .select("provider, status, token_expires_at, last_sync_at")
+            .eq("agency_id", agency!.id),
+        ]);
       return {
         roles: roles.data ?? [],
         flags: flags.data ?? [],
@@ -104,6 +124,8 @@ function Admin() {
         clients: clients.data ?? [],
         scopes: scopes.data ?? [],
         syncRuns: syncRuns.data ?? [],
+        syncRunErrors: syncRunErrors.data ?? [],
+        aiUsage: aiUsage.data ?? [],
         integrations: integrations.data ?? [],
       };
     },
@@ -379,10 +401,90 @@ function Admin() {
         </Card>
 
         <Card className="lg:col-span-2">
+          <CardHeader title="Operações — sync & IA (MVP)" />
+          <div className="grid gap-4 border-b border-border p-4 md:grid-cols-2">
+            <div>
+              <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Últimos erros de sync (até 50)
+              </div>
+              {(data.syncRunErrors ?? []).length === 0 ? (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Nenhum erro recente em sync_runs.
+                </p>
+              ) : (
+                <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto text-xs">
+                  {(data.syncRunErrors ?? []).slice(0, 25).map((r: any) => (
+                    <li
+                      key={r.id}
+                      className="rounded border border-border/80 bg-surface px-2 py-1"
+                    >
+                      <span className="font-medium">{r.provider}</span>
+                      {r.error_message
+                        ? ` — ${String(r.error_message).slice(0, 160)}`
+                        : ""}
+                      <span className="block text-[10px] text-muted-foreground">
+                        {timeAgo(r.created_at)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+            <div>
+              <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Uso de IA estimado (últimos 30 dias)
+              </div>
+              <p className="mt-1 text-[10px] text-muted-foreground">
+                Valores aproximados a partir de tokens retornados pelo gateway;
+                só registra chamadas após deploy desta versão.
+              </p>
+              {(() => {
+                const agg = new Map<
+                  string,
+                  { usd: number; tokens: number; n: number }
+                >();
+                for (const row of data.aiUsage ?? []) {
+                  const fn = String((row as any).function_name ?? "?");
+                  const cur = agg.get(fn) ?? { usd: 0, tokens: 0, n: 0 };
+                  cur.usd += Number((row as any).estimated_cost_usd ?? 0);
+                  cur.tokens +=
+                    Number((row as any).prompt_tokens ?? 0) +
+                    Number((row as any).completion_tokens ?? 0);
+                  cur.n += 1;
+                  agg.set(fn, cur);
+                }
+                if (agg.size === 0) {
+                  return (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Sem eventos de uso registrados.
+                    </p>
+                  );
+                }
+                return (
+                  <ul className="mt-2 space-y-1 text-xs">
+                    {[...agg.entries()].map(([fn, v]) => (
+                      <li
+                        key={fn}
+                        className="flex justify-between gap-2 rounded border border-border/80 px-2 py-1"
+                      >
+                        <span className="font-mono text-[11px]">{fn}</span>
+                        <span className="text-muted-foreground">
+                          ~${v.usd.toFixed(4)} · {v.tokens} tok · {v.n} cham.
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                );
+              })()}
+            </div>
+          </div>
+        </Card>
+
+        <Card className="lg:col-span-2">
           <CardHeader title="Admin técnico operacional" />
           <div className="grid gap-3 p-4 md:grid-cols-3">
             <Stat
-              label="Sync com erro (30 execuções)"
+              label="Sync com erro (amostra recente)"
               value={String(
                 (data.syncRuns ?? []).filter((r: any) => r.status === "error")
                   .length,

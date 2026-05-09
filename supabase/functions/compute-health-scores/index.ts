@@ -23,6 +23,42 @@ function clamp(n: number, min = 0, max = 100) {
   return Math.max(min, Math.min(max, n));
 }
 
+type PenaltyItem = {
+  key: string;
+  points: number;
+  reason: string;
+};
+
+function pickSuggestedNextStep(
+  ga4: {
+    conversionDeltaPct: number;
+    revenueDeltaPct: number;
+    sessionsUpResultsDown: boolean;
+    funnelDrop: boolean;
+    trackingStatus: "healthy" | "warning" | "critical";
+  },
+  penalties: PenaltyItem[],
+  roasDeltaPct: number,
+): string {
+  if (ga4.trackingStatus === "critical") {
+    return "Auditar tags, consentimento e eventos GA4; estabilizar tracking antes de escalar mídia.";
+  }
+  const keys = new Set(penalties.map((p) => p.key));
+  if (keys.has("ga4_conversion_drop") || keys.has("ga4_revenue_drop")) {
+    return "Revisar páginas de destino, oferta e mensagens; validar conversões no GA4.";
+  }
+  if (keys.has("sessions_up_results_down")) {
+    return "Investigar qualidade do tráfego e criativos; hipóteses de conversão no site.";
+  }
+  if (keys.has("funnel_drop")) {
+    return "Priorizar gargalos no funil (carrinho/checkout) com testes rápidos.";
+  }
+  if (roasDeltaPct < -15) {
+    return "ROAS em queda vs período anterior: revisar estrutura de campanhas, criativos e lances.";
+  }
+  return "Abrir a Central de Ações e alinhar próximo passo operacional com o cliente.";
+}
+
 function computeFor(
   metrics: M[],
   lastActivityAgo: number,
@@ -97,6 +133,45 @@ function computeFor(
   const risk: "low" | "medium" | "high" =
     score >= 70 ? "low" : score >= 45 ? "medium" : "high";
 
+  const roasDeltaPct = priRoas > 0 ? ((recRoas - priRoas) / priRoas) * 100 : 0;
+  const penaltiesRaw = [
+    ga4.conversionDeltaPct < -20
+      ? {
+          key: "ga4_conversion_drop",
+          points: Math.round(Math.abs(ga4.conversionDeltaPct) * 0.25),
+          reason: `Taxa de conversão em queda (${ga4.conversionDeltaPct.toFixed(1)}%).`,
+        }
+      : null,
+    ga4.revenueDeltaPct < -20
+      ? {
+          key: "ga4_revenue_drop",
+          points: Math.round(Math.abs(ga4.revenueDeltaPct) * 0.25),
+          reason: `Receita em queda (${ga4.revenueDeltaPct.toFixed(1)}%).`,
+        }
+      : null,
+    ga4.sessionsUpResultsDown
+      ? {
+          key: "sessions_up_results_down",
+          points: 10,
+          reason: "Sessões sobem, mas conversões/receita não acompanham.",
+        }
+      : null,
+    ga4.funnelDrop
+      ? {
+          key: "funnel_drop",
+          points: 8,
+          reason: "Gargalo identificado no funil de site/checkout.",
+        }
+      : null,
+    ga4.trackingStatus === "critical"
+      ? {
+          key: "tracking_critical",
+          points: 12,
+          reason: "Tracking crítico, risco de análise incompleta.",
+        }
+      : null,
+  ].filter(Boolean) as PenaltyItem[];
+
   const score_explanation = {
     blocks: {
       budget_pace: Math.round(stability),
@@ -105,43 +180,16 @@ function computeFor(
       operational_management: Math.round(communication),
       relationship_risk: Math.round(engagement),
     },
-    penalties: [
-      ga4.conversionDeltaPct < -20
-        ? {
-            key: "ga4_conversion_drop",
-            points: Math.round(Math.abs(ga4.conversionDeltaPct) * 0.25),
-            reason: `Taxa de conversão em queda (${ga4.conversionDeltaPct.toFixed(1)}%).`,
-          }
-        : null,
-      ga4.revenueDeltaPct < -20
-        ? {
-            key: "ga4_revenue_drop",
-            points: Math.round(Math.abs(ga4.revenueDeltaPct) * 0.25),
-            reason: `Receita em queda (${ga4.revenueDeltaPct.toFixed(1)}%).`,
-          }
-        : null,
-      ga4.sessionsUpResultsDown
-        ? {
-            key: "sessions_up_results_down",
-            points: 10,
-            reason: "Sessões sobem, mas conversões/receita não acompanham.",
-          }
-        : null,
-      ga4.funnelDrop
-        ? {
-            key: "funnel_drop",
-            points: 8,
-            reason: "Gargalo identificado no funil de site/checkout.",
-          }
-        : null,
-      ga4.trackingStatus === "critical"
-        ? {
-            key: "tracking_critical",
-            points: 12,
-            reason: "Tracking crítico, risco de análise incompleta.",
-          }
-        : null,
-    ].filter(Boolean),
+    penalties: penaltiesRaw,
+    signals: {
+      tracking_status: ga4.trackingStatus,
+      conversion_delta_pct: Math.round(ga4.conversionDeltaPct * 10) / 10,
+      revenue_delta_pct: Math.round(ga4.revenueDeltaPct * 10) / 10,
+      roas_recent: Math.round(recRoas * 100) / 100,
+      roas_prior: Math.round(priRoas * 100) / 100,
+      roas_delta_pct: Math.round(roasDeltaPct * 10) / 10,
+    },
+    suggested_next_step: pickSuggestedNextStep(ga4, penaltiesRaw, roasDeltaPct),
   };
 
   return {

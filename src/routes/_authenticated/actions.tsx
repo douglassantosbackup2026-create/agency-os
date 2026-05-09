@@ -7,6 +7,24 @@ import { timeAgo } from "@/lib/format";
 import { Card, Empty, PageSkeleton } from "./dashboard";
 import { toast } from "sonner";
 
+const SLA_OPEN_STATUSES = new Set([
+  "pendente",
+  "revisar_depois",
+  "adiado",
+  "anotacao",
+  "enviado_cliente",
+]);
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function isActionOverdue(a: { due_date?: string | null; status?: string }) {
+  if (!a.due_date || !a.status || !SLA_OPEN_STATUSES.has(a.status))
+    return false;
+  return a.due_date < todayISO();
+}
+
 export const Route = createFileRoute("/_authenticated/actions")({
   component: ActionsCenter,
 });
@@ -17,6 +35,8 @@ function ActionsCenter() {
   const [sourceType, setSourceType] = useState<string>("all");
   const [priority, setPriority] = useState<string>("all");
   const [clientFilter, setClientFilter] = useState<string>("all");
+  const [slaFilter, setSlaFilter] = useState<"all" | "overdue">("all");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: [
@@ -63,7 +83,28 @@ function ActionsCenter() {
     },
   });
 
-  const filtered = useMemo(() => data?.actions ?? [], [data?.actions]);
+  const filtered = useMemo(() => {
+    const rows = data?.actions ?? [];
+    if (slaFilter === "overdue")
+      return rows.filter((a: any) => isActionOverdue(a));
+    return rows;
+  }, [data?.actions, slaFilter]);
+
+  const { data: eventRows } = useQuery({
+    queryKey: ["action-center-events", expandedId],
+    enabled: !!expandedId,
+    queryFn: async () => {
+      const sb = supabase as any;
+      const { data: ev, error } = await sb
+        .from("action_center_events")
+        .select("id, event_type, payload, created_at")
+        .eq("action_id", expandedId!)
+        .order("created_at", { ascending: false })
+        .limit(40);
+      if (error) throw error;
+      return ev ?? [];
+    },
+  });
 
   async function patchAction(id: string, patch: Record<string, unknown>) {
     const sb = supabase as any;
@@ -151,6 +192,16 @@ function ActionsCenter() {
             </option>
           ))}
         </select>
+        <select
+          value={slaFilter}
+          onChange={(e) =>
+            setSlaFilter(e.target.value === "overdue" ? "overdue" : "all")
+          }
+          className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+        >
+          <option value="all">Todos prazos</option>
+          <option value="overdue">Só atrasadas (SLA)</option>
+        </select>
       </div>
 
       <Card>
@@ -159,72 +210,124 @@ function ActionsCenter() {
         ) : (
           <div className="divide-y divide-border">
             {filtered.map((a: any) => (
-              <div
-                key={a.id}
-                className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start sm:justify-between"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-medium">{a.title}</span>
-                    <span className="rounded bg-surface px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
-                      {a.source_type}
-                    </span>
-                    <span className="text-[10px] uppercase text-muted-foreground">
-                      {a.priority}
-                    </span>
-                    {a.clients?.name && (
-                      <Link
-                        to="/clients/$clientId"
-                        params={{ clientId: a.client_id }}
-                        className="text-[11px] text-primary hover:underline"
+              <div key={a.id}>
+                <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-medium">{a.title}</span>
+                      {isActionOverdue(a) && (
+                        <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
+                          Atrasada
+                        </span>
+                      )}
+                      <span className="rounded bg-surface px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
+                        {a.source_type}
+                      </span>
+                      <span className="text-[10px] uppercase text-muted-foreground">
+                        {a.priority}
+                      </span>
+                      {a.clients?.name && (
+                        <Link
+                          to="/clients/$clientId"
+                          params={{ clientId: a.client_id }}
+                          className="text-[11px] text-primary hover:underline"
+                        >
+                          {a.clients.name}
+                        </Link>
+                      )}
+                    </div>
+                    {a.description && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {a.description}
+                      </p>
+                    )}
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                      <span>{timeAgo(a.created_at)}</span>
+                      {a.due_date && <span>Prazo {a.due_date}</span>}
+                      {Number(a.metadata?.merge_count) > 0 && (
+                        <span title="Mesclagens por dedupe">
+                          Mesclas {a.metadata.merge_count}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setExpandedId(expandedId === a.id ? null : a.id)
+                        }
+                        className="text-primary hover:underline"
                       >
-                        {a.clients.name}
-                      </Link>
+                        {expandedId === a.id
+                          ? "Ocultar histórico"
+                          : "Histórico"}
+                      </button>
+                      <label className="flex items-center gap-1">
+                        Responsável
+                        <select
+                          value={a.assigned_to ?? ""}
+                          onChange={(e) => setAssignee(a.id, e.target.value)}
+                          className="h-7 max-w-[160px] rounded border border-border bg-background px-1 text-[11px]"
+                        >
+                          <option value="">—</option>
+                          {user?.id && <option value={user.id}>Eu</option>}
+                          {data.teammates.map((t) => (
+                            <option key={t.id} value={t.id}>
+                              {t.display_name || t.email}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-1">
+                    <select
+                      value={a.status}
+                      onChange={(e) =>
+                        patchAction(a.id, { status: e.target.value })
+                      }
+                      className="h-8 rounded border border-border bg-background px-2 text-xs"
+                    >
+                      <option value="pendente">Pendente</option>
+                      <option value="feito">Feito</option>
+                      <option value="ignorado">Ignorado</option>
+                      <option value="adiado">Adiado</option>
+                      <option value="anotacao">Anotação</option>
+                      <option value="enviado_cliente">Enviado cliente</option>
+                      <option value="revisar_depois">Revisar depois</option>
+                    </select>
+                  </div>
+                </div>
+                {expandedId === a.id && (
+                  <div className="border-t border-border px-4 pb-3 pt-2">
+                    <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Histórico da ação
+                    </div>
+                    {!eventRows?.length ? (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Sem eventos registrados.
+                      </p>
+                    ) : (
+                      <ul className="mt-1 space-y-1 text-[11px] text-muted-foreground">
+                        {eventRows.map((ev: any) => (
+                          <li key={ev.id} className="flex flex-wrap gap-x-2">
+                            <span>{timeAgo(ev.created_at)}</span>
+                            <span className="font-medium text-foreground">
+                              {ev.event_type === "created"
+                                ? "Criada"
+                                : ev.event_type === "status_change"
+                                  ? "Estado"
+                                  : ev.event_type === "assignee_change"
+                                    ? "Responsável"
+                                    : ev.event_type}
+                            </span>
+                            <span className="truncate font-mono text-[10px]">
+                              {JSON.stringify(ev.payload)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
                     )}
                   </div>
-                  {a.description && (
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {a.description}
-                    </p>
-                  )}
-                  <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-                    <span>{timeAgo(a.created_at)}</span>
-                    {a.due_date && <span>Prazo {a.due_date}</span>}
-                    <label className="flex items-center gap-1">
-                      Responsável
-                      <select
-                        value={a.assigned_to ?? ""}
-                        onChange={(e) => setAssignee(a.id, e.target.value)}
-                        className="h-7 max-w-[160px] rounded border border-border bg-background px-1 text-[11px]"
-                      >
-                        <option value="">—</option>
-                        {user?.id && <option value={user.id}>Eu</option>}
-                        {data.teammates.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.display_name || t.email}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-                </div>
-                <div className="flex shrink-0 flex-wrap gap-1">
-                  <select
-                    value={a.status}
-                    onChange={(e) =>
-                      patchAction(a.id, { status: e.target.value })
-                    }
-                    className="h-8 rounded border border-border bg-background px-2 text-xs"
-                  >
-                    <option value="pendente">Pendente</option>
-                    <option value="feito">Feito</option>
-                    <option value="ignorado">Ignorado</option>
-                    <option value="adiado">Adiado</option>
-                    <option value="anotacao">Anotação</option>
-                    <option value="enviado_cliente">Enviado cliente</option>
-                    <option value="revisar_depois">Revisar depois</option>
-                  </select>
-                </div>
+                )}
               </div>
             ))}
           </div>

@@ -9,6 +9,80 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+const ACTION_OPEN_STATUSES = [
+  "pendente",
+  "revisar_depois",
+  "adiado",
+  "anotacao",
+  "enviado_cliente",
+] as const;
+
+async function sha256Hex(input: string): Promise<string> {
+  const buf = new TextEncoder().encode(input);
+  const hash = await crypto.subtle.digest("SHA-256", buf);
+  return [...new Uint8Array(hash)]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function upsertActionFromAlert(
+  admin: ReturnType<typeof createClient>,
+  row: {
+    agency_id: string;
+    client_id: string;
+    title: string;
+    description: string;
+    priority: "critica" | "alta" | "media" | "baixa";
+    due_date: string;
+    metadata: Record<string, unknown>;
+    alert_type: string;
+  },
+) {
+  const keySrc = `${row.agency_id}|${row.client_id}|alerta_ia|${row.alert_type}|${row.title.trim().toLowerCase()}`;
+  const canonical_key = await sha256Hex(keySrc);
+  const { data: existing } = await admin
+    .from("action_center")
+    .select("id, metadata")
+    .eq("agency_id", row.agency_id)
+    .eq("canonical_key", canonical_key)
+    .in("status", [...ACTION_OPEN_STATUSES])
+    .maybeSingle();
+
+  if (existing?.id) {
+    const meta = (existing.metadata ?? {}) as Record<string, unknown>;
+    const merge_count = Number(meta.merge_count ?? 0) + 1;
+    await admin
+      .from("action_center")
+      .update({
+        description: row.description,
+        priority: row.priority,
+        due_date: row.due_date,
+        metadata: {
+          ...meta,
+          ...row.metadata,
+          merge_count,
+          last_merged_at: new Date().toISOString(),
+        },
+      })
+      .eq("id", existing.id);
+    return;
+  }
+
+  await admin.from("action_center").insert({
+    agency_id: row.agency_id,
+    client_id: row.client_id,
+    source_type: "alerta_ia",
+    source_ref_id: null,
+    title: row.title,
+    description: row.description,
+    priority: row.priority,
+    status: "pendente",
+    due_date: row.due_date,
+    canonical_key,
+    metadata: { ...row.metadata, merge_count: 0 },
+  });
+}
+
 type M = {
   date: string;
   spend: number | null;
@@ -381,11 +455,9 @@ Deno.serve(async (req) => {
         });
         if (!error) created++;
         if (!error && q.recommended_action) {
-          await admin.from("action_center").insert({
+          await upsertActionFromAlert(admin, {
             agency_id: c.agency_id,
             client_id: c.id,
-            source_type: "alerta_ia",
-            source_ref_id: null,
             title: q.title.slice(0, 220),
             description: q.recommended_action,
             priority:
@@ -396,8 +468,8 @@ Deno.serve(async (req) => {
                   : q.priority === "medium"
                     ? "media"
                     : "baixa",
-            status: "pendente",
             due_date: new Date().toISOString().slice(0, 10),
+            alert_type: q.type,
             metadata: {
               alert_type: q.type,
               confidence: q.confidence,

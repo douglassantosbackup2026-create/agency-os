@@ -344,6 +344,24 @@ Contexto do clique: ${clickContext}`;
       modeConfig.requiresReview,
     );
 
+    const usage = aiJson.usage as
+      | { prompt_tokens?: number; completion_tokens?: number }
+      | undefined;
+    const pt = Math.round(Number(usage?.prompt_tokens ?? 0));
+    const ct = Math.round(Number(usage?.completion_tokens ?? 0));
+    if (pt + ct > 0) {
+      const estimatedCost = ((pt + ct) / 1_000_000) * 0.35;
+      const { error: uErr } = await admin.from("ai_usage_events").insert({
+        agency_id: client.agency_id,
+        day: new Date().toISOString().slice(0, 10),
+        function_name: "generate-report",
+        prompt_tokens: pt,
+        completion_tokens: ct,
+        estimated_cost_usd: Number(estimatedCost.toFixed(8)),
+      });
+      if (uErr) console.warn("ai_usage_events", uErr);
+    }
+
     const { data: report } = await admin
       .from("reports")
       .insert({

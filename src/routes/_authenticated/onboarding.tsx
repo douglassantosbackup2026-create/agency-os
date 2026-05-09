@@ -35,6 +35,10 @@ function Onboarding() {
     { key: "budget_goal", title: "Configurar budget e meta do cliente" },
     { key: "portal_sent", title: "Enviar link do portal ao cliente" },
     { key: "first_report", title: "Gerar primeiro relatório IA" },
+    {
+      key: "diagnostic_run",
+      title: "Diagnóstico inicial (health scores)",
+    },
   ] as const;
 
   const { data: checklistData, refetch: refetchChecklist } = useQuery({
@@ -135,20 +139,58 @@ function Onboarding() {
         .replace(/^-|-$/g, "") +
       "-" +
       Math.random().toString(36).slice(2, 6);
-    const { error } = await supabase.from("clients").insert({
-      agency_id: agency.id,
-      name: quickClientName.trim(),
-      monthly_budget: Number(quickBudget) || 0,
-      mrr: Number(quickMrr) || 0,
-      status: "onboarding",
-      portal_slug: slug,
-    });
+    const { data: inserted, error } = await supabase
+      .from("clients")
+      .insert({
+        agency_id: agency.id,
+        name: quickClientName.trim(),
+        monthly_budget: Number(quickBudget) || 0,
+        mrr: Number(quickMrr) || 0,
+        status: "onboarding",
+        portal_slug: slug,
+      })
+      .select("id")
+      .maybeSingle();
     if (error) return toast.error(error.message);
     toast.success("Cliente criado em modo onboarding rápido.");
     setQuickClientName("");
     setQuickBudget("");
     setQuickMrr("");
     refetchChecklist();
+
+    if (inserted?.id && runDiagnosticAfterCreate) {
+      const tid = toast.loading("Rodando diagnóstico (health scores)…");
+      const { error: fnErr } = await supabase.functions.invoke(
+        "compute-health-scores",
+        { body: { agency_id: agency.id } },
+      );
+      toast.dismiss(tid);
+      if (fnErr) toast.error(fnErr.message);
+      else {
+        toast.success(
+          "Health scores atualizados para a agência (inclui o novo cliente quando houver dados).",
+        );
+        const sb = supabase as any;
+        const payload = {
+          agency_id: agency.id,
+          client_id: inserted.id,
+          step_key: "diagnostic_run",
+          title:
+            CHECKLIST_STEPS.find((s) => s.key === "diagnostic_run")?.title ??
+            "Diagnóstico inicial (health scores)",
+          status: "done" as const,
+          completed_at: new Date().toISOString(),
+          sort_order: Math.max(
+            0,
+            CHECKLIST_STEPS.findIndex((s) => s.key === "diagnostic_run"),
+          ),
+        };
+        await sb.from("onboarding_checklist_items").upsert(payload, {
+          onConflict: "client_id,step_key",
+        });
+        refetchChecklist();
+      }
+    }
   }
 
   return (
@@ -174,6 +216,14 @@ function Onboarding() {
             onSubmit={quickCreateClient}
             className="grid gap-2 sm:grid-cols-4 sm:items-end"
           >
+            <label className="flex items-center gap-2 text-xs text-muted-foreground sm:col-span-4">
+              <input
+                type="checkbox"
+                checked={runDiagnosticAfterCreate}
+                onChange={(e) => setRunDiagnosticAfterCreate(e.target.checked)}
+              />
+              Rodar diagnóstico inicial (compute-health-scores para a agência)
+            </label>
             <input
               value={quickClientName}
               onChange={(e) => setQuickClientName(e.target.value)}
