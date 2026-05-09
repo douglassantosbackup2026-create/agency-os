@@ -72,13 +72,52 @@ Deno.serve(async (req) => {
     const sincePrev = new Date(Date.now() - 60 * 86400000)
       .toISOString()
       .slice(0, 10);
-    const { data: metrics } = await admin
-      .from("metrics_daily")
-      .select("*")
-      .eq("client_id", client_id)
-      .is("campaign_id", null)
-      .gte("date", sincePrev)
-      .order("date");
+    const [
+      { data: metrics },
+      { data: ga4Daily },
+      { data: ga4Funnel },
+      { data: ga4Channels },
+      { data: ga4Tracking },
+    ] = await Promise.all([
+      admin
+        .from("metrics_daily")
+        .select("*")
+        .eq("client_id", client_id)
+        .is("campaign_id", null)
+        .gte("date", sincePrev)
+        .order("date"),
+      admin
+        .from("ga4_daily")
+        .select(
+          "date, sessions, conversions, revenue, conversion_rate, avg_ticket",
+        )
+        .eq("client_id", client_id)
+        .gte("date", sincePrev)
+        .order("date"),
+      admin
+        .from("ga4_funnel_daily")
+        .select(
+          "date, view_item, add_to_cart, begin_checkout, purchase, add_to_cart_rate, checkout_rate, purchase_rate",
+        )
+        .eq("client_id", client_id)
+        .gte("date", sincePrev)
+        .order("date"),
+      admin
+        .from("ga4_channel_daily")
+        .select(
+          "date, channel, sessions, conversions, revenue, revenue_per_session",
+        )
+        .eq("client_id", client_id)
+        .gte("date", since)
+        .order("date"),
+      admin
+        .from("ga4_tracking_health_daily")
+        .select("status, notes")
+        .eq("client_id", client_id)
+        .order("date", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
     const mAll = metrics ?? [];
     const m = mAll.filter((x) => String(x.date) >= since);
     const mPrev = mAll.filter((x) => String(x.date) < since);
@@ -99,6 +138,50 @@ Deno.serve(async (req) => {
 
     const deltaRevenuePct =
       prevRevenue > 0 ? ((revenue - prevRevenue) / prevRevenue) * 100 : 0;
+    const gAll = ga4Daily ?? [];
+    const g = gAll.filter((x) => String(x.date) >= since);
+    const gPrev = gAll.filter((x) => String(x.date) < since);
+    const ga4Sessions = g.reduce((a, b) => a + Number(b.sessions ?? 0), 0);
+    const ga4Conv = g.reduce((a, b) => a + Number(b.conversions ?? 0), 0);
+    const ga4Revenue = g.reduce((a, b) => a + Number(b.revenue ?? 0), 0);
+    const ga4PrevSessions = gPrev.reduce(
+      (a, b) => a + Number(b.sessions ?? 0),
+      0,
+    );
+    const ga4PrevConv = gPrev.reduce(
+      (a, b) => a + Number(b.conversions ?? 0),
+      0,
+    );
+    const ga4PrevRevenue = gPrev.reduce(
+      (a, b) => a + Number(b.revenue ?? 0),
+      0,
+    );
+    const ga4Cvr = ga4Sessions > 0 ? ga4Conv / ga4Sessions : 0;
+    const ga4PrevCvr = ga4PrevSessions > 0 ? ga4PrevConv / ga4PrevSessions : 0;
+    const ga4Ticket = ga4Conv > 0 ? ga4Revenue / ga4Conv : 0;
+    const topChannelMap = new Map<
+      string,
+      { revenue: number; sessions: number }
+    >();
+    for (const ch of ga4Channels ?? []) {
+      const key = String(ch.channel ?? "Unassigned");
+      const cur = topChannelMap.get(key) ?? { revenue: 0, sessions: 0 };
+      cur.revenue += Number(ch.revenue ?? 0);
+      cur.sessions += Number(ch.sessions ?? 0);
+      topChannelMap.set(key, cur);
+    }
+    const topChannel = [...topChannelMap.entries()].sort(
+      (a, b) => b[1].revenue - a[1].revenue,
+    )[0];
+    const funnelRecent = (ga4Funnel ?? []).slice(-7);
+    const avgFunnel = (key: string) =>
+      funnelRecent.length
+        ? funnelRecent.reduce(
+            (a: number, b: any) => a + Number(b[key] ?? 0),
+            0,
+          ) / funnelRecent.length
+        : 0;
+
     const summary = `Cliente: ${client.name}
 Segmento: ${client.segment ?? "—"}
 Últimos 30 dias:
@@ -113,6 +196,15 @@ Comparativo com 30 dias anteriores:
 - Investimento anterior: R$ ${prevSpend.toFixed(2)}
 - Receita anterior: R$ ${prevRevenue.toFixed(2)}
 - Variação de receita: ${deltaRevenuePct.toFixed(1)}%
+GA4 (site/funil - últimos 30 dias):
+- Sessões: ${ga4Sessions}
+- Conversões no site: ${ga4Conv}
+- Receita GA4: R$ ${ga4Revenue.toFixed(2)}
+- Taxa de conversão: ${(ga4Cvr * 100).toFixed(2)}% (anterior ${(ga4PrevCvr * 100).toFixed(2)}%)
+- Ticket médio: R$ ${ga4Ticket.toFixed(2)}
+- Top canal por receita: ${topChannel ? `${topChannel[0]} (R$ ${topChannel[1].revenue.toFixed(2)})` : "não disponível"}
+- Funil recente (média 7d): view_item ${avgFunnel("view_item").toFixed(1)} | add_to_cart ${avgFunnel("add_to_cart").toFixed(1)} | begin_checkout ${avgFunnel("begin_checkout").toFixed(1)} | purchase ${avgFunnel("purchase").toFixed(1)}
+- Tracking Health: ${String(ga4Tracking?.status ?? "não disponível")} (${String(ga4Tracking?.notes ?? "sem observações")})
 Contexto do clique: ${clickContext}`;
 
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
@@ -279,6 +371,17 @@ Contexto do clique: ${clickContext}`;
           conv,
           prev_spend: prevSpend,
           prev_revenue: prevRevenue,
+          ga4_sessions: ga4Sessions,
+          ga4_conversions: ga4Conv,
+          ga4_revenue: ga4Revenue,
+          ga4_prev_sessions: ga4PrevSessions,
+          ga4_prev_conversions: ga4PrevConv,
+          ga4_prev_revenue: ga4PrevRevenue,
+          ga4_cvr: ga4Cvr,
+          ga4_prev_cvr: ga4PrevCvr,
+          ga4_avg_ticket: ga4Ticket,
+          ga4_tracking_status: ga4Tracking?.status ?? null,
+          ga4_tracking_notes: ga4Tracking?.notes ?? null,
           mode,
           click_context: clickContext,
           parse_ok: parsedContent.parseOk,

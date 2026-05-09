@@ -108,6 +108,10 @@ function ClientDetail() {
         activities,
         adAccounts,
         meetingReports,
+        ga4Daily,
+        ga4Funnel,
+        ga4Channels,
+        ga4Tracking,
       ] = await Promise.all([
         supabase.from("clients").select("*").eq("id", clientId).maybeSingle(),
         supabase
@@ -169,6 +173,30 @@ function ClientDetail() {
           .eq("client_id", clientId)
           .order("created_at", { ascending: false })
           .limit(10),
+        (supabase as any)
+          .from("ga4_daily")
+          .select("*")
+          .eq("client_id", clientId)
+          .order("date", { ascending: false })
+          .limit(60),
+        (supabase as any)
+          .from("ga4_funnel_daily")
+          .select("*")
+          .eq("client_id", clientId)
+          .order("date", { ascending: false })
+          .limit(30),
+        (supabase as any)
+          .from("ga4_channel_daily")
+          .select("*")
+          .eq("client_id", clientId)
+          .order("date", { ascending: false })
+          .limit(60),
+        (supabase as any)
+          .from("ga4_tracking_health_daily")
+          .select("*")
+          .eq("client_id", clientId)
+          .order("date", { ascending: false })
+          .limit(1),
       ]);
       return {
         client: client.data,
@@ -182,6 +210,10 @@ function ClientDetail() {
         activities: activities.data ?? [],
         adAccounts: adAccounts.data ?? [],
         meetingReports: meetingReports.data ?? [],
+        ga4Daily: ga4Daily.data ?? [],
+        ga4Funnel: ga4Funnel.data ?? [],
+        ga4Channels: ga4Channels.data ?? [],
+        ga4Tracking: ga4Tracking.data ?? [],
       };
     },
   });
@@ -236,6 +268,57 @@ function ClientDetail() {
     }
     return { avg: Math.round(avg * 10) / 10, delta };
   }, [data?.health]);
+  const ga4Insights = useMemo(() => {
+    const rows = data?.ga4Daily ?? [];
+    const cur = rows.filter(
+      (r: any) => new Date(r.date).getTime() >= Date.now() - 30 * 86400000,
+    );
+    const prev = rows.filter((r: any) => {
+      const ts = new Date(r.date).getTime();
+      return (
+        ts < Date.now() - 30 * 86400000 && ts >= Date.now() - 60 * 86400000
+      );
+    });
+    const sum = (arr: any[], k: string) =>
+      arr.reduce((a, b) => a + Number(b[k] ?? 0), 0);
+    const sessions = sum(cur, "sessions");
+    const conv = sum(cur, "conversions");
+    const rev = sum(cur, "revenue");
+    const prevSessions = sum(prev, "sessions");
+    const prevConv = sum(prev, "conversions");
+    const cvr = sessions > 0 ? conv / sessions : 0;
+    const prevCvr = prevSessions > 0 ? prevConv / prevSessions : 0;
+    const topChannelMap = new Map<string, number>();
+    for (const ch of data?.ga4Channels ?? []) {
+      const key = String(ch.channel ?? "Unassigned");
+      topChannelMap.set(
+        key,
+        (topChannelMap.get(key) ?? 0) + Number(ch.revenue ?? 0),
+      );
+    }
+    const topChannel = [...topChannelMap.entries()].sort(
+      (a, b) => b[1] - a[1],
+    )[0];
+    const funnel = (data?.ga4Funnel ?? []).slice(0, 7);
+    const avg = (k: string) =>
+      funnel.length
+        ? funnel.reduce((a: number, b: any) => a + Number(b[k] ?? 0), 0) /
+          funnel.length
+        : 0;
+    const tracking = data?.ga4Tracking?.[0] ?? null;
+    return {
+      sessions,
+      conv,
+      rev,
+      cvr,
+      prevCvr,
+      topChannel: topChannel?.[0] ?? null,
+      avgAdd: avg("add_to_cart"),
+      avgCheckout: avg("begin_checkout"),
+      avgPurchase: avg("purchase"),
+      tracking,
+    };
+  }, [data?.ga4Daily, data?.ga4Funnel, data?.ga4Channels, data?.ga4Tracking]);
 
   if (isLoading || !data) return <PageSkeleton preset="compact" />;
   if (!data.client)
@@ -739,6 +822,44 @@ function ClientDetail() {
                   </button>
                 </>
               )}
+            </div>
+          </Card>
+
+          <Card>
+            <CardHeader title="Resultado no site (GA4)" />
+            <div className="space-y-2 p-4 text-sm">
+              <Row
+                label="Sessões 30d"
+                value={String(Math.round(ga4Insights.sessions))}
+              />
+              <Row
+                label="Conversões 30d"
+                value={String(Math.round(ga4Insights.conv))}
+              />
+              <Row label="Receita GA4 30d" value={brl(ga4Insights.rev)} />
+              <Row
+                label="Taxa de conversão"
+                value={`${pct(ga4Insights.cvr * 100)} (ant. ${pct(ga4Insights.prevCvr * 100)})`}
+              />
+              <Row
+                label="Canal top (receita)"
+                value={ga4Insights.topChannel ?? "—"}
+              />
+              <Row
+                label="Funil médio 7d"
+                value={`ATC ${num(ga4Insights.avgAdd, 1)} | Checkout ${num(ga4Insights.avgCheckout, 1)} | Purchase ${num(ga4Insights.avgPurchase, 1)}`}
+              />
+              <Row
+                label="Tracking Health"
+                value={`${ga4Insights.tracking?.status ?? "não disponível"}`}
+                accent={
+                  ga4Insights.tracking?.status === "critical"
+                    ? "text-destructive"
+                    : ga4Insights.tracking?.status === "warning"
+                      ? "text-warning"
+                      : "text-success"
+                }
+              />
             </div>
           </Card>
 

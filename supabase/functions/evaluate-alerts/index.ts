@@ -53,28 +53,53 @@ Deno.serve(async (req) => {
     let created = 0;
 
     for (const c of clients ?? []) {
-      const [{ data: metrics }, { data: openAlerts }, { data: lastNote }] =
-        await Promise.all([
-          admin
-            .from("metrics_daily")
-            .select("date,spend,revenue,roas,cpa,ctr,conversions")
-            .eq("client_id", c.id)
-            .is("campaign_id", null)
-            .gte("date", since)
-            .order("date"),
-          admin
-            .from("alerts")
-            .select("type")
-            .eq("client_id", c.id)
-            .eq("status", "open"),
-          admin
-            .from("notes")
-            .select("created_at")
-            .eq("client_id", c.id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-        ]);
+      const [
+        { data: metrics },
+        { data: openAlerts },
+        { data: lastNote },
+        { data: ga4Daily },
+        { data: ga4Funnel },
+        { data: trackingHealth },
+      ] = await Promise.all([
+        admin
+          .from("metrics_daily")
+          .select("date,spend,revenue,roas,cpa,ctr,conversions")
+          .eq("client_id", c.id)
+          .is("campaign_id", null)
+          .gte("date", since)
+          .order("date"),
+        admin
+          .from("alerts")
+          .select("type")
+          .eq("client_id", c.id)
+          .eq("status", "open"),
+        admin
+          .from("notes")
+          .select("created_at")
+          .eq("client_id", c.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        admin
+          .from("ga4_daily")
+          .select("date, sessions, conversions, revenue")
+          .eq("client_id", c.id)
+          .gte("date", since)
+          .order("date"),
+        admin
+          .from("ga4_funnel_daily")
+          .select("date, add_to_cart, begin_checkout, purchase")
+          .eq("client_id", c.id)
+          .gte("date", since)
+          .order("date"),
+        admin
+          .from("ga4_tracking_health_daily")
+          .select("status, notes")
+          .eq("client_id", c.id)
+          .order("date", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
       const m = (metrics ?? []) as M[];
       if (m.length < 7) continue;
       const openTypes = new Set((openAlerts ?? []).map((a) => a.type));
@@ -98,6 +123,20 @@ Deno.serve(async (req) => {
       const last3 = m.slice(-3);
       const last3Spend = sum(last3, "spend");
       const noActivity = !last3.length || last3Spend === 0;
+      const g = ga4Daily ?? [];
+      const gm = Math.floor(g.length / 2);
+      const gPrior = g.slice(0, gm);
+      const gRecent = g.slice(gm);
+      const avgN = (arr: any[], k: string) =>
+        arr.length
+          ? arr.reduce((a, b) => a + Number(b[k] ?? 0), 0) / arr.length
+          : 0;
+      const convPrior = avgN(gPrior, "conversions");
+      const convRecent = avgN(gRecent, "conversions");
+      const revPrior = avgN(gPrior, "revenue");
+      const revRecent = avgN(gRecent, "revenue");
+      const sessPrior = avgN(gPrior, "sessions");
+      const sessRecent = avgN(gRecent, "sessions");
 
       const queue: {
         type: string;
@@ -179,6 +218,77 @@ Deno.serve(async (req) => {
           recommended_action: "Agendar reunião de alinhamento.",
           confidence: "media",
           time_to_act: "amanha_cedo",
+        });
+      }
+      if (convPrior > 0 && convRecent < convPrior * 0.72) {
+        queue.push({
+          type: "ga4_conversion_drop",
+          title: `Conversão do site caiu — ${c.name}`,
+          description: `Conversões GA4 caíram ${(((convPrior - convRecent) / convPrior) * 100).toFixed(0)}%.`,
+          priority: convRecent < convPrior * 0.55 ? "critical" : "high",
+          recommended_action:
+            "Revisar landing page, oferta e checkout antes de mexer no budget.",
+          confidence: "media",
+          time_to_act: "hoje",
+        });
+      }
+      if (revPrior > 0 && revRecent < revPrior * 0.7) {
+        queue.push({
+          type: "ga4_revenue_drop",
+          title: `Receita caiu com tráfego ativo — ${c.name}`,
+          description: `Receita GA4 caiu ${(((revPrior - revRecent) / revPrior) * 100).toFixed(0)}% no período recente.`,
+          priority: "high",
+          recommended_action:
+            "Auditar jornada de compra e qualidade do tráfego por canal.",
+          confidence: "media",
+          time_to_act: "hoje",
+        });
+      }
+      if (
+        sessPrior > 0 &&
+        sessRecent > sessPrior * 1.2 &&
+        (convRecent < convPrior * 0.9 || revRecent < revPrior * 0.9)
+      ) {
+        queue.push({
+          type: "ga4_sessions_up_results_down",
+          title: `Tráfego subiu, resultado caiu — ${c.name}`,
+          description:
+            "Sessões cresceram, mas conversões/receita não acompanharam.",
+          priority: "high",
+          recommended_action:
+            "Ajustar mensagem da página e validar experiência de checkout.",
+          confidence: "media",
+          time_to_act: "hoje",
+        });
+      }
+      const lastFunnel = (ga4Funnel ?? []).slice(-7);
+      const avgF = (k: string) => avgN(lastFunnel as any[], k);
+      if (
+        avgF("add_to_cart") > 0 &&
+        avgF("begin_checkout") < avgF("add_to_cart") * 0.5
+      ) {
+        queue.push({
+          type: "ga4_checkout_drop",
+          title: `Queda no checkout — ${c.name}`,
+          description: "Início de checkout abaixo do esperado vs add_to_cart.",
+          priority: "medium",
+          recommended_action: "Revisar frete, preço final e UX no checkout.",
+          confidence: "media",
+          time_to_act: "amanha_cedo",
+        });
+      }
+      if (trackingHealth?.status === "critical") {
+        queue.push({
+          type: "ga4_tracking_issue",
+          title: `Tracking GA4 crítico — ${c.name}`,
+          description: String(
+            trackingHealth.notes ?? "Risco de dados incompletos.",
+          ),
+          priority: "critical",
+          recommended_action:
+            "Validar configuração GA4 (eventos/chaves de conversão/UTMs).",
+          confidence: "alta",
+          time_to_act: "agora",
         });
       }
 

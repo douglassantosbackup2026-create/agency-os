@@ -68,6 +68,20 @@ function PortalPage() {
   );
   const roas = totalSpend > 0 ? totalRevenue / totalSpend : 0;
   const cpa = totalConv > 0 ? totalSpend / totalConv : 0;
+  const siteSessions = (data.ga4_daily ?? []).reduce(
+    (a: number, b: any) => a + Number(b.sessions ?? 0),
+    0,
+  );
+  const siteConversions = (data.ga4_daily ?? []).reduce(
+    (a: number, b: any) => a + Number(b.conversions ?? 0),
+    0,
+  );
+  const siteRevenue = (data.ga4_daily ?? []).reduce(
+    (a: number, b: any) => a + Number(b.revenue ?? 0),
+    0,
+  );
+  const siteCvr = siteSessions > 0 ? siteConversions / siteSessions : 0;
+  const siteTicket = siteConversions > 0 ? siteRevenue / siteConversions : 0;
 
   async function reviewCreative(
     creativeId: string,
@@ -176,6 +190,46 @@ function PortalPage() {
             color={themeColor}
           />
           <Stat icon={Target} label="CPA" value={brl(cpa)} color={themeColor} />
+        </section>
+
+        <section className="rounded-xl border border-border bg-card p-5">
+          <h2 className="mb-3 text-sm font-semibold">Resultado no site</h2>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+            <Stat
+              icon={TrendingUp}
+              label="Sessões"
+              value={String(Math.round(siteSessions))}
+              color={themeColor}
+            />
+            <Stat
+              icon={Target}
+              label="Conversões"
+              value={String(Math.round(siteConversions))}
+              color={themeColor}
+            />
+            <Stat
+              icon={Wallet}
+              label="Receita"
+              value={brl(siteRevenue)}
+              color={themeColor}
+            />
+            <Stat
+              icon={Target}
+              label="Taxa conv."
+              value={pct(siteCvr * 100)}
+              color={themeColor}
+            />
+            <Stat
+              icon={Heart}
+              label="Tracking"
+              value={String(data.ga4_tracking?.status ?? "n/d")}
+              color={themeColor}
+            />
+          </div>
+          <div className="mt-3 text-xs text-muted-foreground">
+            Ticket médio: {brl(siteTicket)}{" "}
+            {data.ga4_tracking?.notes ? `· ${data.ga4_tracking.notes}` : ""}
+          </div>
         </section>
 
         {data.report && (

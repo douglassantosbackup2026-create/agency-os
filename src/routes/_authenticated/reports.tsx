@@ -573,6 +573,24 @@ function Reports() {
                       label="Conversões"
                       value={String(selected.raw_data.conv ?? 0)}
                     />
+                    <Metric
+                      label="Sessões (GA4)"
+                      value={String(selected.raw_data.ga4_sessions ?? 0)}
+                    />
+                    <Metric
+                      label="CVR (GA4)"
+                      value={`${num((selected.raw_data.ga4_cvr ?? 0) * 100, 2)}%`}
+                    />
+                    <Metric
+                      label="Ticket (GA4)"
+                      value={brl(selected.raw_data.ga4_avg_ticket ?? 0)}
+                    />
+                    <Metric
+                      label="Tracking"
+                      value={String(
+                        selected.raw_data.ga4_tracking_status ?? "n/d",
+                      )}
+                    />
                   </div>
                 </Card>
               )}

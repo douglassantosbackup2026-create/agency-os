@@ -27,6 +27,13 @@ function computeFor(
   metrics: M[],
   lastActivityAgo: number,
   lastNoteAgo: number,
+  ga4: {
+    conversionDeltaPct: number;
+    revenueDeltaPct: number;
+    sessionsUpResultsDown: boolean;
+    funnelDrop: boolean;
+    trackingStatus: "healthy" | "warning" | "critical";
+  },
 ) {
   // Split into recent (last 14d) vs prior (15-28d)
   const sorted = [...metrics].sort((a, b) => a.date.localeCompare(b.date));
@@ -50,11 +57,20 @@ function computeFor(
   const recCtr = avg(recent, "ctr");
 
   // Performance: ROAS absoluto (>=3 = 100, <1 = 0)
-  const performance = clamp(recRoas * 33);
+  const ga4Penalty = Math.max(
+    0,
+    -(ga4.conversionDeltaPct + ga4.revenueDeltaPct),
+  );
+  const performance = clamp(recRoas * 33 - ga4Penalty * 0.4);
   // Optimization: estabilidade entre períodos (delta < 10% = 100)
   const roasDelta = priRoas > 0 ? Math.abs(recRoas - priRoas) / priRoas : 0;
   const cpaDelta = priCpa > 0 ? Math.abs(recCpa - priCpa) / priCpa : 0;
-  const optimization = clamp(100 - (roasDelta + cpaDelta) * 100);
+  const optimization = clamp(
+    100 -
+      (roasDelta + cpaDelta) * 100 -
+      (ga4.sessionsUpResultsDown ? 15 : 0) -
+      (ga4.funnelDrop ? 18 : 0),
+  );
   // Stability: variância de ROAS diário
   const variance = recent.length
     ? (() => {
@@ -67,7 +83,9 @@ function computeFor(
         return Math.sqrt(v);
       })()
     : 0;
-  const stability = clamp(100 - variance * 30);
+  const stability = clamp(
+    100 - variance * 30 - (ga4.trackingStatus === "critical" ? 20 : 0),
+  );
   // Communication: tempo desde última nota (0d=100, 30d=0)
   const communication = clamp(100 - (lastNoteAgo / 30) * 100);
   // Engagement: tempo desde última activity (0d=100, 14d=0)
@@ -87,6 +105,7 @@ function computeFor(
     stability_score: Math.round(stability),
     communication_score: Math.round(communication),
     engagement_score: Math.round(engagement),
+    ga4_context: ga4,
   };
 }
 
@@ -122,29 +141,85 @@ Deno.serve(async (req) => {
     const inserts: Record<string, unknown>[] = [];
 
     for (const c of clients ?? []) {
-      const [{ data: metrics }, { data: lastAct }, { data: lastNote }] =
-        await Promise.all([
-          admin
-            .from("metrics_daily")
-            .select("date,spend,revenue,roas,cpa,ctr,conversions")
-            .eq("client_id", c.id)
-            .is("campaign_id", null)
-            .gte("date", since),
-          admin
-            .from("activities")
-            .select("created_at")
-            .eq("client_id", c.id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-          admin
-            .from("notes")
-            .select("created_at")
-            .eq("client_id", c.id)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-        ]);
+      const [
+        { data: metrics },
+        { data: lastAct },
+        { data: lastNote },
+        { data: ga4Daily },
+        { data: ga4Funnel },
+        { data: tracking },
+      ] = await Promise.all([
+        admin
+          .from("metrics_daily")
+          .select("date,spend,revenue,roas,cpa,ctr,conversions")
+          .eq("client_id", c.id)
+          .is("campaign_id", null)
+          .gte("date", since),
+        admin
+          .from("activities")
+          .select("created_at")
+          .eq("client_id", c.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        admin
+          .from("notes")
+          .select("created_at")
+          .eq("client_id", c.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        admin
+          .from("ga4_daily")
+          .select("date, sessions, conversions, revenue")
+          .eq("client_id", c.id)
+          .gte("date", since)
+          .order("date"),
+        admin
+          .from("ga4_funnel_daily")
+          .select("date, add_to_cart_rate, checkout_rate, purchase_rate")
+          .eq("client_id", c.id)
+          .gte("date", since)
+          .order("date"),
+        admin
+          .from("ga4_tracking_health_daily")
+          .select("status, tracking_drop_detected")
+          .eq("client_id", c.id)
+          .order("date", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+      const g = ga4Daily ?? [];
+      const mid = Math.floor(g.length / 2);
+      const gPrior = g.slice(0, mid);
+      const gRecent = g.slice(mid);
+      const avgNum = (arr: any[], key: string) =>
+        arr.length
+          ? arr.reduce((a, b) => a + Number(b[key] ?? 0), 0) / arr.length
+          : 0;
+      const recConv = avgNum(gRecent, "conversions");
+      const priConv = avgNum(gPrior, "conversions");
+      const recRev = avgNum(gRecent, "revenue");
+      const priRev = avgNum(gPrior, "revenue");
+      const recSessions = avgNum(gRecent, "sessions");
+      const priSessions = avgNum(gPrior, "sessions");
+      const conversionDeltaPct =
+        priConv > 0 ? ((recConv - priConv) / priConv) * 100 : 0;
+      const revenueDeltaPct =
+        priRev > 0 ? ((recRev - priRev) / priRev) * 100 : 0;
+      const sessionsUpResultsDown =
+        recSessions > priSessions * 1.15 &&
+        (recConv < priConv * 0.9 || recRev < priRev * 0.9);
+      const funnelDrop = (ga4Funnel ?? [])
+        .slice(-3)
+        .some(
+          (f: any) =>
+            Number(f.add_to_cart_rate ?? 0) < 0.03 ||
+            Number(f.checkout_rate ?? 0) < 0.2 ||
+            Number(f.purchase_rate ?? 0) < 0.2,
+        );
+      const trackingStatus =
+        (tracking?.status as "healthy" | "warning" | "critical") ?? "healthy";
       const now = Date.now();
       const lastActAgo = lastAct
         ? (now - new Date(lastAct.created_at).getTime()) / 86400000
@@ -152,7 +227,13 @@ Deno.serve(async (req) => {
       const lastNoteAgo = lastNote
         ? (now - new Date(lastNote.created_at).getTime()) / 86400000
         : 30;
-      const r = computeFor((metrics ?? []) as M[], lastActAgo, lastNoteAgo);
+      const r = computeFor((metrics ?? []) as M[], lastActAgo, lastNoteAgo, {
+        conversionDeltaPct,
+        revenueDeltaPct,
+        sessionsUpResultsDown,
+        funnelDrop,
+        trackingStatus,
+      });
       inserts.push({ agency_id: c.agency_id, client_id: c.id, ...r });
       processed++;
     }

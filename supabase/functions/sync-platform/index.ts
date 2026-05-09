@@ -321,46 +321,101 @@ async function fetchGA4Metrics(
   agency_id: string,
   client_id: string,
   syncDays: number,
-): Promise<{ rows: MetricRowInsert[] } | { error: string }> {
+): Promise<
+  | {
+      rows: MetricRowInsert[];
+      ga4Daily: Array<Record<string, unknown>>;
+      ga4Funnel: Array<Record<string, unknown>>;
+      ga4Channels: Array<Record<string, unknown>>;
+      trackingHealth: Record<string, unknown>;
+    }
+  | { error: string }
+> {
   const pid = propertyId.replace(/^properties\//i, "").trim();
   if (!pid)
     return {
       error: "GA4: defina o ID da propriedade (account_id na integração).",
     };
 
-  const url = `https://analyticsdata.googleapis.com/v1beta/properties/${pid}:runReport`;
-  const body = {
-    dateRanges: [
+  const runGA4Report = async (body: Record<string, unknown>) => {
+    const url = `https://analyticsdata.googleapis.com/v1beta/properties/${pid}:runReport`;
+    const r = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    const j = await r.json();
+    if (!r.ok) {
+      const msg = j?.error?.message ?? JSON.stringify(j).slice(0, 400);
+      throw new Error(msg);
+    }
+    return j as Record<string, unknown>;
+  };
+
+  let dailyReport: Record<string, unknown>;
+  let funnelReport: Record<string, unknown>;
+  let channelsReport: Record<string, unknown>;
+  try {
+    const dateRanges = [
       {
         startDate: `${Math.min(90, Math.max(1, syncDays))}daysAgo`,
         endDate: "today",
       },
-    ],
-    dimensions: [{ name: "date" }],
-    metrics: [
-      { name: "sessions" },
-      { name: "eventCount" },
-      { name: "activeUsers" },
-    ],
-  };
-  const r = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
-  const j = await r.json();
-  if (!r.ok) {
-    const msg = j?.error?.message ?? JSON.stringify(j).slice(0, 400);
-    return { error: `GA4 Data API: ${msg}` };
+    ];
+    dailyReport = await runGA4Report({
+      dateRanges,
+      dimensions: [{ name: "date" }],
+      metrics: [
+        { name: "sessions" },
+        { name: "activeUsers" },
+        { name: "keyEvents" },
+        { name: "purchases" },
+        { name: "purchaseRevenue" },
+      ],
+    });
+    funnelReport = await runGA4Report({
+      dateRanges,
+      dimensions: [{ name: "date" }, { name: "eventName" }],
+      metrics: [{ name: "eventCount" }],
+      dimensionFilter: {
+        filter: {
+          fieldName: "eventName",
+          inListFilter: {
+            values: [
+              "view_item",
+              "add_to_cart",
+              "begin_checkout",
+              "purchase",
+              "generate_lead",
+              "sign_up",
+            ],
+          },
+        },
+      },
+    });
+    channelsReport = await runGA4Report({
+      dateRanges,
+      dimensions: [{ name: "date" }, { name: "sessionDefaultChannelGroup" }],
+      metrics: [
+        { name: "sessions" },
+        { name: "keyEvents" },
+        { name: "purchaseRevenue" },
+      ],
+    });
+  } catch (e) {
+    return { error: `GA4 Data API: ${(e as Error).message}` };
   }
 
-  const header = (j.dimensionHeaders ?? []) as Array<{ name: string }>;
+  const header = (dailyReport.dimensionHeaders ?? []) as Array<{
+    name: string;
+  }>;
   const dateIdx = header.findIndex((h) => h.name === "date");
   const rows: MetricRowInsert[] = [];
-  for (const row of (j.rows ?? []) as Array<{
+  const ga4Daily: Array<Record<string, unknown>> = [];
+  for (const row of (dailyReport.rows ?? []) as Array<{
     dimensionValues?: Array<{ value?: string }>;
     metricValues?: Array<{ value?: string }>;
   }>) {
@@ -371,13 +426,17 @@ async function fetchGA4Metrics(
         ? `${rawDate.slice(0, 4)}-${rawDate.slice(4, 6)}-${rawDate.slice(6, 8)}`
         : rawDate.slice(0, 10);
     const sessions = Number(row.metricValues?.[0]?.value ?? 0);
-    const eventCount = Number(row.metricValues?.[1]?.value ?? 0);
-    const activeUsers = Number(row.metricValues?.[2]?.value ?? 0);
+    const activeUsers = Number(row.metricValues?.[1]?.value ?? 0);
+    const keyEvents = Number(row.metricValues?.[2]?.value ?? 0);
+    const purchases = Number(row.metricValues?.[3]?.value ?? 0);
+    const purchaseRevenue = Number(row.metricValues?.[4]?.value ?? 0);
+    const conversions = purchases > 0 ? purchases : Math.round(keyEvents);
+    const revenue = purchaseRevenue;
+    const conversionRate = sessions > 0 ? conversions / sessions : 0;
+    const avgTicket = conversions > 0 ? revenue / conversions : 0;
     const spend = 0;
-    const revenue = Math.round(sessions * 15 + activeUsers * 8);
-    const conversions = Math.max(1, Math.round(eventCount));
-    const impressions = Math.round(sessions * 40);
-    const clicks = Math.round(sessions * 3);
+    const impressions = Math.round(sessions * 35);
+    const clicks = Math.round(sessions * 2.5);
     const roas = spend > 0 ? revenue / spend : 0;
     const cpa = spend > 0 ? spend / conversions : 0;
     const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
@@ -395,6 +454,17 @@ async function fetchGA4Metrics(
       cpa: Number(cpa.toFixed(2)),
       ctr: Number(ctr.toFixed(3)),
     });
+    ga4Daily.push({
+      agency_id,
+      client_id,
+      date: dateStr,
+      sessions: Math.round(sessions),
+      users_count: Math.round(activeUsers),
+      conversions: Math.round(conversions),
+      revenue: Number(revenue.toFixed(2)),
+      conversion_rate: Number(conversionRate.toFixed(4)),
+      avg_ticket: Number(avgTicket.toFixed(2)),
+    });
   }
 
   if (rows.length === 0) {
@@ -403,7 +473,131 @@ async function fetchGA4Metrics(
         "GA4 não devolveu linhas para o intervalo (verifique property e escopos).",
     };
   }
-  return { rows };
+  const funnelRows = (funnelReport.rows ?? []) as Array<{
+    dimensionValues?: Array<{ value?: string }>;
+    metricValues?: Array<{ value?: string }>;
+  }>;
+  const funnelMap = new Map<
+    string,
+    {
+      view_item: number;
+      add_to_cart: number;
+      begin_checkout: number;
+      purchase: number;
+      lead_events: number;
+    }
+  >();
+  for (const r of funnelRows) {
+    const dateRaw = String(r.dimensionValues?.[0]?.value ?? "");
+    const eventName = String(r.dimensionValues?.[1]?.value ?? "");
+    const dateStr =
+      dateRaw.length === 8
+        ? `${dateRaw.slice(0, 4)}-${dateRaw.slice(4, 6)}-${dateRaw.slice(6, 8)}`
+        : dateRaw.slice(0, 10);
+    if (!dateStr) continue;
+    const cnt = Number(r.metricValues?.[0]?.value ?? 0);
+    const cur = funnelMap.get(dateStr) ?? {
+      view_item: 0,
+      add_to_cart: 0,
+      begin_checkout: 0,
+      purchase: 0,
+      lead_events: 0,
+    };
+    if (eventName === "view_item") cur.view_item += cnt;
+    if (eventName === "add_to_cart") cur.add_to_cart += cnt;
+    if (eventName === "begin_checkout") cur.begin_checkout += cnt;
+    if (eventName === "purchase") cur.purchase += cnt;
+    if (eventName === "generate_lead" || eventName === "sign_up") {
+      cur.lead_events += cnt;
+    }
+    funnelMap.set(dateStr, cur);
+  }
+  const ga4Funnel = [...funnelMap.entries()].map(([date, v]) => {
+    const addRate = v.view_item > 0 ? v.add_to_cart / v.view_item : 0;
+    const chkRate = v.add_to_cart > 0 ? v.begin_checkout / v.add_to_cart : 0;
+    const purchaseOrLead = v.purchase > 0 ? v.purchase : v.lead_events;
+    const purRate =
+      v.begin_checkout > 0 ? purchaseOrLead / v.begin_checkout : 0;
+    return {
+      agency_id,
+      client_id,
+      date,
+      view_item: Math.round(v.view_item),
+      add_to_cart: Math.round(v.add_to_cart),
+      begin_checkout: Math.round(v.begin_checkout),
+      purchase: Math.round(purchaseOrLead),
+      add_to_cart_rate: Number(addRate.toFixed(4)),
+      checkout_rate: Number(chkRate.toFixed(4)),
+      purchase_rate: Number(purRate.toFixed(4)),
+    };
+  });
+
+  const channelRows = (channelsReport.rows ?? []) as Array<{
+    dimensionValues?: Array<{ value?: string }>;
+    metricValues?: Array<{ value?: string }>;
+  }>;
+  const ga4Channels: Array<Record<string, unknown>> = [];
+  for (const r of channelRows) {
+    const dateRaw = String(r.dimensionValues?.[0]?.value ?? "");
+    const channel = String(r.dimensionValues?.[1]?.value ?? "Unassigned");
+    const dateStr =
+      dateRaw.length === 8
+        ? `${dateRaw.slice(0, 4)}-${dateRaw.slice(4, 6)}-${dateRaw.slice(6, 8)}`
+        : dateRaw.slice(0, 10);
+    if (!dateStr) continue;
+    const sessions = Number(r.metricValues?.[0]?.value ?? 0);
+    const conversions = Number(r.metricValues?.[1]?.value ?? 0);
+    const revenue = Number(r.metricValues?.[2]?.value ?? 0);
+    const cv = sessions > 0 ? conversions / sessions : 0;
+    const rps = sessions > 0 ? revenue / sessions : 0;
+    ga4Channels.push({
+      agency_id,
+      client_id,
+      date: dateStr,
+      channel: channel || "Unassigned",
+      sessions: Math.round(sessions),
+      conversions: Math.round(conversions),
+      revenue: Number(revenue.toFixed(2)),
+      conversion_rate: Number(cv.toFixed(4)),
+      revenue_per_session: Number(rps.toFixed(4)),
+    });
+  }
+
+  const lastDaily = ga4Daily[ga4Daily.length - 1] as Record<string, unknown>;
+  const prevDaily =
+    ga4Daily.length > 1
+      ? (ga4Daily[ga4Daily.length - 2] as Record<string, unknown>)
+      : null;
+  const sessionsNow = Number(lastDaily?.sessions ?? 0);
+  const sessionsPrev = Number(prevDaily?.sessions ?? sessionsNow);
+  const trackingDrop =
+    sessionsPrev > 0 && (sessionsNow - sessionsPrev) / sessionsPrev < -0.6;
+  const hasPurchase = ga4Funnel.some((f) => Number(f.purchase ?? 0) > 0);
+  const hasLeadFallback = ga4Funnel.some(
+    (f) => Number(f.purchase ?? 0) > 0 || Number(f.begin_checkout ?? 0) > 0,
+  );
+  const dataSufficient = ga4Daily.length >= Math.min(7, syncDays);
+  const notes = [
+    hasPurchase ? "purchase_detectado" : "sem_purchase",
+    dataSufficient ? "dados_suficientes" : "amostra_curta",
+    trackingDrop ? "queda_brusca_tracking" : "tracking_estavel",
+  ].join(", ");
+  const trackingHealth = {
+    agency_id,
+    client_id,
+    date: new Date().toISOString().slice(0, 10),
+    status: trackingDrop ? "critical" : dataSufficient ? "healthy" : "warning",
+    connected: true,
+    property_valid: true,
+    events_ok: ga4Funnel.length > 0,
+    conversion_event_ok: hasPurchase || hasLeadFallback,
+    revenue_available: ga4Daily.some((d) => Number(d.revenue ?? 0) > 0),
+    data_sufficient: dataSufficient,
+    tracking_drop_detected: trackingDrop,
+    notes,
+  };
+
+  return { rows, ga4Daily, ga4Funnel, ga4Channels, trackingHealth };
 }
 
 async function refreshGoogleAccessToken(
@@ -899,6 +1093,12 @@ Deno.serve(async (req) => {
         : (scopedAccount?.account_external_id ?? null);
 
     let rows: MetricRowInsert[] = [];
+    let ga4Artifacts: {
+      ga4Daily: Array<Record<string, unknown>>;
+      ga4Funnel: Array<Record<string, unknown>>;
+      ga4Channels: Array<Record<string, unknown>>;
+      trackingHealth: Record<string, unknown>;
+    } | null = null;
     let mode:
       | "meta_api_campaigns"
       | "meta_api_account"
@@ -1019,6 +1219,12 @@ Deno.serve(async (req) => {
           });
         }
         rows = res.rows;
+        ga4Artifacts = {
+          ga4Daily: res.ga4Daily,
+          ga4Funnel: res.ga4Funnel,
+          ga4Channels: res.ga4Channels,
+          trackingHealth: res.trackingHealth,
+        };
         mode = "ga4_api";
       } else {
         rows = simulatedRows(
@@ -1200,6 +1406,56 @@ Deno.serve(async (req) => {
     }
 
     await admin.from("metrics_daily").insert(rows);
+    if (mode === "ga4_api" && ga4Artifacts) {
+      const datesDaily = [
+        ...new Set(ga4Artifacts.ga4Daily.map((r) => String(r.date))),
+      ];
+      if (datesDaily.length) {
+        await admin
+          .from("ga4_daily")
+          .delete()
+          .eq("client_id", client_id)
+          .in("date", datesDaily);
+        await admin.from("ga4_daily").insert(ga4Artifacts.ga4Daily);
+      }
+      const datesFunnel = [
+        ...new Set(ga4Artifacts.ga4Funnel.map((r) => String(r.date))),
+      ];
+      if (datesFunnel.length) {
+        await admin
+          .from("ga4_funnel_daily")
+          .delete()
+          .eq("client_id", client_id)
+          .in("date", datesFunnel);
+        await admin.from("ga4_funnel_daily").insert(ga4Artifacts.ga4Funnel);
+      }
+      const datesChannels = [
+        ...new Set(ga4Artifacts.ga4Channels.map((r) => String(r.date))),
+      ];
+      if (datesChannels.length) {
+        await admin
+          .from("ga4_channel_daily")
+          .delete()
+          .eq("client_id", client_id)
+          .in("date", datesChannels);
+        await admin.from("ga4_channel_daily").insert(ga4Artifacts.ga4Channels);
+      }
+      await admin
+        .from("ga4_tracking_health_daily")
+        .delete()
+        .eq("client_id", client_id)
+        .eq("date", String(ga4Artifacts.trackingHealth.date));
+      await admin
+        .from("ga4_tracking_health_daily")
+        .insert(ga4Artifacts.trackingHealth);
+      console.info("ga4_sync_summary", {
+        client_id,
+        daily_rows: ga4Artifacts.ga4Daily.length,
+        funnel_rows: ga4Artifacts.ga4Funnel.length,
+        channel_rows: ga4Artifacts.ga4Channels.length,
+        tracking_status: ga4Artifacts.trackingHealth.status,
+      });
+    }
     await admin
       .from("integrations")
       .update({ last_sync_at: new Date().toISOString() })

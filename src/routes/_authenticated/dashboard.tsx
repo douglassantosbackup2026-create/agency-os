@@ -43,44 +43,64 @@ function Dashboard() {
       const since14 = new Date(Date.now() - 14 * 86400000)
         .toISOString()
         .slice(0, 10);
-      const [clients, metrics, alerts, activities, health, campaignMetrics] =
-        await Promise.all([
-          supabase
-            .from("clients")
-            .select("id, name, status, mrr, monthly_budget")
-            .eq("agency_id", agency!.id),
-          supabase
-            .from("metrics_daily")
-            .select("date, spend, revenue, roas")
-            .eq("agency_id", agency!.id)
-            .is("campaign_id", null)
-            .gte("date", since60),
-          supabase
-            .from("alerts")
-            .select("id, title, priority, created_at, type, recommended_action")
-            .eq("agency_id", agency!.id)
-            .eq("status", "open")
-            .order("priority", { ascending: false })
-            .order("created_at", { ascending: false })
-            .limit(8),
-          supabase
-            .from("activities")
-            .select("id, title, description, created_at, type")
-            .eq("agency_id", agency!.id)
-            .order("created_at", { ascending: false })
-            .limit(10),
-          supabase
-            .from("health_scores")
-            .select("client_id, score, risk, recorded_at")
-            .eq("agency_id", agency!.id)
-            .order("recorded_at", { ascending: false }),
-          supabase
-            .from("metrics_daily")
-            .select("campaign_id, date, roas, campaigns(name)")
-            .eq("agency_id", agency!.id)
-            .gte("date", since14)
-            .not("campaign_id", "is", null),
-        ]);
+      const [
+        clients,
+        metrics,
+        alerts,
+        activities,
+        health,
+        campaignMetrics,
+        ga4Daily,
+        ga4Tracking,
+      ] = await Promise.all([
+        supabase
+          .from("clients")
+          .select("id, name, status, mrr, monthly_budget")
+          .eq("agency_id", agency!.id),
+        supabase
+          .from("metrics_daily")
+          .select("date, spend, revenue, roas")
+          .eq("agency_id", agency!.id)
+          .is("campaign_id", null)
+          .gte("date", since60),
+        supabase
+          .from("alerts")
+          .select("id, title, priority, created_at, type, recommended_action")
+          .eq("agency_id", agency!.id)
+          .eq("status", "open")
+          .order("priority", { ascending: false })
+          .order("created_at", { ascending: false })
+          .limit(8),
+        supabase
+          .from("activities")
+          .select("id, title, description, created_at, type")
+          .eq("agency_id", agency!.id)
+          .order("created_at", { ascending: false })
+          .limit(10),
+        supabase
+          .from("health_scores")
+          .select("client_id, score, risk, recorded_at")
+          .eq("agency_id", agency!.id)
+          .order("recorded_at", { ascending: false }),
+        supabase
+          .from("metrics_daily")
+          .select("campaign_id, date, roas, campaigns(name)")
+          .eq("agency_id", agency!.id)
+          .gte("date", since14)
+          .not("campaign_id", "is", null),
+        (supabase as any)
+          .from("ga4_daily")
+          .select(
+            "date, sessions, conversions, revenue, conversion_rate, avg_ticket",
+          )
+          .eq("agency_id", agency!.id)
+          .gte("date", since60),
+        (supabase as any)
+          .from("ga4_tracking_health_daily")
+          .select("status")
+          .eq("agency_id", agency!.id)
+          .gte("date", since14),
+      ]);
       return {
         clients: clients.data ?? [],
         metrics: metrics.data ?? [],
@@ -88,6 +108,8 @@ function Dashboard() {
         activities: activities.data ?? [],
         health: health.data ?? [],
         campaignMetrics: campaignMetrics.data ?? [],
+        ga4Daily: ga4Daily.data ?? [],
+        ga4Tracking: ga4Tracking.data ?? [],
       };
     },
   });
@@ -173,6 +195,39 @@ function Dashboard() {
   const campaignMomentum = computeCampaignMomentum(
     data.campaignMetrics as CampaignMetricRow[],
   );
+  const ga4Cur = data.ga4Daily.filter(
+    (m: any) => new Date(m.date).getTime() >= Date.now() - 30 * 86400000,
+  );
+  const ga4Prev = data.ga4Daily.filter((m: any) => {
+    const ts = new Date(m.date).getTime();
+    return ts < Date.now() - 30 * 86400000 && ts >= Date.now() - 60 * 86400000;
+  });
+  const siteSessions = ga4Cur.reduce(
+    (a: number, b: any) => a + Number(b.sessions ?? 0),
+    0,
+  );
+  const siteConv = ga4Cur.reduce(
+    (a: number, b: any) => a + Number(b.conversions ?? 0),
+    0,
+  );
+  const siteRevenue = ga4Cur.reduce(
+    (a: number, b: any) => a + Number(b.revenue ?? 0),
+    0,
+  );
+  const siteCvr = siteSessions > 0 ? siteConv / siteSessions : 0;
+  const prevSiteSessions = ga4Prev.reduce(
+    (a: number, b: any) => a + Number(b.sessions ?? 0),
+    0,
+  );
+  const prevSiteConv = ga4Prev.reduce(
+    (a: number, b: any) => a + Number(b.conversions ?? 0),
+    0,
+  );
+  const prevSiteCvr =
+    prevSiteSessions > 0 ? prevSiteConv / prevSiteSessions : 0;
+  const trackingCritical = (data.ga4Tracking ?? []).filter(
+    (t: any) => t.status === "critical",
+  ).length;
   const recommended = [...data.alerts]
     .filter((a) => (a as { recommended_action?: string }).recommended_action)
     .slice(0, 5) as Array<{
@@ -295,6 +350,26 @@ function Dashboard() {
           label="Renovações 30d"
           value={String(renewals30d)}
           sub={`MRR atual ${brl(mrr)}`}
+        />
+        <Stat
+          icon={Users}
+          label="Sessões site 30d"
+          value={String(Math.round(siteSessions))}
+          sub={`Receita GA4 ${brl(siteRevenue)}`}
+        />
+        <Stat
+          icon={Target}
+          label="CVR site 30d"
+          value={pct(siteCvr * 100)}
+          sub={`30d ant. ${pct(prevSiteCvr * 100)}`}
+          accent={siteCvr >= prevSiteCvr ? "text-success" : "text-warning"}
+        />
+        <Stat
+          icon={AlertTriangle}
+          label="Tracking GA4"
+          value={trackingCritical > 0 ? "Crítico" : "OK"}
+          sub={`${trackingCritical} críticos (14d)`}
+          accent={trackingCritical > 0 ? "text-destructive" : "text-success"}
         />
       </div>
 
