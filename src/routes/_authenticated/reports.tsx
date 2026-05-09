@@ -151,16 +151,29 @@ function Reports() {
             Selecione um relatório à esquerda ou gere um novo.
           </div>
         ) : (
-          <div className="mx-auto max-w-3xl space-y-5">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={selected.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+              className="mx-auto max-w-3xl space-y-5"
+            >
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-xl font-semibold tracking-tight">{selected.clients?.name}</h2>
                 <p className="mt-0.5 text-xs text-muted-foreground">Período: {selected.period_start} → {selected.period_end}</p>
               </div>
-              <button onClick={() => copyToClipboard(selected)} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface-2">
-                {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
-                {copied ? "Copiado" : "Copiar"}
-              </button>
+              <div className="flex gap-2">
+                <button onClick={() => exportPDF(selected)} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface-2">
+                  <FileDown className="h-3 w-3" /> PDF
+                </button>
+                <button onClick={() => copyToClipboard(selected)} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface-2">
+                  {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                  {copied ? "Copiado" : "Copiar"}
+                </button>
+              </div>
             </div>
             <Section title="Resumo executivo" body={selected.executive_summary} />
             <Section title="Pontos positivos" body={selected.positives} accent="emerald" />
