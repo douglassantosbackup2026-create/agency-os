@@ -40,9 +40,10 @@ function Login() {
           Entrar
         </button>
       </form>
-      <p className="mt-4 text-center text-sm text-muted-foreground">
-        Ainda não tem conta? <Link to="/signup" className="text-primary hover:underline">Criar agência</Link>
-      </p>
+      <div className="mt-4 flex items-center justify-between text-sm">
+        <Link to="/forgot-password" className="text-muted-foreground hover:text-foreground">Esqueci minha senha</Link>
+        <Link to="/signup" className="text-primary hover:underline">Criar agência</Link>
+      </div>
     </AuthShell>
   );
 }
