@@ -9,3 +9,15 @@ verify_jwt = false
 
 [functions.evaluate-alerts]
 verify_jwt = false
+
+[functions.send-whatsapp]
+verify_jwt = true
+
+[functions.sync-platform]
+verify_jwt = true
+
+[functions.portal-data]
+verify_jwt = false
+
+[functions.invite-member]
+verify_jwt = true
