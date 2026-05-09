@@ -2,6 +2,18 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, num, pct, timeAgo } from "@/lib/format";
+import { syncLabelForCockpit } from "@/lib/sync-freshness";
+import {
+  buildNextStepsQueue,
+  formatEffort,
+  type NextStepItem,
+} from "@/lib/next-steps-queue";
+import {
+  MESSAGE_SCENARIO_TEMPLATES,
+  applyMessageTemplate,
+  type TemplatePlaceholders,
+} from "@/lib/message-templates";
+import { linearWeeklyBudgetIfPauseFraction } from "@/lib/light-budget-simulation";
 import {
   buildDraftClientMessageFromRecommendations,
   overallStatusLabel,
@@ -27,6 +39,10 @@ import {
   RefreshCw,
   Activity as ActivityIcon,
   ClipboardCopy,
+  MessageSquare,
+  Clock,
+  Bell,
+  ListTodo,
 } from "lucide-react";
 import {
   CartesianGrid,
@@ -135,12 +151,24 @@ function ClientDetail() {
   const [auditCompareRight, setAuditCompareRight] = useState("");
   const [clientMsgOpen, setClientMsgOpen] = useState(false);
   const [clientMsgBody, setClientMsgBody] = useState("");
+  const [tplOpen, setTplOpen] = useState(false);
+  const [tplScenarioId, setTplScenarioId] = useState(
+    MESSAGE_SCENARIO_TEMPLATES[0]?.id ?? "checkin",
+  );
+  const [tplDraft, setTplDraft] = useState("");
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["client", clientId],
     queryFn: async () => {
+      const clientSnap = await supabase
+        .from("clients")
+        .select("*")
+        .eq("id", clientId)
+        .maybeSingle();
+      throwIfSupabaseError(clientSnap.error, "clients");
+      const agencyId = clientSnap.data?.agency_id ?? "";
+
       const [
-        client,
         metrics,
         campaigns,
         alerts,
@@ -158,8 +186,9 @@ function ClientDetail() {
         actions,
         campaignAudits,
         auditRecoStatuses,
+        syncRun,
+        integrationsCount,
       ] = await Promise.all([
-        supabase.from("clients").select("*").eq("id", clientId).maybeSingle(),
         supabase
           .from("metrics_daily")
           .select("*")
@@ -177,7 +206,7 @@ function ClientDetail() {
           .select("*")
           .eq("client_id", clientId)
           .order("created_at", { ascending: false })
-          .limit(20),
+          .limit(25),
         supabase
           .from("reports")
           .select("*")
@@ -261,8 +290,21 @@ function ClientDetail() {
           .eq("client_id", clientId)
           .order("updated_at", { ascending: false })
           .limit(400),
+        supabase
+          .from("sync_runs")
+          .select("status, created_at")
+          .eq("client_id", clientId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        agencyId
+          ? supabase
+              .from("integrations")
+              .select("id", { count: "exact", head: true })
+              .eq("agency_id", agencyId)
+              .eq("status", "connected")
+          : Promise.resolve({ count: 0, error: null }),
       ]);
-      throwIfSupabaseError(client.error, "clients");
       throwIfSupabaseError(metrics.error, "metrics_daily");
       throwIfSupabaseError(campaigns.error, "campaigns");
       throwIfSupabaseError(alerts.error, "alerts");
@@ -280,8 +322,11 @@ function ClientDetail() {
       throwIfSupabaseError(actions.error, "action_center");
       throwIfSupabaseError(campaignAudits.error, "campaign_ai_audits");
       throwIfSupabaseError(auditRecoStatuses.error, "audit_reco_status");
+      throwIfSupabaseError(syncRun.error, "sync_runs");
+      if ("error" in integrationsCount && integrationsCount.error)
+        throwIfSupabaseError(integrationsCount.error, "integrations");
       return {
-        client: client.data,
+        client: clientSnap.data,
         metrics: metrics.data ?? [],
         campaigns: campaigns.data ?? [],
         alerts: alerts.data ?? [],
@@ -299,6 +344,8 @@ function ClientDetail() {
         actions: actions.data ?? [],
         campaignAudits: campaignAudits.data ?? [],
         auditRecoStatuses: auditRecoStatuses.data ?? [],
+        latestSync: syncRun.data ?? null,
+        connectedIntegrationCount: integrationsCount.count ?? 0,
       };
     },
   });
@@ -427,6 +474,77 @@ function ClientDetail() {
     return m;
   }, [data?.auditRecoStatuses, latestAuditIdForReco]);
 
+  const clientTimeline = useMemo(() => {
+    if (!data) return [];
+    type Ev = {
+      at: string;
+      kind: "alert" | "action" | "activity" | "report";
+      title: string;
+      detail?: string;
+    };
+    const ev: Ev[] = [];
+    for (const a of data.alerts ?? []) {
+      ev.push({
+        at: String(a.created_at ?? ""),
+        kind: "alert",
+        title: String(a.title ?? "Alerta"),
+        detail: String(a.status ?? ""),
+      });
+    }
+    for (const x of data.actions ?? []) {
+      ev.push({
+        at: String(x.created_at ?? ""),
+        kind: "action",
+        title: String(x.title ?? "Ação"),
+        detail: String(x.status ?? ""),
+      });
+    }
+    for (const ac of data.activities ?? []) {
+      ev.push({
+        at: String(ac.created_at ?? ""),
+        kind: "activity",
+        title: String(ac.title ?? "Atividade"),
+        detail: ac.type ? String(ac.type) : undefined,
+      });
+    }
+    for (const r of data.reports ?? []) {
+      const ps = String(r.period_start ?? "").slice(0, 10);
+      const pe = String(r.period_end ?? "").slice(0, 10);
+      ev.push({
+        at: String(r.created_at ?? ""),
+        kind: "report",
+        title: `Relatório IA (${ps} → ${pe})`,
+        detail: "relatório",
+      });
+    }
+    ev.sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime());
+    return ev.slice(0, 20);
+  }, [data]);
+
+  const nextStepsQueue = useMemo(() => {
+    if (!data) return [];
+    return buildNextStepsQueue({
+      actions: data.actions ?? [],
+      alerts: data.alerts ?? [],
+      reportsCount: (data.reports ?? []).length,
+      hasConnectedIntegrationHint: (data.connectedIntegrationCount ?? 0) > 0,
+    });
+  }, [data]);
+
+  useEffect(() => {
+    if (!tplOpen) return;
+    const def = MESSAGE_SCENARIO_TEMPLATES.find((t) => t.id === tplScenarioId);
+    const clientName = data?.client?.name ?? "Cliente";
+    const placeholders: TemplatePlaceholders = {
+      cliente: clientName,
+      periodo: "últimos 7 dias",
+      metrica: "ROAS / CPA",
+      prazo: "sexta-feira",
+      acao: "ajuste de orçamento",
+    };
+    setTplDraft(def ? applyMessageTemplate(def.body, placeholders) : "");
+  }, [tplOpen, tplScenarioId, data?.client?.name]);
+
   if (isError) {
     return (
       <QueryErrorState
@@ -448,6 +566,14 @@ function ClientDetail() {
     );
 
   const c = data.client;
+  const spendLast7Days = [...(data.metrics ?? [])]
+    .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+    .slice(0, 7)
+    .reduce((s, m) => s + Number(m.spend ?? 0), 0);
+  const budgetSimHint =
+    Number(c.monthly_budget ?? 0) > 0 && spendLast7Days > 0
+      ? linearWeeklyBudgetIfPauseFraction({ spendLast7Days })
+      : null;
   const last30 = data.metrics.slice(0, 30);
   const spend = last30.reduce((a, b) => a + Number(b.spend ?? 0), 0);
   const revenue = last30.reduce((a, b) => a + Number(b.revenue ?? 0), 0);
@@ -460,6 +586,19 @@ function ClientDetail() {
     ? last30.reduce((a, b) => a + Number(b.ctr ?? 0), 0) / last30.length
     : 0;
   const latestHealth = data.health[0];
+
+  const syncUi = syncLabelForCockpit(
+    data.latestSync?.status,
+    data.latestSync?.created_at,
+  );
+
+  const goNextStep = (step: NextStepItem) => {
+    if (step.href) {
+      navigate({ to: step.href });
+      return;
+    }
+    setTab(step.tab);
+  };
 
   const clientNextStep = (() => {
     const actionsOpen = (data.actions ?? []).filter((a: { status?: string }) =>
@@ -994,6 +1133,155 @@ function ClientDetail() {
               </div>
             </Card>
           </div>
+
+          <Card className="border-border">
+            <CardHeader title="Último sync" />
+            <div className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
+              <div>
+                <div className={`font-medium ${syncUi.toneClass}`}>
+                  {syncUi.primaryLine}
+                </div>
+                {data.latestSync?.created_at && (
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Registo:{" "}
+                    {data.latestSync.created_at.slice(0, 19).replace("T", " ")}
+                  </div>
+                )}
+              </div>
+              <Button asChild variant="outline" size="sm">
+                <Link to="/integrations">Integrações e sync</Link>
+              </Button>
+            </div>
+          </Card>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card>
+              <CardHeader title="Próximos passos (estimativa)" />
+              <div className="space-y-3 p-4">
+                {nextStepsQueue.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Nada urgente na fila — rever métricas ou antecipar relatório.
+                  </p>
+                ) : (
+                  nextStepsQueue.map((step) => (
+                    <div
+                      key={step.id}
+                      className="flex items-start justify-between gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-xs"
+                    >
+                      <div className="min-w-0">
+                        <div className="font-medium">{step.title}</div>
+                        {step.subtitle && (
+                          <div className="mt-0.5 text-muted-foreground">
+                            {step.subtitle}
+                          </div>
+                        )}
+                        <div className="mt-1 text-muted-foreground">
+                          Esforço {formatEffort(step.effortMinutes)}{" "}
+                          <span className="italic">(estimativa)</span>
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => goNextStep(step)}
+                      >
+                        Ir
+                      </Button>
+                    </div>
+                  ))
+                )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setTplOpen(true)}
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Templates de mensagem
+                </Button>
+              </div>
+            </Card>
+            <Card>
+              <CardHeader title="Linha do tempo (alertas · ações · atividade · relatórios)" />
+              <div className="max-h-80 space-y-0 divide-y divide-border overflow-y-auto p-2">
+                {clientTimeline.length === 0 ? (
+                  <p className="p-3 text-xs text-muted-foreground">
+                    Sem eventos recentes.
+                  </p>
+                ) : (
+                  clientTimeline.map((ev, i) => (
+                    <button
+                      key={`${ev.kind}-${ev.at}-${i}`}
+                      type="button"
+                      onClick={() => {
+                        if (ev.kind === "report") setTab("reports");
+                        else if (ev.kind === "alert") setTab("alerts");
+                        else if (ev.kind === "action") setTab("tasks");
+                        else setTab("activity");
+                      }}
+                      className="flex w-full gap-2 px-2 py-2.5 text-left text-xs transition hover:bg-muted/40"
+                    >
+                      <div className="mt-0.5 shrink-0 text-muted-foreground">
+                        {ev.kind === "alert" ? (
+                          <Bell className="h-4 w-4" />
+                        ) : ev.kind === "action" ? (
+                          <ListTodo className="h-4 w-4" />
+                        ) : ev.kind === "report" ? (
+                          <Sparkles className="h-4 w-4" />
+                        ) : (
+                          <ActivityIcon className="h-4 w-4" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium leading-snug">{ev.title}</div>
+                        <div className="mt-0.5 flex flex-wrap gap-x-2 text-muted-foreground">
+                          <span className="inline-flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {timeAgo(ev.at)}
+                          </span>
+                          {ev.detail ? (
+                            <span className="rounded bg-muted px-1.5 py-0.5">
+                              {ev.detail}
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </Card>
+          </div>
+
+          {budgetSimHint ? (
+            <Card className="border-dashed">
+              <CardHeader title="Simulação leve (orçamento)" />
+              <div className="space-y-2 p-4 text-xs leading-relaxed text-muted-foreground">
+                <p>
+                  Assumindo uma pausa ou redução de ~
+                  {(budgetSimHint.pauseFraction * 100).toFixed(0)}% no volume
+                  recente de investimento, a libertação{" "}
+                  <span className="italic">aproximada</span> até ao fim desta
+                  semana ({budgetSimHint.daysRemaining}{" "}
+                  {budgetSimHint.daysRemaining === 1 ? "dia" : "dias"}) seria
+                  da ordem de{" "}
+                  <span className="font-medium text-foreground">
+                    {brl(budgetSimHint.approxSaved)}
+                  </span>{" "}
+                  (média diária {brl(budgetSimHint.avgDailySpend)} × fração ×
+                  dias).
+                </p>
+                <p className="rounded-md bg-muted/50 p-2 text-[11px]">
+                  Estimativa linear sobre média dos últimos 7 dias; não substitui
+                  decisão na rede nem inclui leilão, aprendizagem ou alterações
+                  de conta.
+                </p>
+              </div>
+            </Card>
+          ) : null}
 
           <div className="grid gap-4 lg:grid-cols-2">
             <Card>
@@ -2171,6 +2459,70 @@ function ClientDetail() {
           )}
         </Card>
       )}
+
+      <Dialog open={tplOpen} onOpenChange={setTplOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Templates de mensagem</DialogTitle>
+            <DialogDescription>
+              Placeholders: {"{{cliente}}"}, {"{{periodo}}"}, {"{{metrica}}"}. Copie
+              ou envie pelo WhatsApp se o telefone estiver na ficha.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <label className="block text-xs text-muted-foreground">
+              Cenário
+              <select
+                value={tplScenarioId}
+                onChange={(e) => setTplScenarioId(e.target.value)}
+                className="mt-1 h-10 w-full rounded-md border border-border bg-background px-2 text-sm"
+              >
+                {MESSAGE_SCENARIO_TEMPLATES.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <textarea
+              value={tplDraft}
+              onChange={(e) => setTplDraft(e.target.value)}
+              className="min-h-[180px] w-full resize-y rounded-md border border-border bg-background p-3 text-sm"
+            />
+          </div>
+          <DialogFooter className="flex flex-row flex-wrap justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setTplOpen(false)}
+            >
+              Fechar
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                void navigator.clipboard.writeText(tplDraft);
+                toast.success("Copiado.");
+              }}
+            >
+              Copiar
+            </Button>
+            {(() => {
+              const raw = c.contact_phone;
+              const digits = String(raw ?? "").replace(/\D/g, "");
+              if (digits.length < 10) return null;
+              const href = `https://wa.me/${digits}?text=${encodeURIComponent(tplDraft)}`;
+              return (
+                <Button type="button" asChild>
+                  <a href={href} target="_blank" rel="noreferrer">
+                    Abrir WhatsApp
+                  </a>
+                </Button>
+              );
+            })()}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

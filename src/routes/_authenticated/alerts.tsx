@@ -84,7 +84,7 @@ function Alerts() {
     queryFn: async () => {
       let q = supabase
         .from("alerts")
-        .select("*, clients(name)")
+        .select("*, clients(name, contact_phone)")
         .eq("agency_id", agency!.id)
         .order("created_at", { ascending: false })
         .limit(200);
@@ -323,6 +323,37 @@ function Alerts() {
     [agency?.id, navigate, queryClient],
   );
 
+  const requestAdminReview = useCallback(
+    async (alert: AlertRowModel) => {
+      if (!agency?.id) return;
+      const {
+        data: { user: u },
+      } = await supabase.auth.getUser();
+      const { error } = await supabase.from("activities").insert({
+        agency_id: agency.id,
+        client_id: alert.client_id,
+        user_id: u?.id ?? null,
+        type: "alert_escalation",
+        title: `Pedido de revisão admin: ${alert.title}`.slice(0, 500),
+        description:
+          `Um membro da equipa pediu revisão sobre o alerta ${alert.id}.`.slice(
+            0,
+            2000,
+          ),
+        metadata: { alert_id: alert.id, alert_type: alert.type },
+      });
+      if (error) toast.error(error.message);
+      else
+        toast.success("Pedido registado no feed de atividade.", {
+          action: {
+            label: "Ver atividade",
+            onClick: () => navigate({ to: "/activity" }),
+          },
+        });
+    },
+    [agency?.id, navigate],
+  );
+
   const toggleDesktopNotifications = useCallback(async () => {
     const next = !desktopNotifications;
     if (
@@ -548,6 +579,7 @@ function Alerts() {
                 onResolve={resolveAlert}
                 onCreateAction={createActionFromAlertCb}
                 onMuteWhatsapp={muteWhatsapp24h}
+                onRequestAdminReview={requestAdminReview}
               />
             ))}
           </div>
@@ -573,6 +605,7 @@ function Alerts() {
                         onResolve={resolveAlert}
                         onCreateAction={createActionFromAlertCb}
                         onMuteWhatsapp={muteWhatsapp24h}
+                        onRequestAdminReview={requestAdminReview}
                       />
                     ))}
                   </div>

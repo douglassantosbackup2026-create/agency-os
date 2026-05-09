@@ -101,7 +101,7 @@ function AhaMomentCallout({ clientName }: { clientName: string }) {
 }
 
 function Onboarding() {
-  const { agency } = useAuth();
+  const { agency, user } = useAuth();
   const queryClient = useQueryClient();
   const slugHint = agency?.slug
     ? `/p/${agency.slug}`
@@ -154,6 +154,35 @@ function Onboarding() {
       return { clients, items };
     },
   });
+
+  const { data: tourProfile } = useQuery({
+    queryKey: ["profile-product-tour", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("has_completed_product_tour")
+        .eq("id", user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data as { has_completed_product_tour: boolean } | null;
+    },
+  });
+
+  async function completeProductTour() {
+    if (!user?.id) return;
+    const { error } = await supabase
+      .from("profiles")
+      .update({ has_completed_product_tour: true })
+      .eq("id", user.id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Tour marcado como concluído.");
+      void queryClient.invalidateQueries({
+        queryKey: ["profile-product-tour", user.id],
+      });
+    }
+  }
 
   async function toggleChecklist(
     clientId: string,
@@ -490,6 +519,54 @@ function Onboarding() {
       </Card>
 
       <Card>
+        <CardHeader title="Tour do produto (~3 min)" />
+        <div className="space-y-3 p-4 text-sm">
+          {tourProfile?.has_completed_product_tour ? (
+            <p className="text-muted-foreground">
+              Concluíste o tour guiado. Podes repetir os passos abaixo quando
+              quiseres.
+            </p>
+          ) : (
+            <p className="text-muted-foreground">
+              Abre cada passo na ordem: cockpit → alerta → ação → feed. No fim,
+              marca como concluído.
+            </p>
+          )}
+          <ol className="list-decimal space-y-2 pl-5 text-xs">
+            <li>
+              <Link className="font-medium text-primary hover:underline" to="/clients">
+                Abrir cockpit (lista de clientes)
+              </Link>
+            </li>
+            <li>
+              <Link className="font-medium text-primary hover:underline" to="/alerts">
+                Abrir um alerta na Central de alertas
+              </Link>
+            </li>
+            <li>
+              <Link className="font-medium text-primary hover:underline" to="/actions">
+                Virar em ação ou rever a Central de Ações
+              </Link>
+            </li>
+            <li>
+              <Link className="font-medium text-primary hover:underline" to="/activity">
+                Ver o feed de atividade
+              </Link>
+            </li>
+          </ol>
+          {!tourProfile?.has_completed_product_tour && (
+            <button
+              type="button"
+              onClick={() => void completeProductTour()}
+              className="rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground"
+            >
+              Marcar tour como concluído
+            </button>
+          )}
+        </div>
+      </Card>
+
+      <Card>
         <CardHeader title="Checklist operacional por cliente" />
         <div className="space-y-3 p-4">
           {(checklistData?.clients ?? []).length === 0 ? (
@@ -551,7 +628,12 @@ function Onboarding() {
                               )
                             }
                           />
-                          {step.title}
+                          <span>
+                            <span className="text-foreground">{step.title}</span>
+                            <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
+                              {step.impact}
+                            </span>
+                          </span>
                         </label>
                       );
                     })}

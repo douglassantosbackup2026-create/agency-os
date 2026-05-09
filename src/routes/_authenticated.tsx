@@ -14,6 +14,7 @@ import {
   Activity,
   Bell,
   ChevronDown,
+  ClipboardList,
   Command,
   Image,
   LayoutDashboard,
@@ -69,6 +70,7 @@ const NAV_GROUPS: { id: string; label: string; items: NavItemDef[] }[] = [
     label: "Operação",
     items: [
       { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { to: "/standup", label: "Stand-up", icon: ClipboardList },
       { to: "/clients", label: "Clientes", icon: Users },
       { to: "/actions", label: "Central de Ações", icon: ListTodo },
       { to: "/alerts", label: "Alertas", icon: Bell },

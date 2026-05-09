@@ -18,6 +18,7 @@ import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PPortalSlugRouteImport } from './routes/p.$portalSlug'
 import { Route as AuthenticatedWhatsappRouteImport } from './routes/_authenticated/whatsapp'
+import { Route as AuthenticatedStandupRouteImport } from './routes/_authenticated/standup'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
@@ -77,6 +78,11 @@ const PPortalSlugRoute = PPortalSlugRouteImport.update({
 const AuthenticatedWhatsappRoute = AuthenticatedWhatsappRouteImport.update({
   id: '/whatsapp',
   path: '/whatsapp',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedStandupRoute = AuthenticatedStandupRouteImport.update({
+  id: '/standup',
+  path: '/standup',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
@@ -185,6 +191,7 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/standup': typeof AuthenticatedStandupRoute
   '/whatsapp': typeof AuthenticatedWhatsappRoute
   '/p/$portalSlug': typeof PPortalSlugRoute
   '/clients/$clientId': typeof AuthenticatedClientsClientIdRoute
@@ -211,6 +218,7 @@ export interface FileRoutesByTo {
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
+  '/standup': typeof AuthenticatedStandupRoute
   '/whatsapp': typeof AuthenticatedWhatsappRoute
   '/p/$portalSlug': typeof PPortalSlugRoute
   '/clients/$clientId': typeof AuthenticatedClientsClientIdRoute
@@ -239,6 +247,7 @@ export interface FileRoutesById {
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/standup': typeof AuthenticatedStandupRoute
   '/_authenticated/whatsapp': typeof AuthenticatedWhatsappRoute
   '/p/$portalSlug': typeof PPortalSlugRoute
   '/_authenticated/clients/$clientId': typeof AuthenticatedClientsClientIdRoute
@@ -267,6 +276,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/reports'
     | '/settings'
+    | '/standup'
     | '/whatsapp'
     | '/p/$portalSlug'
     | '/clients/$clientId'
@@ -293,6 +303,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/reports'
     | '/settings'
+    | '/standup'
     | '/whatsapp'
     | '/p/$portalSlug'
     | '/clients/$clientId'
@@ -320,6 +331,7 @@ export interface FileRouteTypes {
     | '/_authenticated/onboarding'
     | '/_authenticated/reports'
     | '/_authenticated/settings'
+    | '/_authenticated/standup'
     | '/_authenticated/whatsapp'
     | '/p/$portalSlug'
     | '/_authenticated/clients/$clientId'
@@ -401,6 +413,13 @@ declare module '@tanstack/react-router' {
       path: '/whatsapp'
       fullPath: '/whatsapp'
       preLoaderRoute: typeof AuthenticatedWhatsappRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/standup': {
+      id: '/_authenticated/standup'
+      path: '/standup'
+      fullPath: '/standup'
+      preLoaderRoute: typeof AuthenticatedStandupRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/settings': {
@@ -547,6 +566,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedStandupRoute: typeof AuthenticatedStandupRoute
   AuthenticatedWhatsappRoute: typeof AuthenticatedWhatsappRoute
   AuthenticatedClientsClientIdRoute: typeof AuthenticatedClientsClientIdRoute
   AuthenticatedClientsIndexRoute: typeof AuthenticatedClientsIndexRoute
@@ -566,6 +586,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedStandupRoute: AuthenticatedStandupRoute,
   AuthenticatedWhatsappRoute: AuthenticatedWhatsappRoute,
   AuthenticatedClientsClientIdRoute: AuthenticatedClientsClientIdRoute,
   AuthenticatedClientsIndexRoute: AuthenticatedClientsIndexRoute,

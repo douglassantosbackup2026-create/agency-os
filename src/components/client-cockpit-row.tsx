@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { Link } from "@tanstack/react-router";
 import { RiskDot } from "@/components/operational-ui";
+import { syncLabelForCockpit } from "@/lib/sync-freshness";
 
 export type ClientCockpitRowProps = {
   clientId: string;
@@ -9,9 +10,8 @@ export type ClientCockpitRowProps = {
   healthRisk?: string;
   healthScore?: number;
   openN: number;
-  syncStatus?: string;
+  syncRunStatus?: string;
   syncCreatedAt?: string;
-  syncToneClass: string;
   auditDate?: string;
 };
 
@@ -22,11 +22,23 @@ function ClientCockpitRowInner({
   healthRisk,
   healthScore,
   openN,
-  syncStatus,
+  syncRunStatus,
   syncCreatedAt,
-  syncToneClass,
   auditDate,
 }: ClientCockpitRowProps) {
+  const syncUi = syncLabelForCockpit(syncRunStatus, syncCreatedAt);
+
+  const integrationsLink = (
+    <Link
+      to="/integrations"
+      onClick={(e) => e.stopPropagation()}
+      onKeyDown={(e) => e.stopPropagation()}
+      className="text-primary underline-offset-2 hover:underline"
+    >
+      Integrações
+    </Link>
+  );
+
   if (layout === "mobile") {
     return (
       <Link
@@ -52,9 +64,10 @@ function ClientCockpitRowInner({
           </div>
           <div>
             <div className="font-medium text-foreground">Sync</div>
-            <div className={`tabular ${syncToneClass}`}>
-              {syncStatus ?? "—"}
+            <div className={`tabular ${syncUi.toneClass}`}>
+              {syncUi.primaryLine}
             </div>
+            <div className="mt-1">{integrationsLink}</div>
           </div>
           <div className="col-span-2">
             <div className="font-medium text-foreground">Auditoria IA</div>
@@ -85,17 +98,14 @@ function ClientCockpitRowInner({
       <div className="col-span-2 text-center font-mono tabular text-xs">
         {openN}
       </div>
-      <div className={`col-span-3 text-xs ${syncToneClass}`}>
-        {syncCreatedAt ? (
-          <>
-            <span className="font-medium">{syncStatus}</span>
-            <span className="block text-xs text-muted-foreground">
-              {syncCreatedAt.slice(0, 19).replace("T", " ")}
-            </span>
-          </>
-        ) : (
-          <span className="text-muted-foreground">Sem sync</span>
+      <div className={`col-span-3 text-xs ${syncUi.toneClass}`}>
+        <div className="font-medium">{syncUi.primaryLine}</div>
+        {syncCreatedAt && (
+          <span className="block text-[11px] text-muted-foreground">
+            {syncCreatedAt.slice(0, 19).replace("T", " ")}
+          </span>
         )}
+        <div className="mt-1">{integrationsLink}</div>
       </div>
       <div className="col-span-2 text-xs text-muted-foreground">
         {auditDate ?? "—"}

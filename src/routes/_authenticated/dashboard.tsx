@@ -36,6 +36,10 @@ import {
 } from "@/lib/audit-dashboard";
 import { ACTION_CENTER_OPEN_STATUSES } from "@/lib/action-center-status";
 import { ONBOARDING_STEP_KEYS } from "@/lib/onboarding-checklist";
+import {
+  buildPortfolioNextSteps,
+  formatEffort,
+} from "@/lib/next-steps-queue";
 import { invokeWithToast } from "@/lib/supabase-invoke";
 import { throwIfSupabaseError } from "@/lib/supabase-result";
 import { QueryErrorState } from "@/components/query-error-state";
@@ -123,12 +127,14 @@ function Dashboard() {
           .gte("date", since60),
         supabase
           .from("alerts")
-          .select("id, title, priority, created_at, type, recommended_action")
+          .select(
+            "id, title, priority, created_at, type, recommended_action, client_id, clients(name)",
+          )
           .eq("agency_id", agency!.id)
           .eq("status", "open")
           .order("priority", { ascending: false })
           .order("created_at", { ascending: false })
-          .limit(8),
+          .limit(48),
         supabase
           .from("activities")
           .select("id, title, description, created_at, type")
@@ -160,12 +166,14 @@ function Dashboard() {
           .gte("date", since14),
         supabase
           .from("action_center")
-          .select("id, title, priority, due_date, status, clients(name)")
+          .select(
+            "id, title, priority, due_date, status, client_id, clients(name)",
+          )
           .eq("agency_id", agency!.id)
           .in("status", [...ACTION_CENTER_OPEN_STATUSES])
           .order("priority", { ascending: false })
           .order("created_at", { ascending: false })
-          .limit(8),
+          .limit(48),
         supabase
           .from("reports")
           .select(
@@ -484,6 +492,16 @@ function Dashboard() {
       };
     }
 
+    const portfolioNextSteps = buildPortfolioNextSteps({
+      actions: data.actionCenter as Parameters<
+        typeof buildPortfolioNextSteps
+      >[0]["actions"],
+      alerts: data.alerts as Parameters<
+        typeof buildPortfolioNextSteps
+      >[0]["alerts"],
+      limit: 6,
+    });
+
     return {
       spend,
       revenue,
@@ -513,6 +531,7 @@ function Dashboard() {
       suggestedNext,
       pendingChecklistSteps,
       overdueActionsCount: data.overdueActionsCount,
+      portfolioNextSteps,
     };
   }, [data]);
 
@@ -576,6 +595,7 @@ function Dashboard() {
     suggestedNext,
     pendingChecklistSteps,
     overdueActionsCount,
+    portfolioNextSteps,
   } = dashboardDerived;
 
   // empty state
@@ -622,7 +642,12 @@ function Dashboard() {
             30 dias.
           </p>
         </div>
-        <div className="text-xs text-muted-foreground">Últimos 30 dias</div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/standup">Stand-up</Link>
+          </Button>
+          <span className="text-xs text-muted-foreground">Últimos 30 dias</span>
+        </div>
       </header>
 
       <Card className="border-primary/25 bg-primary/[0.06] shadow-sm">
@@ -689,6 +714,50 @@ function Dashboard() {
               {pendingChecklistSteps}
             </span>
           </Link>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader title="Carteira — próximos passos" />
+        <div className="px-4 pb-4">
+          {portfolioNextSteps.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Nada urgente na fila heurística — rever clientes ou gerar relatórios.
+            </p>
+          ) : (
+            <ul className="divide-y divide-border rounded-lg border border-border">
+              {portfolioNextSteps.map((row) => (
+                <li
+                  key={row.id}
+                  className="flex flex-col gap-2 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium leading-snug">
+                      {row.title}
+                    </div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">
+                      {row.clientName} · {row.kind === "action" ? "Ação" : "Alerta"}{" "}
+                      · {formatEffort(row.effortMinutes)}{" "}
+                      <span className="italic">(estimativa)</span>
+                    </div>
+                    {row.subtitle ? (
+                      <div className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                        {row.subtitle}
+                      </div>
+                    ) : null}
+                  </div>
+                  <Button variant="outline" size="sm" className="shrink-0" asChild>
+                    <Link
+                      to="/clients/$clientId"
+                      params={{ clientId: row.clientId }}
+                    >
+                      Abrir cliente
+                    </Link>
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </Card>
 

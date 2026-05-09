@@ -12,6 +12,7 @@ import {
   Check,
   FileDown,
   MessageSquare,
+  Send,
 } from "lucide-react";
 import { Card, Empty, PageSkeleton } from "@/components/operational-ui";
 import { AgencyClientSelect } from "@/components/agency-client-select";
@@ -288,6 +289,52 @@ function Reports() {
     navigator.clipboard.writeText(txt);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  }
+
+  async function sendReportToClientAndLog(r: ReportRow) {
+    if (!agency?.id) return;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const { error } = await supabase.from("activities").insert({
+      agency_id: agency.id,
+      client_id: r.client_id,
+      user_id: user?.id ?? null,
+      type: "report_sent_client",
+      title:
+        `Relatório IA partilhado com o cliente (${String(r.period_start)} → ${String(r.period_end)})`.slice(
+          0,
+          500,
+        ),
+      description: String(r.executive_summary ?? "").slice(0, 2000),
+      metadata: { report_id: r.id },
+    });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Envio registado no feed de atividade.");
+    const digits = String(r.clients?.contact_phone ?? "").replace(/\D/g, "");
+    const text = [
+      r.executive_summary,
+      r.positives ? `Positivos:\n${r.positives}` : "",
+      r.problems ? `Problemas:\n${r.problems}` : "",
+      r.next_steps ? `Próximos passos:\n${r.next_steps}` : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n")
+      .slice(0, 3900);
+    if (digits.length >= 10) {
+      window.open(
+        `https://wa.me/${digits}?text=${encodeURIComponent(text)}`,
+        "_blank",
+        "noopener,noreferrer",
+      );
+    } else {
+      toast.info(
+        "Sem telefone na ficha do cliente — use Copiar ou PDF para enviar por outro canal.",
+      );
+    }
   }
 
   async function sendWhatsAppSummary(r: ReportRow) {
@@ -696,10 +743,17 @@ function Reports() {
                   </button>
                   <button
                     type="button"
+                    onClick={() => void sendReportToClientAndLog(selected)}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-medium hover:bg-primary/15"
+                  >
+                    <Send className="h-3 w-3" /> Enviar ao cliente
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => sendWhatsAppSummary(selected)}
                     className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface-2"
                   >
-                    <MessageSquare className="h-3 w-3" /> WhatsApp
+                    <MessageSquare className="h-3 w-3" /> WhatsApp API
                   </button>
                 </div>
               </div>

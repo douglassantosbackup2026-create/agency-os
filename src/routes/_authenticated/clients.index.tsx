@@ -34,6 +34,7 @@ import { PageHeader } from "@/components/page-header";
 import { ClientCockpitRow } from "@/components/client-cockpit-row";
 import { QueryErrorState } from "@/components/query-error-state";
 import { throwIfSupabaseError } from "@/lib/supabase-result";
+import { formatSyncAgeShort } from "@/lib/sync-freshness";
 
 type HealthScoreRow = Database["public"]["Tables"]["health_scores"]["Row"];
 
@@ -273,7 +274,7 @@ function Clients() {
         "Risco",
         "Ações abertas",
         "Último sync status",
-        "Último sync em",
+        "Último sync (idade + timestamp)",
         "Última auditoria IA",
       ],
     ];
@@ -289,7 +290,9 @@ function Clients() {
         h ? String(h.risk ?? "") : "",
         String(openN),
         sync ? sync.status : "",
-        sync ? sync.created_at.slice(0, 19) : "",
+        sync
+          ? `${formatSyncAgeShort(sync.created_at)} (${sync.created_at.slice(0, 19)})`
+          : "",
         auLabel,
       ]);
     }
@@ -410,12 +413,6 @@ function Clients() {
               const openN = data.openActionsByClient.get(c.id) ?? 0;
               const sync = data.latestSyncByClient.get(c.id);
               const au = data.latestAuditByClient.get(c.id);
-              const syncTone =
-                sync?.status === "error"
-                  ? "text-destructive"
-                  : sync?.status === "warning"
-                    ? "text-amber-700 dark:text-amber-400"
-                    : "text-muted-foreground";
               return (
                 <ClientCockpitRow
                   key={`cockpit-m-${c.id}`}
@@ -425,8 +422,8 @@ function Clients() {
                   healthRisk={h?.risk}
                   healthScore={h?.score}
                   openN={openN}
-                  syncStatus={sync?.status}
-                  syncToneClass={syncTone}
+                  syncRunStatus={sync?.status}
+                  syncCreatedAt={sync?.created_at}
                   auditDate={
                     au?.created_at
                       ? String(au.created_at).slice(0, 10)
@@ -455,12 +452,6 @@ function Clients() {
               const openN = data.openActionsByClient.get(c.id) ?? 0;
               const sync = data.latestSyncByClient.get(c.id);
               const au = data.latestAuditByClient.get(c.id);
-              const syncTone =
-                sync?.status === "error"
-                  ? "text-destructive"
-                  : sync?.status === "warning"
-                    ? "text-amber-700 dark:text-amber-400"
-                    : "text-muted-foreground";
               return (
                 <ClientCockpitRow
                   key={`cockpit-${c.id}`}
@@ -470,9 +461,8 @@ function Clients() {
                   healthRisk={h?.risk}
                   healthScore={h?.score}
                   openN={openN}
-                  syncStatus={sync?.status}
+                  syncRunStatus={sync?.status}
                   syncCreatedAt={sync?.created_at}
-                  syncToneClass={syncTone}
                   auditDate={
                     au?.created_at
                       ? String(au.created_at).slice(0, 10)

@@ -233,6 +233,7 @@ Deno.serve(async (req) => {
         type: string;
         title: string;
         description: string;
+        why_line: string;
         priority: "low" | "medium" | "high" | "critical";
         recommended_action: string;
         confidence: "alta" | "media" | "baixa";
@@ -244,6 +245,7 @@ Deno.serve(async (req) => {
           type: "roas_drop",
           title: `ROAS caiu ${(((priRoas - recRoas) / priRoas) * 100).toFixed(0)}% — ${c.name}`,
           description: `ROAS recente ${recRoas.toFixed(2)}x vs ${priRoas.toFixed(2)}x anterior.`,
+          why_line: `ROAS recente (${recRoas.toFixed(2)}x) está ≥20% abaixo da média anterior (${priRoas.toFixed(2)}x).`,
           priority: recRoas < priRoas * 0.6 ? "critical" : "high",
           recommended_action:
             "Revisar criativos e públicos das campanhas com pior performance.",
@@ -256,6 +258,7 @@ Deno.serve(async (req) => {
           type: "cpa_spike",
           title: `CPA subiu ${(((recCpa - priCpa) / priCpa) * 100).toFixed(0)}% — ${c.name}`,
           description: `CPA recente R$ ${recCpa.toFixed(2)} vs R$ ${priCpa.toFixed(2)}.`,
+          why_line: `CPA atual ≥25% acima do período anterior (referência R$ ${priCpa.toFixed(2)}).`,
           priority: "high",
           recommended_action: "Pausar criativos fadigados e ajustar lances.",
           confidence: "media",
@@ -267,6 +270,7 @@ Deno.serve(async (req) => {
           type: "ctr_drop",
           title: `Queda de CTR — ${c.name}`,
           description: `CTR ${(recCtr * 100).toFixed(2)}% vs ${(priCtr * 100).toFixed(2)}% anterior.`,
+          why_line: `CTR caiu mais de 30% vs. período anterior — típico de fadiga de criativo.`,
           priority: "medium",
           recommended_action: "Renovar criativos. Provável fadiga.",
           confidence: "media",
@@ -279,6 +283,8 @@ Deno.serve(async (req) => {
           title: `Sem investimento nos últimos 3 dias — ${c.name}`,
           description:
             "Spend zerado por 3 dias. Verifique se as campanhas pararam.",
+          why_line:
+            "Regra: spend dos últimos 3 dias = 0 nos dados diários agregados.",
           priority: "critical",
           recommended_action:
             "Verificar status das campanhas e saldo da conta de anúncios.",
@@ -291,6 +297,7 @@ Deno.serve(async (req) => {
           type: "budget_pacing",
           title: `Pacing acima do orçamento — ${c.name}`,
           description: `Investido R$ ${totalSpend.toFixed(2)} vs orçamento mensal R$ ${Number(c.monthly_budget).toFixed(2)}.`,
+          why_line: `Investimento acumulado >110% do orçamento mensal definido (meta R$ ${Number(c.monthly_budget).toFixed(2)}).`,
           priority: "high",
           recommended_action: "Reduzir orçamentos diários para alinhar pacing.",
           confidence: "alta",
@@ -305,6 +312,7 @@ Deno.serve(async (req) => {
           type: "no_contact",
           title: `Sem contato há ${Math.round(noteAgo)} dias — ${c.name}`,
           description: "Cliente sem registro de comunicação recente.",
+          why_line: `Última nota interna há ${Math.round(noteAgo)} dias (limiar: >14 dias).`,
           priority: noteAgo > 30 ? "high" : "medium",
           recommended_action: "Agendar reunião de alinhamento.",
           confidence: "media",
@@ -316,6 +324,7 @@ Deno.serve(async (req) => {
           type: "ga4_conversion_drop",
           title: `Conversão do site caiu — ${c.name}`,
           description: `Conversões GA4 caíram ${(((convPrior - convRecent) / convPrior) * 100).toFixed(0)}%.`,
+          why_line: `Conversões GA4 no período recente ≥28% abaixo do período anterior.`,
           priority: convRecent < convPrior * 0.55 ? "critical" : "high",
           recommended_action:
             "Revisar landing page, oferta e checkout antes de mexer no budget.",
@@ -328,6 +337,7 @@ Deno.serve(async (req) => {
           type: "ga4_revenue_drop",
           title: `Receita caiu com tráfego ativo — ${c.name}`,
           description: `Receita GA4 caiu ${(((revPrior - revRecent) / revPrior) * 100).toFixed(0)}% no período recente.`,
+          why_line: `Receita GA4 recente ≥30% inferior ao bloco anterior (comparação temporal GA4).`,
           priority: "high",
           recommended_action:
             "Auditar jornada de compra e qualidade do tráfego por canal.",
@@ -345,6 +355,8 @@ Deno.serve(async (req) => {
           title: `Tráfego subiu, resultado caiu — ${c.name}`,
           description:
             "Sessões cresceram, mas conversões/receita não acompanharam.",
+          why_line:
+            "Sessões +20% vs período anterior enquanto conversões/receita caíram ≥10%.",
           priority: "high",
           recommended_action:
             "Ajustar mensagem da página e validar experiência de checkout.",
@@ -362,6 +374,8 @@ Deno.serve(async (req) => {
           type: "ga4_checkout_drop",
           title: `Queda no checkout — ${c.name}`,
           description: "Início de checkout abaixo do esperado vs add_to_cart.",
+          why_line:
+            "Funil: begin_checkout médio <50% do add_to_cart (últimos 7 dias).",
           priority: "medium",
           recommended_action: "Revisar frete, preço final e UX no checkout.",
           confidence: "media",
@@ -375,6 +389,8 @@ Deno.serve(async (req) => {
           description: String(
             trackingHealth.notes ?? "Risco de dados incompletos.",
           ),
+          why_line:
+            "Estado de tracking GA4 = crítico no último registo diário.",
           priority: "critical",
           recommended_action:
             "Validar configuração GA4 (eventos/chaves de conversão/UTMs).",
@@ -457,6 +473,7 @@ Deno.serve(async (req) => {
           type: q.type,
           title: q.title,
           description: q.description,
+          why_line: q.why_line,
           priority: q.priority,
           status: "open",
           recommended_action: q.recommended_action,
