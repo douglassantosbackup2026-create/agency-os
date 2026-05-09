@@ -2,6 +2,15 @@
 
 Plataforma operacional para agências de tráfego: health score, alertas, relatórios com IA, portal do cliente e integrações.
 
+Código-fonte: [douglassantosbackup2026-create/agency-os](https://github.com/douglassantosbackup2026-create/agency-os) (`origin`).
+
+```bash
+git remote add origin https://github.com/douglassantosbackup2026-create/agency-os.git   # só se ainda não existir
+git remote -v                                                                            # deve mostrar esse URL como origin
+```
+
+Se `git push` devolver **403**, o Git está a usar uma conta sem permissão de escrita: corre `gh auth login` (repo [agency-os](https://github.com/douglassantosbackup2026-create/agency-os)) ou remove credenciais antigas do Gestor de credenciais do Windows para `github.com` e volta a autenticar com a conta dona/colaboradora.
+
 ## Requisitos
 
 - Node.js 22+
