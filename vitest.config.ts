@@ -5,6 +5,6 @@ export default defineConfig({
   plugins: [viteTsconfigPaths()],
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "supabase/functions/_shared/**/*.test.ts"],
   },
 });

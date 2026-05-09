@@ -10,7 +10,10 @@ export function auditBulletsFromResult(
     : [];
   for (const r of recs) {
     if (out.length >= limit) break;
-    if (r.requires_human_review === true || r.requires_human_review === "true") {
+    if (
+      r.requires_human_review === true ||
+      r.requires_human_review === "true"
+    ) {
       const line = String(r.suggested_copy ?? r.rationale ?? "").trim();
       if (line) out.push(line.slice(0, 220));
     }

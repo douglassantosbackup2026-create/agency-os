@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { assertUserCanAccessClient } from "../_shared/membership.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -178,6 +179,45 @@ Deno.serve(async (req) => {
       );
 
     const cid = typeof client_id === "string" && client_id ? client_id : null;
+    if (cid) {
+      const { data: clRow } = await admin
+        .from("clients")
+        .select("id, agency_id")
+        .eq("id", cid)
+        .maybeSingle();
+      if (!clRow) {
+        return new Response(
+          JSON.stringify({ error: "Cliente não encontrado" }),
+          {
+            status: 404,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+      if (String(clRow.agency_id) !== agency_id) {
+        return new Response(
+          JSON.stringify({ error: "Cliente não pertence à sua agência" }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+      const waAllowed = await assertUserCanAccessClient(admin, u.user.id, {
+        id: cid,
+        agency_id: String(clRow.agency_id),
+      });
+      if (!waAllowed) {
+        return new Response(
+          JSON.stringify({ error: "Sem permissão para este cliente" }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+    }
+
     let mergeVars: Record<string, string> = {};
     let merged = String(message);
     if (!skip_merge) {

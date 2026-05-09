@@ -98,19 +98,19 @@ function Dashboard() {
           .eq("agency_id", agency!.id)
           .gte("date", since14)
           .not("campaign_id", "is", null),
-        (supabase as any)
+        supabase
           .from("ga4_daily")
           .select(
             "date, sessions, conversions, revenue, conversion_rate, avg_ticket",
           )
           .eq("agency_id", agency!.id)
           .gte("date", since60),
-        (supabase as any)
+        supabase
           .from("ga4_tracking_health_daily")
           .select("status")
           .eq("agency_id", agency!.id)
           .gte("date", since14),
-        (supabase as any)
+        supabase
           .from("action_center")
           .select("id, title, priority, due_date, status, clients(name)")
           .eq("agency_id", agency!.id)
@@ -127,12 +127,12 @@ function Dashboard() {
           .eq("requer_revisao_humana", true)
           .order("created_at", { ascending: false })
           .limit(8),
-        (supabase as any)
+        supabase
           .from("agency_briefings")
           .select("buckets, computed_at")
           .eq("agency_id", agency!.id)
           .maybeSingle(),
-        (supabase as any)
+        supabase
           .from("campaign_ai_audits")
           .select(
             "id, client_id, created_at, ga4_tracking_health, executive_summary_markdown, result_json",
@@ -304,10 +304,7 @@ function Dashboard() {
       };
     })
     .filter(
-      (x) =>
-        x.st === "critical" ||
-        x.st === "risk" ||
-        x.st === "attention",
+      (x) => x.st === "critical" || x.st === "risk" || x.st === "attention",
     )
     .sort(
       (a, b) =>
@@ -318,19 +315,17 @@ function Dashboard() {
   const auditShowList =
     auditAttentionRows.length > 0
       ? auditAttentionRows.slice(0, 6)
-      : [...auditLatestByClient.values()]
-          .slice(0, 4)
-          .map((row) => {
-            const rj = row.result_json as Record<string, unknown> | undefined;
-            return {
-              row,
-              st: auditOverallStatus(rj),
-              bullets: auditBulletsFromResult(
-                rj,
-                String(row.executive_summary_markdown ?? ""),
-              ),
-            };
-          });
+      : [...auditLatestByClient.values()].slice(0, 4).map((row) => {
+          const rj = row.result_json as Record<string, unknown> | undefined;
+          return {
+            row,
+            st: auditOverallStatus(rj),
+            bullets: auditBulletsFromResult(
+              rj,
+              String(row.executive_summary_markdown ?? ""),
+            ),
+          };
+        });
 
   const briefingBuckets = data.agencyBriefing?.buckets as
     | Record<string, Array<{ client_id: string; name: string; reason: string }>>
@@ -608,15 +603,16 @@ function Dashboard() {
                 {(data.reportsReview ?? []).length === 0 ? (
                   <Empty label="Sem itens pendentes de revisão humana." />
                 ) : (
-                  (data.reportsReview ?? []).map((r: any) => (
+                  (data.reportsReview ?? []).map((r) => (
                     <Link
                       key={r.id}
                       to="/ai-review"
                       className="block px-4 py-3 text-sm hover:bg-surface-2"
                     >
                       <div className="font-medium">
-                        {(r.clients as any)?.name ?? "Cliente"} · confiança{" "}
-                        {r.confianca ?? "média"}
+                        {(r.clients as { name?: string } | null | undefined)
+                          ?.name ?? "Cliente"}{" "}
+                        · confiança {r.confianca ?? "média"}
                       </div>
                       <div className="text-muted-foreground">
                         {timeAgo(r.created_at)} · revisão obrigatória
@@ -638,7 +634,10 @@ function Dashboard() {
             <CardHeader
               title="Auditoria de campanhas (IA)"
               action={
-                <Link to="/clients" className="text-sm text-primary hover:underline">
+                <Link
+                  to="/clients"
+                  className="text-sm text-primary hover:underline"
+                >
                   Ver clientes
                 </Link>
               }

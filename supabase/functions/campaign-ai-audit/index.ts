@@ -6,6 +6,16 @@ import {
   type PromptKey,
 } from "../_shared/ai-v3.ts";
 import { assertUserCanAccessClient } from "../_shared/membership.ts";
+import {
+  addDaysYMD,
+  campaignAuditAggRankScore,
+  clampRecommendations,
+  extractJsonFromModelText,
+  formatYMD,
+  mapTrackingHealthForAudit,
+  matchScore,
+  type AuditCampaignFlags,
+} from "../_shared/campaign-audit-helpers.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,69 +25,6 @@ const corsHeaders = {
 
 const PROMPT_KEY = "07-auditoria-campanhas" as PromptKey;
 const PROMPT_VERSION = "07-v1";
-
-function formatYMD(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-function addDaysYMD(ymd: string, delta: number): string {
-  const d = new Date(ymd + "T12:00:00Z");
-  d.setUTCDate(d.getUTCDate() + delta);
-  return formatYMD(d);
-}
-
-function mapTrackingHealthForAudit(
-  status: string | undefined,
-  hasGa4Rows: boolean,
-): "healthy" | "partial" | "broken" | "unavailable" {
-  if (!hasGa4Rows) return "unavailable";
-  const s = String(status ?? "").toLowerCase();
-  if (s === "healthy") return "healthy";
-  if (s === "warning") return "partial";
-  if (s === "critical") return "broken";
-  return "partial";
-}
-
-function normalizeName(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
-}
-
-function tokenSet(s: string): Set<string> {
-  return new Set(normalizeName(s).split(/\s+/).filter(Boolean));
-}
-
-function jaccardNames(a: string, b: string): number {
-  const A = tokenSet(a);
-  const B = tokenSet(b);
-  if (A.size === 0 || B.size === 0) return 0;
-  let inter = 0;
-  for (const t of A) if (B.has(t)) inter++;
-  const union = A.size + B.size - inter;
-  return union > 0 ? inter / union : 0;
-}
-
-function matchScore(adName: string, ga4Name: string): number {
-  const na = normalizeName(adName);
-  const nb = normalizeName(ga4Name);
-  if (!na || !nb) return 0;
-  if (na === nb) return 1;
-  if (na.includes(nb) || nb.includes(na)) return 0.82;
-  return jaccardNames(adName, ga4Name);
-}
-
-function extractJsonFromModelText(content: string): string {
-  const fence = content.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (fence) return fence[1].trim();
-  const start = content.indexOf("{");
-  const end = content.lastIndexOf("}");
-  if (start >= 0 && end > start) return content.slice(start, end + 1);
-  return content.trim();
-}
 
 type CampaignAgg = {
   campaign_id: string;
@@ -103,14 +50,7 @@ type CampaignAgg = {
   ga4_revenue_attributed: number;
   match_score: number | null;
   matched_ga4_campaign_name: string | null;
-  flags: {
-    low_volume: boolean;
-    zero_conv_with_spend: boolean;
-    tracking_critical: boolean;
-    requires_human_review: boolean;
-    strong_platform_ga4_divergence: boolean;
-    ga4_external_id_match: boolean;
-  };
+  flags: AuditCampaignFlags;
 };
 
 async function callCampaignAuditModel(
@@ -147,7 +87,9 @@ async function callCampaignAuditModel(
     }
     const j = await r.json();
     const parts = (j.content ?? []) as Array<{ type?: string; text?: string }>;
-    const text = parts.filter((p) => p.type === "text").map((p) => p.text ?? "")
+    const text = parts
+      .filter((p) => p.type === "text")
+      .map((p) => p.text ?? "")
       .join("\n");
     const usage = j.usage as
       | { input_tokens?: number; output_tokens?: number }
@@ -200,49 +142,6 @@ async function callCampaignAuditModel(
     completion_tokens: Math.round(Number(usage?.completion_tokens ?? 0)),
     model_label: gatewayModel,
   };
-}
-
-function clampRecommendations(
-  recs: unknown[],
-  flagsByCampaign: Map<string, CampaignAgg["flags"]>,
-): unknown[] {
-  const aggressive = new Set([
-    "pause",
-    "pausa",
-    "scale",
-    "escalar",
-    "reduce_budget",
-    "reduzir_orcamento",
-    "budget_cut",
-  ]);
-  return recs.map((raw) => {
-    if (!raw || typeof raw !== "object") return raw;
-    const r = { ...(raw as Record<string, unknown>) };
-    const cid = String(r.campaign_id ?? "");
-    const fl = cid ? flagsByCampaign.get(cid) : undefined;
-    const st = String(r.suggestion_type ?? "").toLowerCase();
-    if (fl?.low_volume && aggressive.has(st)) {
-      r.suggestion_type = "investigate";
-      r.requires_human_review = true;
-      r.rationale = `${String(r.rationale ?? "")} [Governança: volume baixo — revisão humana obrigatória.]`;
-    }
-    if (fl?.tracking_critical && (st === "scale" || st === "escalar")) {
-      r.suggestion_type = "investigate";
-      r.requires_human_review = true;
-    }
-    if (
-      fl?.strong_platform_ga4_divergence &&
-      (st === "scale" ||
-        st === "escalar" ||
-        st === "pause" ||
-        st === "pausa")
-    ) {
-      r.suggestion_type = "investigate";
-      r.requires_human_review = true;
-      r.rationale = `${String(r.rationale ?? "")} [Governança: divergência forte plataforma vs GA4 atribuído.]`;
-    }
-    return r;
-  });
 }
 
 Deno.serve(async (req) => {
@@ -308,10 +207,13 @@ Deno.serve(async (req) => {
       agency_id: client.agency_id as string,
     });
     if (!allowed) {
-      return new Response(JSON.stringify({ error: "Sem permissão para este cliente" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Sem permissão para este cliente" }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
 
     const cooldownMin = Number(
@@ -359,7 +261,8 @@ Deno.serve(async (req) => {
       if (!cErr && (count ?? 0) >= maxPerDay) {
         return new Response(
           JSON.stringify({
-            error: "Limite diário de auditorias para este cliente foi atingido.",
+            error:
+              "Limite diário de auditorias para este cliente foi atingido.",
           }),
           {
             status: 429,
@@ -417,10 +320,7 @@ Deno.serve(async (req) => {
     ]);
 
     const cmap = new Map(
-      (campaigns ?? []).map((c: Record<string, unknown>) => [
-        String(c.id),
-        c,
-      ]),
+      (campaigns ?? []).map((c: Record<string, unknown>) => [String(c.id), c]),
     );
 
     type Ga4Agg = {
@@ -526,7 +426,9 @@ Deno.serve(async (req) => {
     >();
 
     for (const [campaign_id, crows] of byCampaign) {
-      const cmeta = cmap.get(campaign_id) as Record<string, unknown> | undefined;
+      const cmeta = cmap.get(campaign_id) as
+        | Record<string, unknown>
+        | undefined;
       prep.set(campaign_id, {
         meta: cmeta,
         b30: sumRange(crows, period_start, period_end),
@@ -544,9 +446,8 @@ Deno.serve(async (req) => {
       const name = String(cmeta?.name ?? campaign_id);
       const platform = String(cmeta?.platform ?? "unknown");
       const status = String(cmeta?.status ?? "unknown");
-      const objective = cmeta?.objective != null
-        ? String(cmeta.objective)
-        : null;
+      const objective =
+        cmeta?.objective != null ? String(cmeta.objective) : null;
 
       let tracking_match: CampaignAgg["tracking_match"] = "unavailable";
       let ga4_method: CampaignAgg["ga4_attribution_method"] =
@@ -568,11 +469,7 @@ Deno.serve(async (req) => {
           for (const gid of agg.ga4_ids) {
             const gLow = gid.toLowerCase();
             const eLow = extNorm.toLowerCase();
-            if (
-              gLow === eLow ||
-              gLow.endsWith(eLow) ||
-              eLow.endsWith(gLow)
-            ) {
+            if (gLow === eLow || gLow.endsWith(eLow) || eLow.endsWith(gLow)) {
               idMatchedName = gn;
               break outer_id;
             }
@@ -697,30 +594,21 @@ Deno.serve(async (req) => {
         ? totalSpend30 / aggs.reduce((s, a) => s + a.conv_30d, 0)
         : 0;
 
-    const ranked = [...aggs].sort((a, b) => {
-      const score = (x: CampaignAgg) => {
-        let s = x.spend_30d;
-        if (x.flags.zero_conv_with_spend) s *= 1.8;
-        const drop =
-          x.spend_prev7 > 10 && x.roas_30d < avgRoas * 0.7 ? 50 : 0;
-        s += drop;
-        if (x.tracking_match === "unmatched") s += 30;
-        return s;
-      };
-      return score(b) - score(a);
-    });
+    const ranked = [...aggs].sort(
+      (a, b) =>
+        campaignAuditAggRankScore(b, avgRoas) -
+        campaignAuditAggRankScore(a, avgRoas),
+    );
 
     const top = ranked.slice(0, 15);
 
     const global_ga4_method = hasGa4Campaign
       ? "ga4_campaign_dimension_with_fallback_heuristic"
       : hasGa4Daily
-      ? "spend_share_heuristic"
-      : "unavailable";
+        ? "spend_share_heuristic"
+        : "unavailable";
 
-    const flagsByCampaign = new Map(
-      aggs.map((a) => [a.campaign_id, a.flags]),
-    );
+    const flagsByCampaign = new Map(aggs.map((a) => [a.campaign_id, a.flags]));
 
     const system = `És auditor sénior de performance de media paga. Não inventes números fora do pacote JSON.
 Regras obrigatórias:
@@ -748,8 +636,7 @@ Regras obrigatórias:
         total_spend_30d: Number(totalSpend30.toFixed(2)),
       },
       campaigns_ranked_for_model: top,
-      governance_hints:
-        `Campanhas não listadas também podem existir; não extrapoles além dos dados.`,
+      governance_hints: `Campanhas não listadas também podem existir; não extrapoles além dos dados.`,
     };
 
     const user = `${JSON.stringify(userPayload)}
@@ -775,11 +662,15 @@ Devolve JSON com esta forma (chaves fixas):
   "notes": ""
 }`;
 
-    console.info("campaign_ai_audit.invoke", {
-      client_id,
-      period_days,
-      campaigns_total: aggs.length,
-    });
+    console.info(
+      JSON.stringify({
+        evt: "campaign_ai_audit.invoke",
+        client_id,
+        agency_id: client.agency_id,
+        period_days,
+        campaigns_total: aggs.length,
+      }),
+    );
 
     let ai;
     try {
@@ -792,7 +683,10 @@ Devolve JSON com esta forma (chaves fixas):
             error:
               "Limite de uso da IA atingido. Tente novamente em alguns minutos.",
           }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
         );
       }
       if (msg === "PAYMENT_REQUIRED") {
@@ -800,7 +694,10 @@ Devolve JSON com esta forma (chaves fixas):
           JSON.stringify({
             error: "Créditos de IA esgotados no gateway.",
           }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          {
+            status: 402,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
         );
       }
       throw e;
@@ -811,10 +708,10 @@ Devolve JSON com esta forma (chaves fixas):
     const parsed: Record<string, unknown> = parsedContent.parseOk
       ? parsedContent.json
       : {
-        executive_summary_markdown: parsedContent.text,
-        recommendations: [],
-        overall_status: "attention",
-      };
+          executive_summary_markdown: parsedContent.text,
+          recommendations: [],
+          overall_status: "attention",
+        };
 
     let recommendations = Array.isArray(parsed.recommendations)
       ? parsed.recommendations
@@ -841,9 +738,7 @@ Devolve JSON com esta forma (chaves fixas):
     };
 
     const execMd = String(
-      parsed.executive_summary_markdown ??
-        parsed.executive_summary ??
-        "",
+      parsed.executive_summary_markdown ?? parsed.executive_summary ?? "",
     );
 
     const { data: audit, error: insErr } = await admin

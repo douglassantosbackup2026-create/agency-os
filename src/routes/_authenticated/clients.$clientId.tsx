@@ -2,7 +2,24 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, num, pct, timeAgo } from "@/lib/format";
-import { useMemo, useState } from "react";
+import {
+  buildDraftClientMessageFromRecommendations,
+  overallStatusLabel,
+  recommendationCampaignKeys,
+} from "@/lib/audit-client-message";
+import type { Database } from "@/integrations/supabase/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useEffect, useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import rehypeSanitize from "rehype-sanitize";
+import remarkGfm from "remark-gfm";
 import {
   ArrowLeft,
   Sparkles,
@@ -35,6 +52,9 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/_authenticated/clients/$clientId")({
   component: ClientDetail,
 });
+
+type PlatformAccountRow =
+  Database["public"]["Tables"]["client_platform_accounts"]["Row"];
 
 type ClientTab =
   | "overview"
@@ -97,6 +117,10 @@ function ClientDetail() {
   const [clickContext, setClickContext] = useState<
     "reuniao" | "pos_ajuste" | "suspeita_problema" | "checkin_rotina"
   >("checkin_rotina");
+  const [auditCompareLeft, setAuditCompareLeft] = useState("");
+  const [auditCompareRight, setAuditCompareRight] = useState("");
+  const [clientMsgOpen, setClientMsgOpen] = useState(false);
+  const [clientMsgBody, setClientMsgBody] = useState("");
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["client", clientId],
@@ -170,54 +194,54 @@ function ClientDetail() {
           .eq("client_id", clientId)
           .order("created_at", { ascending: false })
           .limit(50),
-        (supabase as any)
+        supabase
           .from("client_platform_accounts")
           .select("*")
           .eq("client_id", clientId)
           .order("created_at", { ascending: false }),
-        (supabase as any)
+        supabase
           .from("meeting_reports")
           .select("*")
           .eq("client_id", clientId)
           .order("created_at", { ascending: false })
           .limit(10),
-        (supabase as any)
+        supabase
           .from("ga4_daily")
           .select("*")
           .eq("client_id", clientId)
           .order("date", { ascending: false })
           .limit(60),
-        (supabase as any)
+        supabase
           .from("ga4_funnel_daily")
           .select("*")
           .eq("client_id", clientId)
           .order("date", { ascending: false })
           .limit(30),
-        (supabase as any)
+        supabase
           .from("ga4_channel_daily")
           .select("*")
           .eq("client_id", clientId)
           .order("date", { ascending: false })
           .limit(60),
-        (supabase as any)
+        supabase
           .from("ga4_tracking_health_daily")
           .select("*")
           .eq("client_id", clientId)
           .order("date", { ascending: false })
           .limit(1),
-        (supabase as any)
+        supabase
           .from("action_center")
           .select("*")
           .eq("client_id", clientId)
           .order("created_at", { ascending: false })
           .limit(20),
-        (supabase as any)
+        supabase
           .from("campaign_ai_audits")
           .select("*")
           .eq("client_id", clientId)
           .order("created_at", { ascending: false })
           .limit(15),
-        (supabase as any)
+        supabase
           .from("campaign_ai_audit_recommendation_status")
           .select("*")
           .eq("client_id", clientId)
@@ -246,6 +270,13 @@ function ClientDetail() {
       };
     },
   });
+
+  useEffect(() => {
+    const arr = data?.campaignAudits ?? [];
+    if (arr.length < 2) return;
+    setAuditCompareRight((r) => r || String(arr[0].id));
+    setAuditCompareLeft((l) => l || String(arr[1].id));
+  }, [data?.campaignAudits]);
 
   const metricsSeries = useMemo(() => {
     const metrics = data?.metrics ?? [];
@@ -349,6 +380,21 @@ function ClientDetail() {
     };
   }, [data?.ga4Daily, data?.ga4Funnel, data?.ga4Channels, data?.ga4Tracking]);
 
+  const latestAuditIdForReco = data?.campaignAudits?.[0]?.id
+    ? String(data.campaignAudits[0].id)
+    : "";
+
+  const recoStatusByKey = useMemo(() => {
+    const m = new Map<string, string>();
+    if (!latestAuditIdForReco) return m;
+    for (const row of data?.auditRecoStatuses ?? []) {
+      const r = row as Record<string, unknown>;
+      if (String(r.audit_id) !== latestAuditIdForReco) continue;
+      m.set(String(r.campaign_id), String(r.user_action ?? ""));
+    }
+    return m;
+  }, [data?.auditRecoStatuses, latestAuditIdForReco]);
+
   if (isLoading || !data) return <PageSkeleton preset="compact" />;
   if (!data.client)
     return (
@@ -375,23 +421,47 @@ function ClientDetail() {
   const latestAudit = campaignAuditsList[0] as
     | Record<string, unknown>
     | undefined;
-  const auditResultJson = (latestAudit?.result_json ??
-    {}) as Record<string, unknown>;
+  const auditResultJson = (latestAudit?.result_json ?? {}) as Record<
+    string,
+    unknown
+  >;
   const auditRecommendations = Array.isArray(auditResultJson.recommendations)
     ? (auditResultJson.recommendations as Record<string, unknown>[])
     : [];
 
-  const recoStatusByKey = useMemo(() => {
-    const m = new Map<string, string>();
-    const aid = latestAudit?.id ? String(latestAudit.id) : "";
-    if (!aid) return m;
-    for (const row of data?.auditRecoStatuses ?? []) {
-      const r = row as Record<string, unknown>;
-      if (String(r.audit_id) !== aid) continue;
-      m.set(String(r.campaign_id), String(r.user_action ?? ""));
-    }
-    return m;
-  }, [data?.auditRecoStatuses, latestAudit?.id]);
+  const compareRowLeft = campaignAuditsList.find(
+    (a) => String(a.id) === auditCompareLeft,
+  );
+  const compareRowRight = campaignAuditsList.find(
+    (a) => String(a.id) === auditCompareRight,
+  );
+  const compareJsonLeft = (compareRowLeft?.result_json ?? {}) as Record<
+    string,
+    unknown
+  >;
+  const compareJsonRight = (compareRowRight?.result_json ?? {}) as Record<
+    string,
+    unknown
+  >;
+  const compareRecLeft = Array.isArray(compareJsonLeft.recommendations)
+    ? (compareJsonLeft.recommendations as Record<string, unknown>[])
+    : [];
+  const compareRecRight = Array.isArray(compareJsonRight.recommendations)
+    ? (compareJsonRight.recommendations as Record<string, unknown>[])
+    : [];
+  const mapCmpL = recommendationCampaignKeys(compareRecLeft);
+  const mapCmpR = recommendationCampaignKeys(compareRecRight);
+  const idsCmpL = new Set(mapCmpL.keys());
+  const idsCmpR = new Set(mapCmpR.keys());
+  const onlyInCompareLeft = [...idsCmpL].filter((id) => !idsCmpR.has(id));
+  const onlyInCompareRight = [...idsCmpR].filter((id) => !idsCmpL.has(id));
+  const recoTypeChanges = [...idsCmpL].filter((id) => {
+    if (!idsCmpR.has(id)) return false;
+    return (
+      String(mapCmpL.get(id)?.suggestion_type ?? "") !==
+      String(mapCmpR.get(id)?.suggestion_type ?? "")
+    );
+  });
 
   async function upsertAuditRecoStatus(
     auditId: string | undefined,
@@ -402,8 +472,7 @@ function ClientDetail() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    const sb = supabase as any;
-    const { error } = await sb
+    const { error } = await supabase
       .from("campaign_ai_audit_recommendation_status")
       .upsert(
         {
@@ -428,6 +497,10 @@ function ClientDetail() {
     setGenerating(false);
     if (error || !res)
       return toast.error(error?.message ?? "Erro ao gerar relatório.");
+    if (res && typeof res === "object" && "error" in res && res.error) {
+      toast.error(String((res as { error: string }).error));
+      return;
+    }
     toast.success("Relatório gerado pela IA.");
     refetch();
     setTab("reports");
@@ -439,8 +512,7 @@ function ClientDetail() {
       toast.error("Informe o ID da conta.");
       return;
     }
-    const sb = supabase as any;
-    const { error } = await sb.from("client_platform_accounts").insert({
+    const { error } = await supabase.from("client_platform_accounts").insert({
       agency_id: data.client.agency_id,
       client_id: clientId,
       provider: newAccountProvider,
@@ -459,8 +531,7 @@ function ClientDetail() {
   }
 
   async function removeAccount(accountId: string) {
-    const sb = supabase as any;
-    const { error } = await sb
+    const { error } = await supabase
       .from("client_platform_accounts")
       .delete()
       .eq("id", accountId);
@@ -508,12 +579,13 @@ function ClientDetail() {
     refetch();
   }
 
-  async function createTaskFromAuditRecommendation(rec: Record<string, unknown>) {
+  async function createTaskFromAuditRecommendation(
+    rec: Record<string, unknown>,
+  ) {
     if (!data?.client) return;
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    const sb = supabase as any;
     const title = String(
       rec.suggested_copy ??
         rec.rationale ??
@@ -523,7 +595,7 @@ function ClientDetail() {
       0,
       2000,
     );
-    const { error } = await sb.from("action_center").insert({
+    const { error } = await supabase.from("action_center").insert({
       agency_id: data.client.agency_id,
       client_id: clientId,
       source_type: "auditoria_campanhas_ia",
@@ -560,12 +632,11 @@ function ClientDetail() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    const sb = supabase as any;
     const title =
       kind === "analyzed"
         ? `Auditoria IA: recomendação marcada como analisada — ${rec.campaign_name ?? ""}`
         : `Auditoria IA: recomendação ignorada — ${rec.campaign_name ?? ""}`;
-    const { error } = await sb.from("activities").insert({
+    const { error } = await supabase.from("activities").insert({
       agency_id: data.client.agency_id,
       client_id: clientId,
       user_id: user?.id ?? null,
@@ -591,7 +662,9 @@ function ClientDetail() {
       kind === "analyzed" ? "analyzed" : "dismissed",
     );
     toast.success(
-      kind === "analyzed" ? "Registado como analisado." : "Registado como ignorado.",
+      kind === "analyzed"
+        ? "Registado como analisado."
+        : "Registado como ignorado.",
     );
     refetch();
   }
@@ -1266,22 +1339,40 @@ function ClientDetail() {
                   sincronizado). Sugestões são indicativas — revisão humana
                   obrigatória para mudanças agressivas. Limite padrão: intervalo
                   mínimo entre auditorias e quota diária por cliente (variáveis{" "}
-                  <span className="font-mono">CAMPAIGN_AUDIT_*</span> no Supabase).
+                  <span className="font-mono">CAMPAIGN_AUDIT_*</span> no
+                  Supabase).
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={runCampaignAiAudit}
-                disabled={auditingCampaigns}
-                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60 transition"
-              >
-                {auditingCampaigns ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Sparkles className="h-3.5 w-3.5" />
-                )}
-                Analisar campanhas com IA
-              </button>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const draft = buildDraftClientMessageFromRecommendations(
+                      auditRecommendations,
+                      String(c.name ?? "o cliente"),
+                    );
+                    setClientMsgBody(draft);
+                    setClientMsgOpen(true);
+                  }}
+                  disabled={auditRecommendations.length === 0}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-surface disabled:opacity-50 transition"
+                >
+                  Mensagem para cliente
+                </button>
+                <button
+                  type="button"
+                  onClick={runCampaignAiAudit}
+                  disabled={auditingCampaigns}
+                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60 transition"
+                >
+                  {auditingCampaigns ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5" />
+                  )}
+                  Analisar campanhas com IA
+                </button>
+              </div>
             </div>
             {!latestAudit ? (
               <div className="p-6">
@@ -1323,9 +1414,14 @@ function ClientDetail() {
                     <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-primary">
                       Resumo executivo
                     </div>
-                    <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/90">
-                      {String(latestAudit.executive_summary_markdown)}
-                    </p>
+                    <div className="audit-md text-sm leading-relaxed text-foreground/90 [&_h1]:mb-2 [&_h1]:text-base [&_h2]:mt-3 [&_h2]:text-sm [&_h3]:text-sm [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_a]:break-all [&_a]:text-primary [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_pre]:overflow-x-auto [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeSanitize]}
+                      >
+                        {String(latestAudit.executive_summary_markdown)}
+                      </ReactMarkdown>
+                    </div>
                   </div>
                 ) : null}
                 {auditRecommendations.length === 0 ? (
@@ -1358,84 +1454,88 @@ function ClientDetail() {
                                   ? "Ignorado"
                                   : "—";
                           return (
-                          <tr key={`${String(rec.campaign_id ?? idx)}-${idx}`}>
-                            <td className="px-3 py-2 align-top">
-                              <div className="font-medium">
-                                {String(rec.campaign_name ?? "—")}
-                              </div>
-                              <div className="text-xs text-muted-foreground">
-                                {String(rec.platform ?? "")}
-                              </div>
-                              {rec.requires_human_review ? (
-                                <div className="mt-1 text-[10px] uppercase text-warning">
-                                  Requer revisão humana
+                            <tr
+                              key={`${String(rec.campaign_id ?? idx)}-${idx}`}
+                            >
+                              <td className="px-3 py-2 align-top">
+                                <div className="font-medium">
+                                  {String(rec.campaign_name ?? "—")}
                                 </div>
-                              ) : null}
-                            </td>
-                            <td className="max-w-md px-3 py-2 align-top text-xs leading-relaxed">
-                              {String(rec.suggested_copy ?? rec.rationale ?? "—")}
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-2 align-top font-mono text-xs">
-                              {String(rec.suggestion_type ?? "—")}
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-2 align-top text-xs">
-                              {String(rec.tracking_match ?? "—")}
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-2 align-top text-[11px] text-muted-foreground">
-                              {stLabel}
-                            </td>
-                            <td className="px-3 py-2 align-top text-right">
-                              <div className="flex flex-col items-end gap-1">
-                                <button
-                                  type="button"
-                                  className="text-xs text-primary hover:underline"
-                                  onClick={() =>
-                                    createTaskFromAuditRecommendation(rec)
-                                  }
-                                >
-                                  Criar tarefa
-                                </button>
-                                <button
-                                  type="button"
-                                  className="text-xs text-muted-foreground hover:underline"
-                                  onClick={() =>
-                                    logCampaignAuditActivity("analyzed", rec)
-                                  }
-                                >
-                                  Marcado analisado
-                                </button>
-                                <button
-                                  type="button"
-                                  className="text-xs text-muted-foreground hover:underline"
-                                  onClick={() =>
-                                    logCampaignAuditActivity("dismissed", rec)
-                                  }
-                                >
-                                  Ignorar
-                                </button>
-                                <button
-                                  type="button"
-                                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline"
-                                  onClick={() => {
-                                    void navigator.clipboard.writeText(
-                                      [
-                                        rec.suggested_copy,
-                                        rec.rationale,
-                                        rec.suggestion_type,
-                                      ]
-                                        .filter(Boolean)
-                                        .map(String)
-                                        .join("\n\n"),
-                                    );
-                                    toast.success("Copiado.");
-                                  }}
-                                >
-                                  <ClipboardCopy className="h-3 w-3" />
-                                  Copiar
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
+                                <div className="text-xs text-muted-foreground">
+                                  {String(rec.platform ?? "")}
+                                </div>
+                                {rec.requires_human_review ? (
+                                  <div className="mt-1 text-[10px] uppercase text-warning">
+                                    Requer revisão humana
+                                  </div>
+                                ) : null}
+                              </td>
+                              <td className="max-w-md px-3 py-2 align-top text-xs leading-relaxed">
+                                {String(
+                                  rec.suggested_copy ?? rec.rationale ?? "—",
+                                )}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-2 align-top font-mono text-xs">
+                                {String(rec.suggestion_type ?? "—")}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-2 align-top text-xs">
+                                {String(rec.tracking_match ?? "—")}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-2 align-top text-[11px] text-muted-foreground">
+                                {stLabel}
+                              </td>
+                              <td className="px-3 py-2 align-top text-right">
+                                <div className="flex flex-col items-end gap-1">
+                                  <button
+                                    type="button"
+                                    className="text-xs text-primary hover:underline"
+                                    onClick={() =>
+                                      createTaskFromAuditRecommendation(rec)
+                                    }
+                                  >
+                                    Criar tarefa
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="text-xs text-muted-foreground hover:underline"
+                                    onClick={() =>
+                                      logCampaignAuditActivity("analyzed", rec)
+                                    }
+                                  >
+                                    Marcado analisado
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="text-xs text-muted-foreground hover:underline"
+                                    onClick={() =>
+                                      logCampaignAuditActivity("dismissed", rec)
+                                    }
+                                  >
+                                    Ignorar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline"
+                                    onClick={() => {
+                                      void navigator.clipboard.writeText(
+                                        [
+                                          rec.suggested_copy,
+                                          rec.rationale,
+                                          rec.suggestion_type,
+                                        ]
+                                          .filter(Boolean)
+                                          .map(String)
+                                          .join("\n\n"),
+                                      );
+                                      toast.success("Copiado.");
+                                    }}
+                                  >
+                                    <ClipboardCopy className="h-3 w-3" />
+                                    Copiar
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
                           );
                         })}
                       </tbody>
@@ -1445,22 +1545,165 @@ function ClientDetail() {
               </div>
             )}
           </Card>
+          <Dialog open={clientMsgOpen} onOpenChange={setClientMsgOpen}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Mensagem para o cliente (rascunho)</DialogTitle>
+                <DialogDescription>
+                  Revise e adapte antes de enviar. O texto não substitui parecer
+                  humano nem garante resultados.
+                </DialogDescription>
+              </DialogHeader>
+              <textarea
+                value={clientMsgBody}
+                onChange={(e) => setClientMsgBody(e.target.value)}
+                className="min-h-[220px] w-full resize-y rounded-md border border-border bg-background p-3 text-sm"
+              />
+              <DialogFooter className="flex flex-row flex-wrap justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setClientMsgOpen(false)}
+                  className="rounded-md border border-border px-3 py-2 text-sm"
+                >
+                  Fechar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(clientMsgBody);
+                    toast.success("Copiado para a área de transferência.");
+                  }}
+                  className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
+                >
+                  Copiar
+                </button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {campaignAuditsList.length >= 2 ? (
+            <Card>
+              <div className="border-b border-border px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Comparar duas auditorias
+              </div>
+              <div className="space-y-3 p-4 text-sm">
+                <div className="flex flex-wrap gap-3">
+                  <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                    Auditoria A (mais antiga sugerida)
+                    <select
+                      value={auditCompareLeft}
+                      onChange={(e) => setAuditCompareLeft(e.target.value)}
+                      className="h-9 min-w-[200px] rounded-md border border-border bg-background px-2 text-sm text-foreground"
+                    >
+                      {campaignAuditsList.map((a) => (
+                        <option key={`l-${String(a.id)}`} value={String(a.id)}>
+                          {String(a.period_start)} → {String(a.period_end)} ·{" "}
+                          {timeAgo(String(a.created_at))}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+                    Auditoria B (mais recente sugerida)
+                    <select
+                      value={auditCompareRight}
+                      onChange={(e) => setAuditCompareRight(e.target.value)}
+                      className="h-9 min-w-[200px] rounded-md border border-border bg-background px-2 text-sm text-foreground"
+                    >
+                      {campaignAuditsList.map((a) => (
+                        <option key={`r-${String(a.id)}`} value={String(a.id)}>
+                          {String(a.period_start)} → {String(a.period_end)} ·{" "}
+                          {timeAgo(String(a.created_at))}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <div className="rounded-md border border-border bg-surface/40 p-3 text-xs leading-relaxed">
+                  <div className="font-semibold text-foreground">
+                    Estado geral (
+                    <span className="font-mono">overall_status</span>)
+                  </div>
+                  <div className="mt-1 grid gap-1 sm:grid-cols-2">
+                    <div>
+                      <span className="text-muted-foreground">A:</span>{" "}
+                      <span className="font-mono">
+                        {overallStatusLabel(compareJsonLeft)}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">B:</span>{" "}
+                      <span className="font-mono">
+                        {overallStatusLabel(compareJsonRight)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-3 font-semibold text-foreground">
+                    Recomendações
+                  </div>
+                  <ul className="mt-1 list-inside list-disc text-muted-foreground">
+                    <li>
+                      Só em A:{" "}
+                      <span className="font-mono text-foreground">
+                        {onlyInCompareLeft.length}
+                      </span>{" "}
+                      campanha(s)
+                    </li>
+                    <li>
+                      Só em B:{" "}
+                      <span className="font-mono text-foreground">
+                        {onlyInCompareRight.length}
+                      </span>{" "}
+                      campanha(s)
+                    </li>
+                    <li>
+                      Tipo de sugestão alterado (mesma campanha):{" "}
+                      <span className="font-mono text-foreground">
+                        {recoTypeChanges.length}
+                      </span>
+                    </li>
+                  </ul>
+                  {recoTypeChanges.length > 0 ? (
+                    <div className="mt-2 max-h-40 overflow-y-auto rounded border border-border bg-background p-2 font-mono text-[11px]">
+                      {recoTypeChanges.slice(0, 12).map((id) => (
+                        <div key={id}>
+                          {id}:{" "}
+                          <span className="text-muted-foreground">
+                            {String(mapCmpL.get(id)?.suggestion_type ?? "—")} →{" "}
+                            {String(mapCmpR.get(id)?.suggestion_type ?? "—")}
+                          </span>
+                        </div>
+                      ))}
+                      {recoTypeChanges.length > 12 ? (
+                        <div className="text-muted-foreground">
+                          … +{recoTypeChanges.length - 12} outras
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </Card>
+          ) : null}
+
           {campaignAuditsList.length > 1 ? (
             <Card>
               <div className="border-b border-border px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Histórico recente
               </div>
               <div className="divide-y divide-border">
-                {campaignAuditsList.slice(1).map((a: Record<string, unknown>) => (
-                  <div key={String(a.id)} className="px-4 py-2 text-xs">
-                    <span className="font-mono">
-                      {String(a.period_start)} → {String(a.period_end)}
-                    </span>
-                    <span className="ml-2 text-muted-foreground">
-                      {timeAgo(String(a.created_at))}
-                    </span>
-                  </div>
-                ))}
+                {campaignAuditsList
+                  .slice(1)
+                  .map((a: Record<string, unknown>) => (
+                    <div key={String(a.id)} className="px-4 py-2 text-xs">
+                      <span className="font-mono">
+                        {String(a.period_start)} → {String(a.period_end)}
+                      </span>
+                      <span className="ml-2 text-muted-foreground">
+                        {timeAgo(String(a.created_at))}
+                      </span>
+                    </div>
+                  ))}
               </div>
             </Card>
           ) : null}
@@ -1510,7 +1753,7 @@ function ClientDetail() {
                 </div>
               ) : (
                 <div className="divide-y divide-border">
-                  {data.adAccounts.map((acc: any) => (
+                  {data.adAccounts.map((acc: PlatformAccountRow) => (
                     <div
                       key={acc.id}
                       className="flex items-center justify-between px-3 py-2 text-sm"

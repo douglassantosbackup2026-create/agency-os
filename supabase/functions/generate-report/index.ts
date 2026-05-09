@@ -72,11 +72,97 @@ Deno.serve(async (req) => {
       agency_id: client.agency_id as string,
     });
     if (!allowed) {
-      return new Response(JSON.stringify({ error: "Sem permissão para este cliente" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return new Response(
+        JSON.stringify({ error: "Sem permissão para este cliente" }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
     }
+
+    const reportCooldownMin = Number(
+      Deno.env.get("GENERATE_REPORT_COOLDOWN_MINUTES") ?? "20",
+    );
+    const reportMaxPerDay = Number(
+      Deno.env.get("GENERATE_REPORT_MAX_PER_DAY_PER_CLIENT") ?? "12",
+    );
+
+    if (Number.isFinite(reportCooldownMin) && reportCooldownMin > 0) {
+      const { data: lastRep } = await admin
+        .from("reports")
+        .select("created_at")
+        .eq("client_id", client_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (lastRep?.created_at) {
+        const elapsedMin =
+          (Date.now() - new Date(String(lastRep.created_at)).getTime()) /
+          60_000;
+        if (elapsedMin < reportCooldownMin) {
+          const wait = Math.ceil(reportCooldownMin - elapsedMin);
+          console.warn(
+            JSON.stringify({
+              evt: "generate_report.rate_limited_cooldown",
+              client_id,
+              agency_id: client.agency_id,
+              wait_minutes: wait,
+            }),
+          );
+          return new Response(
+            JSON.stringify({
+              error: `Relatório em cooldown. Tente novamente em ~${wait} min.`,
+            }),
+            {
+              status: 429,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+      }
+    }
+
+    if (Number.isFinite(reportMaxPerDay) && reportMaxPerDay > 0) {
+      const dayStart = new Date();
+      dayStart.setUTCHours(0, 0, 0, 0);
+      const { count, error: cErr } = await admin
+        .from("reports")
+        .select("id", { count: "exact", head: true })
+        .eq("client_id", client_id)
+        .gte("created_at", dayStart.toISOString());
+      if (!cErr && (count ?? 0) >= reportMaxPerDay) {
+        console.warn(
+          JSON.stringify({
+            evt: "generate_report.rate_limited_daily",
+            client_id,
+            agency_id: client.agency_id,
+            count: count ?? 0,
+            limit: reportMaxPerDay,
+          }),
+        );
+        return new Response(
+          JSON.stringify({
+            error:
+              "Limite diário de relatórios gerados para este cliente foi atingido.",
+          }),
+          {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+    }
+
+    console.info(
+      JSON.stringify({
+        evt: "generate_report.start",
+        client_id,
+        agency_id: client.agency_id,
+        mode,
+        click_context: clickContext,
+      }),
+    );
 
     const since = new Date(Date.now() - 30 * 86400000)
       .toISOString()

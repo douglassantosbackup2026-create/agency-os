@@ -1,5 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { baseGovernance, normalizeConfidence } from "../_shared/ai-v3.ts";
+import {
+  assertUserCanAccessClient,
+  assertUserMemberOfAgency,
+} from "../_shared/membership.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -43,6 +47,21 @@ Deno.serve(async (req) => {
       });
     }
 
+    const memberAgency = await assertUserMemberOfAgency(
+      admin,
+      u.user.id,
+      agencyId,
+    );
+    if (!memberAgency) {
+      return new Response(
+        JSON.stringify({ error: "Sem permissão nesta agência" }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     const { data: watchlist } = await admin
       .from("competitor_watchlist")
       .select("id, agency_id, client_id, competitor_name, source_url")
@@ -51,6 +70,12 @@ Deno.serve(async (req) => {
 
     let created = 0;
     for (const item of watchlist ?? []) {
+      const canClient = await assertUserCanAccessClient(admin, u.user.id, {
+        id: item.client_id as string,
+        agency_id: item.agency_id as string,
+      });
+      if (!canClient) continue;
+
       const adCount = Math.max(1, Math.floor(Math.random() * 12));
       const { data: lastSnapshot } = await admin
         .from("competitor_snapshots")

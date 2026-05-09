@@ -1,6 +1,7 @@
 // Sync metrics: Meta / Google Ads / TikTok / GA4 quando token + IDs; janela em dias e granularidade Meta em integrations.config.
 // Sem credenciais continua simulado para esse cliente.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { assertUserCanAccessClient } from "../_shared/membership.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1136,11 +1137,35 @@ Deno.serve(async (req) => {
         headers: corsHeaders,
       });
 
+    const allowedSync = await assertUserCanAccessClient(admin, u.user.id, {
+      id: client_id as string,
+      agency_id: client.agency_id as string,
+    });
+    if (!allowedSync) {
+      return new Response(
+        JSON.stringify({ error: "Sem permissão para este cliente" }),
+        {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
     syncRunContext = {
       agency_id: client.agency_id as string,
       client_id: client_id as string,
       provider: provider as string,
     };
+
+    console.info(
+      JSON.stringify({
+        evt: "sync_platform.start",
+        client_id,
+        agency_id: client.agency_id,
+        provider,
+        user_id: u.user.id,
+      }),
+    );
 
     const { data: integ } = await admin
       .from("integrations")

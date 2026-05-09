@@ -238,14 +238,10 @@ function briefingBucket(row: BriefRow): keyof BriefBuckets | null {
 
 function applyAuditPenaltyToHealth(
   base: ReturnType<typeof computeFor>,
-  audit:
-    | { created_at: string; result_json: unknown }
-    | undefined
-    | null,
+  audit: { created_at: string; result_json: unknown } | undefined | null,
 ): ReturnType<typeof computeFor> {
   if (!audit?.created_at) return base;
-  const days =
-    (Date.now() - new Date(audit.created_at).getTime()) / 86400000;
+  const days = (Date.now() - new Date(audit.created_at).getTime()) / 86400000;
   if (days > 14) return base;
   const rj = audit.result_json as Record<string, unknown> | null;
   const st = String(rj?.overall_status ?? "").toLowerCase();
