@@ -327,6 +327,7 @@ async function fetchGA4Metrics(
       ga4Daily: Array<Record<string, unknown>>;
       ga4Funnel: Array<Record<string, unknown>>;
       ga4Channels: Array<Record<string, unknown>>;
+      ga4CampaignDaily: Array<Record<string, unknown>>;
       trackingHealth: Record<string, unknown>;
     }
   | { error: string }
@@ -358,6 +359,7 @@ async function fetchGA4Metrics(
   let dailyReport: Record<string, unknown>;
   let funnelReport: Record<string, unknown>;
   let channelsReport: Record<string, unknown>;
+  let campaignReport: Record<string, unknown> = { rows: [] };
   try {
     const dateRanges = [
       {
@@ -405,6 +407,28 @@ async function fetchGA4Metrics(
         { name: "purchaseRevenue" },
       ],
     });
+    try {
+      campaignReport = await runGA4Report({
+        dateRanges,
+        dimensions: [
+          { name: "date" },
+          { name: "sessionCampaignName" },
+          { name: "sessionCampaignId" },
+        ],
+        metrics: [
+          { name: "sessions" },
+          { name: "keyEvents" },
+          { name: "purchases" },
+          { name: "purchaseRevenue" },
+        ],
+      });
+    } catch (ce) {
+      console.warn(
+        "ga4_campaign_report_skipped",
+        (ce as Error).message?.slice(0, 300),
+      );
+      campaignReport = { rows: [] };
+    }
   } catch (e) {
     return { error: `GA4 Data API: ${(e as Error).message}` };
   }
@@ -563,6 +587,41 @@ async function fetchGA4Metrics(
     });
   }
 
+  const campaignRows = (campaignReport.rows ?? []) as Array<{
+    dimensionValues?: Array<{ value?: string }>;
+    metricValues?: Array<{ value?: string }>;
+  }>;
+  const ga4CampaignDaily: Array<Record<string, unknown>> = [];
+  for (const r of campaignRows) {
+    const dateRaw = String(r.dimensionValues?.[0]?.value ?? "");
+    const campaignName = String(r.dimensionValues?.[1]?.value ?? "").trim();
+    const campaignIdGa4 = String(r.dimensionValues?.[2]?.value ?? "").trim();
+    const dateStr =
+      dateRaw.length === 8
+        ? `${dateRaw.slice(0, 4)}-${dateRaw.slice(4, 6)}-${dateRaw.slice(6, 8)}`
+        : dateRaw.slice(0, 10);
+    if (!dateStr || !campaignName) continue;
+    const sessions = Number(r.metricValues?.[0]?.value ?? 0);
+    const keyEvents = Number(r.metricValues?.[1]?.value ?? 0);
+    const purchases = Number(r.metricValues?.[2]?.value ?? 0);
+    const purchaseRevenue = Number(r.metricValues?.[3]?.value ?? 0);
+    const conversions = purchases > 0 ? purchases : Math.round(keyEvents);
+    ga4CampaignDaily.push({
+      agency_id,
+      client_id,
+      date: dateStr,
+      campaign_name: campaignName.slice(0, 512),
+      campaign_id_ga4:
+        campaignIdGa4 && campaignIdGa4 !== "(not set)"
+          ? campaignIdGa4.slice(0, 256)
+          : null,
+      sessions: Math.round(sessions),
+      conversions: Math.round(conversions),
+      revenue: Number(purchaseRevenue.toFixed(2)),
+      landing_page: null,
+    });
+  }
+
   const lastDaily = ga4Daily[ga4Daily.length - 1] as Record<string, unknown>;
   const prevDaily =
     ga4Daily.length > 1
@@ -597,7 +656,14 @@ async function fetchGA4Metrics(
     notes,
   };
 
-  return { rows, ga4Daily, ga4Funnel, ga4Channels, trackingHealth };
+  return {
+    rows,
+    ga4Daily,
+    ga4Funnel,
+    ga4Channels,
+    ga4CampaignDaily,
+    trackingHealth,
+  };
 }
 
 async function refreshGoogleAccessToken(
@@ -1110,6 +1176,7 @@ Deno.serve(async (req) => {
       ga4Daily: Array<Record<string, unknown>>;
       ga4Funnel: Array<Record<string, unknown>>;
       ga4Channels: Array<Record<string, unknown>>;
+      ga4CampaignDaily: Array<Record<string, unknown>>;
       trackingHealth: Record<string, unknown>;
     } | null = null;
     let mode:
@@ -1236,6 +1303,7 @@ Deno.serve(async (req) => {
           ga4Daily: res.ga4Daily,
           ga4Funnel: res.ga4Funnel,
           ga4Channels: res.ga4Channels,
+          ga4CampaignDaily: res.ga4CampaignDaily,
           trackingHealth: res.trackingHealth,
         };
         mode = "ga4_api";
@@ -1453,6 +1521,19 @@ Deno.serve(async (req) => {
           .in("date", datesChannels);
         await admin.from("ga4_channel_daily").insert(ga4Artifacts.ga4Channels);
       }
+      const datesCampaign = [
+        ...new Set(ga4Artifacts.ga4CampaignDaily.map((r) => String(r.date))),
+      ];
+      if (datesCampaign.length) {
+        await admin
+          .from("ga4_campaign_daily")
+          .delete()
+          .eq("client_id", client_id)
+          .in("date", datesCampaign);
+        await admin
+          .from("ga4_campaign_daily")
+          .insert(ga4Artifacts.ga4CampaignDaily);
+      }
       await admin
         .from("ga4_tracking_health_daily")
         .delete()
@@ -1466,6 +1547,7 @@ Deno.serve(async (req) => {
         daily_rows: ga4Artifacts.ga4Daily.length,
         funnel_rows: ga4Artifacts.ga4Funnel.length,
         channel_rows: ga4Artifacts.ga4Channels.length,
+        campaign_rows: ga4Artifacts.ga4CampaignDaily.length,
         tracking_status: ga4Artifacts.trackingHealth.status,
       });
     }

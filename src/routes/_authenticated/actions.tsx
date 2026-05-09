@@ -177,6 +177,9 @@ function ActionsCenter() {
             <SelectItem value="manual">Manual</SelectItem>
             <SelectItem value="whatsapp">WhatsApp</SelectItem>
             <SelectItem value="briefing">Briefing</SelectItem>
+            <SelectItem value="auditoria_campanhas_ia">
+              Auditoria campanhas IA
+            </SelectItem>
           </SelectContent>
         </Select>
         <Select value={priority} onValueChange={setPriority}>

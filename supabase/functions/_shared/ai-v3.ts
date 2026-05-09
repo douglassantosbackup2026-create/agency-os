@@ -6,7 +6,8 @@ export type PromptKey =
   | "03-analise-sob-demanda"
   | "04-alerta-whatsapp"
   | "05-pauta-reuniao"
-  | "06-inteligencia-concorrentes";
+  | "06-inteligencia-concorrentes"
+  | "07-auditoria-campanhas";
 
 export function parseAiJson(content: string): {
   text: string;

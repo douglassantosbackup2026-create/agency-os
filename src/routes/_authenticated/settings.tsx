@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardHeader } from "./dashboard";
 import { toast } from "sonner";
-import { Database, Upload, Loader2 } from "lucide-react";
+import { Database, Upload, Loader2, Moon, Sun } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
+import { getSnapshotTheme, setTheme, subscribeTheme } from "@/lib/theme";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   component: Settings,
@@ -13,6 +15,11 @@ export const Route = createFileRoute("/_authenticated/settings")({
 
 function Settings() {
   const { agency, refreshAgency } = useAuth();
+  const themeMode = useSyncExternalStore(
+    subscribeTheme,
+    getSnapshotTheme,
+    () => "light",
+  );
   const [name, setName] = useState(agency?.name ?? "");
   const [color, setColor] = useState(agency?.primary_color ?? "#7c5cff");
   const [logo, setLogo] = useState(agency?.logo_url ?? "");
@@ -72,6 +79,34 @@ function Settings() {
       </header>
 
       <div className="grid gap-4 lg:grid-cols-2">
+        <Card className="lg:col-span-2">
+          <CardHeader title="Aparência" />
+          <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="max-w-xl text-sm text-muted-foreground">
+              Tema claro ou escuro. A escolha fica guardada neste navegador. Se
+              ainda não tiver escolhido, usamos o tema do sistema.
+            </p>
+            <div className="flex shrink-0 gap-2">
+              <Button
+                type="button"
+                variant={themeMode === "light" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setTheme("light")}
+              >
+                <Sun className="h-4 w-4" /> Claro
+              </Button>
+              <Button
+                type="button"
+                variant={themeMode === "dark" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setTheme("dark")}
+              >
+                <Moon className="h-4 w-4" /> Escuro
+              </Button>
+            </div>
+          </div>
+        </Card>
+
         <Card>
           <CardHeader title="White-label" />
           <div className="space-y-3 p-4">

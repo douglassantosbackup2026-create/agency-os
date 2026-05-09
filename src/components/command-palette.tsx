@@ -34,6 +34,7 @@ import {
   Radar,
 } from "lucide-react";
 import { toast } from "sonner";
+import { toggleTheme as applyToggleTheme } from "@/lib/theme";
 
 type ClientItem = { id: string; name: string };
 type ReportPick = { id: string; excerpt: string; clientName: string };
@@ -151,14 +152,7 @@ export function CommandPalette({
 
   const toggleTheme = () => {
     close();
-    const root = document.documentElement;
-    const next = root.classList.contains("dark") ? "light" : "dark";
-    root.classList.toggle("dark");
-    try {
-      localStorage.setItem("theme", next);
-    } catch {
-      /* ignore storage */
-    }
+    applyToggleTheme();
   };
 
   const signOut = async () => {

@@ -10,7 +10,10 @@ import {
 import appCss from "../styles.css?url";
 import { AuthProvider } from "@/hooks/use-auth";
 import { Toaster } from "@/components/ui/sonner";
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
+import { getSnapshotTheme, subscribeTheme } from "@/lib/theme";
+
+const THEME_INIT_SCRIPT = `(function(){try{var k='theme';var r=document.documentElement;var s=localStorage.getItem(k);var d;if(s==='dark')d=!0;else if(s==='light')d=!1;else d=window.matchMedia('(prefers-color-scheme: dark)').matches;if(d)r.classList.add('dark');else r.classList.remove('dark');}catch(e){}})();`;
 
 function NotFoundComponent() {
   return (
@@ -76,7 +79,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           content:
             "Plataforma operacional para agências de tráfego pago: health score, alertas inteligentes, relatórios IA e portal do cliente.",
         },
-        { name: "theme-color", content: "#171428" },
+        { name: "theme-color", content: "#f4f3f8" },
         {
           property: "og:title",
           content: "Retentio — SO de retenção para agências",
@@ -112,8 +115,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className="dark">
+    <html lang="pt-BR" suppressHydrationWarning>
       <head>
+        <script
+          // Aplica tema antes da primeira pintura (alinhar com src/lib/theme.ts)
+          dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
+        />
         <HeadContent />
       </head>
       <body>
@@ -126,6 +133,12 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  const colorMode = useSyncExternalStore(
+    subscribeTheme,
+    () => (getSnapshotTheme() === "dark" ? "dark" : "light"),
+    () => "light",
+  );
+
   useEffect(() => {
     if (typeof window === "undefined" || !("serviceWorker" in navigator))
       return;
@@ -133,11 +146,18 @@ function RootComponent() {
       // ignore SW registration failures
     });
   }, []);
+
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) return;
+    meta.setAttribute("content", colorMode === "dark" ? "#171428" : "#f4f3f8");
+  }, [colorMode]);
+
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <Outlet />
-        <Toaster position="top-right" theme="dark" />
+        <Toaster position="top-right" theme={colorMode} />
       </AuthProvider>
     </QueryClientProvider>
   );

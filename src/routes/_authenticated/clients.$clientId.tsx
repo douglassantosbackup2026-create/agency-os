@@ -9,6 +9,7 @@ import {
   Loader2,
   RefreshCw,
   Activity as ActivityIcon,
+  ClipboardCopy,
 } from "lucide-react";
 import {
   CartesianGrid,
@@ -42,6 +43,7 @@ type ClientTab =
   | "insights"
   | "ad_accounts"
   | "campaigns"
+  | "campaign_audit"
   | "alerts"
   | "reports"
   | "notes"
@@ -55,6 +57,7 @@ const TAB_ORDER: ClientTab[] = [
   "insights",
   "ad_accounts",
   "campaigns",
+  "campaign_audit",
   "alerts",
   "reports",
   "notes",
@@ -70,6 +73,7 @@ function tabLabel(t: ClientTab): string {
     insights: "Insights IA",
     ad_accounts: "Contas Ads",
     campaigns: "Campanhas",
+    campaign_audit: "Auditoria IA",
     alerts: "Alertas",
     reports: "Relatórios",
     notes: "Notas",
@@ -89,6 +93,7 @@ function ClientDetail() {
   const [newAccountName, setNewAccountName] = useState("");
   const [generatingMeeting, setGeneratingMeeting] = useState(false);
   const [analyzingNow, setAnalyzingNow] = useState(false);
+  const [auditingCampaigns, setAuditingCampaigns] = useState(false);
   const [clickContext, setClickContext] = useState<
     "reuniao" | "pos_ajuste" | "suspeita_problema" | "checkin_rotina"
   >("checkin_rotina");
@@ -113,6 +118,7 @@ function ClientDetail() {
         ga4Channels,
         ga4Tracking,
         actions,
+        campaignAudits,
       ] = await Promise.all([
         supabase.from("clients").select("*").eq("id", clientId).maybeSingle(),
         supabase
@@ -204,6 +210,12 @@ function ClientDetail() {
           .eq("client_id", clientId)
           .order("created_at", { ascending: false })
           .limit(20),
+        (supabase as any)
+          .from("campaign_ai_audits")
+          .select("*")
+          .eq("client_id", clientId)
+          .order("created_at", { ascending: false })
+          .limit(15),
       ]);
       return {
         client: client.data,
@@ -222,6 +234,7 @@ function ClientDetail() {
         ga4Channels: ga4Channels.data ?? [],
         ga4Tracking: ga4Tracking.data ?? [],
         actions: actions.data ?? [],
+        campaignAudits: campaignAudits.data ?? [],
       };
     },
   });
@@ -350,6 +363,16 @@ function ClientDetail() {
     : 0;
   const latestHealth = data.health[0];
 
+  const campaignAuditsList = data.campaignAudits ?? [];
+  const latestAudit = campaignAuditsList[0] as
+    | Record<string, unknown>
+    | undefined;
+  const auditResultJson = (latestAudit?.result_json ??
+    {}) as Record<string, unknown>;
+  const auditRecommendations = Array.isArray(auditResultJson.recommendations)
+    ? (auditResultJson.recommendations as Record<string, unknown>[])
+    : [];
+
   async function generateReport() {
     setGenerating(true);
     const { data: res, error } = await supabase.functions.invoke(
@@ -417,6 +440,103 @@ function ClientDetail() {
       return;
     }
     toast.success("Pauta de reunião gerada.");
+    refetch();
+  }
+
+  async function runCampaignAiAudit() {
+    setAuditingCampaigns(true);
+    const { data: res, error } = await supabase.functions.invoke(
+      "campaign-ai-audit",
+      { body: { client_id: clientId } },
+    );
+    setAuditingCampaigns(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    if (res && typeof res === "object" && "error" in res && res.error) {
+      toast.error(String((res as { error: string }).error));
+      return;
+    }
+    toast.success("Auditoria de campanhas concluída.");
+    refetch();
+  }
+
+  async function createTaskFromAuditRecommendation(rec: Record<string, unknown>) {
+    if (!data?.client) return;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const sb = supabase as any;
+    const title = String(
+      rec.suggested_copy ??
+        rec.rationale ??
+        `Seguir auditoria — ${rec.campaign_name ?? "campanha"}`,
+    ).slice(0, 220);
+    const description = String(rec.rationale ?? rec.suggested_copy ?? "").slice(
+      0,
+      2000,
+    );
+    const { error } = await sb.from("action_center").insert({
+      agency_id: data.client.agency_id,
+      client_id: clientId,
+      source_type: "auditoria_campanhas_ia",
+      title,
+      description: description || null,
+      priority: String(rec.confidence ?? "") === "alta" ? "alta" : "media",
+      status: "pendente",
+      due_date: new Date().toISOString().slice(0, 10),
+      created_by: user?.id ?? null,
+      metadata: {
+        suggestion_type: rec.suggestion_type ?? null,
+        campaign_id: rec.campaign_id ?? null,
+        tracking_match: rec.tracking_match ?? null,
+      },
+    });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Tarefa criada na Central de Ações.");
+    refetch();
+  }
+
+  async function logCampaignAuditActivity(
+    kind: "analyzed" | "dismissed",
+    rec: Record<string, unknown>,
+  ) {
+    if (!data?.client) return;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const sb = supabase as any;
+    const title =
+      kind === "analyzed"
+        ? `Auditoria IA: recomendação marcada como analisada — ${rec.campaign_name ?? ""}`
+        : `Auditoria IA: recomendação ignorada — ${rec.campaign_name ?? ""}`;
+    const { error } = await sb.from("activities").insert({
+      agency_id: data.client.agency_id,
+      client_id: clientId,
+      user_id: user?.id ?? null,
+      type: "campaign_audit_feedback",
+      title: title.slice(0, 500),
+      description: String(rec.suggested_copy ?? rec.rationale ?? "").slice(
+        0,
+        2000,
+      ),
+      metadata: {
+        feedback: kind,
+        campaign_id: rec.campaign_id ?? null,
+        suggestion_type: rec.suggestion_type ?? null,
+      },
+    });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success(
+      kind === "analyzed" ? "Registado como analisado." : "Registado como ignorado.",
+    );
     refetch();
   }
 
@@ -1075,6 +1195,202 @@ function ClientDetail() {
             </div>
           )}
         </Card>
+      )}
+
+      {tab === "campaign_audit" && (
+        <div className="space-y-4">
+          <Card>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+              <div>
+                <div className="text-sm font-semibold">
+                  Auditoria de campanhas (IA)
+                </div>
+                <div className="mt-0.5 text-xs text-muted-foreground">
+                  Usa métricas por campanha + GA4 (dimensão campanha quando
+                  sincronizado). Sugestões são indicativas — revisão humana
+                  obrigatória para mudanças agressivas.
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={runCampaignAiAudit}
+                disabled={auditingCampaigns}
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60 transition"
+              >
+                {auditingCampaigns ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3.5 w-3.5" />
+                )}
+                Analisar campanhas com IA
+              </button>
+            </div>
+            {!latestAudit ? (
+              <div className="p-6">
+                <Empty label="Ainda não há auditorias. Execute uma análise para gerar recomendações." />
+              </div>
+            ) : (
+              <div className="space-y-4 p-4">
+                <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                  <span>
+                    Período:{" "}
+                    <span className="font-mono text-foreground">
+                      {String(latestAudit.period_start)} →{" "}
+                      {String(latestAudit.period_end)}
+                    </span>
+                  </span>
+                  <span>
+                    GA4 tracking:{" "}
+                    <span className="font-mono text-foreground">
+                      {String(latestAudit.ga4_tracking_health)}
+                    </span>
+                  </span>
+                  <span>
+                    Modelo:{" "}
+                    <span className="font-mono text-foreground">
+                      {String(latestAudit.model ?? "—")}
+                    </span>
+                  </span>
+                  {auditResultJson.ga4_attribution_method ? (
+                    <span>
+                      Atribuição:{" "}
+                      <span className="font-mono text-foreground">
+                        {String(auditResultJson.ga4_attribution_method)}
+                      </span>
+                    </span>
+                  ) : null}
+                </div>
+                {latestAudit.executive_summary_markdown ? (
+                  <div>
+                    <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-primary">
+                      Resumo executivo
+                    </div>
+                    <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/90">
+                      {String(latestAudit.executive_summary_markdown)}
+                    </p>
+                  </div>
+                ) : null}
+                {auditRecommendations.length === 0 ? (
+                  <Empty label="Sem recomendações estruturadas nesta auditoria." />
+                ) : (
+                  <div className="overflow-x-auto rounded-md border border-border">
+                    <table className="w-full min-w-[720px] text-left text-sm">
+                      <thead className="border-b border-border bg-surface/80 text-[11px] uppercase text-muted-foreground">
+                        <tr>
+                          <th className="px-3 py-2 font-medium">Campanha</th>
+                          <th className="px-3 py-2 font-medium">Sugestão</th>
+                          <th className="px-3 py-2 font-medium">Tipo</th>
+                          <th className="px-3 py-2 font-medium">Match</th>
+                          <th className="px-3 py-2 font-medium text-right">
+                            Ações
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {auditRecommendations.map((rec, idx) => (
+                          <tr key={`${String(rec.campaign_id ?? idx)}-${idx}`}>
+                            <td className="px-3 py-2 align-top">
+                              <div className="font-medium">
+                                {String(rec.campaign_name ?? "—")}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {String(rec.platform ?? "")}
+                              </div>
+                              {rec.requires_human_review ? (
+                                <div className="mt-1 text-[10px] uppercase text-warning">
+                                  Requer revisão humana
+                                </div>
+                              ) : null}
+                            </td>
+                            <td className="max-w-md px-3 py-2 align-top text-xs leading-relaxed">
+                              {String(rec.suggested_copy ?? rec.rationale ?? "—")}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2 align-top font-mono text-xs">
+                              {String(rec.suggestion_type ?? "—")}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2 align-top text-xs">
+                              {String(rec.tracking_match ?? "—")}
+                            </td>
+                            <td className="px-3 py-2 align-top text-right">
+                              <div className="flex flex-col items-end gap-1">
+                                <button
+                                  type="button"
+                                  className="text-xs text-primary hover:underline"
+                                  onClick={() =>
+                                    createTaskFromAuditRecommendation(rec)
+                                  }
+                                >
+                                  Criar tarefa
+                                </button>
+                                <button
+                                  type="button"
+                                  className="text-xs text-muted-foreground hover:underline"
+                                  onClick={() =>
+                                    logCampaignAuditActivity("analyzed", rec)
+                                  }
+                                >
+                                  Marcado analisado
+                                </button>
+                                <button
+                                  type="button"
+                                  className="text-xs text-muted-foreground hover:underline"
+                                  onClick={() =>
+                                    logCampaignAuditActivity("dismissed", rec)
+                                  }
+                                >
+                                  Ignorar
+                                </button>
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline"
+                                  onClick={() => {
+                                    void navigator.clipboard.writeText(
+                                      [
+                                        rec.suggested_copy,
+                                        rec.rationale,
+                                        rec.suggestion_type,
+                                      ]
+                                        .filter(Boolean)
+                                        .map(String)
+                                        .join("\n\n"),
+                                    );
+                                    toast.success("Copiado.");
+                                  }}
+                                >
+                                  <ClipboardCopy className="h-3 w-3" />
+                                  Copiar
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+          </Card>
+          {campaignAuditsList.length > 1 ? (
+            <Card>
+              <div className="border-b border-border px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Histórico recente
+              </div>
+              <div className="divide-y divide-border">
+                {campaignAuditsList.slice(1).map((a: Record<string, unknown>) => (
+                  <div key={String(a.id)} className="px-4 py-2 text-xs">
+                    <span className="font-mono">
+                      {String(a.period_start)} → {String(a.period_end)}
+                    </span>
+                    <span className="ml-2 text-muted-foreground">
+                      {timeAgo(String(a.created_at))}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          ) : null}
+        </div>
       )}
 
       {tab === "ad_accounts" && (
