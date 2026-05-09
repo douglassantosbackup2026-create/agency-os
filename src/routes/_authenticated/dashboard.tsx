@@ -21,6 +21,8 @@ import { Link } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
@@ -263,6 +265,73 @@ function Dashboard() {
     title: string;
     recommended_action: string | null;
   }>;
+
+  const briefingBuckets = data.agencyBriefing?.buckets as
+    | Record<string, Array<{ client_id: string; name: string; reason: string }>>
+    | undefined;
+  const criticoBrief =
+    briefingBuckets?.critico && briefingBuckets.critico.length > 0
+      ? briefingBuckets.critico[0]
+      : null;
+  const alertFirst = data.alerts[0];
+  const actionFirst = data.actionCenter[0] as
+    | { id: string; title: string }
+    | undefined;
+
+  let suggestedNext: {
+    title: string;
+    description: string;
+    to: "/clients/$clientId" | "/alerts" | "/actions" | "/integrations";
+    params?: { clientId: string };
+    cta: string;
+  };
+  if (criticoBrief) {
+    suggestedNext = {
+      title: "Cliente em situação crítica",
+      description: `${criticoBrief.name} — ${criticoBrief.reason}`,
+      to: "/clients/$clientId",
+      params: { clientId: criticoBrief.client_id },
+      cta: "Abrir cliente",
+    };
+  } else if (alertFirst) {
+    suggestedNext = {
+      title: "Alerta prioritário",
+      description: alertFirst.title,
+      to: "/alerts",
+      cta: "Ver alertas",
+    };
+  } else if (actionFirst) {
+    suggestedNext = {
+      title: "Ação pendente na central",
+      description: actionFirst.title,
+      to: "/actions",
+      cta: "Central de Ações",
+    };
+  } else {
+    suggestedNext = {
+      title: "Conectar suas fontes de dados",
+      description:
+        "Integre Meta, Google ou GA4 para liberar briefing automático e alertas.",
+      to: "/integrations",
+      cta: "Abrir integrações",
+    };
+  }
+
+  async function refreshOperationalBriefing() {
+    const tid = toast.loading("Atualizando visão operacional…");
+    const { error } = await supabase.functions.invoke("compute-health-scores", {
+      body: { agency_id: agency!.id },
+    });
+    toast.dismiss(tid);
+    if (error) toast.error(error.message);
+    else {
+      toast.success(
+        "Visão atualizada. Os números podem levar alguns segundos.",
+      );
+      refetch();
+    }
+  }
+
   // empty state
   if (data.clients.length === 0) {
     return (
@@ -317,395 +386,491 @@ function Dashboard() {
         <div className="text-xs text-muted-foreground">Últimos 30 dias</div>
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader title="Morning Briefing (buckets)" />
-          <div className="space-y-3 p-4 text-xs">
-            {!data.agencyBriefing?.buckets ? (
-              <Empty label="Sem briefing persistido. Rode compute-health-scores (cron) para preencher buckets." />
-            ) : (
-              (
-                [
-                  "critico",
-                  "sem_atualizacao",
-                  "atencao",
-                  "oportunidade",
-                ] as const
-              ).map((key) => {
-                const label =
-                  key === "critico"
-                    ? "Crítico"
-                    : key === "sem_atualizacao"
-                      ? "Sem atualização"
-                      : key === "atencao"
-                        ? "Atenção"
-                        : "Oportunidade";
-                const items = ((
-                  data.agencyBriefing.buckets as Record<string, unknown[]>
-                )[key] ?? []) as Array<{
-                  client_id: string;
-                  name: string;
-                  reason: string;
-                }>;
-                return (
-                  <div key={key}>
-                    <div className="mb-1 font-medium text-foreground">
-                      {label}
-                    </div>
-                    {items.length === 0 ? (
-                      <div className="text-muted-foreground">—</div>
-                    ) : (
-                      <ul className="space-y-1">
-                        {items.slice(0, 4).map((it) => (
-                          <li key={it.client_id}>
-                            <Link
-                              to="/clients/$clientId"
-                              params={{ clientId: it.client_id }}
-                              className="font-medium text-primary hover:underline"
-                            >
-                              {it.name}
-                            </Link>
-                            <span className="text-muted-foreground">
-                              {" "}
-                              · {it.reason}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                );
-              })
-            )}
-            <Link
-              to="/actions"
-              className="inline-block pt-1 text-[11px] font-medium text-primary hover:underline"
-            >
-              Abrir Central de Ações
-            </Link>
+      <div className="grid gap-4 lg:grid-cols-12 lg:items-stretch">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:col-span-8">
+          <Stat
+            icon={Wallet}
+            label="Receita 30d"
+            value={brl(revenue)}
+            accent="text-success"
+            sub={`${mrrDeltaPct >= 0 ? "+" : ""}${mrrDeltaPct.toFixed(1)}% vs período anterior`}
+          />
+          <Stat
+            icon={TrendingUp}
+            label="ROAS médio"
+            value={`${roas.toFixed(2)}x`}
+            accent={roas >= 2 ? "text-success" : "text-warning"}
+          />
+          <Stat
+            icon={Zap}
+            label="Spend 30d"
+            value={brl(spend)}
+            sub={`${spendDeltaPct >= 0 ? "+" : ""}${spendDeltaPct.toFixed(1)}% vs período anterior`}
+          />
+          <Stat
+            icon={Heart}
+            label="Health médio"
+            value={`${avgHealth.toFixed(0)}`}
+            accent={
+              avgHealth >= 75
+                ? "text-success"
+                : avgHealth >= 50
+                  ? "text-warning"
+                  : "text-destructive"
+            }
+            sub={`${atRisk} em risco`}
+          />
+        </div>
+        <Card className="flex flex-col lg:col-span-4">
+          <CardHeader title="Próximo passo sugerido" />
+          <div className="flex flex-1 flex-col justify-between gap-4 p-4 pt-0">
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {suggestedNext.title}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {suggestedNext.description}
+              </p>
+            </div>
+            <Button asChild size="sm" className="w-full sm:w-auto">
+              <Link
+                to={suggestedNext.to}
+                {...(suggestedNext.params
+                  ? { params: suggestedNext.params }
+                  : {})}
+              >
+                {suggestedNext.cta}
+              </Link>
+            </Button>
           </div>
         </Card>
-        <Card>
-          <CardHeader title="Central de Revisão IA" />
-          <div className="divide-y divide-border">
-            {(data.reportsReview ?? []).length === 0 ? (
-              <Empty label="Sem itens pendentes de revisão humana." />
-            ) : (
-              (data.reportsReview ?? []).map((r: any) => (
-                <Link
-                  key={r.id}
-                  to="/ai-review"
-                  className="block px-4 py-3 text-xs hover:bg-surface-2"
-                >
-                  <div className="font-medium">
-                    {(r.clients as any)?.name ?? "Cliente"} · confiança{" "}
-                    {r.confianca ?? "média"}
+      </div>
+
+      <Tabs defaultValue="operacao" className="w-full space-y-4">
+        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1 bg-muted/50 p-1">
+          <TabsTrigger value="operacao">Operação</TabsTrigger>
+          <TabsTrigger value="performance">Performance</TabsTrigger>
+          <TabsTrigger value="clientes">Clientes</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="operacao" className="mt-4 space-y-4 outline-none">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card>
+              <CardHeader title="Briefing da manhã" />
+              <div className="space-y-3 p-4 text-sm">
+                {!data.agencyBriefing?.buckets ? (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Ainda não há briefing categorizado. Atualize a visão
+                      operacional para gerar os buckets automáticos (clientes em
+                      crítico, atenção, etc.).
+                    </p>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={refreshOperationalBriefing}
+                    >
+                      Atualizar briefing agora
+                    </Button>
                   </div>
-                  <div className="text-muted-foreground">
-                    {timeAgo(r.created_at)} · revisão obrigatória
+                ) : (
+                  (
+                    [
+                      "critico",
+                      "sem_atualizacao",
+                      "atencao",
+                      "oportunidade",
+                    ] as const
+                  ).map((key) => {
+                    const label =
+                      key === "critico"
+                        ? "Crítico"
+                        : key === "sem_atualizacao"
+                          ? "Sem atualização"
+                          : key === "atencao"
+                            ? "Atenção"
+                            : "Oportunidade";
+                    const items = ((
+                      data.agencyBriefing.buckets as Record<string, unknown[]>
+                    )[key] ?? []) as Array<{
+                      client_id: string;
+                      name: string;
+                      reason: string;
+                    }>;
+                    return (
+                      <div key={key}>
+                        <div className="mb-1 font-medium text-foreground">
+                          {label}
+                        </div>
+                        {items.length === 0 ? (
+                          <div className="text-muted-foreground">—</div>
+                        ) : (
+                          <ul className="space-y-1">
+                            {items.slice(0, 4).map((it) => (
+                              <li key={it.client_id}>
+                                <Link
+                                  to="/clients/$clientId"
+                                  params={{ clientId: it.client_id }}
+                                  className="font-medium text-primary hover:underline"
+                                >
+                                  {it.name}
+                                </Link>
+                                <span className="text-muted-foreground">
+                                  {" "}
+                                  · {it.reason}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+                <Link
+                  to="/actions"
+                  className="inline-block pt-1 text-sm font-medium text-primary hover:underline"
+                >
+                  Abrir Central de Ações
+                </Link>
+              </div>
+            </Card>
+            <Card>
+              <CardHeader title="Central de Revisão IA" />
+              <div className="divide-y divide-border">
+                {(data.reportsReview ?? []).length === 0 ? (
+                  <Empty label="Sem itens pendentes de revisão humana." />
+                ) : (
+                  (data.reportsReview ?? []).map((r: any) => (
+                    <Link
+                      key={r.id}
+                      to="/ai-review"
+                      className="block px-4 py-3 text-sm hover:bg-surface-2"
+                    >
+                      <div className="font-medium">
+                        {(r.clients as any)?.name ?? "Cliente"} · confiança{" "}
+                        {r.confianca ?? "média"}
+                      </div>
+                      <div className="text-muted-foreground">
+                        {timeAgo(r.created_at)} · revisão obrigatória
+                      </div>
+                    </Link>
+                  ))
+                )}
+                <Link
+                  to="/ai-review"
+                  className="block px-4 py-2 text-sm font-medium text-primary hover:bg-surface-2"
+                >
+                  Ver fila completa
+                </Link>
+              </div>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader
+              title="Alertas prioritários"
+              action={
+                <Link
+                  to="/alerts"
+                  className="text-sm text-primary hover:underline"
+                >
+                  Ver todos
+                </Link>
+              }
+            />
+            <div className="divide-y divide-border">
+              {data.alerts.length === 0 && (
+                <Empty label="Nenhum alerta aberto." />
+              )}
+              {data.alerts.map((a) => (
+                <Link
+                  key={a.id}
+                  to="/alerts"
+                  className="flex items-start gap-3 px-4 py-3 hover:bg-surface-2 transition"
+                >
+                  <PriorityDot p={a.priority} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="truncate text-sm font-medium">
+                        {a.title}
+                      </span>
+                      <Badge>{a.type}</Badge>
+                    </div>
+                    <div className="mt-0.5 text-xs text-muted-foreground">
+                      {timeAgo(a.created_at)}
+                    </div>
                   </div>
                 </Link>
-              ))
-            )}
-            <Link
-              to="/ai-review"
-              className="block px-4 py-2 text-[11px] font-medium text-primary hover:bg-surface-2"
-            >
-              Ver fila completa
-            </Link>
-          </div>
-        </Card>
-      </div>
+              ))}
+            </div>
+          </Card>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-        <Stat
-          icon={Wallet}
-          label="Receita 30d"
-          value={brl(revenue)}
-          accent="text-success"
-          sub={`${mrrDeltaPct >= 0 ? "+" : ""}${mrrDeltaPct.toFixed(1)}% vs 30d ant.`}
-        />
-        <Stat
-          icon={TrendingUp}
-          label="ROAS médio"
-          value={`${roas.toFixed(2)}x`}
-          accent={roas >= 2 ? "text-success" : "text-warning"}
-        />
-        <Stat
-          icon={Zap}
-          label="Spend 30d"
-          value={brl(spend)}
-          sub={`${spendDeltaPct >= 0 ? "+" : ""}${spendDeltaPct.toFixed(1)}% vs 30d ant.`}
-        />
-        <Stat
-          icon={Users}
-          label="Clientes ativos"
-          value={String(activeClients)}
-          sub={`${data.clients.length} no total`}
-        />
-        <Stat
-          icon={Heart}
-          label="Health médio"
-          value={`${avgHealth.toFixed(0)}`}
-          accent={
-            avgHealth >= 75
-              ? "text-success"
-              : avgHealth >= 50
-                ? "text-warning"
-                : "text-destructive"
-          }
-          sub={`${atRisk} em risco`}
-        />
-        <Stat
-          icon={Bell}
-          label="Alertas críticos"
-          value={String(criticals)}
-          accent={criticals > 0 ? "text-destructive" : "text-muted-foreground"}
-          sub={`${data.alerts.length} abertos`}
-        />
-        <Stat
-          icon={ArrowDownRight}
-          label="Churn clientes"
-          value={String(churnedClients)}
-          accent={
-            churnedClients > 0 ? "text-destructive" : "text-muted-foreground"
-          }
-          sub="status churned"
-        />
-        <Stat
-          icon={Activity}
-          label="Renovações 30d"
-          value={String(renewals30d)}
-          sub={`MRR atual ${brl(mrr)}`}
-        />
-        <Stat
-          icon={Users}
-          label="Sessões site 30d"
-          value={String(Math.round(siteSessions))}
-          sub={`Receita GA4 ${brl(siteRevenue)}`}
-        />
-        <Stat
-          icon={Target}
-          label="CVR site 30d"
-          value={pct(siteCvr * 100)}
-          sub={`30d ant. ${pct(prevSiteCvr * 100)}`}
-          accent={siteCvr >= prevSiteCvr ? "text-success" : "text-warning"}
-        />
-        <Stat
-          icon={AlertTriangle}
-          label="Tracking GA4"
-          value={trackingCritical > 0 ? "Crítico" : "OK"}
-          sub={`${trackingCritical} críticos (14d)`}
-          accent={trackingCritical > 0 ? "text-destructive" : "text-success"}
-        />
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader
-            title="Alertas prioritários"
-            action={
-              <Link
-                to="/alerts"
-                className="text-xs text-primary hover:underline"
-              >
-                Ver todos
-              </Link>
-            }
-          />
-          <div className="divide-y divide-border">
-            {data.alerts.length === 0 && (
-              <Empty label="Nenhum alerta aberto. 🎉" />
-            )}
-            {data.alerts.map((a) => (
-              <Link
-                key={a.id}
-                to="/alerts"
-                className="flex items-start gap-3 px-4 py-3 hover:bg-surface-2 transition"
-              >
-                <PriorityDot p={a.priority} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium">
-                      {a.title}
-                    </span>
-                    <Badge>{a.type}</Badge>
+          <Card>
+            <CardHeader title="Ações recomendadas" />
+            <div className="divide-y divide-border">
+              {recommended.length === 0 ? (
+                <Empty label="Nenhuma ação sugerida nos alertas abertos." />
+              ) : (
+                recommended.map((a) => (
+                  <div key={a.id} className="flex gap-2 px-4 py-3">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+                    <div className="min-w-0 text-sm">
+                      <div className="font-medium">{a.title}</div>
+                      <div className="mt-0.5 text-xs text-muted-foreground">
+                        {a.recommended_action}
+                      </div>
+                    </div>
                   </div>
-                  <div className="mt-0.5 text-[11px] text-muted-foreground">
-                    {timeAgo(a.created_at)}
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </Card>
+                ))
+              )}
+            </div>
+          </Card>
+        </TabsContent>
 
-        <Card>
-          <CardHeader title="Resumo financeiro" />
-          <div className="space-y-4 p-4">
-            <Row label="MRR consolidado" value={brl(mrr)} />
-            <Row label="Receita gerada (30d)" value={brl(revenue)} />
-            <Row label="Investimento (30d)" value={brl(spend)} />
-            <Row label="Margem (R / S)" value={`${roas.toFixed(2)}x`} />
-            <Row
-              label="Clientes em risco"
-              value={`${atRisk}`}
-              accent={atRisk > 0 ? "text-warning" : "text-success"}
+        <TabsContent
+          value="performance"
+          className="mt-4 space-y-4 outline-none"
+        >
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
+            <Stat
+              icon={Wallet}
+              label="Receita 30d"
+              value={brl(revenue)}
+              accent="text-success"
+              sub={`${mrrDeltaPct >= 0 ? "+" : ""}${mrrDeltaPct.toFixed(1)}% vs 30d ant.`}
+            />
+            <Stat
+              icon={TrendingUp}
+              label="ROAS médio"
+              value={`${roas.toFixed(2)}x`}
+              accent={roas >= 2 ? "text-success" : "text-warning"}
+            />
+            <Stat
+              icon={Zap}
+              label="Spend 30d"
+              value={brl(spend)}
+              sub={`${spendDeltaPct >= 0 ? "+" : ""}${spendDeltaPct.toFixed(1)}% vs 30d ant.`}
+            />
+            <Stat
+              icon={Users}
+              label="Clientes ativos"
+              value={String(activeClients)}
+              sub={`${data.clients.length} no total`}
+            />
+            <Stat
+              icon={Heart}
+              label="Health médio"
+              value={`${avgHealth.toFixed(0)}`}
+              accent={
+                avgHealth >= 75
+                  ? "text-success"
+                  : avgHealth >= 50
+                    ? "text-warning"
+                    : "text-destructive"
+              }
+              sub={`${atRisk} em risco`}
+            />
+            <Stat
+              icon={Bell}
+              label="Alertas críticos"
+              value={String(criticals)}
+              accent={
+                criticals > 0 ? "text-destructive" : "text-muted-foreground"
+              }
+              sub={`${data.alerts.length} abertos`}
+            />
+            <Stat
+              icon={ArrowDownRight}
+              label="Churn clientes"
+              value={String(churnedClients)}
+              accent={
+                churnedClients > 0
+                  ? "text-destructive"
+                  : "text-muted-foreground"
+              }
+              sub="status churned"
+            />
+            <Stat
+              icon={Activity}
+              label="Renovações 30d"
+              value={String(renewals30d)}
+              sub={`MRR atual ${brl(mrr)}`}
+            />
+            <Stat
+              icon={Users}
+              label="Sessões site 30d"
+              value={String(Math.round(siteSessions))}
+              sub={`Receita GA4 ${brl(siteRevenue)}`}
+            />
+            <Stat
+              icon={Target}
+              label="CVR site 30d"
+              value={pct(siteCvr * 100)}
+              sub={`30d ant. ${pct(prevSiteCvr * 100)}`}
+              accent={siteCvr >= prevSiteCvr ? "text-success" : "text-warning"}
+            />
+            <Stat
+              icon={AlertTriangle}
+              label="Tracking GA4"
+              value={trackingCritical > 0 ? "Crítico" : "OK"}
+              sub={`${trackingCritical} críticos (14d)`}
+              accent={
+                trackingCritical > 0 ? "text-destructive" : "text-success"
+              }
             />
           </div>
-        </Card>
-      </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader title="Campanhas — momentum (14d)" />
-          <div className="grid gap-4 p-4 md:grid-cols-2">
-            <div>
-              <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                <ArrowDownRight className="h-3 w-3 text-destructive" /> Em queda
-                (ROAS)
-              </div>
-              {campaignMomentum.falling.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  Sem campanhas com queda relevante no período.
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {campaignMomentum.falling.map((c) => (
-                    <li key={c.id} className="text-xs">
-                      <span className="font-medium">{c.name}</span>
-                      <span className="text-muted-foreground">
-                        {" "}
-                        · Δ {c.delta >= 0 ? "+" : ""}
-                        {num(c.delta, 2)} ROAS
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+          <Card>
+            <CardHeader title="Resumo financeiro" />
+            <div className="space-y-4 p-4">
+              <Row label="MRR consolidado" value={brl(mrr)} />
+              <Row label="Receita gerada (30d)" value={brl(revenue)} />
+              <Row label="Investimento (30d)" value={brl(spend)} />
+              <Row label="Margem (R / S)" value={`${roas.toFixed(2)}x`} />
+              <Row
+                label="Clientes em risco"
+                value={`${atRisk}`}
+                accent={atRisk > 0 ? "text-warning" : "text-success"}
+              />
             </div>
-            <div>
-              <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                <ArrowUpRight className="h-3 w-3 text-emerald-500" /> Escalando
-              </div>
-              {campaignMomentum.rising.length === 0 ? (
-                <p className="text-xs text-muted-foreground">
-                  Sem campanhas acelerando no período.
-                </p>
-              ) : (
-                <ul className="space-y-2">
-                  {campaignMomentum.rising.map((c) => (
-                    <li key={c.id} className="text-xs">
-                      <span className="font-medium">{c.name}</span>
-                      <span className="text-muted-foreground">
-                        {" "}
-                        · Δ +{num(c.delta, 2)} ROAS
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        </Card>
+          </Card>
 
-        <Card>
-          <CardHeader title="Ações recomendadas" />
-          <div className="divide-y divide-border">
-            {recommended.length === 0 ? (
-              <Empty label="Nenhuma ação sugerida nos alertas abertos." />
-            ) : (
-              recommended.map((a) => (
-                <div key={a.id} className="flex gap-2 px-4 py-3">
-                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
-                  <div className="min-w-0 text-xs">
-                    <div className="font-medium">{a.title}</div>
-                    <div className="mt-0.5 text-muted-foreground">
-                      {a.recommended_action}
-                    </div>
-                  </div>
+          <Card>
+            <CardHeader title="Campanhas — momentum (14d)" />
+            <div className="grid gap-4 p-4 md:grid-cols-2">
+              <div>
+                <div className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <ArrowDownRight className="h-3 w-3 text-destructive" /> Em
+                  queda (ROAS)
                 </div>
-              ))
-            )}
-          </div>
-        </Card>
-      </div>
+                {campaignMomentum.falling.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Sem campanhas com queda relevante no período.
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {campaignMomentum.falling.map((c) => (
+                      <li key={c.id} className="text-sm">
+                        <span className="font-medium">{c.name}</span>
+                        <span className="text-muted-foreground">
+                          {" "}
+                          · Δ {c.delta >= 0 ? "+" : ""}
+                          {num(c.delta, 2)} ROAS
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div>
+                <div className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <ArrowUpRight className="h-3 w-3 text-emerald-500" />{" "}
+                  Escalando
+                </div>
+                {campaignMomentum.rising.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Sem campanhas acelerando no período.
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {campaignMomentum.rising.map((c) => (
+                      <li key={c.id} className="text-sm">
+                        <span className="font-medium">{c.name}</span>
+                        <span className="text-muted-foreground">
+                          {" "}
+                          · Δ +{num(c.delta, 2)} ROAS
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </Card>
+        </TabsContent>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader
-            title="Feed operacional"
-            action={
-              <Link
-                to="/activity"
-                className="text-xs text-primary hover:underline"
-              >
-                Histórico
-              </Link>
-            }
-          />
-          <div className="divide-y divide-border">
-            {data.activities.length === 0 && (
-              <Empty label="Sem atividade recente." />
-            )}
-            {data.activities.map((a) => (
-              <div key={a.id} className="flex items-start gap-3 px-4 py-3">
-                <Activity className="mt-0.5 h-3.5 w-3.5 text-muted-foreground" />
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm">{a.title}</div>
-                  {a.description && (
+        <TabsContent value="clientes" className="mt-4 space-y-4 outline-none">
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card>
+              <CardHeader
+                title="Feed operacional"
+                action={
+                  <Link
+                    to="/activity"
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Histórico
+                  </Link>
+                }
+              />
+              <div className="divide-y divide-border">
+                {data.activities.length === 0 && (
+                  <Empty label="Sem atividade recente." />
+                )}
+                {data.activities.map((a) => (
+                  <div key={a.id} className="flex items-start gap-3 px-4 py-3">
+                    <Activity className="mt-0.5 h-3.5 w-3.5 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm">{a.title}</div>
+                      {a.description && (
+                        <div className="text-xs text-muted-foreground">
+                          {a.description}
+                        </div>
+                      )}
+                    </div>
                     <div className="text-xs text-muted-foreground">
-                      {a.description}
-                    </div>
-                  )}
-                </div>
-                <div className="text-[11px] text-muted-foreground">
-                  {timeAgo(a.created_at)}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        <Card>
-          <CardHeader
-            title="Clientes por health"
-            action={
-              <Link
-                to="/health"
-                className="text-xs text-primary hover:underline"
-              >
-                Ver tudo
-              </Link>
-            }
-          />
-          <div className="divide-y divide-border">
-            {data.clients.slice(0, 8).map((c) => {
-              const h = latestHealth.get(c.id);
-              const score = h?.score ?? 0;
-              const risk = h?.risk ?? "low";
-              return (
-                <Link
-                  key={c.id}
-                  to="/clients/$clientId"
-                  params={{ clientId: c.id }}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2 transition"
-                >
-                  <RiskDot risk={risk} />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium">{c.name}</div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {brl(c.mrr)} MRR
+                      {timeAgo(a.created_at)}
                     </div>
                   </div>
-                  <div className="font-mono text-sm tabular">{score}</div>
-                  <ScoreBar score={score} />
-                </Link>
-              );
-            })}
+                ))}
+              </div>
+            </Card>
+
+            <Card>
+              <CardHeader
+                title="Clientes por health"
+                action={
+                  <Link
+                    to="/health"
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Ver tudo
+                  </Link>
+                }
+              />
+              <div className="divide-y divide-border">
+                {data.clients.slice(0, 8).map((c) => {
+                  const h = latestHealth.get(c.id);
+                  const score = h?.score ?? 0;
+                  const risk = h?.risk ?? "low";
+                  return (
+                    <Link
+                      key={c.id}
+                      to="/clients/$clientId"
+                      params={{ clientId: c.id }}
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-surface-2 transition"
+                    >
+                      <RiskDot risk={risk} />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium">
+                          {c.name}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {brl(c.mrr)} MRR
+                        </div>
+                      </div>
+                      <div className="font-mono text-sm tabular">{score}</div>
+                      <ScoreBar score={score} />
+                    </Link>
+                  );
+                })}
+              </div>
+            </Card>
           </div>
-        </Card>
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
@@ -726,7 +891,7 @@ export function Stat({
   return (
     <div className="surface-card rounded-xl border border-border p-3.5">
       <div className="flex items-center justify-between">
-        <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        <span className="text-xs font-medium text-muted-foreground">
           {label}
         </span>
         <Icon className="h-3.5 w-3.5 text-muted-foreground" />
@@ -736,9 +901,7 @@ export function Stat({
       >
         {value}
       </div>
-      {sub && (
-        <div className="mt-0.5 text-[11px] text-muted-foreground">{sub}</div>
-      )}
+      {sub && <div className="mt-0.5 text-xs text-muted-foreground">{sub}</div>}
     </div>
   );
 }

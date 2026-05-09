@@ -37,7 +37,7 @@ function Onboarding() {
     { key: "first_report", title: "Gerar primeiro relatório IA" },
     {
       key: "diagnostic_run",
-      title: "Diagnóstico inicial (health scores)",
+      title: "Diagnóstico inicial de saúde da carteira",
     },
   ] as const;
 
@@ -159,7 +159,7 @@ function Onboarding() {
     refetchChecklist();
 
     if (inserted?.id && runDiagnosticAfterCreate) {
-      const tid = toast.loading("Rodando diagnóstico (health scores)…");
+      const tid = toast.loading("Rodando diagnóstico de saúde da carteira…");
       const { error: fnErr } = await supabase.functions.invoke(
         "compute-health-scores",
         { body: { agency_id: agency.id } },
@@ -168,7 +168,7 @@ function Onboarding() {
       if (fnErr) toast.error(fnErr.message);
       else {
         toast.success(
-          "Health scores atualizados para a agência (inclui o novo cliente quando houver dados).",
+          "Indicadores de saúde e briefing atualizados para a agência (inclui o novo cliente quando houver dados).",
         );
         const sb = supabase as any;
         const payload = {
@@ -177,7 +177,7 @@ function Onboarding() {
           step_key: "diagnostic_run",
           title:
             CHECKLIST_STEPS.find((s) => s.key === "diagnostic_run")?.title ??
-            "Diagnóstico inicial (health scores)",
+            "Diagnóstico inicial de saúde da carteira",
           status: "done" as const,
           completed_at: new Date().toISOString(),
           sort_order: Math.max(
@@ -222,7 +222,8 @@ function Onboarding() {
                 checked={runDiagnosticAfterCreate}
                 onChange={(e) => setRunDiagnosticAfterCreate(e.target.checked)}
               />
-              Rodar diagnóstico inicial (compute-health-scores para a agência)
+              Rodar diagnóstico inicial de saúde da carteira (atualiza scores e
+              briefing)
             </label>
             <input
               value={quickClientName}

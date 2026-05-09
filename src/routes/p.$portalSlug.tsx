@@ -1,14 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { brl, num, pct } from "@/lib/format";
-import {
-  Loader2,
-  Sparkles,
-  TrendingUp,
-  Wallet,
-  Target,
-  Heart,
-} from "lucide-react";
+import { Sparkles, TrendingUp, Wallet, Target, Heart } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/p/$portalSlug")({
   component: PortalPage,
@@ -22,34 +16,71 @@ function PortalPage() {
 
   useEffect(() => {
     let cancelled = false;
+    setError(null);
+    setData(null);
     (async () => {
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/portal-data?slug=${encodeURIComponent(portalSlug)}`;
-      const r = await fetch(url, {
-        headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
-      });
-      const j = await r.json();
-      if (cancelled) return;
-      if (!r.ok) {
-        setError(j.error ?? "Erro");
-        return;
+      try {
+        const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/portal-data?slug=${encodeURIComponent(portalSlug)}`;
+        const r = await fetch(url, {
+          headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+        });
+        let j: Record<string, unknown> = {};
+        try {
+          j = (await r.json()) as Record<string, unknown>;
+        } catch {
+          j = {};
+        }
+        if (cancelled) return;
+        if (!r.ok) {
+          setError(r.status === 404 ? "not_found" : "unavailable");
+          return;
+        }
+        setData(j);
+      } catch {
+        if (!cancelled) setError("network");
       }
-      setData(j);
     })();
     return () => {
       cancelled = true;
     };
   }, [portalSlug]);
 
-  if (error)
+  if (error) {
+    const message =
+      error === "network"
+        ? "Não foi possível carregar o portal. Verifique sua conexão e tente novamente."
+        : error === "not_found"
+          ? "Este link não está disponível ou o portal foi desativado."
+          : "Não foi possível abrir este portal. Confirme o endereço com sua agência.";
     return (
-      <div className="grid min-h-screen place-items-center bg-background text-sm text-muted-foreground">
-        Portal não encontrado.
+      <div className="grid min-h-screen place-items-center bg-background px-6">
+        <div className="max-w-md text-center">
+          <h1 className="text-lg font-semibold text-foreground">
+            Portal indisponível
+          </h1>
+          <p className="mt-2 text-sm text-muted-foreground">{message}</p>
+        </div>
       </div>
     );
+  }
+
   if (!data)
     return (
-      <div className="grid min-h-screen place-items-center bg-background">
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+      <div className="min-h-screen bg-background px-6 py-10">
+        <div className="mx-auto max-w-5xl space-y-6 animate-pulse">
+          <div className="h-16 rounded-xl bg-muted" />
+          <div className="h-8 max-w-md rounded-lg bg-muted" />
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            {[1, 2, 3, 4].map((k) => (
+              <div key={k} className="h-24 rounded-xl bg-muted" />
+            ))}
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="h-40 rounded-xl bg-muted" />
+            <div className="h-40 rounded-xl bg-muted" />
+          </div>
+          <div className="h-32 rounded-xl bg-muted" />
+        </div>
       </div>
     );
 
@@ -105,7 +136,9 @@ function PortalPage() {
     const j = await r.json().catch(() => ({}));
     setReviewingId(null);
     if (!r.ok) {
-      setError(j.error ?? "Falha ao registrar aprovação");
+      toast.error(
+        "Não foi possível registrar sua resposta. Tente novamente em instantes.",
+      );
       return;
     }
     setData((prev: any) => ({
@@ -145,7 +178,7 @@ function PortalPage() {
             )}
             <div>
               <div className="text-sm font-semibold">{data.agency?.name}</div>
-              <div className="text-[11px] text-muted-foreground">
+              <div className="text-sm text-muted-foreground">
                 Painel · {data.client.name}
               </div>
             </div>

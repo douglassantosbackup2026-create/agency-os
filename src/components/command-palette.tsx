@@ -120,11 +120,13 @@ export function CommandPalette({
 
   const recomputeHealth = async () => {
     close();
-    const tid = toast.loading("Recalculando health scores...");
+    const tid = toast.loading(
+      "Atualizando indicadores de saúde da carteira...",
+    );
     const { error } = await supabase.functions.invoke("compute-health-scores");
     toast.dismiss(tid);
     if (error) toast.error(error.message);
-    else toast.success("Health scores atualizados.");
+    else toast.success("Indicadores e briefing atualizados.");
   };
 
   const evalAlerts = async () => {
@@ -138,7 +140,7 @@ export function CommandPalette({
 
   const runDailySummary = async () => {
     close();
-    const tid = toast.loading("Disparando resumos diários...");
+    const tid = toast.loading("Enviando resumos do dia...");
     const { error } = await supabase.functions.invoke(
       "whatsapp-summary?period=daily",
     );
@@ -223,7 +225,8 @@ export function CommandPalette({
             <MessageSquare className="mr-2 h-4 w-4" /> Enviar WhatsApp
           </CommandItem>
           <CommandItem onSelect={recomputeHealth}>
-            <RefreshCw className="mr-2 h-4 w-4" /> Recalcular health scores
+            <RefreshCw className="mr-2 h-4 w-4" /> Atualizar visão de saúde da
+            carteira
           </CommandItem>
           <CommandItem onSelect={evalAlerts}>
             <CheckSquare className="mr-2 h-4 w-4" /> Reavaliar alertas

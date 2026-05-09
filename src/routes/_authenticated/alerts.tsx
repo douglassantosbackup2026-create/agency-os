@@ -18,6 +18,15 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/_authenticated/alerts")({
   component: Alerts,
@@ -197,11 +206,11 @@ function Alerts() {
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="text-sm font-medium">{a.title}</span>
-            <span className="rounded bg-surface px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
+            <span className="rounded bg-surface px-1.5 py-0.5 text-xs text-muted-foreground">
               {a.type}
             </span>
             {a.clients?.name && (
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 · {a.clients.name}
               </span>
             )}
@@ -216,43 +225,53 @@ function Alerts() {
               → {a.recommended_action}
             </div>
           )}
-          <div className="mt-2 flex flex-col gap-1.5 text-[11px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-2 flex flex-col gap-1.5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
             <span>{timeAgo(a.created_at)}</span>
-            <label className="flex items-center gap-1 font-normal">
-              <span className="shrink-0 text-[10px] uppercase tracking-wide">
+            <label className="flex items-center gap-2 font-normal">
+              <span className="shrink-0 text-muted-foreground">
                 Responsável
               </span>
-              <select
-                value={a.assigned_to ?? ""}
-                onChange={(e) => setAssignee(a.id, e.target.value)}
-                className="h-8 max-w-[180px] rounded border border-border bg-background px-1.5 text-[11px] text-foreground"
+              <Select
+                value={a.assigned_to ?? "__none__"}
+                onValueChange={(v) =>
+                  setAssignee(a.id, v === "__none__" ? "" : v)
+                }
               >
-                <option value="">—</option>
-                {(teammates ?? []).map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.display_name || t.email}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="h-8 max-w-[180px] text-xs">
+                  <SelectValue placeholder="—" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">—</SelectItem>
+                  {(teammates ?? []).map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.display_name || t.email}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </label>
           </div>
         </div>
         {a.status === "open" && (
           <div className="flex shrink-0 items-center gap-1">
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
+              className="text-xs"
               onClick={() => createActionFromAlert(a)}
-              className="rounded-md border border-border px-2.5 py-1 text-xs transition hover:bg-surface-2"
             >
               Virar ação
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
+              className="text-xs"
               onClick={() => resolve(a.id)}
-              className="rounded-md border border-border px-2.5 py-1 text-xs transition hover:bg-surface-2"
             >
               Resolver
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -323,80 +342,93 @@ function Alerts() {
         </div>
         <div className="flex flex-wrap gap-1 rounded-md border border-border bg-surface p-1">
           {(["open", "resolved", "all"] as const).map((f) => (
-            <button
+            <Button
               key={f}
+              type="button"
+              variant={filter === f ? "default" : "ghost"}
+              size="sm"
+              className="text-xs"
               onClick={() => setFilter(f)}
-              className={`rounded px-3 py-1.5 text-xs ${filter === f ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
             >
               {f === "open"
                 ? "Abertos"
                 : f === "resolved"
                   ? "Resolvidos"
                   : "Todos"}
-            </button>
+            </Button>
           ))}
         </div>
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={toggleDesktopNotifications}
-          className="rounded-md border border-border px-3 py-2 text-xs hover:bg-surface"
         >
-          {desktopNotifications ? "Desktop ON" : "Ativar notificações desktop"}
-        </button>
+          {desktopNotifications
+            ? "Notificações no desktop ativas"
+            : "Ativar notificações no desktop"}
+        </Button>
       </header>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-        <input
+        <Input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar título, cliente ou descrição..."
-          className="h-9 min-w-[200px] flex-1 rounded-md border border-border bg-background px-3 text-sm"
+          className="h-9 min-w-[200px] flex-1"
         />
-        <select
-          value={priority}
-          onChange={(e) => setPriority(e.target.value)}
-          className="h-9 rounded-md border border-border bg-background px-2 text-sm"
-        >
-          <option value="all">Todas prioridades</option>
-          <option value="critical">Crítico</option>
-          <option value="high">Alto</option>
-          <option value="medium">Médio</option>
-          <option value="low">Baixo</option>
-        </select>
-        <select
-          value={clientFilter}
-          onChange={(e) => setClientFilter(e.target.value)}
-          className="h-9 min-w-[160px] rounded-md border border-border bg-background px-2 text-sm"
-        >
-          <option value="all">Todos clientes</option>
-          {(clientOptions ?? []).map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        <select
-          value={assigneeFilter}
-          onChange={(e) => setAssigneeFilter(e.target.value)}
-          className="h-9 min-w-[160px] rounded-md border border-border bg-background px-2 text-sm"
-        >
-          <option value="all">Todos responsáveis</option>
-          <option value="unassigned">Sem responsável</option>
-          {user?.id && <option value="me">Atribuídos a mim</option>}
-          {(teammates ?? []).map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.display_name || t.email}
-            </option>
-          ))}
-        </select>
-        <select
+        <Select value={priority} onValueChange={setPriority}>
+          <SelectTrigger className="h-9 w-[min(100%,200px)] shrink-0">
+            <SelectValue placeholder="Prioridade" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas prioridades</SelectItem>
+            <SelectItem value="critical">Crítico</SelectItem>
+            <SelectItem value="high">Alto</SelectItem>
+            <SelectItem value="medium">Médio</SelectItem>
+            <SelectItem value="low">Baixo</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={clientFilter} onValueChange={setClientFilter}>
+          <SelectTrigger className="h-9 min-w-[160px] max-w-[280px] shrink-0">
+            <SelectValue placeholder="Cliente" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos clientes</SelectItem>
+            {(clientOptions ?? []).map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+          <SelectTrigger className="h-9 min-w-[160px] max-w-[260px] shrink-0">
+            <SelectValue placeholder="Responsável" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos responsáveis</SelectItem>
+            <SelectItem value="unassigned">Sem responsável</SelectItem>
+            {user?.id && <SelectItem value="me">Atribuídos a mim</SelectItem>}
+            {(teammates ?? []).map((t) => (
+              <SelectItem key={t.id} value={t.id}>
+                {t.display_name || t.email}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
           value={groupBy}
-          onChange={(e) => setGroupBy(e.target.value as "none" | "client")}
-          className="h-9 min-w-[140px] rounded-md border border-border bg-background px-2 text-sm"
+          onValueChange={(v) => setGroupBy(v as "none" | "client")}
         >
-          <option value="none">Lista única</option>
-          <option value="client">Agrupar por cliente</option>
-        </select>
+          <SelectTrigger className="h-9 min-w-[160px] shrink-0">
+            <SelectValue placeholder="Visualização" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Lista única</SelectItem>
+            <SelectItem value="client">Agrupar por cliente</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <Card>

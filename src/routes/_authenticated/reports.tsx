@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { brl, num, timeAgo } from "@/lib/format";
 import { useEffect, useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Sparkles,
   Loader2,
@@ -21,6 +22,30 @@ export const Route = createFileRoute("/_authenticated/reports")({
   component: Reports,
 });
 
+const REPORT_FILTERS_KEY = "agency-os-reports-filters";
+
+function isoDateLocal(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function applyReportPeriodPreset(
+  preset: "7d" | "30d" | "month",
+  setFrom: (v: string) => void,
+  setTo: (v: string) => void,
+) {
+  const end = new Date();
+  end.setHours(0, 0, 0, 0);
+  const start = new Date(end);
+  if (preset === "7d") start.setDate(start.getDate() - 6);
+  if (preset === "30d") start.setDate(start.getDate() - 29);
+  if (preset === "month") start.setDate(1);
+  setFrom(isoDateLocal(start));
+  setTo(isoDateLocal(end));
+}
+
 function Reports() {
   const { agency } = useAuth();
   const [selected, setSelected] = useState<any>(null);
@@ -35,6 +60,7 @@ function Reports() {
   const [sortBy, setSortBy] = useState<
     "created_desc" | "period_desc" | "client"
   >("created_desc");
+  const [filtersHydrated, setFiltersHydrated] = useState(false);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["reports", agency?.id],
@@ -56,6 +82,79 @@ function Reports() {
       return { reports: reports.data ?? [], clients: clients.data ?? [] };
     },
   });
+
+  useEffect(() => {
+    if (!agency?.id) return;
+    setFiltersHydrated(false);
+    try {
+      const raw = localStorage.getItem(REPORT_FILTERS_KEY);
+      if (!raw) {
+        setFiltersHydrated(true);
+        return;
+      }
+      const o = JSON.parse(raw) as {
+        agency_id?: string;
+        filterClientId?: string;
+        createdFrom?: string;
+        createdTo?: string;
+        periodFrom?: string;
+        periodTo?: string;
+        summaryQ?: string;
+        sortBy?: "created_desc" | "period_desc" | "client";
+      };
+      if (o.agency_id !== agency.id) {
+        setFiltersHydrated(true);
+        return;
+      }
+      if (typeof o.filterClientId === "string")
+        setFilterClientId(o.filterClientId);
+      if (typeof o.createdFrom === "string") setCreatedFrom(o.createdFrom);
+      if (typeof o.createdTo === "string") setCreatedTo(o.createdTo);
+      if (typeof o.periodFrom === "string") setPeriodFrom(o.periodFrom);
+      if (typeof o.periodTo === "string") setPeriodTo(o.periodTo);
+      if (typeof o.summaryQ === "string") setSummaryQ(o.summaryQ);
+      if (
+        o.sortBy === "created_desc" ||
+        o.sortBy === "period_desc" ||
+        o.sortBy === "client"
+      )
+        setSortBy(o.sortBy);
+    } catch {
+      /* ignore */
+    }
+    setFiltersHydrated(true);
+  }, [agency?.id]);
+
+  useEffect(() => {
+    if (!agency?.id || !filtersHydrated) return;
+    try {
+      localStorage.setItem(
+        REPORT_FILTERS_KEY,
+        JSON.stringify({
+          agency_id: agency.id,
+          filterClientId,
+          createdFrom,
+          createdTo,
+          periodFrom,
+          periodTo,
+          summaryQ,
+          sortBy,
+        }),
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [
+    agency?.id,
+    filtersHydrated,
+    filterClientId,
+    createdFrom,
+    createdTo,
+    periodFrom,
+    periodTo,
+    summaryQ,
+    sortBy,
+  ]);
 
   useEffect(() => {
     if (!data?.reports?.length) return;
@@ -370,8 +469,43 @@ function Reports() {
                 title="Gerado até"
               />
             </div>
-            <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            <div className="text-xs font-medium text-muted-foreground">
               Período coberto pelo relatório
+            </div>
+            <div className="flex flex-wrap gap-1">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() =>
+                  applyReportPeriodPreset("7d", setPeriodFrom, setPeriodTo)
+                }
+              >
+                Últimos 7 dias
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() =>
+                  applyReportPeriodPreset("30d", setPeriodFrom, setPeriodTo)
+                }
+              >
+                Últimos 30 dias
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="h-7 text-xs"
+                onClick={() =>
+                  applyReportPeriodPreset("month", setPeriodFrom, setPeriodTo)
+                }
+              >
+                Este mês
+              </Button>
             </div>
             <div className="flex gap-2">
               <input

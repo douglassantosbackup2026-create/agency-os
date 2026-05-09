@@ -6,6 +6,14 @@ import { useAuth } from "@/hooks/use-auth";
 import { timeAgo } from "@/lib/format";
 import { Card, Empty, PageSkeleton } from "./dashboard";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const SLA_OPEN_STATUSES = new Set([
   "pendente",
@@ -143,65 +151,73 @@ function ActionsCenter() {
       </header>
 
       <div className="flex flex-wrap gap-2">
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="h-9 rounded-md border border-border bg-background px-2 text-sm"
-        >
-          <option value="all">Todos estados</option>
-          <option value="pendente">Pendente</option>
-          <option value="revisar_depois">Revisar depois</option>
-          <option value="adiado">Adiado</option>
-          <option value="feito">Feito</option>
-          <option value="ignorado">Ignorado</option>
-          <option value="enviado_cliente">Enviado ao cliente</option>
-          <option value="anotacao">Anotação</option>
-        </select>
-        <select
-          value={sourceType}
-          onChange={(e) => setSourceType(e.target.value)}
-          className="h-9 rounded-md border border-border bg-background px-2 text-sm"
-        >
-          <option value="all">Todas origens</option>
-          <option value="alerta_ia">Alerta IA</option>
-          <option value="relatorio_ia">Relatório IA</option>
-          <option value="manual">Manual</option>
-          <option value="whatsapp">WhatsApp</option>
-          <option value="briefing">Briefing</option>
-        </select>
-        <select
-          value={priority}
-          onChange={(e) => setPriority(e.target.value)}
-          className="h-9 rounded-md border border-border bg-background px-2 text-sm"
-        >
-          <option value="all">Todas prioridades</option>
-          <option value="critica">Crítica</option>
-          <option value="alta">Alta</option>
-          <option value="media">Média</option>
-          <option value="baixa">Baixa</option>
-        </select>
-        <select
-          value={clientFilter}
-          onChange={(e) => setClientFilter(e.target.value)}
-          className="h-9 min-w-[160px] rounded-md border border-border bg-background px-2 text-sm"
-        >
-          <option value="all">Todos clientes</option>
-          {data.clients.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-        <select
+        <Select value={status} onValueChange={setStatus}>
+          <SelectTrigger className="h-9 w-[min(100%,220px)] shrink-0">
+            <SelectValue placeholder="Estado" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos estados</SelectItem>
+            <SelectItem value="pendente">Pendente</SelectItem>
+            <SelectItem value="revisar_depois">Revisar depois</SelectItem>
+            <SelectItem value="adiado">Adiado</SelectItem>
+            <SelectItem value="feito">Feito</SelectItem>
+            <SelectItem value="ignorado">Ignorado</SelectItem>
+            <SelectItem value="enviado_cliente">Enviado ao cliente</SelectItem>
+            <SelectItem value="anotacao">Anotação</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={sourceType} onValueChange={setSourceType}>
+          <SelectTrigger className="h-9 w-[min(100%,200px)] shrink-0">
+            <SelectValue placeholder="Origem" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas origens</SelectItem>
+            <SelectItem value="alerta_ia">Alerta IA</SelectItem>
+            <SelectItem value="relatorio_ia">Relatório IA</SelectItem>
+            <SelectItem value="manual">Manual</SelectItem>
+            <SelectItem value="whatsapp">WhatsApp</SelectItem>
+            <SelectItem value="briefing">Briefing</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={priority} onValueChange={setPriority}>
+          <SelectTrigger className="h-9 w-[min(100%,200px)] shrink-0">
+            <SelectValue placeholder="Prioridade" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas prioridades</SelectItem>
+            <SelectItem value="critica">Crítica</SelectItem>
+            <SelectItem value="alta">Alta</SelectItem>
+            <SelectItem value="media">Média</SelectItem>
+            <SelectItem value="baixa">Baixa</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={clientFilter} onValueChange={setClientFilter}>
+          <SelectTrigger className="h-9 min-w-[160px] max-w-[280px] shrink-0">
+            <SelectValue placeholder="Cliente" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos clientes</SelectItem>
+            {data.clients.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
           value={slaFilter}
-          onChange={(e) =>
-            setSlaFilter(e.target.value === "overdue" ? "overdue" : "all")
+          onValueChange={(v) =>
+            setSlaFilter(v === "overdue" ? "overdue" : "all")
           }
-          className="h-9 rounded-md border border-border bg-background px-2 text-sm"
         >
-          <option value="all">Todos prazos</option>
-          <option value="overdue">Só atrasadas (SLA)</option>
-        </select>
+          <SelectTrigger className="h-9 w-[min(100%,200px)] shrink-0">
+            <SelectValue placeholder="Prazo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos prazos</SelectItem>
+            <SelectItem value="overdue">Só atrasadas (SLA)</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <Card>
@@ -216,21 +232,21 @@ function ActionsCenter() {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-sm font-medium">{a.title}</span>
                       {isActionOverdue(a) && (
-                        <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-medium text-destructive">
+                        <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-xs font-medium text-destructive">
                           Atrasada
                         </span>
                       )}
-                      <span className="rounded bg-surface px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
+                      <span className="rounded bg-surface px-1.5 py-0.5 text-xs text-muted-foreground">
                         {a.source_type}
                       </span>
-                      <span className="text-[10px] uppercase text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                         {a.priority}
                       </span>
                       {a.clients?.name && (
                         <Link
                           to="/clients/$clientId"
                           params={{ clientId: a.client_id }}
-                          className="text-[11px] text-primary hover:underline"
+                          className="text-sm text-primary hover:underline"
                         >
                           {a.clients.name}
                         </Link>
@@ -241,7 +257,7 @@ function ActionsCenter() {
                         {a.description}
                       </p>
                     )}
-                    <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                       <span>{timeAgo(a.created_at)}</span>
                       {a.due_date && <span>Prazo {a.due_date}</span>}
                       {Number(a.metadata?.merge_count) > 0 && (
@@ -249,32 +265,44 @@ function ActionsCenter() {
                           Mesclas {a.metadata.merge_count}
                         </span>
                       )}
-                      <button
+                      <Button
                         type="button"
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0 text-xs"
                         onClick={() =>
                           setExpandedId(expandedId === a.id ? null : a.id)
                         }
-                        className="text-primary hover:underline"
                       >
                         {expandedId === a.id
                           ? "Ocultar histórico"
                           : "Histórico"}
-                      </button>
-                      <label className="flex items-center gap-1">
-                        Responsável
-                        <select
-                          value={a.assigned_to ?? ""}
-                          onChange={(e) => setAssignee(a.id, e.target.value)}
-                          className="h-7 max-w-[160px] rounded border border-border bg-background px-1 text-[11px]"
+                      </Button>
+                      <label className="flex items-center gap-2 font-normal">
+                        <span className="shrink-0 text-muted-foreground">
+                          Responsável
+                        </span>
+                        <Select
+                          value={a.assigned_to ?? "__none__"}
+                          onValueChange={(v) =>
+                            setAssignee(a.id, v === "__none__" ? "" : v)
+                          }
                         >
-                          <option value="">—</option>
-                          {user?.id && <option value={user.id}>Eu</option>}
-                          {data.teammates.map((t) => (
-                            <option key={t.id} value={t.id}>
-                              {t.display_name || t.email}
-                            </option>
-                          ))}
-                        </select>
+                          <SelectTrigger className="h-7 max-w-[160px] text-xs">
+                            <SelectValue placeholder="—" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none__">—</SelectItem>
+                            {user?.id && (
+                              <SelectItem value={user.id}>Eu</SelectItem>
+                            )}
+                            {data.teammates.map((t) => (
+                              <SelectItem key={t.id} value={t.id}>
+                                {t.display_name || t.email}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </label>
                     </div>
                   </div>
@@ -306,7 +334,7 @@ function ActionsCenter() {
                         Sem eventos registrados.
                       </p>
                     ) : (
-                      <ul className="mt-1 space-y-1 text-[11px] text-muted-foreground">
+                      <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
                         {eventRows.map((ev: any) => (
                           <li key={ev.id} className="flex flex-wrap gap-x-2">
                             <span>{timeAgo(ev.created_at)}</span>

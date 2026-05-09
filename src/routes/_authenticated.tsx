@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   ListTodo,
   LogOut,
+  Menu,
   MessageSquare,
   Plug,
   Rocket,
@@ -29,6 +30,13 @@ import {
 import { CommandPalette } from "@/components/command-palette";
 import { initials } from "@/lib/format";
 import { toast } from "sonner";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
@@ -57,9 +65,103 @@ const SECONDARY = [
   { to: "/settings", label: "Configurações", icon: Settings },
 ] as const;
 
+function roleLabel_pt(role: string | undefined): string | null {
+  if (!role) return null;
+  if (role === "owner") return "Proprietário";
+  if (role === "admin") return "Administrador";
+  if (role === "member") return "Membro";
+  return role;
+}
+
+function AgencyBrandMark({
+  agencyName,
+  logoUrl,
+  size = "md",
+}: {
+  agencyName: string;
+  logoUrl: string | null;
+  size?: "sm" | "md";
+}) {
+  const cls =
+    size === "sm"
+      ? "h-7 w-7 rounded-md text-[11px]"
+      : "h-8 w-8 rounded-md text-xs";
+  if (logoUrl) {
+    return <img src={logoUrl} alt="" className={`${cls} object-cover`} />;
+  }
+  return (
+    <div
+      className={`grid ${cls} place-items-center bg-primary font-bold text-primary-foreground`}
+    >
+      {initials(agencyName || "Ag")}
+    </div>
+  );
+}
+
+function NavLinks({
+  path,
+  onNavigate,
+  variant = "sidebar",
+}: {
+  path: string;
+  onNavigate?: () => void;
+  variant?: "sidebar" | "sheet";
+}) {
+  const base =
+    variant === "sidebar"
+      ? {
+          active: "bg-sidebar-accent text-sidebar-accent-foreground",
+          idle: "text-sidebar-foreground hover:bg-sidebar-accent/60 bg-transparent",
+        }
+      : {
+          active: "bg-accent text-accent-foreground",
+          idle: "text-foreground hover:bg-accent/80 bg-transparent",
+        };
+  return (
+    <>
+      <nav className="flex-1 space-y-0.5 px-2">
+        {NAV.map((item) => {
+          const active = path.startsWith(item.to);
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              onClick={() => onNavigate?.()}
+              className={`flex items-center gap-2.5 rounded-md px-2.5 py-2.5 text-sm transition md:py-2 ${active ? base.active : base.idle}`}
+            >
+              <item.icon className="h-4 w-4 shrink-0" />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </nav>
+      <div
+        className={`space-y-0.5 border-t px-2 py-2 ${variant === "sidebar" ? "border-sidebar-border" : "border-border"}`}
+      >
+        {SECONDARY.map((item) => {
+          const active = path.startsWith(item.to);
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              onClick={() => onNavigate?.()}
+              className={`flex items-center gap-2.5 rounded-md px-2.5 py-2.5 text-sm transition md:py-2 ${active ? base.active : base.idle}`}
+            >
+              <item.icon className="h-4 w-4 shrink-0" />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </>
+  );
+}
+
 function AuthenticatedLayout() {
   const { user, agency, signOut } = useAuth();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [memberRole, setMemberRole] = useState<string | null>(null);
   const path = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
@@ -72,6 +174,26 @@ function AuthenticatedLayout() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  useEffect(() => {
+    if (!user?.id || !agency?.id) {
+      setMemberRole(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .eq("agency_id", agency.id)
+        .maybeSingle();
+      if (!cancelled) setMemberRole(data?.role ?? null);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, agency?.id]);
 
   useEffect(() => {
     if (!agency?.id) return;
@@ -96,26 +218,30 @@ function AuthenticatedLayout() {
     };
   }, [agency?.id]);
 
+  const displayRole = roleLabel_pt(memberRole ?? undefined);
+  const agencyTitle = agency?.name ?? "Retentio";
+  const agencySubtitle = agency?.slug ? `${agency.slug}` : "Painel da agência";
+
   return (
     <div className="flex min-h-screen w-full bg-background text-foreground">
       <aside className="sticky top-0 z-30 hidden h-screen w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex">
         <div className="flex items-center gap-2 px-4 py-4">
-          <div className="grid h-8 w-8 place-items-center rounded-md bg-primary text-primary-foreground font-bold">
-            R
-          </div>
+          <AgencyBrandMark
+            agencyName={agencyTitle}
+            logoUrl={agency?.logo_url ?? null}
+          />
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold">
-              {agency?.name ?? "Retentio"}
-            </div>
-            <div className="truncate text-[11px] text-muted-foreground">
-              retentio.app
+            <div className="truncate text-sm font-semibold">{agencyTitle}</div>
+            <div className="truncate text-xs text-muted-foreground">
+              {agencySubtitle}
             </div>
           </div>
         </div>
 
         <button
+          type="button"
           onClick={() => setPaletteOpen(true)}
-          className="mx-3 mb-3 flex items-center gap-2 rounded-md border border-sidebar-border bg-background/40 px-3 py-2 text-left text-sm text-muted-foreground hover:bg-background transition"
+          className="mx-3 mb-3 flex items-center gap-2 rounded-md border border-sidebar-border bg-background/40 px-3 py-2 text-left text-sm text-muted-foreground transition hover:bg-background"
         >
           <Search className="h-3.5 w-3.5" />
           <span className="flex-1">Buscar...</span>
@@ -124,45 +250,7 @@ function AuthenticatedLayout() {
           </kbd>
         </button>
 
-        <nav className="flex-1 space-y-0.5 px-2">
-          {NAV.map((item) => {
-            const active = path.startsWith(item.to);
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={`flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition ${
-                  active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent/60"
-                }`}
-              >
-                <item.icon className="h-4 w-4" />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="space-y-0.5 border-t border-sidebar-border px-2 py-2">
-          {SECONDARY.map((item) => {
-            const active = path.startsWith(item.to);
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={`flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition ${
-                  active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent/60"
-                }`}
-              >
-                <item.icon className="h-4 w-4" />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </div>
+        <NavLinks path={path} variant="sidebar" />
 
         <div className="border-t border-sidebar-border p-3">
           <div className="flex items-center gap-2">
@@ -173,11 +261,14 @@ function AuthenticatedLayout() {
               <div className="truncate text-xs font-medium">
                 {user?.user_metadata?.display_name || user?.email}
               </div>
-              <div className="truncate text-[10px] text-muted-foreground">
-                Owner
-              </div>
+              {displayRole && (
+                <div className="truncate text-xs text-muted-foreground">
+                  {displayRole}
+                </div>
+              )}
             </div>
             <button
+              type="button"
               onClick={signOut}
               className="rounded p-1.5 text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
               title="Sair"
@@ -188,37 +279,112 @@ function AuthenticatedLayout() {
         </div>
       </aside>
 
+      <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+        <SheetContent
+          side="left"
+          className="flex w-[min(100vw-2rem,20rem)] flex-col p-0"
+        >
+          <SheetHeader className="border-b border-border px-4 py-4 text-left">
+            <div className="flex items-center gap-3 pr-8">
+              <AgencyBrandMark
+                agencyName={agencyTitle}
+                logoUrl={agency?.logo_url ?? null}
+                size="sm"
+              />
+              <div className="min-w-0">
+                <SheetTitle className="truncate text-base font-semibold">
+                  {agencyTitle}
+                </SheetTitle>
+                <p className="truncate text-xs text-muted-foreground">
+                  {agencySubtitle}
+                </p>
+              </div>
+            </div>
+          </SheetHeader>
+          <div className="flex flex-1 flex-col overflow-y-auto py-2">
+            <NavLinks
+              path={path}
+              variant="sheet"
+              onNavigate={() => setMobileNavOpen(false)}
+            />
+          </div>
+          <div className="border-t border-border p-3">
+            <div className="flex items-center gap-2">
+              <div className="grid h-8 w-8 place-items-center rounded-full bg-muted text-xs font-medium">
+                {initials(user?.user_metadata?.display_name || user?.email)}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium">
+                  {user?.user_metadata?.display_name || user?.email}
+                </div>
+                {displayRole && (
+                  <div className="text-xs text-muted-foreground">
+                    {displayRole}
+                  </div>
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setMobileNavOpen(false);
+                  signOut();
+                }}
+                title="Sair"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-background/80 px-5 backdrop-blur">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setPaletteOpen(true)}
-              className="md:hidden"
+        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-border bg-background/80 px-4 backdrop-blur md:px-5">
+          <div className="flex min-w-0 items-center gap-2 md:gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="shrink-0 md:hidden"
+              aria-label="Abrir menu"
+              onClick={() => setMobileNavOpen(true)}
+            >
+              <Menu className="h-5 w-5" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="shrink-0 md:hidden"
               aria-label="Buscar"
+              onClick={() => setPaletteOpen(true)}
             >
               <Search className="h-4 w-4" />
-            </button>
-            <div className="text-sm text-muted-foreground">
+            </Button>
+            <div className="truncate text-sm text-muted-foreground">
               {pageTitle(path)}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <button
+              type="button"
               onClick={() => setPaletteOpen(true)}
-              className="hidden items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-surface-2 transition md:inline-flex"
+              className="hidden items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1.5 text-xs text-muted-foreground transition hover:bg-surface-2 md:inline-flex"
             >
               <Command className="h-3 w-3" /> K
             </button>
             <Link
               to="/alerts"
-              className="rounded-md p-2 text-muted-foreground hover:bg-surface hover:text-foreground transition"
+              className="rounded-md p-2 text-muted-foreground transition hover:bg-surface hover:text-foreground"
             >
               <Bell className="h-4 w-4" />
             </Link>
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
           <Outlet />
         </main>
       </div>

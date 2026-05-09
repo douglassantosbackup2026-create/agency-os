@@ -1115,8 +1115,8 @@ function ClientDetail() {
             <div className="rounded-md border border-border">
               {data.adAccounts.length === 0 ? (
                 <div className="p-3 text-sm text-muted-foreground">
-                  Nenhuma conta vinculada. Ao sincronizar, a função usa esta
-                  conta por cliente quando disponível.
+                  Nenhuma conta vinculada. Ao sincronizar, usamos esta conta
+                  como padrão para este cliente quando ela estiver disponível.
                 </div>
               ) : (
                 <div className="divide-y divide-border">

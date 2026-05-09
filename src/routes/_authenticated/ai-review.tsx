@@ -6,6 +6,7 @@ import { timeAgo } from "@/lib/format";
 import { Card, Empty, PageSkeleton } from "./dashboard";
 import { toast } from "sonner";
 import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/ai-review")({
   component: AiReviewCenter,
@@ -452,18 +453,16 @@ function AiReviewCenter() {
             ["competitor", `Concorrentes (${counts.competitor})`],
           ] as const
         ).map(([k, label]) => (
-          <button
+          <Button
             key={k}
             type="button"
+            variant={kindFilter === k ? "default" : "outline"}
+            size="sm"
+            className="text-xs"
             onClick={() => setKindFilter(k)}
-            className={`rounded-md px-3 py-1.5 text-xs font-medium ${
-              kindFilter === k
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-surface"
-            }`}
           >
             {label}
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -481,22 +480,22 @@ function AiReviewCenter() {
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-primary">
+                      <span className="rounded bg-primary/15 px-2 py-0.5 text-xs font-semibold text-primary">
                         {kindLabel(item.kind)}
                       </span>
                       <span className="text-sm font-medium">
                         {item.client_name}
                       </span>
                     </div>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       {timeAgo(item.created_at)}
-                      {" · conf. "}
+                      {" · confiança "}
                       {(r.confianca as string) ?? "—"}
                     </span>
                   </div>
 
                   {item.kind === "report" && (
-                    <p className="line-clamp-3 text-xs text-muted-foreground">
+                    <p className="line-clamp-3 text-sm text-muted-foreground">
                       {String(r.executive_summary ?? "")}
                     </p>
                   )}
@@ -506,29 +505,29 @@ function AiReviewCenter() {
                         {String(r.title)}
                       </div>
                       {r.description && (
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-sm text-muted-foreground">
                           {String(r.description)}
                         </p>
                       )}
                     </>
                   )}
                   {item.kind === "meeting" && (
-                    <p className="line-clamp-4 text-xs text-muted-foreground">
+                    <p className="line-clamp-4 text-sm text-muted-foreground">
                       {String(r.agenda ?? "—")}
                     </p>
                   )}
                   {item.kind === "whatsapp" && (
                     <>
-                      <div className="text-[10px] text-muted-foreground">
+                      <div className="text-xs text-muted-foreground">
                         {String(r.recipient)}
                       </div>
-                      <p className="whitespace-pre-wrap text-xs">
+                      <p className="whitespace-pre-wrap text-sm">
                         {String(r.message ?? "")}
                       </p>
                     </>
                   )}
                   {item.kind === "competitor" && (
-                    <p className="line-clamp-4 text-xs text-muted-foreground">
+                    <p className="line-clamp-4 text-sm text-muted-foreground">
                       {String(r.summary ?? r.insight ?? r.headline ?? "—")}
                     </p>
                   )}
@@ -536,160 +535,204 @@ function AiReviewCenter() {
                   <div className="flex flex-wrap gap-2">
                     {item.kind === "report" && (
                       <>
-                        <button
+                        <Button
                           type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
                           onClick={() => approveReport(item.id)}
-                          className="rounded border border-border px-2 py-1 text-xs hover:bg-surface"
                         >
                           Aprovar
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
                           onClick={() => discardReport(item.id)}
-                          className="rounded border border-border px-2 py-1 text-xs hover:bg-surface"
                         >
                           Ignorar
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="text-xs"
                           onClick={() => createActionFromReport(r)}
-                          className="rounded border border-primary/40 px-2 py-1 text-xs text-primary hover:bg-primary/10"
                         >
                           Virar ação
-                        </button>
-                        <Link
-                          to="/reports"
-                          className="rounded border border-border px-2 py-1 text-xs hover:bg-surface"
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                          asChild
                         >
-                          Editar
-                        </Link>
+                          <Link to="/reports">Editar</Link>
+                        </Button>
                       </>
                     )}
                     {item.kind === "alert" && (
                       <>
-                        <button
+                        <Button
                           type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
                           onClick={() => approveAlert(item.id)}
-                          className="rounded border border-border px-2 py-1 text-xs hover:bg-surface"
                         >
                           Aprovar
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
                           onClick={() => discardAlert(item.id)}
-                          className="rounded border border-border px-2 py-1 text-xs hover:bg-surface"
                         >
                           Ignorar
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="text-xs"
                           onClick={() => createActionFromAlert(r)}
-                          className="rounded border border-primary/40 px-2 py-1 text-xs text-primary hover:bg-primary/10"
                         >
                           Virar ação
-                        </button>
-                        <Link
-                          to="/alerts"
-                          className="rounded border border-border px-2 py-1 text-xs hover:bg-surface"
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                          asChild
                         >
-                          Editar
-                        </Link>
+                          <Link to="/alerts">Editar</Link>
+                        </Button>
                       </>
                     )}
                     {item.kind === "meeting" && (
                       <>
-                        <button
+                        <Button
                           type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
                           onClick={() => approveMeeting(item.id)}
-                          className="rounded border border-border px-2 py-1 text-xs hover:bg-surface"
                         >
                           Aprovar
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
                           onClick={() => discardMeeting(item.id)}
-                          className="rounded border border-border px-2 py-1 text-xs hover:bg-surface"
                         >
                           Ignorar
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="text-xs"
                           onClick={() => createActionFromMeeting(r)}
-                          className="rounded border border-primary/40 px-2 py-1 text-xs text-primary hover:bg-primary/10"
                         >
                           Virar ação
-                        </button>
+                        </Button>
                         {item.client_id && (
-                          <Link
-                            to="/clients/$clientId"
-                            params={{ clientId: item.client_id }}
-                            className="rounded border border-border px-2 py-1 text-xs hover:bg-surface"
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs"
+                            asChild
                           >
-                            Editar
-                          </Link>
+                            <Link
+                              to="/clients/$clientId"
+                              params={{ clientId: item.client_id }}
+                            >
+                              Editar
+                            </Link>
+                          </Button>
                         )}
                       </>
                     )}
                     {item.kind === "competitor" && (
                       <>
-                        <button
+                        <Button
                           type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
                           onClick={() => approveCompetitor(item.id)}
-                          className="rounded border border-border px-2 py-1 text-xs hover:bg-surface"
                         >
                           Aprovar
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
                           onClick={() => discardCompetitor(item.id)}
-                          className="rounded border border-border px-2 py-1 text-xs hover:bg-surface"
                         >
                           Ignorar
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="text-xs"
                           onClick={() => createActionFromCompetitor(r)}
-                          className="rounded border border-primary/40 px-2 py-1 text-xs text-primary hover:bg-primary/10"
                         >
                           Virar ação
-                        </button>
-                        <Link
-                          to="/competitors"
-                          className="rounded border border-border px-2 py-1 text-xs hover:bg-surface"
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                          asChild
                         >
-                          Editar
-                        </Link>
+                          <Link to="/competitors">Editar</Link>
+                        </Button>
                       </>
                     )}
                     {item.kind === "whatsapp" && (
                       <>
-                        <button
+                        <Button
                           type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
                           onClick={() => sendWhatsDraft(item.id)}
-                          className="rounded border border-border px-2 py-1 text-xs hover:bg-surface"
                         >
                           Enviar agora
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
                           onClick={() => discardWhatsDraft(item.id)}
-                          className="rounded border border-border px-2 py-1 text-xs hover:bg-surface"
                         >
                           Ignorar
-                        </button>
-                        <button
+                        </Button>
+                        <Button
                           type="button"
+                          variant="secondary"
+                          size="sm"
+                          className="text-xs"
                           onClick={() => createActionFromWhatsApp(r)}
-                          className="rounded border border-primary/40 px-2 py-1 text-xs text-primary hover:bg-primary/10"
                         >
                           Virar ação
-                        </button>
-                        <Link
-                          to="/whatsapp"
-                          className="rounded border border-border px-2 py-1 text-xs hover:bg-surface"
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                          asChild
                         >
-                          Editar
-                        </Link>
+                          <Link to="/whatsapp">Editar</Link>
+                        </Button>
                       </>
                     )}
                   </div>
