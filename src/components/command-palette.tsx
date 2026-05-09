@@ -34,6 +34,7 @@ import {
 import { toast } from "sonner";
 
 type ClientItem = { id: string; name: string };
+type ReportPick = { id: string; excerpt: string; clientName: string };
 
 export function CommandPalette({
   open,
@@ -46,6 +47,7 @@ export function CommandPalette({
   const { agency } = useAuth();
   const [clients, setClients] = useState<ClientItem[]>([]);
   const [openAlerts, setOpenAlerts] = useState<ClientItem[]>([]);
+  const [recentReports, setRecentReports] = useState<ReportPick[]>([]);
 
   useEffect(() => {
     if (!open || !agency?.id) return;
@@ -73,6 +75,30 @@ export function CommandPalette({
         setOpenAlerts((data ?? []).map((a) => ({ id: a.id, name: a.title })));
       });
   }, [open, agency]);
+
+  useEffect(() => {
+    if (!open || !agency?.id) return;
+    supabase
+      .from("reports")
+      .select("id, executive_summary, clients(name)")
+      .eq("agency_id", agency.id)
+      .order("created_at", { ascending: false })
+      .limit(12)
+      .then(({ data }) => {
+        setRecentReports(
+          (data ?? []).map((r) => {
+            const name =
+              (r.clients as { name?: string } | null)?.name ?? "Cliente";
+            const ex = String(r.executive_summary ?? "").replace(/\s+/g, " ");
+            return {
+              id: r.id,
+              clientName: name,
+              excerpt: ex.length > 90 ? `${ex.slice(0, 87)}…` : ex || "—",
+            };
+          }),
+        );
+      });
+  }, [open, agency?.id]);
 
   const close = () => onOpenChange(false);
   const go = (to: string) => {
@@ -238,6 +264,36 @@ export function CommandPalette({
                   onSelect={() => go(`/clients/${c.id}`)}
                 >
                   <Users className="mr-2 h-4 w-4" /> {c.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </>
+        )}
+        {recentReports.length > 0 && (
+          <>
+            <CommandSeparator />
+            <CommandGroup heading="Relatórios recentes">
+              {recentReports.map((r) => (
+                <CommandItem
+                  key={r.id}
+                  value={`report-${r.clientName}-${r.excerpt}-${r.id}`}
+                  onSelect={() => {
+                    close();
+                    try {
+                      sessionStorage.setItem(
+                        "agency-os-highlight-report",
+                        r.id,
+                      );
+                    } catch {
+                      /* ignore */
+                    }
+                    navigate({ to: "/reports" });
+                  }}
+                >
+                  <FileText className="mr-2 h-4 w-4 shrink-0" />
+                  <span className="truncate">
+                    {r.clientName}: {r.excerpt}
+                  </span>
                 </CommandItem>
               ))}
             </CommandGroup>

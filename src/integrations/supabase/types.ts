@@ -389,7 +389,9 @@ export type Database = {
           id: string;
           last_sync_at: string | null;
           provider: Database["public"]["Enums"]["integration_provider"];
+          refresh_token_encrypted: string | null;
           status: Database["public"]["Enums"]["integration_status"];
+          token_expires_at: string | null;
           updated_at: string;
         };
         Insert: {
@@ -401,7 +403,9 @@ export type Database = {
           id?: string;
           last_sync_at?: string | null;
           provider: Database["public"]["Enums"]["integration_provider"];
+          refresh_token_encrypted?: string | null;
           status?: Database["public"]["Enums"]["integration_status"];
+          token_expires_at?: string | null;
           updated_at?: string;
         };
         Update: {
@@ -413,7 +417,9 @@ export type Database = {
           id?: string;
           last_sync_at?: string | null;
           provider?: Database["public"]["Enums"]["integration_provider"];
+          refresh_token_encrypted?: string | null;
           status?: Database["public"]["Enums"]["integration_status"];
+          token_expires_at?: string | null;
           updated_at?: string;
         };
         Relationships: [

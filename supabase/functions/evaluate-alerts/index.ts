@@ -180,6 +180,11 @@ Deno.serve(async (req) => {
           recommended_action: q.recommended_action,
         });
         if (!error) created++;
+        else if (
+          typeof error.message === "string" &&
+          error.message.includes("Limite de alertas abertos")
+        )
+          break;
       }
     }
 

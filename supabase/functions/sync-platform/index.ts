@@ -1,5 +1,5 @@
-// Sync metrics: Meta (nível campanha quando token+conta); GA4 (Data API) quando token+property.
-// Demais continuam simuladas até OAuth/pipelines próprios.
+// Sync metrics: Meta / Google Ads / TikTok / GA4 quando token + IDs; janela em dias e granularidade Meta em integrations.config.
+// Sem credenciais continua simulado para esse cliente.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 const corsHeaders = {
@@ -22,6 +22,39 @@ type MetricRowInsert = {
   cpa: number;
   ctr: number;
 };
+
+type SyncConfigParsed = {
+  days: number;
+  metaGranularity: "campaign" | "account";
+};
+
+function parseIntegrationSyncConfig(raw: unknown): SyncConfigParsed {
+  const defaults: SyncConfigParsed = {
+    days: 7,
+    metaGranularity: "campaign",
+  };
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return defaults;
+  const cfg = raw as Record<string, unknown>;
+  let days = Number(cfg.sync_days ?? cfg.lookback_days ?? defaults.days);
+  if (!Number.isFinite(days) || days < 1) days = defaults.days;
+  if (days > 90) days = 90;
+  const mg = cfg.meta_granularity ?? cfg.meta_level;
+  const metaGranularity =
+    mg === "account" ? "account" : defaults.metaGranularity;
+  return { days, metaGranularity };
+}
+
+function formatDateYMD(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+/** Inclusive date range ending today (UTC calendar dates). */
+function rollingDateRange(days: number): { start: string; end: string } {
+  const end = new Date();
+  const start = new Date();
+  start.setUTCDate(start.getUTCDate() - (days - 1));
+  return { start: formatDateYMD(start), end: formatDateYMD(end) };
+}
 
 function deriveFromActions(day: Record<string, unknown>): {
   spend: number;
@@ -69,6 +102,7 @@ async function fetchMetaAccountInsights(
   accessToken: string,
   agency_id: string,
   client_id: string,
+  syncDays: number,
 ): Promise<{ rows: MetricRowInsert[] } | { error: string }> {
   const act = accountId.startsWith("act_") ? accountId : `act_${accountId}`;
   const base = `https://graph.facebook.com/v21.0/${act}/insights`;
@@ -79,7 +113,8 @@ async function fetchMetaAccountInsights(
     "spend,impressions,clicks,actions,ctr,date_start,date_stop",
   );
   u.searchParams.set("time_increment", "1");
-  u.searchParams.set("date_preset", "last_7_days");
+  const { start: since, end: until } = rollingDateRange(syncDays);
+  u.searchParams.set("time_range", JSON.stringify({ since, until }));
   u.searchParams.set("level", "account");
 
   const r = await fetch(u.toString());
@@ -129,6 +164,7 @@ async function fetchMetaCampaignInsights(
   accessToken: string,
   agency_id: string,
   client_id: string,
+  syncDays: number,
 ): Promise<{ rows: MetricRowInsert[] } | { error: string }> {
   const act = accountId.startsWith("act_") ? accountId : `act_${accountId}`;
   const base = `https://graph.facebook.com/v21.0/${act}/insights`;
@@ -139,7 +175,8 @@ async function fetchMetaCampaignInsights(
     "campaign_name,campaign_id,spend,impressions,clicks,actions,ctr,date_start,date_stop",
   );
   u.searchParams.set("time_increment", "1");
-  u.searchParams.set("date_preset", "last_7_days");
+  const { start: since, end: until } = rollingDateRange(syncDays);
+  u.searchParams.set("time_range", JSON.stringify({ since, until }));
   u.searchParams.set("level", "campaign");
 
   const r = await fetch(u.toString());
@@ -283,6 +320,7 @@ async function fetchGA4Metrics(
   accessToken: string,
   agency_id: string,
   client_id: string,
+  syncDays: number,
 ): Promise<{ rows: MetricRowInsert[] } | { error: string }> {
   const pid = propertyId.replace(/^properties\//i, "").trim();
   if (!pid)
@@ -292,7 +330,12 @@ async function fetchGA4Metrics(
 
   const url = `https://analyticsdata.googleapis.com/v1beta/properties/${pid}:runReport`;
   const body = {
-    dateRanges: [{ startDate: "7daysAgo", endDate: "today" }],
+    dateRanges: [
+      {
+        startDate: `${Math.min(90, Math.max(1, syncDays))}daysAgo`,
+        endDate: "today",
+      },
+    ],
     dimensions: [{ name: "date" }],
     metrics: [
       { name: "sessions" },
@@ -361,6 +404,391 @@ async function fetchGA4Metrics(
     };
   }
   return { rows };
+}
+
+async function refreshGoogleAccessToken(
+  admin: ReturnType<typeof createClient>,
+  integ: Record<string, unknown>,
+): Promise<{ token: string } | { error: string }> {
+  const access = integ.api_key_encrypted as string | null;
+  const refresh = integ.refresh_token_encrypted as string | null;
+  const expMs = integ.token_expires_at
+    ? new Date(String(integ.token_expires_at)).getTime()
+    : 0;
+  if (access && expMs > Date.now() + 300_000) return { token: access };
+  if (!refresh)
+    return access ? { token: access } : { error: "Sem refresh token Google" };
+  const cid = Deno.env.get("GOOGLE_OAUTH_CLIENT_ID");
+  const csec = Deno.env.get("GOOGLE_OAUTH_CLIENT_SECRET");
+  if (!cid || !csec)
+    return { error: "GOOGLE_OAUTH_CLIENT_ID/SECRET não definidos" };
+  const tr = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: refresh,
+      client_id: cid,
+      client_secret: csec,
+    }),
+  });
+  const tj = await tr.json();
+  if (!tr.ok) {
+    return {
+      error: String(
+        tj.error_description ?? tj.error ?? "refresh Google falhou",
+      ),
+    };
+  }
+  const token = String(tj.access_token ?? "");
+  const expires_in = Number(tj.expires_in ?? 3600);
+  const expiresAt = new Date(Date.now() + expires_in * 1000).toISOString();
+  await admin
+    .from("integrations")
+    .update({
+      api_key_encrypted: token,
+      token_expires_at: expiresAt,
+      ...(tj.refresh_token
+        ? { refresh_token_encrypted: String(tj.refresh_token) }
+        : {}),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", integ.id as string);
+  return { token };
+}
+
+async function upsertGoogleCampaign(
+  admin: ReturnType<typeof createClient>,
+  agency_id: string,
+  client_id: string,
+  external_id: string,
+  name: string,
+): Promise<string> {
+  const { data: ex } = await admin
+    .from("campaigns")
+    .select("id")
+    .eq("client_id", client_id)
+    .eq("platform", "google_ads")
+    .eq("external_id", external_id)
+    .maybeSingle();
+  if (ex?.id) {
+    await admin
+      .from("campaigns")
+      .update({
+        name: name.slice(0, 500),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", ex.id);
+    return ex.id as string;
+  }
+  const { data: ins, error } = await admin
+    .from("campaigns")
+    .insert({
+      agency_id,
+      client_id,
+      platform: "google_ads",
+      external_id,
+      name: name.slice(0, 500),
+      status: "active",
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  return ins!.id as string;
+}
+
+async function fetchGoogleAdsMetrics(
+  customerId: string,
+  accessToken: string,
+  developerToken: string,
+  agency_id: string,
+  client_id: string,
+  syncDays: number,
+): Promise<{ rows: MetricRowInsert[] } | { error: string }> {
+  const cid = customerId.replace(/-/g, "");
+  const loginId = Deno.env
+    .get("GOOGLE_ADS_LOGIN_CUSTOMER_ID")
+    ?.replace(/-/g, "");
+  const url = `https://googleads.googleapis.com/v17/customers/${cid}/googleAds:search`;
+  const { start, end } = rollingDateRange(syncDays);
+  const query =
+    `SELECT campaign.id, campaign.name, segments.date, metrics.cost_micros, metrics.clicks, ` +
+    `metrics.impressions, metrics.conversions, metrics.conversions_value ` +
+    `FROM campaign WHERE segments.date BETWEEN '${start}' AND '${end}' AND campaign.status != 'REMOVED'`;
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${accessToken}`,
+    "developer-token": developerToken,
+    "Content-Type": "application/json",
+  };
+  if (loginId) headers["login-customer-id"] = loginId;
+  const r = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ query }),
+  });
+  const j = await r.json();
+  if (!r.ok) {
+    const msg = j?.error?.message ?? JSON.stringify(j).slice(0, 400);
+    return { error: `Google Ads: ${msg}` };
+  }
+  const results = (j.results ?? []) as Array<Record<string, unknown>>;
+  type Gran = MetricRowInsert & { g_ext?: string; g_name?: string };
+  const granular: Gran[] = [];
+  const rollupMap = new Map<string, MetricRowInsert>();
+
+  for (const row of results) {
+    const camp = row.campaign as { id?: string; name?: string } | undefined;
+    const seg = row.segments as { date?: string } | undefined;
+    const met = row.metrics as Record<string, unknown> | undefined;
+    const dateStr = String(seg?.date ?? "").slice(0, 10);
+    const ext = camp?.id != null ? String(camp.id) : "";
+    if (!dateStr || !ext) continue;
+    const spendMicro = Number(met?.costMicros ?? met?.cost_micros ?? 0);
+    const spend = spendMicro / 1_000_000;
+    const clicks = Number(met?.clicks ?? 0);
+    const impressions = Number(met?.impressions ?? 0);
+    const conversions = Number(met?.conversions ?? 0);
+    const revenue = Number(
+      met?.conversionsValue ?? met?.conversions_value ?? 0,
+    );
+    const roas = spend > 0 ? revenue / spend : 0;
+    const cpa = spend / Math.max(1, conversions);
+    const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+    granular.push({
+      agency_id,
+      client_id,
+      campaign_id: null,
+      date: dateStr,
+      g_ext: ext,
+      g_name: String(camp?.name ?? "Campanha Google"),
+      spend,
+      revenue,
+      conversions: Math.round(conversions),
+      impressions: Math.round(impressions),
+      clicks: Math.round(clicks),
+      roas: Number(roas.toFixed(4)),
+      cpa: Number(cpa.toFixed(2)),
+      ctr: Number(ctr.toFixed(3)),
+    });
+    const roll =
+      rollupMap.get(dateStr) ??
+      ({
+        agency_id,
+        client_id,
+        campaign_id: null,
+        date: dateStr,
+        spend: 0,
+        revenue: 0,
+        conversions: 0,
+        impressions: 0,
+        clicks: 0,
+        roas: 0,
+        cpa: 0,
+        ctr: 0,
+      } as MetricRowInsert);
+    roll.spend += spend;
+    roll.revenue += revenue;
+    roll.conversions += Math.round(conversions);
+    roll.impressions += Math.round(impressions);
+    roll.clicks += Math.round(clicks);
+    rollupMap.set(dateStr, roll);
+  }
+
+  if (granular.length === 0) {
+    return {
+      error:
+        "Google Ads não devolveu linhas (Customer ID / developer token / permissões).",
+    };
+  }
+
+  const rollup: MetricRowInsert[] = [...rollupMap.values()].map((row) => {
+    const roas = row.spend > 0 ? row.revenue / row.spend : 0;
+    const cpa = row.spend / Math.max(1, row.conversions);
+    const ctr =
+      row.impressions > 0 ? (row.clicks / row.impressions) * 100 : row.ctr;
+    return {
+      ...row,
+      roas: Number(roas.toFixed(4)),
+      cpa: Number(cpa.toFixed(2)),
+      ctr: Number(ctr.toFixed(3)),
+      campaign_id: null,
+    };
+  });
+
+  const finalRows = [...rollup] as MetricRowInsert[];
+  return { rows: finalRows.concat(granular) };
+}
+
+async function upsertTikTokCampaign(
+  admin: ReturnType<typeof createClient>,
+  agency_id: string,
+  client_id: string,
+  external_id: string,
+  name: string,
+): Promise<string> {
+  const { data: ex } = await admin
+    .from("campaigns")
+    .select("id")
+    .eq("client_id", client_id)
+    .eq("platform", "tiktok_ads")
+    .eq("external_id", external_id)
+    .maybeSingle();
+  if (ex?.id) {
+    await admin
+      .from("campaigns")
+      .update({
+        name: name.slice(0, 500),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", ex.id);
+    return ex.id as string;
+  }
+  const { data: ins, error } = await admin
+    .from("campaigns")
+    .insert({
+      agency_id,
+      client_id,
+      platform: "tiktok_ads",
+      external_id,
+      name: name.slice(0, 500),
+      status: "active",
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  return ins!.id as string;
+}
+
+async function fetchTikTokCampaignMetrics(
+  advertiserId: string,
+  accessToken: string,
+  agency_id: string,
+  client_id: string,
+  syncDays: number,
+): Promise<{ rows: MetricRowInsert[] } | { error: string }> {
+  const end = new Date();
+  const start = new Date();
+  start.setUTCDate(start.getUTCDate() - (syncDays - 1));
+  const fmt = (d: Date) => d.toISOString().slice(0, 10).replace(/-/g, "");
+  const url = new URL(
+    "https://business-api.tiktok.com/open_api/v1.3/report/integrated/get/",
+  );
+  url.searchParams.set("advertiser_id", advertiserId);
+  url.searchParams.set("service_type", "AUCTION");
+  url.searchParams.set("report_type", "BASIC");
+  url.searchParams.set("data_level", "AUCTION_CAMPAIGN");
+  url.searchParams.set(
+    "dimensions",
+    JSON.stringify(["campaign_id", "stat_time_day"]),
+  );
+  url.searchParams.set(
+    "metrics",
+    JSON.stringify([
+      "spend",
+      "impressions",
+      "clicks",
+      "conversion",
+      "cost_per_conversion",
+    ]),
+  );
+  url.searchParams.set("start_date", fmt(start));
+  url.searchParams.set("end_date", fmt(end));
+  url.searchParams.set("page", "1");
+  url.searchParams.set("page_size", "500");
+
+  const r = await fetch(url.toString(), {
+    headers: { "Access-Token": accessToken },
+  });
+  const j = await r.json();
+  if (!r.ok || j.code !== 0) {
+    const msg = j?.message ?? JSON.stringify(j).slice(0, 400);
+    return { error: `TikTok: ${msg}` };
+  }
+  const list = (j.data?.list ?? []) as Array<Record<string, unknown>>;
+  type Gran = MetricRowInsert & { tt_ext?: string; tt_name?: string };
+  const granular: Gran[] = [];
+  const rollupMap = new Map<string, MetricRowInsert>();
+
+  for (const row of list) {
+    const dims = row.dimensions as Record<string, unknown> | undefined;
+    const mets = row.metrics as Record<string, unknown> | undefined;
+    const dayRaw = String(dims?.stat_time_day ?? "");
+    const dateStr =
+      dayRaw.length === 8
+        ? `${dayRaw.slice(0, 4)}-${dayRaw.slice(4, 6)}-${dayRaw.slice(6, 8)}`
+        : dayRaw.slice(0, 10);
+    const ext = String(dims?.campaign_id ?? "");
+    if (!dateStr || !ext) continue;
+    const spend = Number(mets?.spend ?? 0);
+    const impressions = Number(mets?.impressions ?? 0);
+    const clicks = Number(mets?.clicks ?? 0);
+    const conversions = Math.max(1, Number(mets?.conversion ?? 0));
+    const revenue = spend > 0 ? spend * 2 : 0;
+    const roas = spend > 0 ? revenue / spend : 0;
+    const cpa = Number(mets?.cost_per_conversion ?? spend / conversions);
+    const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
+    granular.push({
+      agency_id,
+      client_id,
+      campaign_id: null,
+      date: dateStr,
+      tt_ext: ext,
+      tt_name: `Campanha ${ext}`,
+      spend,
+      revenue,
+      conversions,
+      impressions: Math.round(impressions),
+      clicks: Math.round(clicks),
+      roas: Number(roas.toFixed(4)),
+      cpa: Number(Number(cpa).toFixed(2)),
+      ctr: Number(ctr.toFixed(3)),
+    });
+    const roll =
+      rollupMap.get(dateStr) ??
+      ({
+        agency_id,
+        client_id,
+        campaign_id: null,
+        date: dateStr,
+        spend: 0,
+        revenue: 0,
+        conversions: 0,
+        impressions: 0,
+        clicks: 0,
+        roas: 0,
+        cpa: 0,
+        ctr: 0,
+      } as MetricRowInsert);
+    roll.spend += spend;
+    roll.revenue += revenue;
+    roll.conversions += conversions;
+    roll.impressions += Math.round(impressions);
+    roll.clicks += Math.round(clicks);
+    rollupMap.set(dateStr, roll);
+  }
+
+  if (granular.length === 0) {
+    return {
+      error:
+        "TikTok não devolveu linhas (advertiser_id, escopos ou formato de relatório).",
+    };
+  }
+
+  const rollup: MetricRowInsert[] = [...rollupMap.values()].map((row) => {
+    const roas = row.spend > 0 ? row.revenue / row.spend : 0;
+    const cpa = row.spend / Math.max(1, row.conversions);
+    const ctr =
+      row.impressions > 0 ? (row.clicks / row.impressions) * 100 : row.ctr;
+    return {
+      ...row,
+      roas: Number(roas.toFixed(4)),
+      cpa: Number(cpa.toFixed(2)),
+      ctr: Number(ctr.toFixed(3)),
+      campaign_id: null,
+    };
+  });
+
+  return { rows: [...rollup, ...granular] };
 }
 
 function simulatedRows(
@@ -454,32 +882,31 @@ Deno.serve(async (req) => {
       );
     }
 
+    const syncCfg = parseIntegrationSyncConfig(integ.config);
+
     let rows: MetricRowInsert[] = [];
     let mode:
       | "meta_api_campaigns"
       | "meta_api_account"
       | "ga4_api"
+      | "google_ads_api"
+      | "tiktok_api"
       | "simulated" = "simulated";
 
     if (provider === "meta_ads") {
       const token = integ.api_key_encrypted as string | null;
       const accountId = integ.account_id as string | null;
       if (token && accountId) {
-        const camp = await fetchMetaCampaignInsights(
-          accountId,
-          token,
-          client.agency_id,
-          client_id,
-        );
-        if ("error" in camp) {
+        if (syncCfg.metaGranularity === "account") {
           const acc = await fetchMetaAccountInsights(
             accountId,
             token,
             client.agency_id,
             client_id,
+            syncCfg.days,
           );
           if ("error" in acc) {
-            return new Response(JSON.stringify({ error: camp.error }), {
+            return new Response(JSON.stringify({ error: acc.error }), {
               status: 400,
               headers: { ...corsHeaders, "Content-Type": "application/json" },
             });
@@ -487,39 +914,64 @@ Deno.serve(async (req) => {
           rows = acc.rows;
           mode = "meta_api_account";
         } else {
-          const extMap = new Map<string, string>();
-          for (const r of camp.rows) {
-            const g = r as MetricRowInsert & {
-              meta_ext?: string;
-              campaign_name?: string;
-            };
-            if (g.meta_ext && g.campaign_name) {
-              extMap.set(g.meta_ext, g.campaign_name);
-            }
-          }
-          for (const [ext, nm] of extMap) {
-            const uuid = await upsertMetaCampaign(
-              admin,
+          const camp = await fetchMetaCampaignInsights(
+            accountId,
+            token,
+            client.agency_id,
+            client_id,
+            syncCfg.days,
+          );
+          if ("error" in camp) {
+            const acc = await fetchMetaAccountInsights(
+              accountId,
+              token,
               client.agency_id,
               client_id,
-              ext,
-              nm,
+              syncCfg.days,
             );
-            for (const row of camp.rows) {
-              const gr = row as MetricRowInsert & { meta_ext?: string };
-              if (gr.meta_ext === ext) gr.campaign_id = uuid;
+            if ("error" in acc) {
+              return new Response(JSON.stringify({ error: camp.error }), {
+                status: 400,
+                headers: { ...corsHeaders, "Content-Type": "application/json" },
+              });
             }
+            rows = acc.rows;
+            mode = "meta_api_account";
+          } else {
+            const extMap = new Map<string, string>();
+            for (const r of camp.rows) {
+              const g = r as MetricRowInsert & {
+                meta_ext?: string;
+                campaign_name?: string;
+              };
+              if (g.meta_ext && g.campaign_name) {
+                extMap.set(g.meta_ext, g.campaign_name);
+              }
+            }
+            for (const [ext, nm] of extMap) {
+              const uuid = await upsertMetaCampaign(
+                admin,
+                client.agency_id,
+                client_id,
+                ext,
+                nm,
+              );
+              for (const row of camp.rows) {
+                const gr = row as MetricRowInsert & { meta_ext?: string };
+                if (gr.meta_ext === ext) gr.campaign_id = uuid;
+              }
+            }
+            for (const row of camp.rows) {
+              const gr = row as MetricRowInsert & {
+                meta_ext?: string;
+                campaign_name?: string;
+              };
+              delete gr.meta_ext;
+              delete gr.campaign_name;
+            }
+            rows = camp.rows;
+            mode = "meta_api_campaigns";
           }
-          for (const row of camp.rows) {
-            const gr = row as MetricRowInsert & {
-              meta_ext?: string;
-              campaign_name?: string;
-            };
-            delete gr.meta_ext;
-            delete gr.campaign_name;
-          }
-          rows = camp.rows;
-          mode = "meta_api_campaigns";
         }
       } else {
         rows = simulatedRows(
@@ -529,14 +981,22 @@ Deno.serve(async (req) => {
         );
       }
     } else if (provider === "google_analytics") {
-      const token = integ.api_key_encrypted as string | null;
       const propertyId = integ.account_id as string | null;
+      const gtok = await refreshGoogleAccessToken(
+        admin,
+        integ as Record<string, unknown>,
+      );
+      const token =
+        "token" in gtok
+          ? gtok.token
+          : (integ.api_key_encrypted as string | null);
       if (token && propertyId) {
         const res = await fetchGA4Metrics(
           propertyId,
           token,
           client.agency_id,
           client_id,
+          syncCfg.days,
         );
         if ("error" in res) {
           return new Response(JSON.stringify({ error: res.error }), {
@@ -553,12 +1013,122 @@ Deno.serve(async (req) => {
           Number(client.monthly_budget ?? 0),
         );
       }
-    } else if (provider === "google_ads" || provider === "tiktok_ads") {
-      rows = simulatedRows(
-        client.agency_id,
-        client_id,
-        Number(client.monthly_budget ?? 0),
+    } else if (provider === "google_ads") {
+      const customerId = integ.account_id as string | null;
+      const devTok = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN");
+      const gtok = await refreshGoogleAccessToken(
+        admin,
+        integ as Record<string, unknown>,
       );
+      const token =
+        "token" in gtok
+          ? gtok.token
+          : (integ.api_key_encrypted as string | null);
+      if (token && customerId && devTok) {
+        const res = await fetchGoogleAdsMetrics(
+          customerId,
+          token,
+          devTok,
+          client.agency_id,
+          client_id,
+          syncCfg.days,
+        );
+        if ("error" in res) {
+          return new Response(JSON.stringify({ error: res.error }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const extMap = new Map<string, string>();
+        for (const r of res.rows) {
+          const g = r as MetricRowInsert & { g_ext?: string; g_name?: string };
+          if (g.g_ext && g.g_name) extMap.set(g.g_ext, g.g_name);
+        }
+        for (const [ext, nm] of extMap) {
+          const uuid = await upsertGoogleCampaign(
+            admin,
+            client.agency_id,
+            client_id,
+            ext,
+            nm,
+          );
+          for (const row of res.rows) {
+            const gr = row as MetricRowInsert & { g_ext?: string };
+            if (gr.g_ext === ext) gr.campaign_id = uuid;
+          }
+        }
+        for (const row of res.rows) {
+          const gr = row as MetricRowInsert & {
+            g_ext?: string;
+            g_name?: string;
+          };
+          delete gr.g_ext;
+          delete gr.g_name;
+        }
+        rows = res.rows;
+        mode = "google_ads_api";
+      } else {
+        rows = simulatedRows(
+          client.agency_id,
+          client_id,
+          Number(client.monthly_budget ?? 0),
+        );
+      }
+    } else if (provider === "tiktok_ads") {
+      const advertiserId = integ.account_id as string | null;
+      const token = integ.api_key_encrypted as string | null;
+      if (token && advertiserId) {
+        const res = await fetchTikTokCampaignMetrics(
+          advertiserId,
+          token,
+          client.agency_id,
+          client_id,
+          syncCfg.days,
+        );
+        if ("error" in res) {
+          return new Response(JSON.stringify({ error: res.error }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        const extMap = new Map<string, string>();
+        for (const r of res.rows) {
+          const t = r as MetricRowInsert & {
+            tt_ext?: string;
+            tt_name?: string;
+          };
+          if (t.tt_ext && t.tt_name) extMap.set(t.tt_ext, t.tt_name);
+        }
+        for (const [ext, nm] of extMap) {
+          const uuid = await upsertTikTokCampaign(
+            admin,
+            client.agency_id,
+            client_id,
+            ext,
+            nm,
+          );
+          for (const row of res.rows) {
+            const tr = row as MetricRowInsert & { tt_ext?: string };
+            if (tr.tt_ext === ext) tr.campaign_id = uuid;
+          }
+        }
+        for (const row of res.rows) {
+          const tr = row as MetricRowInsert & {
+            tt_ext?: string;
+            tt_name?: string;
+          };
+          delete tr.tt_ext;
+          delete tr.tt_name;
+        }
+        rows = res.rows;
+        mode = "tiktok_api";
+      } else {
+        rows = simulatedRows(
+          client.agency_id,
+          client_id,
+          Number(client.monthly_budget ?? 0),
+        );
+      }
     } else if (provider === "openai" || provider === "whatsapp") {
       return new Response(
         JSON.stringify({
@@ -596,7 +1166,9 @@ Deno.serve(async (req) => {
     const wideSync =
       mode === "meta_api_campaigns" ||
       mode === "meta_api_account" ||
-      mode === "ga4_api";
+      mode === "ga4_api" ||
+      mode === "google_ads_api" ||
+      mode === "tiktok_api";
     if (wideSync) {
       await admin
         .from("metrics_daily")
@@ -625,7 +1197,11 @@ Deno.serve(async (req) => {
           ? "Sincronização Meta Ads (API, conta) concluída"
           : mode === "ga4_api"
             ? "Sincronização Google Analytics 4 (API) concluída"
-            : `Sincronização ${provider} concluída (simulado)`;
+            : mode === "google_ads_api"
+              ? "Sincronização Google Ads (API) concluída"
+              : mode === "tiktok_api"
+                ? "Sincronização TikTok Ads (API) concluída"
+                : `Sincronização ${provider} concluída (simulado)`;
 
     await admin.from("activities").insert({
       agency_id: client.agency_id,

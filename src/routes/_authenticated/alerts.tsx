@@ -11,6 +11,12 @@ import {
   PageSkeleton,
   PriorityDot,
 } from "./dashboard";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/alerts")({
@@ -24,6 +30,7 @@ function Alerts() {
   const [priority, setPriority] = useState<string>("all");
   const [clientFilter, setClientFilter] = useState<string>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  const [groupBy, setGroupBy] = useState<"none" | "client">("none");
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["alerts", agency?.id, filter],
@@ -91,6 +98,18 @@ function Alerts() {
     });
   }, [data, search, priority, clientFilter, assigneeFilter, user?.id]);
 
+  const groupedByClient = useMemo(() => {
+    const m = new Map<string, typeof filtered>();
+    for (const a of filtered) {
+      const name =
+        (a as { clients?: { name?: string } }).clients?.name ?? "Sem cliente";
+      const arr = m.get(name) ?? [];
+      arr.push(a);
+      m.set(name, arr);
+    }
+    return [...m.entries()].sort(([na], [nb]) => na.localeCompare(nb, "pt-BR"));
+  }, [filtered]);
+
   useEffect(() => {
     if (!agency) return;
     const ch = supabase
@@ -111,7 +130,67 @@ function Alerts() {
     };
   }, [agency, refetch]);
 
-  if (isLoading || !data) return <PageSkeleton />;
+  if (isLoading || !data) return <PageSkeleton preset="compact" />;
+
+  function alertRow(a: (typeof filtered)[number]) {
+    return (
+      <div key={a.id} className="flex items-start gap-3 px-4 py-3">
+        <PriorityDot p={a.priority} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">{a.title}</span>
+            <span className="rounded bg-surface px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
+              {a.type}
+            </span>
+            {a.clients?.name && (
+              <span className="text-[11px] text-muted-foreground">
+                · {a.clients.name}
+              </span>
+            )}
+          </div>
+          {a.description && (
+            <div className="mt-0.5 text-xs text-muted-foreground">
+              {a.description}
+            </div>
+          )}
+          {a.recommended_action && (
+            <div className="mt-1 text-xs text-primary">
+              → {a.recommended_action}
+            </div>
+          )}
+          <div className="mt-2 flex flex-col gap-1.5 text-[11px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+            <span>{timeAgo(a.created_at)}</span>
+            <label className="flex items-center gap-1 font-normal">
+              <span className="shrink-0 text-[10px] uppercase tracking-wide">
+                Responsável
+              </span>
+              <select
+                value={a.assigned_to ?? ""}
+                onChange={(e) => setAssignee(a.id, e.target.value)}
+                className="h-8 max-w-[180px] rounded border border-border bg-background px-1.5 text-[11px] text-foreground"
+              >
+                <option value="">—</option>
+                {(teammates ?? []).map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.display_name || t.email}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
+        {a.status === "open" && (
+          <button
+            type="button"
+            onClick={() => resolve(a.id)}
+            className="shrink-0 rounded-md border border-border px-2.5 py-1 text-xs transition hover:bg-surface-2"
+          >
+            Resolver
+          </button>
+        )}
+      </div>
+    );
+  }
 
   async function resolve(id: string) {
     const { error } = await supabase
@@ -210,70 +289,41 @@ function Alerts() {
             </option>
           ))}
         </select>
+        <select
+          value={groupBy}
+          onChange={(e) => setGroupBy(e.target.value as "none" | "client")}
+          className="h-9 min-w-[140px] rounded-md border border-border bg-background px-2 text-sm"
+        >
+          <option value="none">Lista única</option>
+          <option value="client">Agrupar por cliente</option>
+        </select>
       </div>
 
       <Card>
         {filtered.length === 0 ? (
           <Empty label="Sem alertas para os filtros atuais." />
-        ) : (
+        ) : groupBy === "none" ? (
           <div className="divide-y divide-border">
-            {filtered.map((a: any) => (
-              <div key={a.id} className="flex items-start gap-3 px-4 py-3">
-                <PriorityDot p={a.priority} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{a.title}</span>
-                    <span className="rounded bg-surface px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
-                      {a.type}
-                    </span>
-                    {a.clients?.name && (
-                      <span className="text-[11px] text-muted-foreground">
-                        · {a.clients.name}
-                      </span>
-                    )}
-                  </div>
-                  {a.description && (
-                    <div className="mt-0.5 text-xs text-muted-foreground">
-                      {a.description}
-                    </div>
-                  )}
-                  {a.recommended_action && (
-                    <div className="mt-1 text-xs text-primary">
-                      → {a.recommended_action}
-                    </div>
-                  )}
-                  <div className="mt-2 flex flex-col gap-1.5 text-[11px] text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-                    <span>{timeAgo(a.created_at)}</span>
-                    <label className="flex items-center gap-1 font-normal">
-                      <span className="shrink-0 text-[10px] uppercase tracking-wide">
-                        Responsável
-                      </span>
-                      <select
-                        value={a.assigned_to ?? ""}
-                        onChange={(e) => setAssignee(a.id, e.target.value)}
-                        className="h-8 max-w-[180px] rounded border border-border bg-background px-1.5 text-[11px] text-foreground"
-                      >
-                        <option value="">—</option>
-                        {(teammates ?? []).map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.display_name || t.email}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-                </div>
-                {a.status === "open" && (
-                  <button
-                    onClick={() => resolve(a.id)}
-                    className="shrink-0 rounded-md border border-border px-2.5 py-1 text-xs transition hover:bg-surface-2"
-                  >
-                    Resolver
-                  </button>
-                )}
-              </div>
-            ))}
+            {filtered.map((a) => alertRow(a))}
           </div>
+        ) : (
+          <Accordion type="multiple" className="px-2">
+            {groupedByClient.map(([clientName, items]) => (
+              <AccordionItem key={clientName} value={clientName}>
+                <AccordionTrigger className="py-3 text-sm hover:no-underline">
+                  <span>{clientName}</span>
+                  <span className="ml-2 text-xs font-normal text-muted-foreground">
+                    ({items.length})
+                  </span>
+                </AccordionTrigger>
+                <AccordionContent className="pb-0 pt-0">
+                  <div className="divide-y divide-border rounded-md border border-border">
+                    {items.map((a) => alertRow(a))}
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
         )}
       </Card>
     </div>

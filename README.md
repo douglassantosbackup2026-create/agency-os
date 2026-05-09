@@ -55,6 +55,20 @@ Configure no Dashboard do Supabase (**Edge Functions → Secrets**):
 | `EVOLUTION_API_URL` / `EVOLUTION_API_KEY` | WhatsApp via Evolution API (opcional).                                                                                                                                                                                                                                                                 |
 | `PORTAL_ALLOWED_ORIGINS`                  | Lista separada por vírgula de origens permitidas para CORS no `portal-data`; se vazio, mantém `*`.                                                                                                                                                                                                     |
 
+Secrets adicionais da função **`integration-oauth`** (OAuth browser para Meta / Google / TikTok / GA4):
+
+| Secret | Descrição |
+| ------ | --------- |
+| `INTEGRATION_OAUTH_STATE_SECRET` | Segredo HMAC para assinar o `state` do OAuth (mínimo 16 caracteres). |
+| `META_APP_ID` / `META_APP_SECRET` | App Meta para fluxo Marketing API (`ads_read`). |
+| `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` | OAuth Google (escopos `adwords` e `analytics.readonly`). |
+| `TIKTOK_CLIENT_KEY` ou `TIKTOK_APP_ID` / `TIKTOK_APP_SECRET` ou `TIKTOK_CLIENT_SECRET` | TikTok Marketing API OAuth. |
+| `PUBLIC_SITE_URL` ou `SITE_URL` | URL do frontend sem barra final; redirect válido → `{SITE}/integrations/oauth/callback`. |
+
+Para métricas **Google Ads** via `sync-platform`, mantém-se **`GOOGLE_ADS_DEVELOPER_TOKEN`** (e opcional `GOOGLE_ADS_LOGIN_CUSTOMER_ID` para contas MCC).
+
+Depois de alterar secrets ou políticas sensíveis, execute uma passagem pelos **Supabase Advisors** (Dashboard ou MCP) para rever performance e segurança.
+
 ### Crons (`pg_cron` + `pg_net`)
 
 A migration `20260508160000_unschedule_hardcoded_cron_jobs.sql` remove jobs que continham URL/chave fixas do repositório. Há um modelo com placeholders em [`supabase/cron-jobs.example.sql`](supabase/cron-jobs.example.sql) e, para o projeto Trafego já com ref na URL, [`supabase/cron-jobs.deploy-trafego.sql`](supabase/cron-jobs.deploy-trafego.sql) (substituir `__CRON_SECRET_HERE__` e colar no **SQL Editor** do Supabase).
@@ -88,8 +102,9 @@ Repita o padrão para `evaluate-alerts` (ex.: horário `0 * * * *`) e `whatsapp-
 
 ### Métricas reais (`sync-platform`)
 
-- **Meta Ads**: token + Account ID → insights por **campanha** (fallback conta) nos últimos 7 dias + grava **`campaigns`**.
-- **GA4**: access token OAuth (escopo read) no campo de API da integração + **Property ID** no campo conta → relatório diário últimos dias (métricas mapeadas a partir de sessões/eventos).
+- **Meta Ads**: token + Account ID → insights por **campanha** (fallback conta); **janela em dias** e granularidade **conta vs campanha** configuráveis em `integrations.config` (UI em Integrações) → grava **`campaigns`** + **`metrics_daily`**.
+- **Google Ads / TikTok / GA4**: mesma janela (`sync_days`); Google Ads exige developer token e GA4 usa refresh quando há OAuth.
+- **GA4**: access token OAuth (escopo read) no campo de API da integração + **Property ID** no campo conta → relatório diário (métricas derivadas de sessões/eventos).
 
 ### Buckets de storage
 

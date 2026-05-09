@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { brl, num, timeAgo } from "@/lib/format";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Sparkles,
   Loader2,
@@ -29,6 +29,12 @@ function Reports() {
   const [filterClientId, setFilterClientId] = useState<string>("all");
   const [createdFrom, setCreatedFrom] = useState("");
   const [createdTo, setCreatedTo] = useState("");
+  const [periodFrom, setPeriodFrom] = useState("");
+  const [periodTo, setPeriodTo] = useState("");
+  const [summaryQ, setSummaryQ] = useState("");
+  const [sortBy, setSortBy] = useState<
+    "created_desc" | "period_desc" | "client"
+  >("created_desc");
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["reports", agency?.id],
@@ -51,6 +57,26 @@ function Reports() {
     },
   });
 
+  useEffect(() => {
+    if (!data?.reports?.length) return;
+    let id: string | null = null;
+    try {
+      id = sessionStorage.getItem("agency-os-highlight-report");
+    } catch {
+      return;
+    }
+    if (!id) return;
+    const found = data.reports.find((r: { id: string }) => r.id === id);
+    if (found) {
+      setSelected(found);
+      try {
+        sessionStorage.removeItem("agency-os-highlight-report");
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [data?.reports]);
+
   const filteredReports = useMemo(() => {
     if (!data?.reports) return [];
     let list = data.reports as any[];
@@ -71,8 +97,51 @@ function Reports() {
         (r) => new Date(r.created_at).getTime() <= end.getTime(),
       );
     }
+    if (periodFrom.trim()) {
+      const pf = periodFrom.slice(0, 10);
+      list = list.filter((r) => String(r.period_end ?? "").slice(0, 10) >= pf);
+    }
+    if (periodTo.trim()) {
+      const pt = periodTo.slice(0, 10);
+      list = list.filter(
+        (r) => String(r.period_start ?? "").slice(0, 10) <= pt,
+      );
+    }
+    if (summaryQ.trim()) {
+      const q = summaryQ.trim().toLowerCase();
+      list = list.filter((r) => {
+        const ex = String(r.executive_summary ?? "").toLowerCase();
+        const cf = String(r.client_friendly_summary ?? "").toLowerCase();
+        return ex.includes(q) || cf.includes(q);
+      });
+    }
+    list = [...list].sort((a, b) => {
+      if (sortBy === "client") {
+        return String(a.clients?.name ?? "").localeCompare(
+          String(b.clients?.name ?? ""),
+          "pt-BR",
+        );
+      }
+      if (sortBy === "period_desc") {
+        const pa = String(a.period_end ?? a.period_start ?? "");
+        const pb = String(b.period_end ?? b.period_start ?? "");
+        return pb.localeCompare(pa);
+      }
+      return (
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+    });
     return list;
-  }, [data?.reports, filterClientId, createdFrom, createdTo]);
+  }, [
+    data?.reports,
+    filterClientId,
+    createdFrom,
+    createdTo,
+    periodFrom,
+    periodTo,
+    summaryQ,
+    sortBy,
+  ]);
 
   async function generateFor(clientId: string) {
     setGenerating(true);
@@ -203,7 +272,7 @@ function Reports() {
     );
   }
 
-  if (isLoading || !data) return <PageSkeleton />;
+  if (isLoading || !data) return <PageSkeleton preset="split" />;
 
   return (
     <div className="grid h-[calc(100vh-3.5rem)] grid-cols-1 lg:grid-cols-[360px_1fr]">
@@ -246,6 +315,40 @@ function Reports() {
                 title="Gerado até"
               />
             </div>
+            <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              Período coberto pelo relatório
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="date"
+                value={periodFrom}
+                onChange={(e) => setPeriodFrom(e.target.value)}
+                className="h-9 min-w-0 flex-1 rounded-md border border-border bg-background px-2"
+                title="period_end a partir de"
+              />
+              <input
+                type="date"
+                value={periodTo}
+                onChange={(e) => setPeriodTo(e.target.value)}
+                className="h-9 min-w-0 flex-1 rounded-md border border-border bg-background px-2"
+                title="period_start até"
+              />
+            </div>
+            <input
+              value={summaryQ}
+              onChange={(e) => setSummaryQ(e.target.value)}
+              placeholder="Buscar no resumo executivo…"
+              className="h-9 w-full rounded-md border border-border bg-background px-2"
+            />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+              className="h-9 w-full rounded-md border border-border bg-background px-2"
+            >
+              <option value="created_desc">Ordenar: mais recentes</option>
+              <option value="period_desc">Ordenar: fim do período</option>
+              <option value="client">Ordenar: cliente (A–Z)</option>
+            </select>
           </div>
         </div>
         <div className="border-b border-border p-3">

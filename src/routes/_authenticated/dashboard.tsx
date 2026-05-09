@@ -598,7 +598,47 @@ export function Badge({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function PageSkeleton() {
+export function PageSkeleton(props?: {
+  preset?: "dashboard" | "compact" | "split";
+}) {
+  const preset = props?.preset ?? "dashboard";
+  if (preset === "compact") {
+    return (
+      <div className="space-y-4 p-6">
+        <div className="space-y-2">
+          <Shimmer className="h-7 w-48" />
+          <Shimmer className="h-3 w-72" />
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Shimmer
+              key={i}
+              className="h-36 rounded-xl"
+              style={{ animationDelay: `${i * 50}ms` }}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
+  if (preset === "split") {
+    return (
+      <div className="grid h-[calc(100vh-3.5rem)] grid-cols-1 lg:grid-cols-[360px_1fr]">
+        <div className="space-y-3 border-r border-border p-4">
+          <Shimmer className="h-9 w-full rounded-md" />
+          <Shimmer className="h-20 w-full rounded-lg" />
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Shimmer key={i} className="h-14 w-full rounded-lg" />
+          ))}
+        </div>
+        <div className="space-y-4 p-6">
+          <Shimmer className="h-9 w-2/3 max-w-md" />
+          <Shimmer className="min-h-[280px] w-full rounded-xl" />
+          <Shimmer className="h-40 w-full rounded-xl" />
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="space-y-4 p-6">
       <div className="space-y-2">

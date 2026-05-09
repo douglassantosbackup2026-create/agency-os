@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, num, pct, timeAgo } from "@/lib/format";
@@ -39,6 +39,7 @@ type ClientTab =
   | "overview"
   | "metrics"
   | "health_timeline"
+  | "insights"
   | "campaigns"
   | "alerts"
   | "reports"
@@ -50,6 +51,7 @@ const TAB_ORDER: ClientTab[] = [
   "overview",
   "metrics",
   "health_timeline",
+  "insights",
   "campaigns",
   "alerts",
   "reports",
@@ -63,6 +65,7 @@ function tabLabel(t: ClientTab): string {
     overview: "Visão geral",
     metrics: "Métricas",
     health_timeline: "Health",
+    insights: "Insights IA",
     campaigns: "Campanhas",
     alerts: "Alertas",
     reports: "Relatórios",
@@ -75,6 +78,7 @@ function tabLabel(t: ClientTab): string {
 
 function ClientDetail() {
   const { clientId } = Route.useParams();
+  const navigate = useNavigate();
   const [tab, setTab] = useState<ClientTab>("overview");
   const [generating, setGenerating] = useState(false);
 
@@ -183,7 +187,31 @@ function ClientDetail() {
     }));
   }, [data?.health]);
 
-  if (isLoading || !data) return <PageSkeleton />;
+  const healthInsights = useMemo(() => {
+    const health = data?.health ?? [];
+    const sorted = [...health].sort((a, b) =>
+      String(a.recorded_at).localeCompare(String(b.recorded_at)),
+    );
+    const last = sorted.slice(-10);
+    if (!last.length)
+      return { avg: null as number | null, delta: null as number | null };
+    const avg =
+      last.reduce((s, h) => s + Number(h.score ?? 0), 0) / last.length;
+    let delta: number | null = null;
+    if (last.length >= 4) {
+      const mid = Math.floor(last.length / 2);
+      const a1 =
+        last.slice(0, mid).reduce((s, h) => s + Number(h.score ?? 0), 0) /
+        Math.max(1, mid);
+      const a2 =
+        last.slice(mid).reduce((s, h) => s + Number(h.score ?? 0), 0) /
+        Math.max(1, last.length - mid);
+      delta = Math.round((a2 - a1) * 10) / 10;
+    }
+    return { avg: Math.round(avg * 10) / 10, delta };
+  }, [data?.health]);
+
+  if (isLoading || !data) return <PageSkeleton preset="compact" />;
   if (!data.client)
     return (
       <div className="p-6 text-sm text-muted-foreground">
@@ -481,6 +509,108 @@ function ClientDetail() {
             )}
           </div>
         </Card>
+      )}
+
+      {tab === "insights" && (
+        <div className="space-y-4">
+          <Card>
+            <CardHeader title="Relatórios IA recentes" />
+            <div className="space-y-3 p-4">
+              {data.reports.length === 0 ? (
+                <Empty label="Gere um relatório IA para ver o resumo aqui." />
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    Último relatório · {timeAgo(data.reports[0].created_at)}
+                    {data.reports[0].period_start &&
+                      data.reports[0].period_end && (
+                        <>
+                          {" "}
+                          · Período{" "}
+                          {String(data.reports[0].period_start).slice(
+                            0,
+                            10,
+                          )} → {String(data.reports[0].period_end).slice(0, 10)}
+                        </>
+                      )}
+                  </p>
+                  <ReportSection
+                    title="Resumo executivo"
+                    body={data.reports[0].executive_summary}
+                  />
+                  {data.reports[0].opportunities ? (
+                    <ReportSection
+                      title="Oportunidades"
+                      body={data.reports[0].opportunities}
+                    />
+                  ) : null}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setTab("reports")}
+                      className="text-xs font-medium text-primary hover:underline"
+                    >
+                      Ver todos os relatórios deste cliente →
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate({ to: "/reports" })}
+                      className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+                    >
+                      Abrir lista global de relatórios
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </Card>
+
+          <Card>
+            <CardHeader title="Health — leitura rápida" />
+            <div className="space-y-3 p-4 text-sm">
+              {healthInsights.avg == null ? (
+                <Empty label="Sem pontos de health ainda." />
+              ) : (
+                <>
+                  <div className="flex flex-wrap gap-4">
+                    <div>
+                      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                        Média (últimos registos)
+                      </div>
+                      <div className="font-mono text-2xl font-semibold tabular">
+                        {healthInsights.avg}
+                      </div>
+                    </div>
+                    {healthInsights.delta != null && (
+                      <div>
+                        <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          Tendência (1ª vs 2ª metade)
+                        </div>
+                        <div
+                          className={
+                            healthInsights.delta >= 0
+                              ? "font-medium text-emerald-600 dark:text-emerald-400"
+                              : "font-medium text-amber-600 dark:text-amber-400"
+                          }
+                        >
+                          {healthInsights.delta >= 0 ? "+" : ""}
+                          {healthInsights.delta} pts
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setTab("health_timeline")}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    Ver gráfico completo →
+                  </button>
+                </>
+              )}
+            </div>
+          </Card>
+        </div>
       )}
 
       {tab === "tasks" && (

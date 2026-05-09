@@ -4,7 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, XCircle, Plug, RefreshCw, Loader2 } from "lucide-react";
+import {
+  CheckCircle2,
+  XCircle,
+  Plug,
+  RefreshCw,
+  Loader2,
+  ExternalLink,
+} from "lucide-react";
 import { motion } from "framer-motion";
 import { Card, CardHeader, PageSkeleton } from "./dashboard";
 import { timeAgo } from "@/lib/format";
@@ -12,6 +19,19 @@ import { timeAgo } from "@/lib/format";
 export const Route = createFileRoute("/_authenticated/integrations")({
   component: Integrations,
 });
+
+function cfgSyncDays(cfg: unknown): number {
+  if (!cfg || typeof cfg !== "object" || Array.isArray(cfg)) return 7;
+  const n = Number((cfg as Record<string, unknown>).sync_days);
+  return Number.isFinite(n) && n >= 1 && n <= 90 ? Math.round(n) : 7;
+}
+
+function cfgMetaGranularity(cfg: unknown): "campaign" | "account" {
+  if (!cfg || typeof cfg !== "object" || Array.isArray(cfg)) return "campaign";
+  return (cfg as Record<string, unknown>).meta_granularity === "account"
+    ? "account"
+    : "campaign";
+}
 
 const PROVIDERS = [
   { key: "meta_ads", name: "Meta Ads", desc: "Facebook & Instagram Ads" },
@@ -30,6 +50,7 @@ function Integrations() {
   const [apiKey, setApiKey] = useState("");
   const [accountId, setAccountId] = useState("");
   const [syncing, setSyncing] = useState<string | null>(null);
+  const [oauthBusy, setOauthBusy] = useState<string | null>(null);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["integrations", agency?.id],
@@ -77,11 +98,55 @@ function Integrations() {
     refetch();
   }
 
+  async function updateIntegrationConfig(
+    providerKey: string,
+    patch: Record<string, unknown>,
+  ) {
+    const existing = data?.integ.find((i) => i.provider === providerKey);
+    if (!existing?.id) return;
+    const base =
+      existing.config &&
+      typeof existing.config === "object" &&
+      !Array.isArray(existing.config)
+        ? { ...(existing.config as Record<string, unknown>) }
+        : {};
+    const next = { ...base, ...patch };
+    const { error } = await supabase
+      .from("integrations")
+      .update({ config: next })
+      .eq("id", existing.id);
+    if (error) toast.error(error.message);
+    else {
+      toast.success("Preferências de sincronização guardadas.");
+      refetch();
+    }
+  }
+
+  async function startOAuth(provider: string) {
+    setOauthBusy(provider);
+    const { data, error } = await supabase.functions.invoke(
+      "integration-oauth",
+      { body: { action: "start", provider } },
+    );
+    setOauthBusy(null);
+    if (error) return toast.error(error.message);
+    const url = (data as { url?: string })?.url;
+    const err = (data as { error?: string })?.error;
+    if (err) return toast.error(err);
+    if (url) window.location.href = url;
+    else toast.error("URL OAuth não devolvida — configure secrets.");
+  }
+
   async function disconnect(id: string) {
     if (!confirm("Desconectar integração?")) return;
     const { error } = await supabase
       .from("integrations")
-      .update({ status: "disconnected", api_key_encrypted: null })
+      .update({
+        status: "disconnected",
+        api_key_encrypted: null,
+        refresh_token_encrypted: null,
+        token_expires_at: null,
+      })
       .eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Desconectada.");
@@ -104,7 +169,7 @@ function Integrations() {
     toast[fail ? "error" : "success"](`Sync: ${ok} ok, ${fail} falhas`);
   }
 
-  if (isLoading || !data) return <PageSkeleton />;
+  if (isLoading || !data) return <PageSkeleton preset="compact" />;
 
   return (
     <motion.div
@@ -159,6 +224,65 @@ function Integrations() {
                       Última sync:{" "}
                       {conn?.last_sync_at ? timeAgo(conn.last_sync_at) : "—"}
                     </div>
+                    {conn?.token_expires_at && (
+                      <div>
+                        Token OAuth até:{" "}
+                        {new Date(conn.token_expires_at).toLocaleString(
+                          "pt-BR",
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {isConnected && (
+                  <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3 text-xs">
+                    <div className="font-medium text-foreground">
+                      Janela de sincronização
+                    </div>
+                    <label className="flex flex-col gap-1">
+                      <span className="text-muted-foreground">
+                        Dias de histórico nas APIs (1–90)
+                      </span>
+                      <select
+                        value={cfgSyncDays(conn?.config)}
+                        onChange={(e) =>
+                          updateIntegrationConfig(p.key, {
+                            sync_days: Number(e.target.value),
+                          })
+                        }
+                        className="h-8 rounded-md border border-border bg-background px-2"
+                      >
+                        {[7, 14, 30, 60, 90].map((d) => (
+                          <option key={d} value={d}>
+                            {d} dias
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    {p.key === "meta_ads" && (
+                      <label className="flex flex-col gap-1">
+                        <span className="text-muted-foreground">
+                          Granularidade Meta
+                        </span>
+                        <select
+                          value={cfgMetaGranularity(conn?.config)}
+                          onChange={(e) =>
+                            updateIntegrationConfig(p.key, {
+                              meta_granularity: e.target.value,
+                            })
+                          }
+                          className="h-8 rounded-md border border-border bg-background px-2"
+                        >
+                          <option value="campaign">
+                            Por campanha (recomendado)
+                          </option>
+                          <option value="account">
+                            Apenas conta (agregado)
+                          </option>
+                        </select>
+                      </label>
+                    )}
                   </div>
                 )}
 
@@ -198,17 +322,32 @@ function Integrations() {
 
                 <div className="flex flex-wrap gap-2">
                   {!isEditing && (
-                    <button
-                      onClick={() => {
-                        setEditing(p.key);
-                        setApiKey("");
-                        setAccountId(conn?.account_id ?? "");
-                      }}
-                      className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface-2"
-                    >
-                      <Plug className="h-3 w-3" />{" "}
-                      {isConnected ? "Reconectar" : "Conectar"}
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        disabled={oauthBusy === p.key}
+                        onClick={() => startOAuth(p.key)}
+                        className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
+                      >
+                        {oauthBusy === p.key ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <ExternalLink className="h-3 w-3" />
+                        )}
+                        OAuth (recomendado)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditing(p.key);
+                          setApiKey("");
+                          setAccountId(conn?.account_id ?? "");
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface-2"
+                      >
+                        <Plug className="h-3 w-3" /> Token manual
+                      </button>
+                    </>
                   )}
                   {isConnected && (
                     <>
@@ -245,8 +384,8 @@ function Integrations() {
           <p>
             • <strong>Meta Ads:</strong> token + <strong>Account ID</strong>.
             Sync via Marketing API: insights por <strong>campanha</strong>{" "}
-            (fallback nível conta) — últimos 7 dias — atualiza também a tabela{" "}
-            <code className="rounded bg-surface px-1">campaigns</code>.
+            (fallback nível conta) — janela configurável acima — atualiza também
+            a tabela <code className="rounded bg-surface px-1">campaigns</code>.
           </p>
           <p>
             • <strong>Google Analytics 4:</strong>{" "}
@@ -256,9 +395,24 @@ function Integrations() {
             <code className="text-[10px]">properties/123</code>).
           </p>
           <p>
-            • <strong>Google Ads / TikTok:</strong> credenciais na UI são
-            guardadas; métricas diárias permanecem <strong>simuladas</strong>{" "}
-            até integração própria.
+            • <strong>OAuth:</strong> use o botão OAuth — configure secrets na
+            Edge Function{" "}
+            <code className="rounded bg-surface px-1">integration-oauth</code>{" "}
+            (ver README). Redirect:{" "}
+            <code className="text-[10px]">.../integrations/oauth/callback</code>
+            .
+          </p>
+          <p>
+            • <strong>Google Ads:</strong> após OAuth, indique o{" "}
+            <strong>Customer ID</strong> (token manual ou edição). É preciso{" "}
+            <code className="rounded bg-surface px-1">
+              GOOGLE_ADS_DEVELOPER_TOKEN
+            </code>{" "}
+            nas secrets do projeto para sync real.
+          </p>
+          <p>
+            • <strong>TikTok:</strong> OAuth + <strong>Advertiser ID</strong> no
+            campo conta; sync por relatório integrado (janela configurável).
           </p>
           <p>
             • Use &quot;Sincronizar todos clientes&quot; após conectar cada
