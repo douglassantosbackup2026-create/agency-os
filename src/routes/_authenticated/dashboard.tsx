@@ -37,6 +37,9 @@ function Dashboard() {
       const since = new Date(Date.now() - 30 * 86400000)
         .toISOString()
         .slice(0, 10);
+      const since60 = new Date(Date.now() - 60 * 86400000)
+        .toISOString()
+        .slice(0, 10);
       const since14 = new Date(Date.now() - 14 * 86400000)
         .toISOString()
         .slice(0, 10);
@@ -51,7 +54,7 @@ function Dashboard() {
             .select("date, spend, revenue, roas")
             .eq("agency_id", agency!.id)
             .is("campaign_id", null)
-            .gte("date", since),
+            .gte("date", since60),
           supabase
             .from("alerts")
             .select("id, title, priority, created_at, type, recommended_action")
@@ -122,13 +125,38 @@ function Dashboard() {
 
   if (isLoading || !data) return <PageSkeleton />;
 
-  const spend = data.metrics.reduce((a, b) => a + Number(b.spend ?? 0), 0);
-  const revenue = data.metrics.reduce((a, b) => a + Number(b.revenue ?? 0), 0);
+  const metrics30 = data.metrics.filter(
+    (m) => new Date(m.date).getTime() >= Date.now() - 30 * 86400000,
+  );
+  const metricsPrev30 = data.metrics.filter((m) => {
+    const ts = new Date(m.date).getTime();
+    return ts < Date.now() - 30 * 86400000 && ts >= Date.now() - 60 * 86400000;
+  });
+  const spend = metrics30.reduce((a, b) => a + Number(b.spend ?? 0), 0);
+  const revenue = metrics30.reduce((a, b) => a + Number(b.revenue ?? 0), 0);
   const roas = spend > 0 ? revenue / spend : 0;
   const mrr = data.clients.reduce((a, b) => a + Number(b.mrr ?? 0), 0);
+  const prevSpend = metricsPrev30.reduce((a, b) => a + Number(b.spend ?? 0), 0);
+  const prevRevenue = metricsPrev30.reduce(
+    (a, b) => a + Number(b.revenue ?? 0),
+    0,
+  );
+  const mrrDeltaPct =
+    prevRevenue > 0 ? ((revenue - prevRevenue) / prevRevenue) * 100 : 0;
+  const spendDeltaPct =
+    prevSpend > 0 ? ((spend - prevSpend) / prevSpend) * 100 : 0;
   const activeClients = data.clients.filter(
     (c) => c.status === "active",
   ).length;
+  const churnedClients = data.clients.filter(
+    (c) => c.status === "churned",
+  ).length;
+  const renewals30d = data.clients.filter((c) => {
+    const d = c.started_at ? new Date(c.started_at).getTime() : 0;
+    if (!d) return false;
+    const in30 = d + 365 * 86400000;
+    return in30 >= Date.now() && in30 <= Date.now() + 30 * 86400000;
+  }).length;
   const latestHealth = new Map<string, { score: number; risk: string }>();
   for (const h of data.health)
     if (!latestHealth.has(h.client_id)) latestHealth.set(h.client_id, h);
@@ -210,9 +238,10 @@ function Dashboard() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         <Stat
           icon={Wallet}
-          label="Faturamento gerenciado"
+          label="Receita 30d"
           value={brl(revenue)}
           accent="text-success"
+          sub={`${mrrDeltaPct >= 0 ? "+" : ""}${mrrDeltaPct.toFixed(1)}% vs 30d ant.`}
         />
         <Stat
           icon={TrendingUp}
@@ -220,7 +249,12 @@ function Dashboard() {
           value={`${roas.toFixed(2)}x`}
           accent={roas >= 2 ? "text-success" : "text-warning"}
         />
-        <Stat icon={Zap} label="Spend total" value={brl(spend)} />
+        <Stat
+          icon={Zap}
+          label="Spend 30d"
+          value={brl(spend)}
+          sub={`${spendDeltaPct >= 0 ? "+" : ""}${spendDeltaPct.toFixed(1)}% vs 30d ant.`}
+        />
         <Stat
           icon={Users}
           label="Clientes ativos"
@@ -246,6 +280,21 @@ function Dashboard() {
           value={String(criticals)}
           accent={criticals > 0 ? "text-destructive" : "text-muted-foreground"}
           sub={`${data.alerts.length} abertos`}
+        />
+        <Stat
+          icon={ArrowDownRight}
+          label="Churn clientes"
+          value={String(churnedClients)}
+          accent={
+            churnedClients > 0 ? "text-destructive" : "text-muted-foreground"
+          }
+          sub="status churned"
+        />
+        <Stat
+          icon={Activity}
+          label="Renovações 30d"
+          value={String(renewals30d)}
+          sub={`MRR atual ${brl(mrr)}`}
         />
       </div>
 

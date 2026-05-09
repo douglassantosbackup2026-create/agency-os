@@ -18,6 +18,7 @@ function PortalPage() {
   const { portalSlug } = Route.useParams();
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [reviewingId, setReviewingId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -67,6 +68,38 @@ function PortalPage() {
   );
   const roas = totalSpend > 0 ? totalRevenue / totalSpend : 0;
   const cpa = totalConv > 0 ? totalSpend / totalConv : 0;
+
+  async function reviewCreative(
+    creativeId: string,
+    decision: "approved" | "rejected",
+  ) {
+    setReviewingId(creativeId);
+    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/portal-creative-review`;
+    const r = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+      },
+      body: JSON.stringify({
+        slug: portalSlug,
+        creative_id: creativeId,
+        decision,
+      }),
+    });
+    const j = await r.json().catch(() => ({}));
+    setReviewingId(null);
+    if (!r.ok) {
+      setError(j.error ?? "Falha ao registrar aprovação");
+      return;
+    }
+    setData((prev: any) => ({
+      ...prev,
+      pending_creatives: (prev?.pending_creatives ?? []).filter(
+        (c: any) => c.id !== creativeId,
+      ),
+    }));
+  }
 
   return (
     <div
@@ -198,6 +231,58 @@ function PortalPage() {
                     >
                       {c.status}
                     </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-xl border border-border bg-card">
+          <div className="border-b border-border px-5 py-3">
+            <h2 className="text-sm font-semibold">Aprovação de criativos</h2>
+          </div>
+          {(data.pending_creatives ?? []).length === 0 ? (
+            <div className="px-5 py-8 text-center text-sm text-muted-foreground">
+              Sem criativos pendentes.
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {(data.pending_creatives ?? []).map((item: any) => (
+                <div key={item.id} className="space-y-2 px-5 py-3">
+                  <div className="text-sm font-medium">{item.title}</div>
+                  {item.description ? (
+                    <div className="text-xs text-muted-foreground">
+                      {item.description}
+                    </div>
+                  ) : null}
+                  {item.preview_url ? (
+                    <a
+                      href={item.preview_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Ver preview
+                    </a>
+                  ) : null}
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={reviewingId === item.id}
+                      onClick={() => reviewCreative(item.id, "approved")}
+                      className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-600"
+                    >
+                      Aprovar
+                    </button>
+                    <button
+                      type="button"
+                      disabled={reviewingId === item.id}
+                      onClick={() => reviewCreative(item.id, "rejected")}
+                      className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-xs text-destructive"
+                    >
+                      Reprovar
+                    </button>
                   </div>
                 </div>
               ))}

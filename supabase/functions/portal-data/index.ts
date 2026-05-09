@@ -61,6 +61,7 @@ Deno.serve(async (req) => {
       { data: campaigns },
       { data: report },
       { data: health },
+      { data: pendingCreatives },
     ] = await Promise.all([
       admin
         .from("metrics_daily")
@@ -90,6 +91,13 @@ Deno.serve(async (req) => {
         .order("recorded_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
+      admin
+        .from("creative_assets")
+        .select("id, title, description, preview_url, status, created_at")
+        .eq("client_id", client.id)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(10),
     ]);
 
     return new Response(
@@ -100,6 +108,7 @@ Deno.serve(async (req) => {
         campaigns: campaigns ?? [],
         report,
         health,
+        pending_creatives: pendingCreatives ?? [],
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

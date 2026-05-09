@@ -74,11 +74,25 @@ function Admin() {
           .order("created_at", { ascending: false })
           .limit(20),
       ]);
+      const sb = supabase as any;
+      const [clients, scopes] = await Promise.all([
+        supabase
+          .from("clients")
+          .select("id, name")
+          .eq("agency_id", agency!.id)
+          .order("name"),
+        sb
+          .from("client_member_scopes")
+          .select("id, user_id, client_id")
+          .eq("agency_id", agency!.id),
+      ]);
       return {
         roles: roles.data ?? [],
         flags: flags.data ?? [],
         sub: sub.data,
         activity: activity.data ?? [],
+        clients: clients.data ?? [],
+        scopes: scopes.data ?? [],
       };
     },
   });
@@ -132,6 +146,31 @@ function Admin() {
       await supabase
         .from("feature_flags")
         .insert({ agency_id: agency!.id, key, enabled: true });
+    }
+    refetch();
+  }
+
+  async function toggleScope(
+    userId: string,
+    clientId: string,
+    active: boolean,
+  ) {
+    const sb = supabase as any;
+    if (active) {
+      const { error } = await sb
+        .from("client_member_scopes")
+        .delete()
+        .eq("agency_id", agency!.id)
+        .eq("user_id", userId)
+        .eq("client_id", clientId);
+      if (error) return toast.error(error.message);
+    } else {
+      const { error } = await sb.from("client_member_scopes").insert({
+        agency_id: agency!.id,
+        user_id: userId,
+        client_id: clientId,
+      });
+      if (error) return toast.error(error.message);
     }
     refetch();
   }
@@ -279,6 +318,51 @@ function Admin() {
               Meio de pagamento não configurado nesta fase; ajustes manuais na
               base ou futura integração.
             </span>
+          </div>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader title="Escopo por carteira de clientes (membros)" />
+          <div className="space-y-3 p-4">
+            {data.roles
+              .filter((r: any) => r.role === "member")
+              .map((member: any) => (
+                <div
+                  key={member.id}
+                  className="rounded-md border border-border p-3"
+                >
+                  <div className="mb-2 text-sm font-medium">
+                    {member.profiles?.display_name || member.profiles?.email}
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {data.clients.map((c: any) => {
+                      const active = data.scopes.some(
+                        (s: any) =>
+                          s.user_id === member.user_id && s.client_id === c.id,
+                      );
+                      return (
+                        <label
+                          key={c.id}
+                          className="flex items-center gap-2 text-xs text-muted-foreground"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={active}
+                            onChange={() =>
+                              toggleScope(member.user_id, c.id, active)
+                            }
+                          />
+                          {c.name}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            {data.roles.filter((r: any) => r.role === "member").length ===
+              0 && (
+              <Empty label="Convide membros para configurar carteira por cliente." />
+            )}
           </div>
         </Card>
 

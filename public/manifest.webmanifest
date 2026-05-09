@@ -1,0 +1,16 @@
+{
+  "name": "Retentio",
+  "short_name": "Retentio",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#060c18",
+  "theme_color": "#7c5cff",
+  "description": "SO de retenção para agências de tráfego",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

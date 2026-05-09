@@ -143,6 +143,20 @@ function Reports() {
     sortBy,
   ]);
 
+  const previousReportById = useMemo(() => {
+    const map = new Map<string, any>();
+    const all = (data?.reports ?? []) as any[];
+    for (const r of all) {
+      const prev = all.find(
+        (x) =>
+          x.client_id === r.client_id &&
+          new Date(x.created_at).getTime() < new Date(r.created_at).getTime(),
+      );
+      if (prev) map.set(r.id, prev);
+    }
+    return map;
+  }, [data?.reports]);
+
   async function generateFor(clientId: string) {
     setGenerating(true);
     const { error } = await supabase.functions.invoke("generate-report", {
@@ -458,6 +472,34 @@ function Reports() {
                   </button>
                 </div>
               </div>
+              {previousReportById.get(selected.id)?.raw_data &&
+                selected.raw_data && (
+                  <Card>
+                    <div className="border-b border-border px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Comparativo com relatório anterior
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 p-4 text-xs sm:grid-cols-4">
+                      {(["spend", "revenue", "roas", "conv"] as const).map(
+                        (k) => {
+                          const prev = Number(
+                            previousReportById.get(selected.id).raw_data?.[k] ??
+                              0,
+                          );
+                          const cur = Number(selected.raw_data?.[k] ?? 0);
+                          const pct =
+                            prev > 0 ? ((cur - prev) / prev) * 100 : 0;
+                          return (
+                            <Metric
+                              key={k}
+                              label={`${k} Δ`}
+                              value={`${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`}
+                            />
+                          );
+                        },
+                      )}
+                    </div>
+                  </Card>
+                )}
               <Section
                 title="Resumo executivo"
                 body={selected.executive_summary}

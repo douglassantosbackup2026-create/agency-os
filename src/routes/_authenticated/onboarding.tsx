@@ -12,6 +12,7 @@ import {
 import { useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_authenticated/onboarding")({
   component: Onboarding,
@@ -26,6 +27,80 @@ function Onboarding() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
   const [inviting, setInviting] = useState(false);
+  const CHECKLIST_STEPS = [
+    { key: "platform_access", title: "Solicitar acessos às plataformas" },
+    { key: "budget_goal", title: "Configurar budget e meta do cliente" },
+    { key: "portal_sent", title: "Enviar link do portal ao cliente" },
+    { key: "first_report", title: "Gerar primeiro relatório IA" },
+  ] as const;
+
+  const { data: checklistData, refetch: refetchChecklist } = useQuery({
+    queryKey: ["onboarding-checklist", agency?.id],
+    enabled: !!agency,
+    queryFn: async () => {
+      const sb = supabase as any;
+      const [clientsRes, itemsRes] = await Promise.all([
+        sb
+          .from("clients")
+          .select("id, name")
+          .eq("agency_id", agency!.id)
+          .order("name"),
+        sb
+          .from("onboarding_checklist_items")
+          .select("id, client_id, step_key, status")
+          .eq("agency_id", agency!.id),
+      ]);
+      const clients = (clientsRes.data ?? []) as Array<{
+        id: string;
+        name: string;
+      }>;
+      const items = (itemsRes.data ?? []) as Array<{
+        id: string;
+        client_id: string;
+        step_key: string;
+        status: "pending" | "done";
+      }>;
+      return { clients, items };
+    },
+  });
+
+  async function toggleChecklist(
+    clientId: string,
+    stepKey: string,
+    done: boolean,
+  ) {
+    if (!agency) return;
+    const sb = supabase as any;
+    const existing = checklistData?.items.find(
+      (i) => i.client_id === clientId && i.step_key === stepKey,
+    );
+    const payload = {
+      agency_id: agency.id,
+      client_id: clientId,
+      step_key: stepKey,
+      title:
+        CHECKLIST_STEPS.find((s) => s.key === stepKey)?.title ??
+        "Etapa onboarding",
+      status: done ? "done" : "pending",
+      completed_at: done ? new Date().toISOString() : null,
+      sort_order: Math.max(
+        0,
+        CHECKLIST_STEPS.findIndex((s) => s.key === stepKey),
+      ),
+    };
+    const op = existing
+      ? sb
+          .from("onboarding_checklist_items")
+          .update(payload)
+          .eq("id", existing.id)
+      : sb.from("onboarding_checklist_items").insert(payload);
+    const { error } = await op;
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    refetchChecklist();
+  }
 
   async function sendInvite(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -175,6 +250,79 @@ function Onboarding() {
           >
             Ir ao dashboard <Sparkles className="h-3.5 w-3.5" />
           </Link>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader title="Checklist operacional por cliente" />
+        <div className="space-y-3 p-4">
+          {(checklistData?.clients ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Adicione clientes para acompanhar onboarding e time-to-value.
+            </p>
+          ) : (
+            (checklistData?.clients ?? []).map((client) => {
+              const doneCount = CHECKLIST_STEPS.filter((step) =>
+                checklistData?.items.some(
+                  (i) =>
+                    i.client_id === client.id &&
+                    i.step_key === step.key &&
+                    i.status === "done",
+                ),
+              ).length;
+              const pct = Math.round(
+                (doneCount / CHECKLIST_STEPS.length) * 100,
+              );
+              return (
+                <div
+                  key={client.id}
+                  className="rounded-md border border-border p-3"
+                >
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="text-sm font-medium">{client.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {doneCount}/{CHECKLIST_STEPS.length} · {pct}%
+                    </div>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded bg-surface">
+                    <div
+                      className="h-full bg-primary"
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    {CHECKLIST_STEPS.map((step) => {
+                      const done = checklistData?.items.some(
+                        (i) =>
+                          i.client_id === client.id &&
+                          i.step_key === step.key &&
+                          i.status === "done",
+                      );
+                      return (
+                        <label
+                          key={step.key}
+                          className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={done}
+                            onChange={(e) =>
+                              toggleChecklist(
+                                client.id,
+                                step.key,
+                                e.target.checked,
+                              )
+                            }
+                          />
+                          {step.title}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </Card>
     </div>

@@ -836,7 +836,7 @@ Deno.serve(async (req) => {
         headers: corsHeaders,
       });
 
-    const { provider, client_id } = await req.json();
+    const { provider, client_id, account_external_id } = await req.json();
     if (!provider || !client_id)
       return new Response(
         JSON.stringify({ error: "provider and client_id required" }),
@@ -883,6 +883,20 @@ Deno.serve(async (req) => {
     }
 
     const syncCfg = parseIntegrationSyncConfig(integ.config);
+    const { data: scopedAccount } = await admin
+      .from("client_platform_accounts")
+      .select("account_external_id")
+      .eq("client_id", client_id)
+      .eq("provider", provider)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const accountOverride =
+      typeof account_external_id === "string" && account_external_id.trim()
+        ? account_external_id.trim()
+        : (scopedAccount?.account_external_id ?? null);
 
     let rows: MetricRowInsert[] = [];
     let mode:
@@ -895,7 +909,7 @@ Deno.serve(async (req) => {
 
     if (provider === "meta_ads") {
       const token = integ.api_key_encrypted as string | null;
-      const accountId = integ.account_id as string | null;
+      const accountId = accountOverride ?? (integ.account_id as string | null);
       if (token && accountId) {
         if (syncCfg.metaGranularity === "account") {
           const acc = await fetchMetaAccountInsights(
@@ -981,7 +995,7 @@ Deno.serve(async (req) => {
         );
       }
     } else if (provider === "google_analytics") {
-      const propertyId = integ.account_id as string | null;
+      const propertyId = accountOverride ?? (integ.account_id as string | null);
       const gtok = await refreshGoogleAccessToken(
         admin,
         integ as Record<string, unknown>,
@@ -1014,7 +1028,7 @@ Deno.serve(async (req) => {
         );
       }
     } else if (provider === "google_ads") {
-      const customerId = integ.account_id as string | null;
+      const customerId = accountOverride ?? (integ.account_id as string | null);
       const devTok = Deno.env.get("GOOGLE_ADS_DEVELOPER_TOKEN");
       const gtok = await refreshGoogleAccessToken(
         admin,
@@ -1075,7 +1089,8 @@ Deno.serve(async (req) => {
         );
       }
     } else if (provider === "tiktok_ads") {
-      const advertiserId = integ.account_id as string | null;
+      const advertiserId =
+        accountOverride ?? (integ.account_id as string | null);
       const token = integ.api_key_encrypted as string | null;
       if (token && advertiserId) {
         const res = await fetchTikTokCampaignMetrics(

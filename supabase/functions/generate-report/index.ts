@@ -58,19 +58,26 @@ Deno.serve(async (req) => {
     const since = new Date(Date.now() - 30 * 86400000)
       .toISOString()
       .slice(0, 10);
+    const sincePrev = new Date(Date.now() - 60 * 86400000)
+      .toISOString()
+      .slice(0, 10);
     const { data: metrics } = await admin
       .from("metrics_daily")
       .select("*")
       .eq("client_id", client_id)
       .is("campaign_id", null)
-      .gte("date", since)
+      .gte("date", sincePrev)
       .order("date");
-    const m = metrics ?? [];
+    const mAll = metrics ?? [];
+    const m = mAll.filter((x) => String(x.date) >= since);
+    const mPrev = mAll.filter((x) => String(x.date) < since);
     const spend = m.reduce((a, b) => a + Number(b.spend ?? 0), 0);
     const revenue = m.reduce((a, b) => a + Number(b.revenue ?? 0), 0);
     const conv = m.reduce((a, b) => a + Number(b.conversions ?? 0), 0);
     const roas = spend > 0 ? revenue / spend : 0;
     const cpa = conv > 0 ? spend / conv : 0;
+    const prevSpend = mPrev.reduce((a, b) => a + Number(b.spend ?? 0), 0);
+    const prevRevenue = mPrev.reduce((a, b) => a + Number(b.revenue ?? 0), 0);
     const half = Math.floor(m.length / 2);
     const firstHalfRoas =
       m.slice(0, half).reduce((a, b) => a + Number(b.roas ?? 0), 0) /
@@ -79,7 +86,9 @@ Deno.serve(async (req) => {
       m.slice(half).reduce((a, b) => a + Number(b.roas ?? 0), 0) /
       Math.max(1, m.length - half);
 
-    const summary = `Cliente: ${client.name}\nSegmento: ${client.segment ?? "—"}\nÚltimos 30 dias:\n- Investimento: R$ ${spend.toFixed(2)}\n- Receita: R$ ${revenue.toFixed(2)}\n- ROAS médio: ${roas.toFixed(2)}x\n- CPA médio: R$ ${cpa.toFixed(2)}\n- Conversões: ${conv}\n- ROAS primeira metade: ${firstHalfRoas.toFixed(2)}x\n- ROAS segunda metade: ${secondHalfRoas.toFixed(2)}x`;
+    const deltaRevenuePct =
+      prevRevenue > 0 ? ((revenue - prevRevenue) / prevRevenue) * 100 : 0;
+    const summary = `Cliente: ${client.name}\nSegmento: ${client.segment ?? "—"}\nÚltimos 30 dias:\n- Investimento: R$ ${spend.toFixed(2)}\n- Receita: R$ ${revenue.toFixed(2)}\n- ROAS médio: ${roas.toFixed(2)}x\n- CPA médio: R$ ${cpa.toFixed(2)}\n- Conversões: ${conv}\n- ROAS primeira metade: ${firstHalfRoas.toFixed(2)}x\n- ROAS segunda metade: ${secondHalfRoas.toFixed(2)}x\nComparativo com 30 dias anteriores:\n- Investimento anterior: R$ ${prevSpend.toFixed(2)}\n- Receita anterior: R$ ${prevRevenue.toFixed(2)}\n- Variação de receita: ${deltaRevenuePct.toFixed(1)}%`;
 
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
     if (!lovableKey)
@@ -161,7 +170,15 @@ Deno.serve(async (req) => {
         opportunities: parsed.opportunities ?? null,
         next_steps: parsed.next_steps ?? null,
         client_friendly_summary: parsed.client_friendly_summary ?? null,
-        raw_data: { spend, revenue, roas, cpa, conv },
+        raw_data: {
+          spend,
+          revenue,
+          roas,
+          cpa,
+          conv,
+          prev_spend: prevSpend,
+          prev_revenue: prevRevenue,
+        },
       })
       .select()
       .maybeSingle();

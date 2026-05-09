@@ -31,6 +31,15 @@ function Alerts() {
   const [clientFilter, setClientFilter] = useState<string>("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [groupBy, setGroupBy] = useState<"none" | "client">("none");
+  const [desktopNotifications, setDesktopNotifications] = useState<boolean>(
+    () => {
+      try {
+        return localStorage.getItem("alerts-desktop-notifications") === "1";
+      } catch {
+        return false;
+      }
+    },
+  );
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["alerts", agency?.id, filter],
@@ -129,6 +138,55 @@ function Alerts() {
       supabase.removeChannel(ch);
     };
   }, [agency, refetch]);
+
+  useEffect(() => {
+    if (!agency || !desktopNotifications) return;
+    const ch = supabase
+      .channel(`alerts-notify:${agency.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "alerts",
+          filter: `agency_id=eq.${agency.id}`,
+        },
+        (payload) => {
+          const row = payload.new as { title?: string; description?: string };
+          if (Notification.permission === "granted") {
+            new Notification(row.title ?? "Novo alerta", {
+              body: row.description ?? "Há um novo alerta na operação.",
+            });
+          }
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [agency, desktopNotifications]);
+
+  async function toggleDesktopNotifications() {
+    const next = !desktopNotifications;
+    if (
+      next &&
+      "Notification" in window &&
+      Notification.permission !== "granted"
+    ) {
+      await Notification.requestPermission();
+    }
+    const enabled =
+      next && "Notification" in window && Notification.permission === "granted";
+    setDesktopNotifications(enabled);
+    try {
+      localStorage.setItem("alerts-desktop-notifications", enabled ? "1" : "0");
+    } catch {
+      // ignore
+    }
+    toast.success(
+      enabled ? "Notificações ativadas." : "Notificações desativadas.",
+    );
+  }
 
   if (isLoading || !data) return <PageSkeleton preset="compact" />;
 
@@ -243,6 +301,13 @@ function Alerts() {
             </button>
           ))}
         </div>
+        <button
+          type="button"
+          onClick={toggleDesktopNotifications}
+          className="rounded-md border border-border px-3 py-2 text-xs hover:bg-surface"
+        >
+          {desktopNotifications ? "Desktop ON" : "Ativar notificações desktop"}
+        </button>
       </header>
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">

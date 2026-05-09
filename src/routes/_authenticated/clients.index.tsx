@@ -26,7 +26,7 @@ export const Route = createFileRoute("/_authenticated/clients/")({
 });
 
 function Clients() {
-  const { agency } = useAuth();
+  const { agency, user } = useAuth();
   const navigate = useNavigate();
   const search = Route.useSearch();
   const [creating, setCreating] = useState(!!search.new);
@@ -41,12 +41,37 @@ function Clients() {
     queryKey: ["clients", agency?.id],
     enabled: !!agency,
     queryFn: async () => {
+      const sb = supabase as any;
+      const { data: myRoles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("agency_id", agency!.id)
+        .eq("user_id", user!.id);
+      const canSeeAll = (myRoles ?? []).some(
+        (r) => r.role === "owner" || r.role === "admin",
+      );
+      const { data: scopedRows } = canSeeAll
+        ? { data: [] as any[] }
+        : await sb
+            .from("client_member_scopes")
+            .select("client_id")
+            .eq("agency_id", agency!.id)
+            .eq("user_id", user!.id);
+
+      let clientQuery = supabase
+        .from("clients")
+        .select("*")
+        .eq("agency_id", agency!.id)
+        .order("created_at", { ascending: false });
+      if (!canSeeAll) {
+        const ids = (scopedRows ?? []).map((x: any) => x.client_id);
+        clientQuery = ids.length
+          ? clientQuery.in("id", ids)
+          : clientQuery.limit(0);
+      }
+
       const [clients, health] = await Promise.all([
-        supabase
-          .from("clients")
-          .select("*")
-          .eq("agency_id", agency!.id)
-          .order("created_at", { ascending: false }),
+        clientQuery,
         supabase
           .from("health_scores")
           .select("client_id, score, risk, recorded_at")

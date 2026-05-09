@@ -30,6 +30,8 @@ import {
   LogOut,
   CheckSquare,
   Activity as ActivityIcon,
+  Image as ImageIcon,
+  Radar,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -192,6 +194,12 @@ export function CommandPalette({
           </CommandItem>
           <CommandItem onSelect={() => go("/activity")}>
             <ActivityIcon className="mr-2 h-4 w-4" /> Atividade
+          </CommandItem>
+          <CommandItem onSelect={() => go("/creatives")}>
+            <ImageIcon className="mr-2 h-4 w-4" /> Aprovação de criativos
+          </CommandItem>
+          <CommandItem onSelect={() => go("/competitors")}>
+            <Radar className="mr-2 h-4 w-4" /> Concorrentes (MVP)
           </CommandItem>
           <CommandItem onSelect={() => go("/onboarding")}>
             <Sparkles className="mr-2 h-4 w-4" /> Onboarding

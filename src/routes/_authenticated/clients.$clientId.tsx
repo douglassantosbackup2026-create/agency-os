@@ -40,6 +40,7 @@ type ClientTab =
   | "metrics"
   | "health_timeline"
   | "insights"
+  | "ad_accounts"
   | "campaigns"
   | "alerts"
   | "reports"
@@ -52,6 +53,7 @@ const TAB_ORDER: ClientTab[] = [
   "metrics",
   "health_timeline",
   "insights",
+  "ad_accounts",
   "campaigns",
   "alerts",
   "reports",
@@ -66,6 +68,7 @@ function tabLabel(t: ClientTab): string {
     metrics: "Métricas",
     health_timeline: "Health",
     insights: "Insights IA",
+    ad_accounts: "Contas Ads",
     campaigns: "Campanhas",
     alerts: "Alertas",
     reports: "Relatórios",
@@ -81,6 +84,10 @@ function ClientDetail() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<ClientTab>("overview");
   const [generating, setGenerating] = useState(false);
+  const [newAccountProvider, setNewAccountProvider] = useState("meta_ads");
+  const [newAccountId, setNewAccountId] = useState("");
+  const [newAccountName, setNewAccountName] = useState("");
+  const [generatingMeeting, setGeneratingMeeting] = useState(false);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["client", clientId],
@@ -95,6 +102,8 @@ function ClientDetail() {
         health,
         tasks,
         activities,
+        adAccounts,
+        meetingReports,
       ] = await Promise.all([
         supabase.from("clients").select("*").eq("id", clientId).maybeSingle(),
         supabase
@@ -145,6 +154,17 @@ function ClientDetail() {
           .eq("client_id", clientId)
           .order("created_at", { ascending: false })
           .limit(50),
+        (supabase as any)
+          .from("client_platform_accounts")
+          .select("*")
+          .eq("client_id", clientId)
+          .order("created_at", { ascending: false }),
+        (supabase as any)
+          .from("meeting_reports")
+          .select("*")
+          .eq("client_id", clientId)
+          .order("created_at", { ascending: false })
+          .limit(10),
       ]);
       return {
         client: client.data,
@@ -156,6 +176,8 @@ function ClientDetail() {
         health: health.data ?? [],
         tasks: tasks.data ?? [],
         activities: activities.data ?? [],
+        adAccounts: adAccounts.data ?? [],
+        meetingReports: meetingReports.data ?? [],
       };
     },
   });
@@ -245,6 +267,62 @@ function ClientDetail() {
     toast.success("Relatório gerado pela IA.");
     refetch();
     setTab("reports");
+  }
+
+  async function addAccount() {
+    if (!data?.client) return;
+    if (!newAccountId.trim()) {
+      toast.error("Informe o ID da conta.");
+      return;
+    }
+    const sb = supabase as any;
+    const { error } = await sb.from("client_platform_accounts").insert({
+      agency_id: data.client.agency_id,
+      client_id: clientId,
+      provider: newAccountProvider,
+      account_external_id: newAccountId.trim(),
+      account_name: newAccountName.trim() || null,
+      is_active: true,
+    });
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Conta vinculada ao cliente.");
+    setNewAccountId("");
+    setNewAccountName("");
+    refetch();
+  }
+
+  async function removeAccount(accountId: string) {
+    const sb = supabase as any;
+    const { error } = await sb
+      .from("client_platform_accounts")
+      .delete()
+      .eq("id", accountId);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Conta removida.");
+    refetch();
+  }
+
+  async function generateMeetingReport() {
+    setGeneratingMeeting(true);
+    const { error } = await supabase.functions.invoke(
+      "generate-meeting-report",
+      {
+        body: { client_id: clientId },
+      },
+    );
+    setGeneratingMeeting(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Pauta de reunião gerada.");
+    refetch();
   }
 
   return (
@@ -610,6 +688,48 @@ function ClientDetail() {
               )}
             </div>
           </Card>
+
+          <Card>
+            <CardHeader
+              title="Pauta de reunião (IA)"
+              action={
+                <button
+                  type="button"
+                  onClick={generateMeetingReport}
+                  disabled={generatingMeeting}
+                  className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs hover:bg-surface disabled:opacity-60"
+                >
+                  {generatingMeeting ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5" />
+                  )}
+                  Gerar pauta
+                </button>
+              }
+            />
+            <div className="space-y-2 p-4">
+              {data.meetingReports.length === 0 ? (
+                <Empty label="Ainda sem pautas geradas." />
+              ) : (
+                data.meetingReports.map((mr: any) => (
+                  <div
+                    key={mr.id}
+                    className="rounded-md border border-border p-3 text-sm"
+                  >
+                    <div className="mb-1 text-xs text-muted-foreground">
+                      {new Date(mr.created_at).toLocaleString("pt-BR")} ·{" "}
+                      {String(mr.period_start ?? "").slice(0, 10)} →{" "}
+                      {String(mr.period_end ?? "").slice(0, 10)}
+                    </div>
+                    <div className="whitespace-pre-line text-foreground/90">
+                      {mr.agenda}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
         </div>
       )}
 
@@ -704,6 +824,78 @@ function ClientDetail() {
               ))}
             </div>
           )}
+        </Card>
+      )}
+
+      {tab === "ad_accounts" && (
+        <Card>
+          <CardHeader title="Contas por plataforma (multi-account)" />
+          <div className="space-y-3 p-4">
+            <div className="grid gap-2 md:grid-cols-4">
+              <select
+                value={newAccountProvider}
+                onChange={(e) => setNewAccountProvider(e.target.value)}
+                className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+              >
+                <option value="meta_ads">Meta Ads</option>
+                <option value="google_ads">Google Ads</option>
+                <option value="google_analytics">Google Analytics</option>
+                <option value="tiktok_ads">TikTok Ads</option>
+              </select>
+              <input
+                value={newAccountId}
+                onChange={(e) => setNewAccountId(e.target.value)}
+                placeholder="ID externo da conta"
+                className="h-9 rounded-md border border-border bg-background px-3 text-sm"
+              />
+              <input
+                value={newAccountName}
+                onChange={(e) => setNewAccountName(e.target.value)}
+                placeholder="Nome da conta (opcional)"
+                className="h-9 rounded-md border border-border bg-background px-3 text-sm"
+              />
+              <button
+                type="button"
+                onClick={addAccount}
+                className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground"
+              >
+                Vincular conta
+              </button>
+            </div>
+            <div className="rounded-md border border-border">
+              {data.adAccounts.length === 0 ? (
+                <div className="p-3 text-sm text-muted-foreground">
+                  Nenhuma conta vinculada. Ao sincronizar, a função usa esta
+                  conta por cliente quando disponível.
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {data.adAccounts.map((acc: any) => (
+                    <div
+                      key={acc.id}
+                      className="flex items-center justify-between px-3 py-2 text-sm"
+                    >
+                      <div>
+                        <div className="font-medium">
+                          {acc.account_name || acc.account_external_id}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {acc.provider} · {acc.account_external_id}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeAccount(acc.id)}
+                        className="text-xs text-destructive hover:underline"
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </Card>
       )}
 
