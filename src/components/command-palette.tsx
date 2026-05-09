@@ -35,6 +35,8 @@ import {
 } from "lucide-react";
 import { toggleTheme as applyToggleTheme } from "@/lib/theme";
 import { invokeWithToast } from "@/lib/supabase-invoke";
+import { throwIfSupabaseError } from "@/lib/supabase-result";
+import { toast } from "sonner";
 
 type ClientItem = { id: string; name: string };
 type ReportPick = { id: string; excerpt: string; clientName: string };
@@ -54,53 +56,99 @@ export function CommandPalette({
 
   useEffect(() => {
     if (!open || !agency?.id) return;
-    supabase
-      .from("clients")
-      .select("id, name")
-      .eq("agency_id", agency.id)
-      .order("name")
-      .limit(30)
-      .then(({ data }) => {
-        setClients(data ?? []);
-      });
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await supabase
+          .from("clients")
+          .select("id, name")
+          .eq("agency_id", agency.id)
+          .order("name")
+          .limit(30);
+        throwIfSupabaseError(res.error, "Busca — clientes");
+        if (!cancelled) setClients(res.data ?? []);
+      } catch (e) {
+        if (!cancelled) {
+          setClients([]);
+          toast.error(
+            e instanceof Error ? e.message : "Erro ao carregar clientes.",
+          );
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [open, agency?.id]);
 
   useEffect(() => {
     if (!open || !agency) return;
-    supabase
-      .from("alerts")
-      .select("id, title")
-      .eq("agency_id", agency.id)
-      .eq("status", "open")
-      .order("created_at", { ascending: false })
-      .limit(20)
-      .then(({ data }) => {
-        setOpenAlerts((data ?? []).map((a) => ({ id: a.id, name: a.title })));
-      });
-  }, [open, agency]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await supabase
+          .from("alerts")
+          .select("id, title")
+          .eq("agency_id", agency.id)
+          .eq("status", "open")
+          .order("created_at", { ascending: false })
+          .limit(20);
+        throwIfSupabaseError(res.error, "Busca — alertas");
+        if (!cancelled)
+          setOpenAlerts(
+            (res.data ?? []).map((a) => ({ id: a.id, name: a.title })),
+          );
+      } catch (e) {
+        if (!cancelled) {
+          setOpenAlerts([]);
+          toast.error(
+            e instanceof Error ? e.message : "Erro ao carregar alertas.",
+          );
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, agency?.id]);
 
   useEffect(() => {
     if (!open || !agency?.id) return;
-    supabase
-      .from("reports")
-      .select("id, executive_summary, clients(name)")
-      .eq("agency_id", agency.id)
-      .order("created_at", { ascending: false })
-      .limit(12)
-      .then(({ data }) => {
-        setRecentReports(
-          (data ?? []).map((r) => {
-            const name =
-              (r.clients as { name?: string } | null)?.name ?? "Cliente";
-            const ex = String(r.executive_summary ?? "").replace(/\s+/g, " ");
-            return {
-              id: r.id,
-              clientName: name,
-              excerpt: ex.length > 90 ? `${ex.slice(0, 87)}…` : ex || "—",
-            };
-          }),
-        );
-      });
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await supabase
+          .from("reports")
+          .select("id, executive_summary, clients(name)")
+          .eq("agency_id", agency.id)
+          .order("created_at", { ascending: false })
+          .limit(12);
+        throwIfSupabaseError(res.error, "Busca — relatórios");
+        if (!cancelled)
+          setRecentReports(
+            (res.data ?? []).map((r) => {
+              const name =
+                (r.clients as { name?: string } | null)?.name ?? "Cliente";
+              const ex = String(r.executive_summary ?? "").replace(/\s+/g, " ");
+              return {
+                id: r.id,
+                clientName: name,
+                excerpt: ex.length > 90 ? `${ex.slice(0, 87)}…` : ex || "—",
+              };
+            }),
+          );
+      } catch (e) {
+        if (!cancelled) {
+          setRecentReports([]);
+          toast.error(
+            e instanceof Error ? e.message : "Erro ao carregar relatórios.",
+          );
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [open, agency?.id]);
 
   const close = () => onOpenChange(false);

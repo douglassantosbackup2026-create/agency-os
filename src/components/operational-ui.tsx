@@ -1,6 +1,7 @@
 import type { CSSProperties, ElementType, ReactNode } from "react";
+import { memo } from "react";
 
-export function Stat({
+function StatInner({
   icon: Icon,
   label,
   value,
@@ -30,8 +31,10 @@ export function Stat({
     </div>
   );
 }
+export const Stat = memo(StatInner);
+Stat.displayName = "Stat";
 
-export function Card({
+function CardInner({
   children,
   className,
 }: {
@@ -46,8 +49,10 @@ export function Card({
     </div>
   );
 }
+export const Card = memo(CardInner);
+Card.displayName = "Card";
 
-export function CardHeader({
+function CardHeaderInner({
   title,
   action,
 }: {
@@ -61,8 +66,10 @@ export function CardHeader({
     </div>
   );
 }
+export const CardHeader = memo(CardHeaderInner);
+CardHeader.displayName = "CardHeader";
 
-export function Empty({
+function EmptyInner({
   label,
   action,
 }: {
@@ -76,8 +83,10 @@ export function Empty({
     </div>
   );
 }
+export const Empty = memo(EmptyInner);
+Empty.displayName = "Empty";
 
-export function Row({
+function RowInner({
   label,
   value,
   accent,
@@ -95,8 +104,10 @@ export function Row({
     </div>
   );
 }
+export const Row = memo(RowInner);
+Row.displayName = "Row";
 
-export function PriorityDot({ p }: { p: string }) {
+function PriorityDotInner({ p }: { p: string }) {
   const map: Record<string, string> = {
     critical: "bg-destructive",
     high: "bg-warning",
@@ -109,8 +120,10 @@ export function PriorityDot({ p }: { p: string }) {
     />
   );
 }
+export const PriorityDot = memo(PriorityDotInner);
+PriorityDot.displayName = "PriorityDot";
 
-export function RiskDot({ risk }: { risk: string }) {
+function RiskDotInner({ risk }: { risk: string }) {
   const map: Record<string, string> = {
     low: "bg-success",
     medium: "bg-warning",
@@ -122,8 +135,10 @@ export function RiskDot({ risk }: { risk: string }) {
     />
   );
 }
+export const RiskDot = memo(RiskDotInner);
+RiskDot.displayName = "RiskDot";
 
-export function ScoreBar({ score }: { score: number }) {
+function ScoreBarInner({ score }: { score: number }) {
   const color =
     score >= 75 ? "bg-success" : score >= 50 ? "bg-warning" : "bg-destructive";
   return (
@@ -135,16 +150,20 @@ export function ScoreBar({ score }: { score: number }) {
     </div>
   );
 }
+export const ScoreBar = memo(ScoreBarInner);
+ScoreBar.displayName = "ScoreBar";
 
-export function Badge({ children }: { children: ReactNode }) {
+function BadgeInner({ children }: { children: ReactNode }) {
   return (
     <span className="rounded-md border border-border bg-surface px-2 py-1 text-xs uppercase tracking-wide text-muted-foreground">
       {children}
     </span>
   );
 }
+export const Badge = memo(BadgeInner);
+Badge.displayName = "Badge";
 
-export function PageSkeleton(props?: {
+function PageSkeletonInner(props?: {
   preset?: "dashboard" | "compact" | "split";
 }) {
   const preset = props?.preset ?? "dashboard";
@@ -223,8 +242,10 @@ export function PageSkeleton(props?: {
     </div>
   );
 }
+export const PageSkeleton = memo(PageSkeletonInner);
+PageSkeleton.displayName = "PageSkeleton";
 
-export function Shimmer({
+function ShimmerInner({
   className = "",
   style,
 }: {
@@ -240,3 +261,5 @@ export function Shimmer({
     </div>
   );
 }
+export const Shimmer = memo(ShimmerInner);
+Shimmer.displayName = "Shimmer";

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { timeAgo } from "@/lib/format";
@@ -24,10 +24,10 @@ import { SlidersHorizontal } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { ACTION_CENTER_OPEN_STATUSES_SET } from "@/lib/action-center-status";
 import { FILTER_SELECT_TRIGGER_CLASSES } from "@/lib/ui/filter-classes";
-
-type ActionCenterRow = Database["public"]["Tables"]["action_center"]["Row"] & {
-  clients?: { id: string; name: string } | null;
-};
+import {
+  ActionCenterListRow,
+  type ActionCenterListRowModel as ActionCenterRow,
+} from "@/components/action-center-list-row";
 
 const ACTIONS_FILTERS_LS = "action-center-filters-v1";
 
@@ -240,54 +240,56 @@ function ActionsCenter() {
     },
   });
 
-  async function patchAction(
-    id: string,
-    patch: Database["public"]["Tables"]["action_center"]["Update"],
-    opts?: { silent?: boolean },
-  ) {
-    const { error } = await supabase
-      .from("action_center")
-      .update(patch)
-      .eq("id", id);
-    if (error) {
-      if (!opts?.silent) toast.error(error.message);
-      return false;
-    }
-    if (!opts?.silent) {
-      toast.success("Ação atualizada.");
-      refetch();
-    }
-    return true;
-  }
+  const patchAction = useCallback(
+    async (
+      id: string,
+      patch: Database["public"]["Tables"]["action_center"]["Update"],
+      opts?: { silent?: boolean },
+    ) => {
+      const { error } = await supabase
+        .from("action_center")
+        .update(patch)
+        .eq("id", id);
+      if (error) {
+        if (!opts?.silent) toast.error(error.message);
+        return false;
+      }
+      if (!opts?.silent) {
+        toast.success("Ação atualizada.");
+        refetch();
+      }
+      return true;
+    },
+    [refetch],
+  );
 
-  async function setAssignee(actionId: string, userId: string) {
-    const value = userId === "" ? null : userId;
-    await patchAction(actionId, { assigned_to: value });
-  }
+  const setAssignee = useCallback(
+    async (actionId: string, userId: string) => {
+      const value = userId === "" ? null : userId;
+      await patchAction(actionId, { assigned_to: value });
+    },
+    [patchAction],
+  );
 
-  function toggleSelect(id: string) {
+  const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
     );
-  }
+  }, []);
 
-  function selectAllVisible() {
+  const selectAllVisible = useCallback(() => {
     setSelectedIds(filtered.map((a) => a.id));
-  }
+  }, [filtered]);
 
-  function clearSelection() {
+  const clearSelection = useCallback(() => {
     setSelectedIds([]);
-  }
+  }, []);
 
-  async function applyBulkStatus() {
+  const applyBulkStatus = useCallback(async () => {
     if (!selectedIds.length) return;
     let ok = 0;
     for (const id of selectedIds) {
-      const done = await patchAction(
-        id,
-        { status: bulkStatus },
-        { silent: true },
-      );
+      const done = await patchAction(id, { status: bulkStatus }, { silent: true });
       if (done) ok++;
     }
     if (ok === selectedIds.length) {
@@ -295,9 +297,15 @@ function ActionsCenter() {
       refetch();
       clearSelection();
     } else toast.error("Algumas atualizações falharam — verifique permissões.");
-  }
+  }, [
+    selectedIds,
+    bulkStatus,
+    patchAction,
+    refetch,
+    clearSelection,
+  ]);
 
-  async function applyBulkAssignee() {
+  const applyBulkAssignee = useCallback(async () => {
     if (!selectedIds.length) return;
     const value = bulkAssignee === "__none__" ? null : bulkAssignee;
     let ok = 0;
@@ -314,7 +322,24 @@ function ActionsCenter() {
       refetch();
       clearSelection();
     } else toast.error("Algumas atualizações falharam — verifique permissões.");
-  }
+  }, [
+    selectedIds,
+    bulkAssignee,
+    patchAction,
+    refetch,
+    clearSelection,
+  ]);
+
+  const onToggleExpand = useCallback((id: string) => {
+    setExpandedId((prev) => (prev === id ? null : id));
+  }, []);
+
+  const onPatchStatus = useCallback(
+    (id: string, status: string) => {
+      void patchAction(id, { status });
+    },
+    [patchAction],
+  );
 
   if (
     isLoading ||
@@ -592,20 +617,21 @@ function ActionsCenter() {
           >
             Aplicar estado
           </Button>
-          <Select value={bulkAssignee} onValueChange={setBulkAssignee}>
-            <SelectTrigger className="h-8 w-[180px] text-xs">
-              <SelectValue placeholder="Responsável" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">Sem responsável</SelectItem>
-              {user?.id && <SelectItem value={user.id}>Eu</SelectItem>}
-              {teammates.map((t) => (
-                <SelectItem key={t.id} value={t.id}>
+          <select
+            value={bulkAssignee}
+            onChange={(e) => setBulkAssignee(e.target.value)}
+            className="h-8 w-[180px] rounded-md border border-border bg-background px-2 text-xs"
+          >
+            <option value="__none__">Sem responsável</option>
+            {user?.id && <option value={user.id}>Eu</option>}
+            {teammates
+              .filter((t) => t.id !== user?.id)
+              .map((t) => (
+                <option key={t.id} value={t.id}>
                   {t.display_name || t.email}
-                </SelectItem>
+                </option>
               ))}
-            </SelectContent>
-          </Select>
+          </select>
           <Button
             type="button"
             size="sm"
@@ -662,146 +688,20 @@ function ActionsCenter() {
               <span>Selecionar todas nesta vista ({filtered.length})</span>
             </div>
             {filtered.map((a: ActionCenterRow) => (
-              <div key={a.id}>
-                <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="flex min-w-0 flex-1 gap-3">
-                    <div className="pt-0.5">
-                      <Checkbox
-                        checked={selectedIds.includes(a.id)}
-                        onCheckedChange={() => toggleSelect(a.id)}
-                        aria-label={`Selecionar ${a.title}`}
-                      />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm font-medium">{a.title}</span>
-                        {isActionOverdue(a) && (
-                          <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-xs font-medium text-destructive">
-                            Atrasada
-                          </span>
-                        )}
-                        <span className="rounded bg-surface px-1.5 py-0.5 text-xs text-muted-foreground">
-                          {a.source_type}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {a.priority}
-                        </span>
-                        {a.clients?.name && (
-                          <Link
-                            to="/clients/$clientId"
-                            params={{ clientId: a.client_id }}
-                            className="text-sm text-primary hover:underline"
-                          >
-                            {a.clients.name}
-                          </Link>
-                        )}
-                      </div>
-                      {a.description && (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {a.description}
-                        </p>
-                      )}
-                      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                        <span>{timeAgo(a.created_at)}</span>
-                        {a.due_date && <span>Prazo {a.due_date}</span>}
-                        {Number(a.metadata?.merge_count) > 0 && (
-                          <span title="Mesclagens por dedupe">
-                            Mesclas {a.metadata.merge_count}
-                          </span>
-                        )}
-                        <Button
-                          type="button"
-                          variant="link"
-                          size="sm"
-                          className="h-auto p-0 text-xs"
-                          onClick={() =>
-                            setExpandedId(expandedId === a.id ? null : a.id)
-                          }
-                        >
-                          {expandedId === a.id
-                            ? "Ocultar histórico"
-                            : "Histórico"}
-                        </Button>
-                        <label className="flex items-center gap-2 font-normal">
-                          <span className="shrink-0 text-muted-foreground">
-                            Responsável
-                          </span>
-                          <Select
-                            value={a.assigned_to ?? "__none__"}
-                            onValueChange={(v) =>
-                              setAssignee(a.id, v === "__none__" ? "" : v)
-                            }
-                          >
-                            <SelectTrigger className="h-7 max-w-[160px] text-xs">
-                              <SelectValue placeholder="—" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__none__">—</SelectItem>
-                              {user?.id && (
-                                <SelectItem value={user.id}>Eu</SelectItem>
-                              )}
-                              {teammates.map((t) => (
-                                <SelectItem key={t.id} value={t.id}>
-                                  {t.display_name || t.email}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 flex-wrap gap-1">
-                    <select
-                      value={a.status}
-                      onChange={(e) =>
-                        patchAction(a.id, { status: e.target.value })
-                      }
-                      className="h-8 rounded border border-border bg-background px-2 text-xs"
-                    >
-                      <option value="pendente">Pendente</option>
-                      <option value="feito">Feito</option>
-                      <option value="ignorado">Ignorado</option>
-                      <option value="adiado">Adiado</option>
-                      <option value="anotacao">Anotação</option>
-                      <option value="enviado_cliente">Enviado cliente</option>
-                      <option value="revisar_depois">Revisar depois</option>
-                    </select>
-                  </div>
-                </div>
-                {expandedId === a.id && (
-                  <div className="border-t border-border px-4 pb-3 pt-2">
-                    <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                      Histórico da ação
-                    </div>
-                    {!eventRows?.length ? (
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        Sem eventos registrados.
-                      </p>
-                    ) : (
-                      <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
-                        {eventRows.map((ev: any) => (
-                          <li key={ev.id} className="flex flex-wrap gap-x-2">
-                            <span>{timeAgo(ev.created_at)}</span>
-                            <span className="font-medium text-foreground">
-                              {ev.event_type === "created"
-                                ? "Criada"
-                                : ev.event_type === "status_change"
-                                  ? "Estado"
-                                  : ev.event_type === "assignee_change"
-                                    ? "Responsável"
-                                    : ev.event_type}
-                            </span>
-                            <span className="truncate font-mono text-[10px]">
-                              {JSON.stringify(ev.payload)}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
-              </div>
+              <ActionCenterListRow
+                key={a.id}
+                action={a}
+                teammates={teammates}
+                currentUserId={user?.id}
+                selected={selectedIds.includes(a.id)}
+                expanded={expandedId === a.id}
+                overdue={isActionOverdue(a)}
+                eventRows={expandedId === a.id ? (eventRows ?? []) : []}
+                onToggleSelect={toggleSelect}
+                onToggleExpand={onToggleExpand}
+                onPatchStatus={onPatchStatus}
+                onAssignee={setAssignee}
+              />
             ))}
           </div>
         )}

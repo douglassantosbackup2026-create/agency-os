@@ -12,6 +12,8 @@ import appCss from "../styles.css?url";
 import { AuthProvider } from "@/hooks/use-auth";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
+import { AppErrorBoundary } from "@/components/app-error-boundary";
+import { reportError } from "@/lib/report-error";
 import { useEffect, useSyncExternalStore } from "react";
 import { getSnapshotTheme, subscribeTheme } from "@/lib/theme";
 
@@ -37,7 +39,7 @@ function NotFoundComponent() {
 }
 
 function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
-  console.error(error);
+  reportError("TanStackRouter_errorComponent", error);
   const router = useRouter();
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -153,7 +155,9 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Outlet />
+        <AppErrorBoundary>
+          <Outlet />
+        </AppErrorBoundary>
         <Toaster position="top-right" theme={colorMode} />
       </AuthProvider>
     </QueryClientProvider>

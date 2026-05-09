@@ -46,6 +46,8 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { ONBOARDING_STEP_KEYS } from "@/lib/onboarding-checklist";
+import { throwIfSupabaseError } from "@/lib/supabase-result";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
@@ -107,15 +109,30 @@ function AgencyBrandMark({
   agencyName,
   logoUrl,
   size = "md",
+  /** `high` para o logo fixo na sidebar (LCP); omitir em menus tipo sheet. */
+  imagePriority,
 }: {
   agencyName: string;
   logoUrl: string | null;
   size?: "sm" | "md";
+  imagePriority?: "high" | "low";
 }) {
   const cls =
     size === "sm" ? "h-7 w-7 rounded-md text-xs" : "h-8 w-8 rounded-md text-xs";
+  const px = size === "sm" ? 28 : 32;
   if (logoUrl) {
-    return <img src={logoUrl} alt="" className={`${cls} object-cover`} />;
+    return (
+      <img
+        src={logoUrl}
+        alt=""
+        width={px}
+        height={px}
+        decoding="async"
+        loading={imagePriority === "high" ? "eager" : "lazy"}
+        fetchPriority={imagePriority === "high" ? "high" : undefined}
+        className={`${cls} object-cover`}
+      />
+    );
   }
   return (
     <div
@@ -230,13 +247,17 @@ function NavLinks({
 }
 
 function AuthenticatedLayout() {
-  const { user, agency, signOut } = useAuth();
+  const { user, agency, agencyLoadError, refreshAgency, signOut } = useAuth();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [memberRole, setMemberRole] = useState<string | null>(null);
   const path = useRouterState({ select: (s) => s.location.pathname });
 
-  const { data: navMeta } = useQuery({
+  const {
+    data: navMeta,
+    isError: navMetaError,
+    refetch: refetchNavMeta,
+  } = useQuery({
     queryKey: ["layout-nav-meta", agency?.id],
     enabled: !!agency?.id,
     staleTime: 60_000,
@@ -253,6 +274,9 @@ function AuthenticatedLayout() {
           .eq("agency_id", agency!.id)
           .eq("status", "open"),
       ]);
+      throwIfSupabaseError(clientsRes.error, "layout.clients");
+      throwIfSupabaseError(itemsRes.error, "layout.onboarding_checklist");
+      throwIfSupabaseError(alertsCountRes.error, "layout.alerts_count");
       const clients = (clientsRes.data ?? []) as { id: string }[];
       const items = (itemsRes.data ?? []) as Array<{
         client_id: string;
@@ -298,13 +322,21 @@ function AuthenticatedLayout() {
     }
     let cancelled = false;
     (async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("user_roles")
         .select("role")
         .eq("user_id", user.id)
         .eq("agency_id", agency.id)
         .maybeSingle();
-      if (!cancelled) setMemberRole(data?.role ?? null);
+      if (cancelled) return;
+      if (error) {
+        toast.error(
+          `Não foi possível carregar o seu papel na equipa: ${error.message}`,
+        );
+        setMemberRole(null);
+        return;
+      }
+      setMemberRole(data?.role ?? null);
     })();
     return () => {
       cancelled = true;
@@ -328,7 +360,14 @@ function AuthenticatedLayout() {
           toast.info(row.title ?? "Novo alerta", { duration: 6000 });
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          toast.warning(
+            "Notificações de novos alertas em tempo real indisponíveis.",
+            { duration: 5000 },
+          );
+        }
+      });
     return () => {
       supabase.removeChannel(ch);
     };
@@ -339,12 +378,54 @@ function AuthenticatedLayout() {
   const agencySubtitle = agency?.slug ? `${agency.slug}` : "Painel da agência";
 
   return (
-    <div className="flex min-h-screen w-full bg-background text-foreground">
+    <div className="flex min-h-screen w-full flex-col bg-background text-foreground">
+      {(agencyLoadError || navMetaError) && (
+        <div className="shrink-0 border-b border-border bg-background px-4 py-3 md:pl-[calc(15rem+1rem)]">
+          {agencyLoadError && (
+            <Alert variant="destructive" className="mb-2 last:mb-0">
+              <AlertTitle>Não foi possível carregar a sua agência</AlertTitle>
+              <AlertDescription className="flex flex-wrap items-center gap-3">
+                <span className="text-inherit">{agencyLoadError}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 border-destructive/40"
+                  onClick={() => void refreshAgency()}
+                >
+                  Tentar novamente
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+          {navMetaError && (
+            <Alert variant="destructive" className="last:mb-0">
+              <AlertTitle>Menu auxiliar indisponível</AlertTitle>
+              <AlertDescription className="flex flex-wrap items-center gap-3">
+                <span className="text-inherit">
+                  Contadores e indicadores de onboarding podem estar desatualizados.
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-9 border-destructive/40"
+                  onClick={() => void refetchNavMeta()}
+                >
+                  Tentar novamente
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+      )}
+      <div className="flex min-h-0 flex-1 flex-row">
       <aside className="sticky top-0 z-30 hidden h-screen w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex">
         <div className="flex items-center gap-2 px-4 py-4">
           <AgencyBrandMark
             agencyName={agencyTitle}
             logoUrl={agency?.logo_url ?? null}
+            imagePriority="high"
           />
           <div className="min-w-0">
             <div className="truncate text-sm font-semibold">{agencyTitle}</div>
@@ -518,6 +599,7 @@ function AuthenticatedLayout() {
         <main className="flex-1 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
           <Outlet />
         </main>
+      </div>
       </div>
 
       <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />

@@ -20,7 +20,7 @@ import {
   Zap,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, type ReactNode } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,9 @@ import {
 } from "@/lib/audit-dashboard";
 import { ACTION_CENTER_OPEN_STATUSES } from "@/lib/action-center-status";
 import { invokeWithToast } from "@/lib/supabase-invoke";
+import { throwIfSupabaseError } from "@/lib/supabase-result";
+import { QueryErrorState } from "@/components/query-error-state";
+import { toast } from "sonner";
 import {
   Badge,
   Card,
@@ -76,7 +79,7 @@ function Dashboard() {
   const { agency } = useAuth();
   const navigate = useNavigate();
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["dashboard", agency?.id],
     enabled: !!agency,
     queryFn: async () => {
@@ -181,6 +184,18 @@ function Dashboard() {
           .order("created_at", { ascending: false })
           .limit(180),
       ]);
+      throwIfSupabaseError(clients.error, "clients");
+      throwIfSupabaseError(metrics.error, "metrics_daily");
+      throwIfSupabaseError(alerts.error, "alerts");
+      throwIfSupabaseError(activities.error, "activities");
+      throwIfSupabaseError(health.error, "health_scores");
+      throwIfSupabaseError(campaignMetrics.error, "campaign_metrics_daily");
+      throwIfSupabaseError(ga4Daily.error, "ga4_daily");
+      throwIfSupabaseError(ga4Tracking.error, "ga4_tracking_health_daily");
+      throwIfSupabaseError(actionCenter.error, "action_center");
+      throwIfSupabaseError(reportsReview.error, "reports");
+      throwIfSupabaseError(agencyBriefing.error, "agency_briefings");
+      throwIfSupabaseError(campaignAuditsSnap.error, "campaign_ai_audits");
       return {
         clients: clients.data ?? [],
         metrics: metrics.data ?? [],
@@ -223,209 +238,308 @@ function Dashboard() {
         },
         () => refetch(),
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          toast.warning(
+            "Atualização em tempo real indisponível. Recarregue a página ou use «Tentar novamente» nos dados.",
+            { duration: 6000 },
+          );
+        }
+      });
     return () => {
       supabase.removeChannel(ch);
     };
   }, [agency, refetch]);
 
-  if (isLoading || !data) return <PageSkeleton />;
-
-  const metrics30 = data.metrics.filter(
-    (m) => new Date(m.date).getTime() >= Date.now() - 30 * 86400000,
-  );
-  const metricsPrev30 = data.metrics.filter((m) => {
-    const ts = new Date(m.date).getTime();
-    return ts < Date.now() - 30 * 86400000 && ts >= Date.now() - 60 * 86400000;
-  });
-  const spend = metrics30.reduce((a, b) => a + Number(b.spend ?? 0), 0);
-  const revenue = metrics30.reduce((a, b) => a + Number(b.revenue ?? 0), 0);
-  const roas = spend > 0 ? revenue / spend : 0;
-  const mrr = data.clients.reduce((a, b) => a + Number(b.mrr ?? 0), 0);
-  const prevSpend = metricsPrev30.reduce((a, b) => a + Number(b.spend ?? 0), 0);
-  const prevRevenue = metricsPrev30.reduce(
-    (a, b) => a + Number(b.revenue ?? 0),
-    0,
-  );
-  const mrrDeltaPct =
-    prevRevenue > 0 ? ((revenue - prevRevenue) / prevRevenue) * 100 : 0;
-  const spendDeltaPct =
-    prevSpend > 0 ? ((spend - prevSpend) / prevSpend) * 100 : 0;
-  const activeClients = data.clients.filter(
-    (c) => c.status === "active",
-  ).length;
-  const churnedClients = data.clients.filter(
-    (c) => c.status === "churned",
-  ).length;
-  const renewals30d = data.clients.filter((c) => {
-    const d = c.started_at ? new Date(c.started_at).getTime() : 0;
-    if (!d) return false;
-    const in30 = d + 365 * 86400000;
-    return in30 >= Date.now() && in30 <= Date.now() + 30 * 86400000;
-  }).length;
-  const latestHealth = new Map<string, { score: number; risk: string }>();
-  for (const h of data.health)
-    if (!latestHealth.has(h.client_id)) latestHealth.set(h.client_id, h);
-  const atRisk = [...latestHealth.values()].filter(
-    (h) => h.risk !== "low",
-  ).length;
-  const avgHealth = latestHealth.size
-    ? [...latestHealth.values()].reduce((a, b) => a + b.score, 0) /
-      latestHealth.size
-    : 0;
-  const criticals = data.alerts.filter(
-    (a) => a.priority === "critical" || a.priority === "high",
-  ).length;
-  const campaignMomentum = computeCampaignMomentum(
-    data.campaignMetrics as CampaignMetricRow[],
-  );
-  const ga4Cur = data.ga4Daily.filter(
-    (m: any) => new Date(m.date).getTime() >= Date.now() - 30 * 86400000,
-  );
-  const ga4Prev = data.ga4Daily.filter((m: any) => {
-    const ts = new Date(m.date).getTime();
-    return ts < Date.now() - 30 * 86400000 && ts >= Date.now() - 60 * 86400000;
-  });
-  const siteSessions = ga4Cur.reduce(
-    (a: number, b: any) => a + Number(b.sessions ?? 0),
-    0,
-  );
-  const siteConv = ga4Cur.reduce(
-    (a: number, b: any) => a + Number(b.conversions ?? 0),
-    0,
-  );
-  const siteRevenue = ga4Cur.reduce(
-    (a: number, b: any) => a + Number(b.revenue ?? 0),
-    0,
-  );
-  const siteCvr = siteSessions > 0 ? siteConv / siteSessions : 0;
-  const prevSiteSessions = ga4Prev.reduce(
-    (a: number, b: any) => a + Number(b.sessions ?? 0),
-    0,
-  );
-  const prevSiteConv = ga4Prev.reduce(
-    (a: number, b: any) => a + Number(b.conversions ?? 0),
-    0,
-  );
-  const prevSiteCvr =
-    prevSiteSessions > 0 ? prevSiteConv / prevSiteSessions : 0;
-  const trackingCritical = (data.ga4Tracking ?? []).filter(
-    (t: any) => t.status === "critical",
-  ).length;
-  const recommended = [...data.alerts]
-    .filter((a) => (a as { recommended_action?: string }).recommended_action)
-    .slice(0, 5) as Array<{
-    id: string;
-    title: string;
-    recommended_action: string | null;
-  }>;
-
-  const auditLatestByClient = new Map<string, Record<string, unknown>>();
-  for (const row of data.campaignAuditsSnap ?? []) {
-    const cid = String((row as Record<string, unknown>).client_id ?? "");
-    if (cid && !auditLatestByClient.has(cid)) {
-      auditLatestByClient.set(cid, row as Record<string, unknown>);
-    }
-  }
-  const clientNameById = (id: string) =>
-    data.clients.find((c) => c.id === id)?.name ?? "Cliente";
-
-  const auditAttentionRows = [...auditLatestByClient.values()]
-    .map((row) => {
-      const rj = row.result_json as Record<string, unknown> | undefined;
-      const st = auditOverallStatus(rj);
-      return {
-        row,
-        st,
-        bullets: auditBulletsFromResult(
-          rj,
-          String(row.executive_summary_markdown ?? ""),
-        ),
-      };
-    })
-    .filter(
-      (x) => x.st === "critical" || x.st === "risk" || x.st === "attention",
-    )
-    .sort(
-      (a, b) =>
-        new Date(String(b.row.created_at)).getTime() -
-        new Date(String(a.row.created_at)).getTime(),
+  const dashboardDerived = useMemo(() => {
+    if (!data) return null;
+    const now = Date.now();
+    const metrics30 = data.metrics.filter(
+      (m) => new Date(m.date).getTime() >= now - 30 * 86400000,
     );
+    const metricsPrev30 = data.metrics.filter((m) => {
+      const ts = new Date(m.date).getTime();
+      return ts < now - 30 * 86400000 && ts >= now - 60 * 86400000;
+    });
+    const spend = metrics30.reduce((a, b) => a + Number(b.spend ?? 0), 0);
+    const revenue = metrics30.reduce((a, b) => a + Number(b.revenue ?? 0), 0);
+    const roas = spend > 0 ? revenue / spend : 0;
+    const mrr = data.clients.reduce((a, b) => a + Number(b.mrr ?? 0), 0);
+    const prevSpend = metricsPrev30.reduce((a, b) => a + Number(b.spend ?? 0), 0);
+    const prevRevenue = metricsPrev30.reduce(
+      (a, b) => a + Number(b.revenue ?? 0),
+      0,
+    );
+    const mrrDeltaPct =
+      prevRevenue > 0 ? ((revenue - prevRevenue) / prevRevenue) * 100 : 0;
+    const spendDeltaPct =
+      prevSpend > 0 ? ((spend - prevSpend) / prevSpend) * 100 : 0;
+    const activeClients = data.clients.filter(
+      (c) => c.status === "active",
+    ).length;
+    const churnedClients = data.clients.filter(
+      (c) => c.status === "churned",
+    ).length;
+    const renewals30d = data.clients.filter((c) => {
+      const d = c.started_at ? new Date(c.started_at).getTime() : 0;
+      if (!d) return false;
+      const in30 = d + 365 * 86400000;
+      return in30 >= now && in30 <= now + 30 * 86400000;
+    }).length;
+    const latestHealth = new Map<string, { score: number; risk: string }>();
+    for (const h of data.health)
+      if (!latestHealth.has(h.client_id)) latestHealth.set(h.client_id, h);
+    const atRisk = [...latestHealth.values()].filter(
+      (h) => h.risk !== "low",
+    ).length;
+    const avgHealth = latestHealth.size
+      ? [...latestHealth.values()].reduce((a, b) => a + b.score, 0) /
+        latestHealth.size
+      : 0;
+    const criticals = data.alerts.filter(
+      (a) => a.priority === "critical" || a.priority === "high",
+    ).length;
+    const campaignMomentum = computeCampaignMomentum(
+      data.campaignMetrics as CampaignMetricRow[],
+    );
+    const ga4Cur = data.ga4Daily.filter(
+      (m: { date: string }) =>
+        new Date(m.date).getTime() >= now - 30 * 86400000,
+    );
+    const ga4Prev = data.ga4Daily.filter((m: { date: string }) => {
+      const ts = new Date(m.date).getTime();
+      return ts < now - 30 * 86400000 && ts >= now - 60 * 86400000;
+    });
+    const siteSessions = ga4Cur.reduce(
+      (a: number, b: { sessions?: unknown }) =>
+        a + Number(b.sessions ?? 0),
+      0,
+    );
+    const siteConv = ga4Cur.reduce(
+      (a: number, b: { conversions?: unknown }) =>
+        a + Number(b.conversions ?? 0),
+      0,
+    );
+    const siteRevenue = ga4Cur.reduce(
+      (a: number, b: { revenue?: unknown }) =>
+        a + Number(b.revenue ?? 0),
+      0,
+    );
+    const siteCvr = siteSessions > 0 ? siteConv / siteSessions : 0;
+    const prevSiteSessions = ga4Prev.reduce(
+      (a: number, b: { sessions?: unknown }) =>
+        a + Number(b.sessions ?? 0),
+      0,
+    );
+    const prevSiteConv = ga4Prev.reduce(
+      (a: number, b: { conversions?: unknown }) =>
+        a + Number(b.conversions ?? 0),
+      0,
+    );
+    const prevSiteCvr =
+      prevSiteSessions > 0 ? prevSiteConv / prevSiteSessions : 0;
+    const trackingCritical = (data.ga4Tracking ?? []).filter(
+      (t: { status?: string }) => t.status === "critical",
+    ).length;
+    const recommended = [...data.alerts]
+      .filter((a) => (a as { recommended_action?: string }).recommended_action)
+      .slice(0, 5) as Array<{
+      id: string;
+      title: string;
+      recommended_action: string | null;
+    }>;
 
-  const auditShowList =
-    auditAttentionRows.length > 0
-      ? auditAttentionRows.slice(0, 6)
-      : [...auditLatestByClient.values()].slice(0, 4).map((row) => {
-          const rj = row.result_json as Record<string, unknown> | undefined;
-          return {
-            row,
-            st: auditOverallStatus(rj),
-            bullets: auditBulletsFromResult(
-              rj,
-              String(row.executive_summary_markdown ?? ""),
-            ),
-          };
-        });
+    const auditLatestByClient = new Map<string, Record<string, unknown>>();
+    for (const row of data.campaignAuditsSnap ?? []) {
+      const cid = String((row as Record<string, unknown>).client_id ?? "");
+      if (cid && !auditLatestByClient.has(cid)) {
+        auditLatestByClient.set(cid, row as Record<string, unknown>);
+      }
+    }
+    const clientNameById = (id: string) =>
+      data.clients.find((c) => c.id === id)?.name ?? "Cliente";
 
-  const briefingBuckets = data.agencyBriefing?.buckets as
-    | Record<string, Array<{ client_id: string; name: string; reason: string }>>
-    | undefined;
-  const criticoBrief =
-    briefingBuckets?.critico && briefingBuckets.critico.length > 0
-      ? briefingBuckets.critico[0]
-      : null;
-  const alertFirst = data.alerts[0];
-  const actionFirst = data.actionCenter[0] as
-    | { id: string; title: string }
-    | undefined;
+    const auditAttentionRows = [...auditLatestByClient.values()]
+      .map((row) => {
+        const rj = row.result_json as Record<string, unknown> | undefined;
+        const st = auditOverallStatus(rj);
+        return {
+          row,
+          st,
+          bullets: auditBulletsFromResult(
+            rj,
+            String(row.executive_summary_markdown ?? ""),
+          ),
+        };
+      })
+      .filter(
+        (x) =>
+          x.st === "critical" || x.st === "risk" || x.st === "attention",
+      )
+      .sort(
+        (a, b) =>
+          new Date(String(b.row.created_at)).getTime() -
+          new Date(String(a.row.created_at)).getTime(),
+      );
 
-  let suggestedNext: {
-    title: string;
-    description: string;
-    to: "/clients/$clientId" | "/alerts" | "/actions" | "/integrations";
-    params?: { clientId: string };
-    cta: string;
-  };
-  if (criticoBrief) {
-    suggestedNext = {
-      title: "Cliente em situação crítica",
-      description: `${criticoBrief.name} — ${criticoBrief.reason}`,
-      to: "/clients/$clientId",
-      params: { clientId: criticoBrief.client_id },
-      cta: "Abrir cliente",
-    };
-  } else if (alertFirst) {
-    suggestedNext = {
-      title: "Alerta prioritário",
-      description: alertFirst.title,
-      to: "/alerts",
-      cta: "Ver alertas",
-    };
-  } else if (actionFirst) {
-    suggestedNext = {
-      title: "Ação pendente na central",
-      description: actionFirst.title,
-      to: "/actions",
-      cta: "Central de Ações",
-    };
-  } else {
-    suggestedNext = {
-      title: "Conectar suas fontes de dados",
-      description:
-        "Integre Meta, Google ou GA4 para liberar briefing automático e alertas.",
-      to: "/integrations",
-      cta: "Abrir integrações",
-    };
-  }
+    const auditShowList =
+      auditAttentionRows.length > 0
+        ? auditAttentionRows.slice(0, 6)
+        : [...auditLatestByClient.values()].slice(0, 4).map((row) => {
+            const rj = row.result_json as Record<string, unknown> | undefined;
+            return {
+              row,
+              st: auditOverallStatus(rj),
+              bullets: auditBulletsFromResult(
+                rj,
+                String(row.executive_summary_markdown ?? ""),
+              ),
+            };
+          });
 
-  async function refreshOperationalBriefing() {
+    const briefingBuckets = data.agencyBriefing?.buckets as
+      | Record<
+          string,
+          Array<{ client_id: string; name: string; reason: string }>
+        >
+      | undefined;
+    const criticoBrief =
+      briefingBuckets?.critico && briefingBuckets.critico.length > 0
+        ? briefingBuckets.critico[0]
+        : null;
+    const alertFirst = data.alerts[0];
+    const actionFirst = data.actionCenter[0] as
+      | { id: string; title: string }
+      | undefined;
+
+    let suggestedNext: {
+      title: string;
+      description: string;
+      to: "/clients/$clientId" | "/alerts" | "/actions" | "/integrations";
+      params?: { clientId: string };
+      cta: string;
+    };
+    if (criticoBrief) {
+      suggestedNext = {
+        title: "Cliente em situação crítica",
+        description: `${criticoBrief.name} — ${criticoBrief.reason}`,
+        to: "/clients/$clientId",
+        params: { clientId: criticoBrief.client_id },
+        cta: "Abrir cliente",
+      };
+    } else if (alertFirst) {
+      suggestedNext = {
+        title: "Alerta prioritário",
+        description: alertFirst.title,
+        to: "/alerts",
+        cta: "Ver alertas",
+      };
+    } else if (actionFirst) {
+      suggestedNext = {
+        title: "Ação pendente na central",
+        description: actionFirst.title,
+        to: "/actions",
+        cta: "Central de Ações",
+      };
+    } else {
+      suggestedNext = {
+        title: "Conectar suas fontes de dados",
+        description:
+          "Integre Meta, Google ou GA4 para liberar briefing automático e alertas.",
+        to: "/integrations",
+        cta: "Abrir integrações",
+      };
+    }
+
+    return {
+      spend,
+      revenue,
+      roas,
+      mrr,
+      mrrDeltaPct,
+      spendDeltaPct,
+      activeClients,
+      churnedClients,
+      renewals30d,
+      latestHealth,
+      atRisk,
+      avgHealth,
+      criticals,
+      campaignMomentum,
+      siteSessions,
+      siteConv,
+      siteRevenue,
+      siteCvr,
+      prevSiteSessions,
+      prevSiteConv,
+      prevSiteCvr,
+      trackingCritical,
+      recommended,
+      auditShowList,
+      clientNameById,
+      suggestedNext,
+    };
+  }, [data]);
+
+  const refreshOperationalBriefing = useCallback(async () => {
+    if (!agency?.id) return;
     const res = await invokeWithToast(supabase, "compute-health-scores", {
       loading: "Atualizando visão operacional…",
       success: "Visão atualizada. Os números podem levar alguns segundos.",
-      body: { agency_id: agency!.id },
+      body: { agency_id: agency.id },
     });
     if (res.ok) refetch();
+  }, [agency?.id, refetch]);
+
+  const runSeedDemo = useCallback(async () => {
+    const res = await invokeWithToast(supabase, "seed-demo-data", {
+      loading: "Gerando dados...",
+      success: "Dados criados.",
+    });
+    if (res.ok) refetch();
+  }, [refetch]);
+
+  if (isError) {
+    return (
+      <QueryErrorState
+        message={
+          error instanceof Error ? error.message : String(error ?? "Erro")
+        }
+        onRetry={() => void refetch()}
+      />
+    );
   }
+
+  if (isLoading || !data || !dashboardDerived) return <PageSkeleton />;
+
+  const {
+    spend,
+    revenue,
+    roas,
+    mrr,
+    mrrDeltaPct,
+    spendDeltaPct,
+    activeClients,
+    churnedClients,
+    renewals30d,
+    latestHealth,
+    atRisk,
+    avgHealth,
+    criticals,
+    campaignMomentum,
+    siteSessions,
+    siteConv,
+    siteRevenue,
+    siteCvr,
+    prevSiteSessions,
+    prevSiteConv,
+    prevSiteCvr,
+    trackingCritical,
+    recommended,
+    auditShowList,
+    clientNameById,
+    suggestedNext,
+  } = dashboardDerived;
 
   // empty state
   if (data.clients.length === 0) {
@@ -444,13 +558,7 @@ function Dashboard() {
             <Button
               type="button"
               className="h-11 gap-2"
-              onClick={async () => {
-                const res = await invokeWithToast(supabase, "seed-demo-data", {
-                  loading: "Gerando dados...",
-                  success: "Dados criados.",
-                });
-                if (res.ok) refetch();
-              }}
+              onClick={runSeedDemo}
             >
               <Database className="h-4 w-4" /> Gerar dados demo
             </Button>

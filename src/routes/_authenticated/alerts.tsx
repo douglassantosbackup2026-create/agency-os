@@ -1,16 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { timeAgo } from "@/lib/format";
-import {
-  Card,
-  CardHeader,
-  Empty,
-  PageSkeleton,
-  PriorityDot,
-} from "@/components/operational-ui";
+import { Card, CardHeader, Empty, PageSkeleton } from "@/components/operational-ui";
 import { FilterDrawer } from "@/components/filter-drawer";
 import { AgencyClientSelect } from "@/components/agency-client-select";
 import { PageHeader } from "@/components/page-header";
@@ -35,6 +28,10 @@ import {
 } from "@/components/ui/select";
 import { SlidersHorizontal } from "lucide-react";
 import { FILTER_SELECT_TRIGGER_CLASSES } from "@/lib/ui/filter-classes";
+import {
+  AlertsListRow,
+  type AlertRowModel,
+} from "@/components/alerts-list-row";
 
 export const Route = createFileRoute("/_authenticated/alerts")({
   component: Alerts,
@@ -185,7 +182,90 @@ function Alerts() {
     };
   }, [agency, desktopNotifications]);
 
-  async function toggleDesktopNotifications() {
+  const muteWhatsapp24h = useCallback(
+    async (clientId: string) => {
+      if (!agency) return;
+      const until = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      const { error } = await supabase.from("client_whatsapp_prefs").upsert(
+        {
+          agency_id: agency.id,
+          client_id: clientId,
+          mute_whatsapp_until: until,
+        },
+        { onConflict: "agency_id,client_id" },
+      );
+      if (error) toast.error(error.message);
+      else {
+        toast.success(
+          "Preferência guardada: alertas novos não marcarão envio WhatsApp automático nas próximas 24h.",
+        );
+        refetch();
+      }
+    },
+    [agency, refetch],
+  );
+
+  const resolveAlert = useCallback(
+    async (id: string) => {
+      const { error } = await supabase
+        .from("alerts")
+        .update({ status: "resolved", resolved_at: new Date().toISOString() })
+        .eq("id", id);
+      if (error) toast.error(error.message);
+      else {
+        toast.success("Alerta resolvido.");
+        refetch();
+      }
+    },
+    [refetch],
+  );
+
+  const setAssigneeAlert = useCallback(
+    async (alertId: string, userId: string) => {
+      const value = userId === "" ? null : userId;
+      const { error } = await supabase
+        .from("alerts")
+        .update({ assigned_to: value })
+        .eq("id", alertId);
+      if (error) toast.error(error.message);
+      else {
+        toast.success(value ? "Responsável atualizado." : "Atribuição removida.");
+        refetch();
+      }
+    },
+    [refetch],
+  );
+
+  const createActionFromAlertCb = useCallback(
+    async (a: Database["public"]["Tables"]["alerts"]["Row"]) => {
+      if (!agency?.id) return;
+      const { error } = await supabase.from("action_center").insert({
+        agency_id: agency.id,
+        client_id: a.client_id ?? null,
+        source_type: "alerta_ia",
+        source_ref_id: a.id,
+        title: a.title,
+        description: a.recommended_action || a.description || null,
+        priority:
+          a.priority === "critical"
+            ? "critica"
+            : a.priority === "high"
+              ? "alta"
+              : a.priority === "medium"
+                ? "media"
+                : "baixa",
+        status: "pendente",
+        due_date: new Date().toISOString().slice(0, 10),
+        assigned_to: a.assigned_to ?? null,
+        metadata: { from: "alerts-ui", alert_type: a.type },
+      });
+      if (error) toast.error(error.message);
+      else toast.success("Ação criada na Central de Ações.");
+    },
+    [agency?.id],
+  );
+
+  const toggleDesktopNotifications = useCallback(async () => {
     const next = !desktopNotifications;
     if (
       next &&
@@ -205,7 +285,7 @@ function Alerts() {
     toast.success(
       enabled ? "Notificações ativadas." : "Notificações desativadas.",
     );
-  }
+  }, [desktopNotifications]);
 
   if (
     isLoading ||
@@ -214,185 +294,6 @@ function Alerts() {
     !data
   )
     return <PageSkeleton preset="compact" />;
-
-  function alertRow(a: (typeof filtered)[number]) {
-    return (
-      <div key={a.id} className="flex items-start gap-3 px-4 py-3">
-        <PriorityDot p={a.priority} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">{a.title}</span>
-            <span className="rounded bg-surface px-1.5 py-0.5 text-xs text-muted-foreground">
-              {a.type}
-            </span>
-            {a.clients?.name && (
-              <span className="text-xs text-muted-foreground">
-                · {a.clients.name}
-              </span>
-            )}
-            {a.client_id &&
-              waMuteUntil.get(String(a.client_id)) &&
-              new Date(waMuteUntil.get(String(a.client_id))!).getTime() >
-                Date.now() && (
-                <span className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground">
-                  WhatsApp silenciado até{" "}
-                  {new Date(
-                    waMuteUntil.get(String(a.client_id))!,
-                  ).toLocaleString("pt-BR", {
-                    day: "2-digit",
-                    month: "short",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
-              )}
-          </div>
-          {a.description && (
-            <div className="mt-0.5 text-xs text-muted-foreground">
-              {a.description}
-            </div>
-          )}
-          {a.recommended_action && (
-            <div className="mt-1 text-xs text-primary">
-              → {a.recommended_action}
-            </div>
-          )}
-          <div className="mt-2 flex flex-col gap-1.5 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-            <span>{timeAgo(a.created_at)}</span>
-            <label className="flex items-center gap-2 font-normal">
-              <span className="shrink-0 text-muted-foreground">
-                Responsável
-              </span>
-              <Select
-                value={a.assigned_to ?? "__none__"}
-                onValueChange={(v) =>
-                  setAssignee(a.id, v === "__none__" ? "" : v)
-                }
-              >
-                <SelectTrigger className="h-8 max-w-[180px] text-xs">
-                  <SelectValue placeholder="—" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">—</SelectItem>
-                  {teammates.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.display_name || t.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
-          </div>
-        </div>
-        {a.status === "open" && (
-          <div className="flex shrink-0 items-center gap-1">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="text-xs"
-              onClick={() => createActionFromAlert(a)}
-            >
-              Virar ação
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="text-xs"
-              onClick={() => resolve(a.id)}
-            >
-              Resolver
-            </Button>
-            {a.client_id && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-xs"
-                title="Não sugerir WhatsApp automático por 24h para este cliente"
-                onClick={() => muteWhatsapp24h(String(a.client_id))}
-              >
-                Silenciar WhatsApp 24h
-              </Button>
-            )}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  async function muteWhatsapp24h(clientId: string) {
-    if (!agency) return;
-    const until = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    const { error } = await supabase.from("client_whatsapp_prefs").upsert(
-      {
-        agency_id: agency.id,
-        client_id: clientId,
-        mute_whatsapp_until: until,
-      },
-      { onConflict: "agency_id,client_id" },
-    );
-    if (error) toast.error(error.message);
-    else {
-      toast.success(
-        "Preferência guardada: alertas novos não marcarão envio WhatsApp automático nas próximas 24h.",
-      );
-      refetch();
-    }
-  }
-
-  async function resolve(id: string) {
-    const { error } = await supabase
-      .from("alerts")
-      .update({ status: "resolved", resolved_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) toast.error(error.message);
-    else {
-      toast.success("Alerta resolvido.");
-      refetch();
-    }
-  }
-
-  async function setAssignee(alertId: string, userId: string) {
-    const value = userId === "" ? null : userId;
-    const { error } = await supabase
-      .from("alerts")
-      .update({ assigned_to: value })
-      .eq("id", alertId);
-    if (error) toast.error(error.message);
-    else {
-      toast.success(value ? "Responsável atualizado." : "Atribuição removida.");
-      refetch();
-    }
-  }
-
-  async function createActionFromAlert(
-    a: Database["public"]["Tables"]["alerts"]["Row"],
-  ) {
-    const { error } = await supabase.from("action_center").insert({
-      agency_id: agency!.id,
-      client_id: a.client_id ?? null,
-      source_type: "alerta_ia",
-      source_ref_id: a.id,
-      title: a.title,
-      description: a.recommended_action || a.description || null,
-      priority:
-        a.priority === "critical"
-          ? "critica"
-          : a.priority === "high"
-            ? "alta"
-            : a.priority === "medium"
-              ? "media"
-              : "baixa",
-      status: "pendente",
-      due_date: new Date().toISOString().slice(0, 10),
-      assigned_to: a.assigned_to ?? null,
-      metadata: { from: "alerts-ui", alert_type: a.type },
-    });
-    if (error) toast.error(error.message);
-    else toast.success("Ação criada na Central de Ações.");
-  }
 
   return (
     <div className="space-y-5 p-6">
@@ -585,7 +486,18 @@ function Alerts() {
           />
         ) : groupBy === "none" ? (
           <div className="divide-y divide-border">
-            {filtered.map((a) => alertRow(a))}
+            {filtered.map((a) => (
+              <AlertsListRow
+                key={a.id}
+                alert={a as AlertRowModel}
+                teammates={teammates}
+                waMuteUntil={waMuteUntil}
+                onAssigneeChange={setAssigneeAlert}
+                onResolve={resolveAlert}
+                onCreateAction={createActionFromAlertCb}
+                onMuteWhatsapp={muteWhatsapp24h}
+              />
+            ))}
           </div>
         ) : (
           <Accordion type="multiple" className="px-2">
@@ -599,7 +511,18 @@ function Alerts() {
                 </AccordionTrigger>
                 <AccordionContent className="pb-0 pt-0">
                   <div className="divide-y divide-border rounded-md border border-border">
-                    {items.map((a) => alertRow(a))}
+                    {items.map((a) => (
+                      <AlertsListRow
+                        key={a.id}
+                        alert={a as AlertRowModel}
+                        teammates={teammates}
+                        waMuteUntil={waMuteUntil}
+                        onAssigneeChange={setAssigneeAlert}
+                        onResolve={resolveAlert}
+                        onCreateAction={createActionFromAlertCb}
+                        onMuteWhatsapp={muteWhatsapp24h}
+                      />
+                    ))}
                   </div>
                 </AccordionContent>
               </AccordionItem>

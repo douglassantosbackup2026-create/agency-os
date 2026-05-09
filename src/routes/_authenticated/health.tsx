@@ -11,6 +11,8 @@ import {
   ScoreBar,
 } from "@/components/operational-ui";
 import type { Database } from "@/integrations/supabase/types";
+import { throwIfSupabaseError } from "@/lib/supabase-result";
+import { QueryErrorState } from "@/components/query-error-state";
 
 type ClientBrief = Pick<
   Database["public"]["Tables"]["clients"]["Row"],
@@ -25,7 +27,7 @@ export const Route = createFileRoute("/_authenticated/health")({
 
 function Health() {
   const { agency } = useAuth();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["health", agency?.id],
     enabled: !!agency,
     queryFn: async () => {
@@ -40,12 +42,26 @@ function Health() {
           .eq("agency_id", agency!.id)
           .order("recorded_at", { ascending: false }),
       ]);
+      throwIfSupabaseError(clients.error, "clients");
+      throwIfSupabaseError(scores.error, "health_scores");
       const latest = new Map<string, HealthLatest>();
       for (const h of scores.data ?? [])
         if (!latest.has(h.client_id)) latest.set(h.client_id, h);
       return { clients: (clients.data ?? []) as ClientBrief[], latest };
     },
   });
+
+  if (isError) {
+    return (
+      <QueryErrorState
+        title="Não foi possível carregar o Health Score"
+        message={
+          error instanceof Error ? error.message : String(error ?? "Erro")
+        }
+        onRetry={() => void refetch()}
+      />
+    );
+  }
 
   if (isLoading || !data) return <PageSkeleton />;
 

@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { timeAgo } from "@/lib/format";
 import { Card, Empty, PageSkeleton } from "@/components/operational-ui";
+import { throwIfSupabaseError } from "@/lib/supabase-result";
+import { QueryErrorState } from "@/components/query-error-state";
 import { Activity as Act } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/activity")({
@@ -12,19 +14,30 @@ export const Route = createFileRoute("/_authenticated/activity")({
 
 function Feed() {
   const { agency } = useAuth();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["activity", agency?.id],
     enabled: !!agency,
     queryFn: async () => {
-      const { data } = await supabase
+      const res = await supabase
         .from("activities")
         .select("*, clients(name)")
         .eq("agency_id", agency!.id)
         .order("created_at", { ascending: false })
         .limit(200);
-      return data ?? [];
+      throwIfSupabaseError(res.error, "activities");
+      return res.data ?? [];
     },
   });
+  if (isError) {
+    return (
+      <QueryErrorState
+        message={
+          error instanceof Error ? error.message : String(error ?? "Erro")
+        }
+        onRetry={() => void refetch()}
+      />
+    );
+  }
   if (isLoading || !data) return <PageSkeleton />;
   return (
     <div className="space-y-5 p-6">

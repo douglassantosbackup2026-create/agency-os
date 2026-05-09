@@ -20,6 +20,8 @@ type AuthCtx = {
   session: Session | null;
   user: User | null;
   agency: AgencyContext;
+  /** Mensagem quando o carregamento da agência falhou (rede/PostgREST), não confundir com «sem agência». */
+  agencyLoadError: string | null;
   loading: boolean;
   signOut: () => Promise<void>;
   refreshAgency: () => Promise<void>;
@@ -30,16 +32,23 @@ const Ctx = createContext<AuthCtx | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [agency, setAgency] = useState<AgencyContext>(null);
+  const [agencyLoadError, setAgencyLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadAgency = async (userId: string) => {
-    const { data: profile } = await supabase
+    const { data: profile, error } = await supabase
       .from("profiles")
       .select(
         "agency_id, agencies:agency_id(id, name, slug, logo_url, primary_color)",
       )
       .eq("id", userId)
       .maybeSingle();
+    if (error) {
+      setAgencyLoadError(error.message);
+      setAgency(null);
+      return;
+    }
+    setAgencyLoadError(null);
     setAgency(
       (profile as unknown as { agencies: AgencyContext })?.agencies ?? null,
     );
@@ -53,17 +62,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setTimeout(() => loadAgency(s.user.id), 0);
       } else {
         setAgency(null);
+        setAgencyLoadError(null);
       }
     });
 
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      if (data.session?.user) {
-        loadAgency(data.session.user.id).finally(() => setLoading(false));
-      } else {
-        setLoading(false);
-      }
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        setSession(data.session);
+        if (data.session?.user) {
+          loadAgency(data.session.user.id).finally(() => setLoading(false));
+        } else {
+          setLoading(false);
+        }
+      })
+      .catch(() => setLoading(false));
 
     return () => sub.subscription.unsubscribe();
   }, []);
@@ -72,6 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     user: session?.user ?? null,
     agency,
+    agencyLoadError,
     loading,
     signOut: async () => {
       await supabase.auth.signOut();

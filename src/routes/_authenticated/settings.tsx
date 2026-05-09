@@ -119,6 +119,10 @@ function Settings() {
                   <img
                     src={logo}
                     alt="logo"
+                    width={48}
+                    height={48}
+                    decoding="async"
+                    loading="lazy"
                     className="h-12 w-12 rounded-md border border-border object-cover"
                   />
                 )}

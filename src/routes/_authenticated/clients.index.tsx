@@ -31,6 +31,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { ACTION_CENTER_OPEN_STATUSES } from "@/lib/action-center-status";
 import { rowsToCsv } from "@/lib/csv";
 import { PageHeader } from "@/components/page-header";
+import { ClientCockpitRow } from "@/components/client-cockpit-row";
 
 type HealthScoreRow = Database["public"]["Tables"]["health_scores"]["Row"];
 
@@ -369,46 +370,22 @@ function Clients() {
                     ? "text-amber-700 dark:text-amber-400"
                     : "text-muted-foreground";
               return (
-                <Link
+                <ClientCockpitRow
                   key={`cockpit-m-${c.id}`}
-                  to="/clients/$clientId"
-                  params={{ clientId: c.id }}
-                  className="surface-card block rounded-xl border border-border p-4 text-sm shadow-sm transition hover:bg-surface-2"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="font-semibold">{c.name}</span>
-                    {h ? (
-                      <span className="flex items-center gap-2 font-mono text-xs tabular">
-                        <RiskDot risk={h.risk} />
-                        {h.score}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                    <div>
-                      <div className="font-medium text-foreground">Ações</div>
-                      <div className="font-mono tabular">{openN}</div>
-                    </div>
-                    <div>
-                      <div className="font-medium text-foreground">Sync</div>
-                      <div className={`tabular ${syncTone}`}>
-                        {sync?.status ?? "—"}
-                      </div>
-                    </div>
-                    <div className="col-span-2">
-                      <div className="font-medium text-foreground">
-                        Auditoria IA
-                      </div>
-                      <div className="tabular">
-                        {au?.created_at
-                          ? String(au.created_at).slice(0, 10)
-                          : "—"}
-                      </div>
-                    </div>
-                  </div>
-                </Link>
+                  clientId={c.id}
+                  clientName={c.name}
+                  layout="mobile"
+                  healthRisk={h?.risk}
+                  healthScore={h?.score}
+                  openN={openN}
+                  syncStatus={sync?.status}
+                  syncToneClass={syncTone}
+                  auditDate={
+                    au?.created_at
+                      ? String(au.created_at).slice(0, 10)
+                      : undefined
+                  }
+                />
               );
             })
           )}
@@ -438,46 +415,23 @@ function Clients() {
                     ? "text-amber-700 dark:text-amber-400"
                     : "text-muted-foreground";
               return (
-                <Link
+                <ClientCockpitRow
                   key={`cockpit-${c.id}`}
-                  to="/clients/$clientId"
-                  params={{ clientId: c.id }}
-                  className="grid min-w-[760px] grid-cols-12 gap-2 border-b border-border px-4 py-2.5 text-sm last:border-0 hover:bg-surface-2"
-                >
-                  <div className="col-span-3 truncate font-medium">
-                    {c.name}
-                  </div>
-                  <div className="col-span-2 flex items-center gap-2">
-                    {h ? (
-                      <>
-                        <RiskDot risk={h.risk} />
-                        <span className="font-mono tabular text-xs">
-                          {h.score}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </div>
-                  <div className="col-span-2 text-center font-mono tabular text-xs">
-                    {openN}
-                  </div>
-                  <div className={`col-span-3 text-xs ${syncTone}`}>
-                    {sync ? (
-                      <>
-                        <span className="font-medium">{sync.status}</span>
-                        <span className="block text-xs text-muted-foreground">
-                          {sync.created_at.slice(0, 19).replace("T", " ")}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-muted-foreground">Sem sync</span>
-                    )}
-                  </div>
-                  <div className="col-span-2 text-xs text-muted-foreground">
-                    {au?.created_at ? String(au.created_at).slice(0, 10) : "—"}
-                  </div>
-                </Link>
+                  clientId={c.id}
+                  clientName={c.name}
+                  layout="desktop"
+                  healthRisk={h?.risk}
+                  healthScore={h?.score}
+                  openN={openN}
+                  syncStatus={sync?.status}
+                  syncCreatedAt={sync?.created_at}
+                  syncToneClass={syncTone}
+                  auditDate={
+                    au?.created_at
+                      ? String(au.created_at).slice(0, 10)
+                      : undefined
+                  }
+                />
               );
             })
           )}

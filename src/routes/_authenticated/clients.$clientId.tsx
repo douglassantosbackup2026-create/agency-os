@@ -48,6 +48,8 @@ import {
   Stat,
 } from "@/components/operational-ui";
 import { toast } from "sonner";
+import { throwIfSupabaseError } from "@/lib/supabase-result";
+import { QueryErrorState } from "@/components/query-error-state";
 import { isOpenActionCenterStatus } from "@/lib/action-center-status";
 import { Button } from "@/components/ui/button";
 import {
@@ -134,7 +136,7 @@ function ClientDetail() {
   const [clientMsgOpen, setClientMsgOpen] = useState(false);
   const [clientMsgBody, setClientMsgBody] = useState("");
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["client", clientId],
     queryFn: async () => {
       const [
@@ -260,6 +262,24 @@ function ClientDetail() {
           .order("updated_at", { ascending: false })
           .limit(400),
       ]);
+      throwIfSupabaseError(client.error, "clients");
+      throwIfSupabaseError(metrics.error, "metrics_daily");
+      throwIfSupabaseError(campaigns.error, "campaigns");
+      throwIfSupabaseError(alerts.error, "alerts");
+      throwIfSupabaseError(reports.error, "reports");
+      throwIfSupabaseError(notes.error, "notes");
+      throwIfSupabaseError(health.error, "health_scores");
+      throwIfSupabaseError(tasks.error, "tasks");
+      throwIfSupabaseError(activities.error, "activities");
+      throwIfSupabaseError(adAccounts.error, "client_platform_accounts");
+      throwIfSupabaseError(meetingReports.error, "meeting_reports");
+      throwIfSupabaseError(ga4Daily.error, "ga4_daily");
+      throwIfSupabaseError(ga4Funnel.error, "ga4_funnel_daily");
+      throwIfSupabaseError(ga4Channels.error, "ga4_channel_daily");
+      throwIfSupabaseError(ga4Tracking.error, "ga4_tracking_health_daily");
+      throwIfSupabaseError(actions.error, "action_center");
+      throwIfSupabaseError(campaignAudits.error, "campaign_ai_audits");
+      throwIfSupabaseError(auditRecoStatuses.error, "audit_reco_status");
       return {
         client: client.data,
         metrics: metrics.data ?? [],
@@ -406,6 +426,18 @@ function ClientDetail() {
     }
     return m;
   }, [data?.auditRecoStatuses, latestAuditIdForReco]);
+
+  if (isError) {
+    return (
+      <QueryErrorState
+        title="Não foi possível carregar o cliente"
+        message={
+          error instanceof Error ? error.message : String(error ?? "Erro")
+        }
+        onRetry={() => void refetch()}
+      />
+    );
+  }
 
   if (isLoading || !data) return <PageSkeleton preset="compact" />;
   if (!data.client)
