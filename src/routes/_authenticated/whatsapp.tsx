@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Send, MessageSquare, Plus, Trash2, Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
 import { Card, CardHeader, Empty, PageSkeleton } from "./dashboard";
 import { timeAgo } from "@/lib/format";
 
@@ -84,7 +85,7 @@ function WhatsApp() {
   if (isLoading || !data) return <PageSkeleton />;
 
   return (
-    <div className="space-y-5 p-6">
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-5 p-6">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">WhatsApp</h1>
         <p className="mt-0.5 text-sm text-muted-foreground">Envie alertas, resumos e mensagens diretas via Evolution API.</p>
