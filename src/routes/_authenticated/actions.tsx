@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useOperationClientScope } from "@/hooks/use-operation-client-scope";
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { timeAgo } from "@/lib/format";
@@ -42,7 +43,11 @@ function addDaysISO(days: number) {
 }
 
 function isActionOverdue(a: { due_date?: string | null; status?: string }) {
-  if (!a.due_date || !a.status || !ACTION_CENTER_OPEN_STATUSES_SET.has(a.status))
+  if (
+    !a.due_date ||
+    !a.status ||
+    !ACTION_CENTER_OPEN_STATUSES_SET.has(a.status)
+  )
     return false;
   return a.due_date < todayISO();
 }
@@ -51,7 +56,11 @@ function dueWithinDays(
   a: { due_date?: string | null; status?: string },
   days: number,
 ) {
-  if (!a.due_date || !a.status || !ACTION_CENTER_OPEN_STATUSES_SET.has(a.status))
+  if (
+    !a.due_date ||
+    !a.status ||
+    !ACTION_CENTER_OPEN_STATUSES_SET.has(a.status)
+  )
     return false;
   const t = todayISO();
   const limit = addDaysISO(days);
@@ -106,10 +115,19 @@ function loadSavedFilters() {
 
 export const Route = createFileRoute("/_authenticated/actions")({
   component: ActionsCenter,
+  validateSearch: (s: Record<string, unknown>) => ({
+    sla:
+      s.sla === "overdue" || s.sla === "soon_3" || s.sla === "soon_7"
+        ? (s.sla as "overdue" | "soon_3" | "soon_7")
+        : undefined,
+  }),
 });
 
 function ActionsCenter() {
   const { agency, user } = useAuth();
+  const urlSearch = Route.useSearch();
+  const { clientId: scopeClientId, setClientId: setScopeClientId } =
+    useOperationClientScope();
   const saved = loadSavedFilters();
   const [status, setStatus] = useState<string>(
     String(saved?.status ?? "pendente"),
@@ -136,6 +154,31 @@ function ActionsCenter() {
   const [bulkAssignee, setBulkAssignee] = useState<string>("__none__");
   const [bulkStatus, setBulkStatus] = useState<string>("pendente");
   const [filtersSheetOpen, setFiltersSheetOpen] = useState(false);
+
+  useEffect(() => {
+    const u = urlSearch.sla;
+    if (u === "overdue" || u === "soon_3" || u === "soon_7") {
+      setSlaFilter(u);
+    }
+  }, [urlSearch.sla]);
+
+  const scopeSyncReady = useRef(false);
+  useEffect(() => {
+    if (!scopeSyncReady.current) {
+      scopeSyncReady.current = true;
+      if (scopeClientId) setClientFilter(scopeClientId);
+      return;
+    }
+    setClientFilter(scopeClientId ?? "all");
+  }, [scopeClientId]);
+
+  const onClientFilterChange = useCallback(
+    (v: string) => {
+      setClientFilter(v);
+      setScopeClientId(v === "all" ? null : v);
+    },
+    [setScopeClientId],
+  );
 
   useEffect(() => {
     try {
@@ -166,7 +209,11 @@ function ActionsCenter() {
     sortDue,
   ]);
 
-  const { data: actionsRows, isLoading, refetch } = useQuery({
+  const {
+    data: actionsRows,
+    isLoading,
+    refetch,
+  } = useQuery({
     queryKey: [
       "action-center",
       agency?.id,
@@ -289,7 +336,11 @@ function ActionsCenter() {
     if (!selectedIds.length) return;
     let ok = 0;
     for (const id of selectedIds) {
-      const done = await patchAction(id, { status: bulkStatus }, { silent: true });
+      const done = await patchAction(
+        id,
+        { status: bulkStatus },
+        { silent: true },
+      );
       if (done) ok++;
     }
     if (ok === selectedIds.length) {
@@ -297,13 +348,7 @@ function ActionsCenter() {
       refetch();
       clearSelection();
     } else toast.error("Algumas atualizações falharam — verifique permissões.");
-  }, [
-    selectedIds,
-    bulkStatus,
-    patchAction,
-    refetch,
-    clearSelection,
-  ]);
+  }, [selectedIds, bulkStatus, patchAction, refetch, clearSelection]);
 
   const applyBulkAssignee = useCallback(async () => {
     if (!selectedIds.length) return;
@@ -322,13 +367,7 @@ function ActionsCenter() {
       refetch();
       clearSelection();
     } else toast.error("Algumas atualizações falharam — verifique permissões.");
-  }, [
-    selectedIds,
-    bulkAssignee,
-    patchAction,
-    refetch,
-    clearSelection,
-  ]);
+  }, [selectedIds, bulkAssignee, patchAction, refetch, clearSelection]);
 
   const onToggleExpand = useCallback((id: string) => {
     setExpandedId((prev) => (prev === id ? null : id));
@@ -392,104 +431,102 @@ function ActionsCenter() {
           </Button>
         }
       >
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="h-11 w-full">
-                <SelectValue placeholder="Estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos estados</SelectItem>
-                <SelectItem value="pendente">Pendente</SelectItem>
-                <SelectItem value="revisar_depois">Revisar depois</SelectItem>
-                <SelectItem value="adiado">Adiado</SelectItem>
-                <SelectItem value="feito">Feito</SelectItem>
-                <SelectItem value="ignorado">Ignorado</SelectItem>
-                <SelectItem value="enviado_cliente">
-                  Enviado ao cliente
-                </SelectItem>
-                <SelectItem value="anotacao">Anotação</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={sourceType} onValueChange={setSourceType}>
-              <SelectTrigger className="h-11 w-full">
-                <SelectValue placeholder="Origem" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas origens</SelectItem>
-                <SelectItem value="alerta_ia">Alerta IA</SelectItem>
-                <SelectItem value="relatorio_ia">Relatório IA</SelectItem>
-                <SelectItem value="manual">Manual</SelectItem>
-                <SelectItem value="whatsapp">WhatsApp</SelectItem>
-                <SelectItem value="briefing">Briefing</SelectItem>
-                <SelectItem value="auditoria_campanhas_ia">
-                  Auditoria campanhas IA
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={priority} onValueChange={setPriority}>
-              <SelectTrigger className="h-11 w-full">
-                <SelectValue placeholder="Prioridade" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas prioridades</SelectItem>
-                <SelectItem value="critica">Crítica</SelectItem>
-                <SelectItem value="alta">Alta</SelectItem>
-                <SelectItem value="media">Média</SelectItem>
-                <SelectItem value="baixa">Baixa</SelectItem>
-              </SelectContent>
-            </Select>
-            <AgencyClientSelect
-              clients={clients}
-              value={clientFilter}
-              onValueChange={setClientFilter}
-              triggerClassName={FILTER_SELECT_TRIGGER_CLASSES.drawer}
-              allLabel="Todos clientes"
+        <Select value={status} onValueChange={setStatus}>
+          <SelectTrigger className="h-11 w-full">
+            <SelectValue placeholder="Estado" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos estados</SelectItem>
+            <SelectItem value="pendente">Pendente</SelectItem>
+            <SelectItem value="revisar_depois">Revisar depois</SelectItem>
+            <SelectItem value="adiado">Adiado</SelectItem>
+            <SelectItem value="feito">Feito</SelectItem>
+            <SelectItem value="ignorado">Ignorado</SelectItem>
+            <SelectItem value="enviado_cliente">Enviado ao cliente</SelectItem>
+            <SelectItem value="anotacao">Anotação</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={sourceType} onValueChange={setSourceType}>
+          <SelectTrigger className="h-11 w-full">
+            <SelectValue placeholder="Origem" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas origens</SelectItem>
+            <SelectItem value="alerta_ia">Alerta IA</SelectItem>
+            <SelectItem value="relatorio_ia">Relatório IA</SelectItem>
+            <SelectItem value="manual">Manual</SelectItem>
+            <SelectItem value="whatsapp">WhatsApp</SelectItem>
+            <SelectItem value="briefing">Briefing</SelectItem>
+            <SelectItem value="auditoria_campanhas_ia">
+              Auditoria campanhas IA
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={priority} onValueChange={setPriority}>
+          <SelectTrigger className="h-11 w-full">
+            <SelectValue placeholder="Prioridade" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas prioridades</SelectItem>
+            <SelectItem value="critica">Crítica</SelectItem>
+            <SelectItem value="alta">Alta</SelectItem>
+            <SelectItem value="media">Média</SelectItem>
+            <SelectItem value="baixa">Baixa</SelectItem>
+          </SelectContent>
+        </Select>
+        <AgencyClientSelect
+          clients={clients}
+          value={clientFilter}
+          onValueChange={onClientFilterChange}
+          triggerClassName={FILTER_SELECT_TRIGGER_CLASSES.drawer}
+          allLabel="Todos clientes"
+        />
+        <Select
+          value={slaFilter}
+          onValueChange={(v) => setSlaFilter(v as typeof slaFilter)}
+        >
+          <SelectTrigger className="h-11 w-full">
+            <SelectValue placeholder="Prazo" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos prazos</SelectItem>
+            <SelectItem value="overdue">Só atrasadas (SLA)</SelectItem>
+            <SelectItem value="soon_3">Vence em até 3 dias</SelectItem>
+            <SelectItem value="soon_7">Vence em até 7 dias</SelectItem>
+            <SelectItem value="range">Intervalo de due date</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select
+          value={sortDue}
+          onValueChange={(v) => setSortDue(v as typeof sortDue)}
+        >
+          <SelectTrigger className="h-11 w-full">
+            <SelectValue placeholder="Ordenar" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Ordenação: recentes</SelectItem>
+            <SelectItem value="due_asc">Prazo crescente</SelectItem>
+            <SelectItem value="due_desc">Prazo decrescente</SelectItem>
+          </SelectContent>
+        </Select>
+        {slaFilter === "range" && (
+          <div className="flex flex-col gap-2 text-sm">
+            <span className="text-muted-foreground">Due date entre</span>
+            <input
+              type="date"
+              value={dueFrom}
+              onChange={(e) => setDueFrom(e.target.value)}
+              className="h-11 rounded-md border border-border bg-background px-3 text-sm"
             />
-            <Select
-              value={slaFilter}
-              onValueChange={(v) => setSlaFilter(v as typeof slaFilter)}
-            >
-              <SelectTrigger className="h-11 w-full">
-                <SelectValue placeholder="Prazo" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos prazos</SelectItem>
-                <SelectItem value="overdue">Só atrasadas (SLA)</SelectItem>
-                <SelectItem value="soon_3">Vence em até 3 dias</SelectItem>
-                <SelectItem value="soon_7">Vence em até 7 dias</SelectItem>
-                <SelectItem value="range">Intervalo de due date</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select
-              value={sortDue}
-              onValueChange={(v) => setSortDue(v as typeof sortDue)}
-            >
-              <SelectTrigger className="h-11 w-full">
-                <SelectValue placeholder="Ordenar" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Ordenação: recentes</SelectItem>
-                <SelectItem value="due_asc">Prazo crescente</SelectItem>
-                <SelectItem value="due_desc">Prazo decrescente</SelectItem>
-              </SelectContent>
-            </Select>
-            {slaFilter === "range" && (
-              <div className="flex flex-col gap-2 text-sm">
-                <span className="text-muted-foreground">Due date entre</span>
-                <input
-                  type="date"
-                  value={dueFrom}
-                  onChange={(e) => setDueFrom(e.target.value)}
-                  className="h-11 rounded-md border border-border bg-background px-3 text-sm"
-                />
-                <span className="text-muted-foreground">e</span>
-                <input
-                  type="date"
-                  value={dueTo}
-                  onChange={(e) => setDueTo(e.target.value)}
-                  className="h-11 rounded-md border border-border bg-background px-3 text-sm"
-                />
-              </div>
-            )}
+            <span className="text-muted-foreground">e</span>
+            <input
+              type="date"
+              value={dueTo}
+              onChange={(e) => setDueTo(e.target.value)}
+              className="h-11 rounded-md border border-border bg-background px-3 text-sm"
+            />
+          </div>
+        )}
       </FilterDrawer>
 
       <div className="hidden flex-wrap gap-2 md:flex">
@@ -539,7 +576,7 @@ function ActionsCenter() {
         <AgencyClientSelect
           clients={clients}
           value={clientFilter}
-          onValueChange={setClientFilter}
+          onValueChange={onClientFilterChange}
           triggerClassName={FILTER_SELECT_TRIGGER_CLASSES.barClient}
           allLabel="Todos clientes"
         />

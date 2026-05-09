@@ -3,11 +3,13 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardHeader } from "@/components/operational-ui";
 import {
   ArrowRight,
+  CheckCircle2,
   ExternalLink,
   Plug,
   Sparkles,
   UserPlus,
   Loader2,
+  Zap,
 } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,6 +22,83 @@ import { QueryErrorState } from "@/components/query-error-state";
 export const Route = createFileRoute("/_authenticated/onboarding")({
   component: Onboarding,
 });
+
+const SETUP_STEPS = [
+  { num: 1, label: "Primeiro cliente" },
+  { num: 2, label: "Integração" },
+  { num: 3, label: "Marca & portal" },
+  { num: 4, label: "Time" },
+  { num: 5, label: "Explorar" },
+] as const;
+
+function SetupStepper({ current }: { current: number }) {
+  return (
+    <div className="flex items-center gap-1 overflow-x-auto pb-1">
+      {SETUP_STEPS.map((step, idx) => {
+        const done = step.num < current;
+        const active = step.num === current;
+        return (
+          <div key={step.num} className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
+              <span
+                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${
+                  done
+                    ? "bg-primary text-primary-foreground"
+                    : active
+                      ? "border-2 border-primary text-primary"
+                      : "border border-border text-muted-foreground"
+                }`}
+              >
+                {done ? <CheckCircle2 className="h-3.5 w-3.5" /> : step.num}
+              </span>
+              <span
+                className={`hidden text-xs sm:inline ${
+                  active
+                    ? "font-medium text-foreground"
+                    : done
+                      ? "text-muted-foreground"
+                      : "text-muted-foreground/60"
+                }`}
+              >
+                {step.label}
+              </span>
+            </div>
+            {idx < SETUP_STEPS.length - 1 && (
+              <div
+                className={`h-px w-4 shrink-0 ${done ? "bg-primary" : "bg-border"}`}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function AhaMomentCallout({ clientName }: { clientName: string }) {
+  return (
+    <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/8 p-4">
+      <div className="flex items-start gap-3">
+        <Zap className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+        <div>
+          <p className="font-medium text-foreground">
+            {clientName} foi adicionado ao cockpit!
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            O Health Score está sendo calculado. Conecte uma integração no
+            próximo passo para ver dados reais de performance.
+          </p>
+          <Link
+            to="/dashboard"
+            className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-emerald-700 hover:underline dark:text-emerald-400"
+          >
+            Ver no cockpit agora <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Onboarding() {
   const { agency } = useAuth();
@@ -34,6 +113,11 @@ function Onboarding() {
   const [quickClientName, setQuickClientName] = useState("");
   const [quickBudget, setQuickBudget] = useState("");
   const [quickMrr, setQuickMrr] = useState("");
+  const [runDiagnosticAfterCreate, setRunDiagnosticAfterCreate] =
+    useState(true);
+  const [firstCreatedClientName, setFirstCreatedClientName] = useState<
+    string | null
+  >(null);
 
   const {
     data: checklistData,
@@ -154,7 +238,9 @@ function Onboarding() {
       .select("id")
       .maybeSingle();
     if (error) return toast.error(error.message);
+    const createdName = quickClientName.trim();
     toast.success("Cliente criado em modo onboarding rápido.");
+    setFirstCreatedClientName(createdName);
     setQuickClientName("");
     setQuickBudget("");
     setQuickMrr("");
@@ -210,6 +296,8 @@ function Onboarding() {
     );
   }
 
+  const currentStep = firstCreatedClientName ? 2 : 1;
+
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-6">
       <header>
@@ -217,17 +305,23 @@ function Onboarding() {
           Configuração inicial
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Você já pode usar o Retentio — estes passos deixam o workspace pronto
-          para o time e para o cliente final.
+          Siga os passos para deixar seu cockpit pronto em menos de 10 minutos.
         </p>
+        <div className="mt-4">
+          <SetupStepper current={currentStep} />
+        </div>
       </header>
 
+      {firstCreatedClientName && (
+        <AhaMomentCallout clientName={firstCreatedClientName} />
+      )}
+
       <Card>
-        <CardHeader title="0. Onboarding em 3 minutos" />
+        <CardHeader title="Passo 1 · Adicione seu primeiro cliente" />
         <div className="space-y-3 p-4 text-sm text-muted-foreground">
           <p>
-            Cadastre cliente com dados mínimos para começar a operar e gerar
-            diagnóstico inicial.
+            Cadastre com dados mínimos agora. Você completa integrações e metas
+            no próximo passo — o cockpit já aparece no dashboard.
           </p>
           <form
             onSubmit={quickCreateClient}
@@ -239,13 +333,12 @@ function Onboarding() {
                 checked={runDiagnosticAfterCreate}
                 onChange={(e) => setRunDiagnosticAfterCreate(e.target.checked)}
               />
-              Rodar diagnóstico inicial de saúde da carteira (atualiza scores e
-              briefing)
+              Calcular Health Score inicial após criar (recomendado)
             </label>
             <input
               value={quickClientName}
               onChange={(e) => setQuickClientName(e.target.value)}
-              placeholder="Nome do cliente"
+              placeholder="Nome do cliente *"
               className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground sm:col-span-2"
             />
             <input
@@ -264,21 +357,55 @@ function Onboarding() {
             />
             <button
               type="submit"
-              className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground sm:col-span-4"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground sm:col-span-4"
             >
-              Criar cliente rápido
+              Criar cliente e ir para o cockpit
+              <ArrowRight className="h-4 w-4" />
             </button>
           </form>
         </div>
       </Card>
 
       <Card>
-        <CardHeader title="1. Marca & portal" />
+        <CardHeader title="Passo 2 · Conecte 1 integração" />
         <div className="space-y-3 p-4 text-sm text-muted-foreground">
           <p>
-            Defina nome, logo e cor primária para o painel white-label e para o
-            portal público do cliente.
+            Você não precisa conectar tudo agora.{" "}
+            <strong className="font-medium text-foreground">
+              Uma integração já é suficiente
+            </strong>{" "}
+            para o Retentio mostrar dados reais de performance no cockpit.
           </p>
+          <p className="text-xs">
+            Sugerido: comece com Meta Ads ou Google Analytics. Demais canais
+            você conecta depois, no seu ritmo.
+          </p>
+          <Link
+            to="/integrations"
+            className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"
+          >
+            <Plug className="h-3.5 w-3.5" />
+            Conectar integração agora
+          </Link>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader title="Passo 3 · Marca & portal white-label" />
+        <div className="space-y-3 p-4 text-sm text-muted-foreground">
+          <p>
+            Defina nome, logo e cor primária da agência. Isso aparece no portal
+            público do cliente — o link que você envia para ele ver a
+            performance.
+          </p>
+          {agency?.slug && (
+            <p className="text-xs">
+              Link do portal:{" "}
+              <code className="rounded bg-surface px-1 font-mono">
+                {slugHint}
+              </code>
+            </p>
+          )}
           <Link
             to="/settings"
             className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"
@@ -289,34 +416,11 @@ function Onboarding() {
       </Card>
 
       <Card>
-        <CardHeader title="2. Portal do cliente" />
+        <CardHeader title="Passo 4 · Convide o time" />
         <div className="space-y-3 p-4 text-sm text-muted-foreground">
           <p>
-            Cada cliente pode ter um{" "}
-            <code className="rounded bg-surface px-1 font-mono text-xs">
-              portal_slug
-            </code>{" "}
-            na ficha. O link público segue o formato{" "}
-            <code className="rounded bg-surface px-1 font-mono text-xs">
-              {slugHint}
-            </code>
-            .
-          </p>
-          <Link
-            to="/clients"
-            className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"
-          >
-            Gerenciar clientes <ExternalLink className="h-3 w-3 opacity-70" />
-          </Link>
-        </div>
-      </Card>
-
-      <Card>
-        <CardHeader title="3. Convide o time" />
-        <div className="space-y-3 p-4 text-sm text-muted-foreground">
-          <p>
-            Apenas perfis owner/admin conseguem concluir o convite. Em caso de
-            erro, faça pela área Admin.
+            Membros recebem acesso ao cockpit e podem gerenciar clientes
+            conforme o papel (member, admin, owner).
           </p>
           <form
             onSubmit={sendInvite}
@@ -355,41 +459,33 @@ function Onboarding() {
             to="/admin"
             className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
           >
-            Abrir área administrativa para gestão de membros →
+            Gerenciar membros na área Admin →
           </Link>
         </div>
       </Card>
 
       <Card>
-        <CardHeader title="4. Integrações & dados reais" />
+        <CardHeader title="Passo 5 · Explore o cockpit" />
         <div className="space-y-3 p-4 text-sm text-muted-foreground">
           <p>
-            Conecte Meta Ads ou Google Analytics com token válido para preencher
-            métricas reais — ou use apenas sync simulado para demos.
+            Abra o dashboard e veja o cockpit em ação. Se ainda não conectou
+            integração real, explore com dados de demonstração — tudo funciona
+            da mesma forma.
           </p>
-          <Link
-            to="/integrations"
-            className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"
-          >
-            <Plug className="h-3.5 w-3.5" />
-            Integrações e sincronização
-          </Link>
-        </div>
-      </Card>
-
-      <Card>
-        <CardHeader title="5. Explorar com dados demo" />
-        <div className="space-y-3 p-4 text-sm text-muted-foreground">
-          <p>
-            Gere métricas e alertas fictícios para validar dashboards e
-            automações.
-          </p>
-          <Link
-            to="/dashboard"
-            className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"
-          >
-            Ir ao dashboard <Sparkles className="h-3.5 w-3.5" />
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              to="/dashboard"
+              className="inline-flex items-center gap-1.5 font-medium text-primary hover:underline"
+            >
+              Ir ao dashboard <Sparkles className="h-3.5 w-3.5" />
+            </Link>
+            <Link
+              to="/clients"
+              className="inline-flex items-center gap-1.5 font-medium text-muted-foreground hover:text-foreground hover:underline"
+            >
+              Ver clientes <ExternalLink className="h-3 w-3 opacity-70" />
+            </Link>
+          </div>
         </div>
       </Card>
 
@@ -398,7 +494,8 @@ function Onboarding() {
         <div className="space-y-3 p-4">
           {(checklistData?.clients ?? []).length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Adicione clientes para acompanhar onboarding e time-to-value.
+              Adicione clientes no passo 1 para acompanhar progresso de
+              onboarding e time-to-value.
             </p>
           ) : (
             (checklistData?.clients ?? []).map((client) => {

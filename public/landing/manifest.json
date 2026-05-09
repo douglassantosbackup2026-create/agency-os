@@ -1,0 +1,50 @@
+{
+  "hero-cockpit-clientes": {
+    "webp": "/landing/hero-cockpit-clientes.webp",
+    "png": "/landing/hero-cockpit-clientes.png",
+    "width": 1600,
+    "height": 980
+  },
+  "central-alertas": {
+    "webp": "/landing/central-alertas.webp",
+    "png": "/landing/central-alertas.png",
+    "width": 1400,
+    "height": 788
+  },
+  "health-score": {
+    "webp": "/landing/health-score.webp",
+    "png": "/landing/health-score.png",
+    "width": 1400,
+    "height": 770
+  },
+  "feed-operacional": {
+    "webp": "/landing/feed-operacional.webp",
+    "png": "/landing/feed-operacional.png",
+    "width": 1400,
+    "height": 780
+  },
+  "onboarding-config": {
+    "webp": "/landing/onboarding-config.webp",
+    "png": "/landing/onboarding-config.png",
+    "width": 1400,
+    "height": 920
+  },
+  "central-acoes": {
+    "webp": "/landing/central-acoes.webp",
+    "png": "/landing/central-acoes.png",
+    "width": 1400,
+    "height": 760
+  },
+  "relatorios-ia": {
+    "webp": "/landing/relatorios-ia.webp",
+    "png": "/landing/relatorios-ia.png",
+    "width": 1400,
+    "height": 780
+  },
+  "intel-concorrentes": {
+    "webp": "/landing/intel-concorrentes.webp",
+    "png": "/landing/intel-concorrentes.png",
+    "width": 1400,
+    "height": 760
+  }
+}

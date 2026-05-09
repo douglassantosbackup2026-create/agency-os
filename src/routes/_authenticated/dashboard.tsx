@@ -12,6 +12,7 @@ import {
   ChevronDown,
   Database,
   Heart,
+  ListTodo,
   Sparkles,
   Target,
   TrendingUp,
@@ -34,6 +35,7 @@ import {
   auditOverallStatus,
 } from "@/lib/audit-dashboard";
 import { ACTION_CENTER_OPEN_STATUSES } from "@/lib/action-center-status";
+import { ONBOARDING_STEP_KEYS } from "@/lib/onboarding-checklist";
 import { invokeWithToast } from "@/lib/supabase-invoke";
 import { throwIfSupabaseError } from "@/lib/supabase-result";
 import { QueryErrorState } from "@/components/query-error-state";
@@ -83,6 +85,7 @@ function Dashboard() {
     queryKey: ["dashboard", agency?.id],
     enabled: !!agency,
     queryFn: async () => {
+      const todayIso = new Date().toISOString().slice(0, 10);
       const since = new Date(Date.now() - 30 * 86400000)
         .toISOString()
         .slice(0, 10);
@@ -105,6 +108,8 @@ function Dashboard() {
         reportsReview,
         agencyBriefing,
         campaignAuditsSnap,
+        checklistItems,
+        overdueActions,
       ] = await Promise.all([
         supabase
           .from("clients")
@@ -183,6 +188,17 @@ function Dashboard() {
           .eq("agency_id", agency!.id)
           .order("created_at", { ascending: false })
           .limit(180),
+        supabase
+          .from("onboarding_checklist_items")
+          .select("client_id, step_key, status")
+          .eq("agency_id", agency!.id),
+        supabase
+          .from("action_center")
+          .select("id", { count: "exact", head: true })
+          .eq("agency_id", agency!.id)
+          .in("status", [...ACTION_CENTER_OPEN_STATUSES])
+          .not("due_date", "is", null)
+          .lt("due_date", todayIso),
       ]);
       throwIfSupabaseError(clients.error, "clients");
       throwIfSupabaseError(metrics.error, "metrics_daily");
@@ -196,6 +212,8 @@ function Dashboard() {
       throwIfSupabaseError(reportsReview.error, "reports");
       throwIfSupabaseError(agencyBriefing.error, "agency_briefings");
       throwIfSupabaseError(campaignAuditsSnap.error, "campaign_ai_audits");
+      throwIfSupabaseError(checklistItems.error, "onboarding_checklist_items");
+      if (overdueActions.error) throw new Error(overdueActions.error.message);
       return {
         clients: clients.data ?? [],
         metrics: metrics.data ?? [],
@@ -209,6 +227,8 @@ function Dashboard() {
         reportsReview: reportsReview.data ?? [],
         agencyBriefing: agencyBriefing.data ?? null,
         campaignAuditsSnap: campaignAuditsSnap.data ?? [],
+        checklistItems: checklistItems.data ?? [],
+        overdueActionsCount: overdueActions.count ?? 0,
       };
     },
   });
@@ -265,7 +285,10 @@ function Dashboard() {
     const revenue = metrics30.reduce((a, b) => a + Number(b.revenue ?? 0), 0);
     const roas = spend > 0 ? revenue / spend : 0;
     const mrr = data.clients.reduce((a, b) => a + Number(b.mrr ?? 0), 0);
-    const prevSpend = metricsPrev30.reduce((a, b) => a + Number(b.spend ?? 0), 0);
+    const prevSpend = metricsPrev30.reduce(
+      (a, b) => a + Number(b.spend ?? 0),
+      0,
+    );
     const prevRevenue = metricsPrev30.reduce(
       (a, b) => a + Number(b.revenue ?? 0),
       0,
@@ -311,8 +334,7 @@ function Dashboard() {
       return ts < now - 30 * 86400000 && ts >= now - 60 * 86400000;
     });
     const siteSessions = ga4Cur.reduce(
-      (a: number, b: { sessions?: unknown }) =>
-        a + Number(b.sessions ?? 0),
+      (a: number, b: { sessions?: unknown }) => a + Number(b.sessions ?? 0),
       0,
     );
     const siteConv = ga4Cur.reduce(
@@ -321,14 +343,12 @@ function Dashboard() {
       0,
     );
     const siteRevenue = ga4Cur.reduce(
-      (a: number, b: { revenue?: unknown }) =>
-        a + Number(b.revenue ?? 0),
+      (a: number, b: { revenue?: unknown }) => a + Number(b.revenue ?? 0),
       0,
     );
     const siteCvr = siteSessions > 0 ? siteConv / siteSessions : 0;
     const prevSiteSessions = ga4Prev.reduce(
-      (a: number, b: { sessions?: unknown }) =>
-        a + Number(b.sessions ?? 0),
+      (a: number, b: { sessions?: unknown }) => a + Number(b.sessions ?? 0),
       0,
     );
     const prevSiteConv = ga4Prev.reduce(
@@ -373,8 +393,7 @@ function Dashboard() {
         };
       })
       .filter(
-        (x) =>
-          x.st === "critical" || x.st === "risk" || x.st === "attention",
+        (x) => x.st === "critical" || x.st === "risk" || x.st === "attention",
       )
       .sort(
         (a, b) =>
@@ -407,6 +426,20 @@ function Dashboard() {
       briefingBuckets?.critico && briefingBuckets.critico.length > 0
         ? briefingBuckets.critico[0]
         : null;
+    const checklistRows = (data.checklistItems ?? []) as Array<{
+      client_id: string;
+      step_key: string;
+      status: string;
+    }>;
+    let pendingChecklistSteps = 0;
+    for (const c of data.clients) {
+      for (const stepKey of ONBOARDING_STEP_KEYS) {
+        const row = checklistRows.find(
+          (i) => i.client_id === c.id && i.step_key === stepKey,
+        );
+        if (!row || row.status !== "done") pendingChecklistSteps++;
+      }
+    }
     const alertFirst = data.alerts[0];
     const actionFirst = data.actionCenter[0] as
       | { id: string; title: string }
@@ -478,6 +511,8 @@ function Dashboard() {
       auditShowList,
       clientNameById,
       suggestedNext,
+      pendingChecklistSteps,
+      overdueActionsCount: data.overdueActionsCount,
     };
   }, [data]);
 
@@ -539,6 +574,8 @@ function Dashboard() {
     auditShowList,
     clientNameById,
     suggestedNext,
+    pendingChecklistSteps,
+    overdueActionsCount,
   } = dashboardDerived;
 
   // empty state
@@ -555,11 +592,7 @@ function Dashboard() {
             primeiro cliente.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-2">
-            <Button
-              type="button"
-              className="h-11 gap-2"
-              onClick={runSeedDemo}
-            >
+            <Button type="button" className="h-11 gap-2" onClick={runSeedDemo}>
               <Database className="h-4 w-4" /> Gerar dados demo
             </Button>
             <Button
@@ -580,9 +613,13 @@ function Dashboard() {
     <div className="space-y-6 p-6">
       <header className="flex items-end justify-between">
         <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-primary">
+            Hoje
+          </p>
           <h1 className="text-2xl font-semibold tracking-tight">Visão geral</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Tudo que importa hoje, em tempo real.
+            Próximo passo operacional; métricas nos blocos abaixo usam últimos
+            30 dias.
           </p>
         </div>
         <div className="text-xs text-muted-foreground">Últimos 30 dias</div>
@@ -611,6 +648,47 @@ function Dashboard() {
               {suggestedNext.cta}
             </Link>
           </Button>
+        </div>
+        <div className="grid grid-cols-1 gap-2 border-t border-primary/15 px-5 pb-5 pt-4 sm:grid-cols-3">
+          <Link
+            to="/alerts"
+            className="flex items-center justify-between gap-2 rounded-lg border border-border/80 bg-background/70 px-3 py-2.5 text-sm shadow-sm transition hover:border-primary/35 hover:bg-background"
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <Bell className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="truncate font-medium">
+                Urgentes (alto/crítico)
+              </span>
+            </span>
+            <span className="tabular-nums font-semibold text-foreground">
+              {criticals}
+            </span>
+          </Link>
+          <Link
+            to="/actions"
+            search={{ sla: "overdue" }}
+            className="flex items-center justify-between gap-2 rounded-lg border border-border/80 bg-background/70 px-3 py-2.5 text-sm shadow-sm transition hover:border-primary/35 hover:bg-background"
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <ListTodo className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="truncate font-medium">Ações atrasadas</span>
+            </span>
+            <span className="tabular-nums font-semibold text-foreground">
+              {overdueActionsCount}
+            </span>
+          </Link>
+          <Link
+            to="/onboarding"
+            className="flex items-center justify-between gap-2 rounded-lg border border-border/80 bg-background/70 px-3 py-2.5 text-sm shadow-sm transition hover:border-primary/35 hover:bg-background"
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <Target className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="truncate font-medium">Checklist pendente</span>
+            </span>
+            <span className="tabular-nums font-semibold text-foreground">
+              {pendingChecklistSteps}
+            </span>
+          </Link>
         </div>
       </Card>
 

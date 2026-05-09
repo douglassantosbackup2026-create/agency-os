@@ -16,7 +16,9 @@
     "test": "vitest",
     "test:e2e": "playwright test",
     "db:lint": "npx supabase db lint",
-    "perf:lighthouse": "node scripts/lighthouse-authenticated.mjs"
+    "perf:lighthouse": "node scripts/lighthouse-authenticated.mjs",
+    "landing:assets": "node scripts/generate-landing-assets.mjs",
+    "landing:from-png": "node scripts/process-landing-screenshots.mjs ./landing-raw-png"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",

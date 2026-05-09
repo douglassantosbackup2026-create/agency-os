@@ -9,6 +9,7 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
+import { landingHeroScreenshot, seoDefaults } from "@/content/retentio-landing";
 import { AuthProvider } from "@/hooks/use-auth";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
@@ -66,45 +67,64 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
+function siteOrigin(): string {
+  const raw =
+    typeof import.meta.env.VITE_SITE_URL === "string"
+      ? import.meta.env.VITE_SITE_URL.trim()
+      : "";
+  return raw.replace(/\/$/, "");
+}
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   {
-    head: () => ({
-      meta: [
-        { charSet: "utf-8" },
-        { name: "viewport", content: "width=device-width, initial-scale=1" },
-        { title: "Retentio — SO de retenção para agências de tráfego" },
-        {
-          name: "description",
-          content:
-            "Plataforma operacional para agências de tráfego pago: health score, alertas inteligentes, relatórios IA e portal do cliente.",
-        },
-        { name: "theme-color", content: "#f4f3f8" },
-        {
-          property: "og:title",
-          content: "Retentio — SO de retenção para agências",
-        },
-        {
-          property: "og:description",
-          content:
-            "Reduza churn, aumente percepção de valor e centralize a operação da sua agência.",
-        },
-        { property: "og:type", content: "website" },
-      ],
-      links: [
-        { rel: "stylesheet", href: appCss },
-        { rel: "manifest", href: "/manifest.webmanifest" },
-        { rel: "preconnect", href: "https://fonts.googleapis.com" },
-        {
-          rel: "preconnect",
-          href: "https://fonts.gstatic.com",
-          crossOrigin: "anonymous",
-        },
-        {
-          rel: "stylesheet",
-          href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap",
-        },
-      ],
-    }),
+    head: () => {
+      const origin = siteOrigin();
+      const ogImage =
+        origin !== "" ? `${origin}${landingHeroScreenshot.webp}` : undefined;
+      return {
+        meta: [
+          { charSet: "utf-8" },
+          { name: "viewport", content: "width=device-width, initial-scale=1" },
+          {
+            title: seoDefaults.title,
+          },
+          {
+            name: "description",
+            content: seoDefaults.description,
+          },
+          { name: "theme-color", content: "#f4f3f8" },
+          {
+            property: "og:title",
+            content: seoDefaults.title,
+          },
+          {
+            property: "og:description",
+            content: seoDefaults.description,
+          },
+          { property: "og:type", content: "website" },
+          ...(ogImage
+            ? ([
+                { property: "og:image", content: ogImage },
+                { name: "twitter:card", content: "summary_large_image" },
+              ] as const)
+            : []),
+        ],
+        links: [
+          { rel: "stylesheet", href: appCss },
+          { rel: "manifest", href: "/manifest.webmanifest" },
+          { rel: "preconnect", href: "https://fonts.googleapis.com" },
+          {
+            rel: "preconnect",
+            href: "https://fonts.gstatic.com",
+            crossOrigin: "anonymous",
+          },
+          {
+            rel: "stylesheet",
+            href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap",
+          },
+        ],
+      };
+    },
     shellComponent: RootShell,
     component: RootComponent,
     notFoundComponent: NotFoundComponent,

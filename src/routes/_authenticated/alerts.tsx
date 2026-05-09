@@ -1,9 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { Card, CardHeader, Empty, PageSkeleton } from "@/components/operational-ui";
+import {
+  Card,
+  CardHeader,
+  Empty,
+  PageSkeleton,
+} from "@/components/operational-ui";
 import { FilterDrawer } from "@/components/filter-drawer";
 import { AgencyClientSelect } from "@/components/agency-client-select";
 import { PageHeader } from "@/components/page-header";
@@ -32,9 +37,18 @@ import {
   AlertsListRow,
   type AlertRowModel,
 } from "@/components/alerts-list-row";
+import { useOperationClientScope } from "@/hooks/use-operation-client-scope";
+import { sortAlertsByOperationalPriority } from "@/lib/operational-priority";
 
 export const Route = createFileRoute("/_authenticated/alerts")({
   component: Alerts,
+  validateSearch: (s: Record<string, unknown>) => ({
+    priority:
+      typeof s.priority === "string" &&
+      ["critical", "high", "medium", "low"].includes(s.priority)
+        ? (s.priority as "critical" | "high" | "medium" | "low")
+        : undefined,
+  }),
 });
 
 /** Stable fallback — avoids new [] each render (react-hooks/exhaustive-deps). */
@@ -42,6 +56,11 @@ const EMPTY_ALERTS_LIST: unknown[] = [];
 
 function Alerts() {
   const { agency, user } = useAuth();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const urlSearch = Route.useSearch();
+  const { clientId: scopeClientId, setClientId: setScopeClientId } =
+    useOperationClientScope();
   const [filter, setFilter] = useState<"all" | "open" | "resolved">("open");
   const [search, setSearch] = useState("");
   const [priority, setPriority] = useState<string>("all");
@@ -100,6 +119,28 @@ function Alerts() {
   const { data: teammates = [], isLoading: teammatesLoading } =
     useAgencyTeammates(agency?.id);
 
+  useEffect(() => {
+    if (urlSearch.priority) setPriority(urlSearch.priority);
+  }, [urlSearch.priority]);
+
+  const scopeSyncReady = useRef(false);
+  useEffect(() => {
+    if (!scopeSyncReady.current) {
+      scopeSyncReady.current = true;
+      if (scopeClientId) setClientFilter(scopeClientId);
+      return;
+    }
+    setClientFilter(scopeClientId ?? "all");
+  }, [scopeClientId]);
+
+  const onClientFilterChange = useCallback(
+    (v: string) => {
+      setClientFilter(v);
+      setScopeClientId(v === "all" ? null : v);
+    },
+    [setScopeClientId],
+  );
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return alerts.filter((a: any) => {
@@ -123,9 +164,14 @@ function Alerts() {
     });
   }, [alerts, search, priority, clientFilter, assigneeFilter, user?.id]);
 
+  const filteredSorted = useMemo(
+    () => sortAlertsByOperationalPriority(filtered as AlertRowModel[]),
+    [filtered],
+  );
+
   const groupedByClient = useMemo(() => {
-    const m = new Map<string, typeof filtered>();
-    for (const a of filtered) {
+    const m = new Map<string, typeof filteredSorted>();
+    for (const a of filteredSorted) {
       const name =
         (a as { clients?: { name?: string } }).clients?.name ?? "Sem cliente";
       const arr = m.get(name) ?? [];
@@ -133,7 +179,7 @@ function Alerts() {
       m.set(name, arr);
     }
     return [...m.entries()].sort(([na], [nb]) => na.localeCompare(nb, "pt-BR"));
-  }, [filtered]);
+  }, [filteredSorted]);
 
   useEffect(() => {
     if (!agency) return;
@@ -229,7 +275,9 @@ function Alerts() {
         .eq("id", alertId);
       if (error) toast.error(error.message);
       else {
-        toast.success(value ? "Responsável atualizado." : "Atribuição removida.");
+        toast.success(
+          value ? "Responsável atualizado." : "Atribuição removida.",
+        );
         refetch();
       }
     },
@@ -260,9 +308,19 @@ function Alerts() {
         metadata: { from: "alerts-ui", alert_type: a.type },
       });
       if (error) toast.error(error.message);
-      else toast.success("Ação criada na Central de Ações.");
+      else {
+        await queryClient.invalidateQueries({
+          queryKey: ["action-center", agency.id],
+        });
+        toast.success("Ação criada na Central de Ações.", {
+          action: {
+            label: "Abrir central",
+            onClick: () => navigate({ to: "/actions" }),
+          },
+        });
+      }
     },
-    [agency?.id],
+    [agency?.id, navigate, queryClient],
   );
 
   const toggleDesktopNotifications = useCallback(async () => {
@@ -287,12 +345,7 @@ function Alerts() {
     );
   }, [desktopNotifications]);
 
-  if (
-    isLoading ||
-    clientsLoading ||
-    teammatesLoading ||
-    !data
-  )
+  if (isLoading || clientsLoading || teammatesLoading || !data)
     return <PageSkeleton preset="compact" />;
 
   return (
@@ -300,7 +353,7 @@ function Alerts() {
       <PageHeader
         className="gap-4 sm:items-start"
         title="Central de alertas"
-        description={`${filtered.length} exibidos · ${alerts.length} no total`}
+        description={`${filteredSorted.length} exibidos · ${alerts.length} no total`}
       >
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
           <div className="flex flex-wrap gap-1 rounded-md border border-border bg-surface p-1">
@@ -351,60 +404,58 @@ function Alerts() {
           </Button>
         }
       >
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar título, cliente ou descrição..."
-              className="h-11 min-h-[44px]"
-            />
-            <Select value={priority} onValueChange={setPriority}>
-              <SelectTrigger className={FILTER_SELECT_TRIGGER_CLASSES.drawer}>
-                <SelectValue placeholder="Prioridade" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas prioridades</SelectItem>
-                <SelectItem value="critical">Crítico</SelectItem>
-                <SelectItem value="high">Alto</SelectItem>
-                <SelectItem value="medium">Médio</SelectItem>
-                <SelectItem value="low">Baixo</SelectItem>
-              </SelectContent>
-            </Select>
-            <AgencyClientSelect
-              clients={clients}
-              value={clientFilter}
-              onValueChange={setClientFilter}
-              triggerClassName={FILTER_SELECT_TRIGGER_CLASSES.drawer}
-              allLabel="Todos clientes"
-            />
-            <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-              <SelectTrigger className={FILTER_SELECT_TRIGGER_CLASSES.drawer}>
-                <SelectValue placeholder="Responsável" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos responsáveis</SelectItem>
-                <SelectItem value="unassigned">Sem responsável</SelectItem>
-                {user?.id && (
-                  <SelectItem value="me">Atribuídos a mim</SelectItem>
-                )}
-                {teammates.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>
-                    {t.display_name || t.email}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={groupBy}
-              onValueChange={(v) => setGroupBy(v as "none" | "client")}
-            >
-              <SelectTrigger className={FILTER_SELECT_TRIGGER_CLASSES.drawer}>
-                <SelectValue placeholder="Visualização" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Lista única</SelectItem>
-                <SelectItem value="client">Agrupar por cliente</SelectItem>
-              </SelectContent>
-            </Select>
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Buscar título, cliente ou descrição..."
+          className="h-11 min-h-[44px]"
+        />
+        <Select value={priority} onValueChange={setPriority}>
+          <SelectTrigger className={FILTER_SELECT_TRIGGER_CLASSES.drawer}>
+            <SelectValue placeholder="Prioridade" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas prioridades</SelectItem>
+            <SelectItem value="critical">Crítico</SelectItem>
+            <SelectItem value="high">Alto</SelectItem>
+            <SelectItem value="medium">Médio</SelectItem>
+            <SelectItem value="low">Baixo</SelectItem>
+          </SelectContent>
+        </Select>
+        <AgencyClientSelect
+          clients={clients}
+          value={clientFilter}
+          onValueChange={onClientFilterChange}
+          triggerClassName={FILTER_SELECT_TRIGGER_CLASSES.drawer}
+          allLabel="Todos clientes"
+        />
+        <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
+          <SelectTrigger className={FILTER_SELECT_TRIGGER_CLASSES.drawer}>
+            <SelectValue placeholder="Responsável" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos responsáveis</SelectItem>
+            <SelectItem value="unassigned">Sem responsável</SelectItem>
+            {user?.id && <SelectItem value="me">Atribuídos a mim</SelectItem>}
+            {teammates.map((t) => (
+              <SelectItem key={t.id} value={t.id}>
+                {t.display_name || t.email}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select
+          value={groupBy}
+          onValueChange={(v) => setGroupBy(v as "none" | "client")}
+        >
+          <SelectTrigger className={FILTER_SELECT_TRIGGER_CLASSES.drawer}>
+            <SelectValue placeholder="Visualização" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">Lista única</SelectItem>
+            <SelectItem value="client">Agrupar por cliente</SelectItem>
+          </SelectContent>
+        </Select>
       </FilterDrawer>
 
       <div className="hidden md:flex md:flex-row md:flex-wrap md:items-center md:gap-2">
@@ -429,7 +480,7 @@ function Alerts() {
         <AgencyClientSelect
           clients={clients}
           value={clientFilter}
-          onValueChange={setClientFilter}
+          onValueChange={onClientFilterChange}
           triggerClassName={FILTER_SELECT_TRIGGER_CLASSES.barClient}
           allLabel="Todos clientes"
         />
@@ -463,7 +514,7 @@ function Alerts() {
       </div>
 
       <Card>
-        {filtered.length === 0 ? (
+        {filteredSorted.length === 0 ? (
           <Empty
             label="Sem alertas para os filtros atuais."
             action={
@@ -475,6 +526,7 @@ function Alerts() {
                   setSearch("");
                   setPriority("all");
                   setClientFilter("all");
+                  setScopeClientId(null);
                   setAssigneeFilter("all");
                   setGroupBy("none");
                   setFilter("open");
@@ -486,7 +538,7 @@ function Alerts() {
           />
         ) : groupBy === "none" ? (
           <div className="divide-y divide-border">
-            {filtered.map((a) => (
+            {filteredSorted.map((a) => (
               <AlertsListRow
                 key={a.id}
                 alert={a as AlertRowModel}
