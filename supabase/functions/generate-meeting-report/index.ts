@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { baseGovernance, normalizeConfidence } from "../_shared/ai-v3.ts";
+import { assertUserCanAccessClient } from "../_shared/membership.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -53,6 +54,17 @@ Deno.serve(async (req) => {
         status: 404,
         headers: corsHeaders,
       });
+
+    const allowed = await assertUserCanAccessClient(admin, u.user.id, {
+      id: client.id as string,
+      agency_id: client.agency_id as string,
+    });
+    if (!allowed) {
+      return new Response(JSON.stringify({ error: "Forbidden" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const since = new Date(Date.now() - 30 * 86400000)
       .toISOString()

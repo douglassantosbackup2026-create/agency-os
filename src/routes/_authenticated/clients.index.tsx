@@ -19,6 +19,7 @@ import {
   canCreateClient,
   type SubscriptionLimits,
 } from "@/lib/subscription-limits";
+import { auditOverallStatus } from "@/lib/audit-dashboard";
 
 export const Route = createFileRoute("/_authenticated/clients/")({
   component: Clients,
@@ -70,7 +71,7 @@ function Clients() {
           : clientQuery.limit(0);
       }
 
-      const [clients, health, openAlerts] = await Promise.all([
+      const [clients, health, openAlerts, auditsSnap] = await Promise.all([
         clientQuery,
         supabase
           .from("health_scores")
@@ -84,10 +85,29 @@ function Clients() {
           .eq("status", "open")
           .order("created_at", { ascending: false })
           .limit(200),
+        sb
+          .from("campaign_ai_audits")
+          .select("client_id, created_at, result_json")
+          .eq("agency_id", agency!.id)
+          .order("created_at", { ascending: false })
+          .limit(400),
       ]);
       const latest = new Map<string, Record<string, unknown>>();
       for (const h of health.data ?? [])
         if (!latest.has(h.client_id)) latest.set(h.client_id, h as any);
+
+      const latestAuditByClient = new Map<
+        string,
+        { created_at: string; result_json: unknown }
+      >();
+      for (const a of auditsSnap.data ?? []) {
+        const cid = String(a.client_id ?? "");
+        if (!cid || latestAuditByClient.has(cid)) continue;
+        latestAuditByClient.set(cid, {
+          created_at: String(a.created_at ?? ""),
+          result_json: a.result_json,
+        });
+      }
 
       const latestGa4AlertByClient = new Map<
         string,
@@ -109,6 +129,7 @@ function Clients() {
         clients: clients.data ?? [],
         latest,
         latestGa4AlertByClient,
+        latestAuditByClient,
       };
     },
   });
@@ -277,6 +298,18 @@ function Clients() {
         {filtered.length === 0 && <Empty label="Nenhum cliente." />}
         {filtered.map((c) => {
           const h = data.latest.get(c.id);
+          const au = data.latestAuditByClient.get(c.id);
+          const auStatus = au
+            ? auditOverallStatus(au.result_json as Record<string, unknown>)
+            : null;
+          const auditBadgeTone =
+            auStatus === "critical"
+              ? "bg-destructive/15 text-destructive"
+              : auStatus === "risk"
+                ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                : auStatus === "attention"
+                  ? "bg-warning/15 text-warning"
+                  : "";
           return (
             <Link
               key={c.id}
@@ -289,7 +322,16 @@ function Clients() {
                   {c.name.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <div className="truncate font-medium">{c.name}</div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="truncate font-medium">{c.name}</span>
+                    {auStatus && auditBadgeTone ? (
+                      <span
+                        className={`shrink-0 rounded px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide ${auditBadgeTone}`}
+                      >
+                        IA {auStatus}
+                      </span>
+                    ) : null}
+                  </div>
                   {c.segment && (
                     <div className="truncate text-[11px] text-muted-foreground">
                       {c.segment}

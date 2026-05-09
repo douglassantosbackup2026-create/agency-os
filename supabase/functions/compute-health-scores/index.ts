@@ -236,6 +236,58 @@ function briefingBucket(row: BriefRow): keyof BriefBuckets | null {
   return null;
 }
 
+function applyAuditPenaltyToHealth(
+  base: ReturnType<typeof computeFor>,
+  audit:
+    | { created_at: string; result_json: unknown }
+    | undefined
+    | null,
+): ReturnType<typeof computeFor> {
+  if (!audit?.created_at) return base;
+  const days =
+    (Date.now() - new Date(audit.created_at).getTime()) / 86400000;
+  if (days > 14) return base;
+  const rj = audit.result_json as Record<string, unknown> | null;
+  const st = String(rj?.overall_status ?? "").toLowerCase();
+  let pts = 0;
+  let reason = "";
+  if (st === "critical") {
+    pts = 14;
+    reason = "Auditoria de campanhas (IA) recente: status crítico.";
+  } else if (st === "risk") {
+    pts = 10;
+    reason = "Auditoria de campanhas (IA) recente: risco elevado.";
+  } else if (st === "attention") {
+    pts = 5;
+    reason = "Auditoria de campanhas (IA) recente: requer atenção.";
+  } else {
+    return base;
+  }
+  const newScore = clamp(base.score - pts);
+  const risk: "low" | "medium" | "high" =
+    newScore >= 70 ? "low" : newScore >= 45 ? "medium" : "high";
+  const explain = base.score_explanation;
+  const penalties = [
+    ...explain.penalties,
+    { key: "campaign_audit_ia", points: pts, reason },
+  ];
+  const signals = {
+    ...explain.signals,
+    audit_overall_status: st,
+    audit_age_days: Math.round(days * 10) / 10,
+  };
+  return {
+    ...base,
+    score: newScore,
+    risk,
+    score_explanation: {
+      ...explain,
+      penalties,
+      signals,
+    },
+  };
+}
+
 function reasonForBucket(b: keyof BriefBuckets, row: BriefRow): string {
   if (b === "critico") {
     const bits = [`Score ${row.score}`, `risco ${row.risk}`];
@@ -274,6 +326,28 @@ Deno.serve(async (req) => {
     if (agencyFilter) q = q.eq("agency_id", agencyFilter);
     const { data: clients, error: cErr } = await q;
     if (cErr) throw cErr;
+
+    const clientIds = (clients ?? []).map((c) => String(c.id));
+    const latestAuditByClient = new Map<
+      string,
+      { created_at: string; result_json: unknown }
+    >();
+    if (clientIds.length) {
+      const { data: auditRows } = await admin
+        .from("campaign_ai_audits")
+        .select("client_id, created_at, result_json")
+        .in("client_id", clientIds)
+        .order("created_at", { ascending: false });
+      for (const row of auditRows ?? []) {
+        const cid = String(row.client_id);
+        if (!latestAuditByClient.has(cid)) {
+          latestAuditByClient.set(cid, {
+            created_at: String(row.created_at),
+            result_json: row.result_json,
+          });
+        }
+      }
+    }
 
     const since = new Date(Date.now() - 28 * 86400000)
       .toISOString()
@@ -369,13 +443,17 @@ Deno.serve(async (req) => {
       const lastNoteAgo = lastNote
         ? (now - new Date(lastNote.created_at).getTime()) / 86400000
         : 30;
-      const r = computeFor((metrics ?? []) as M[], lastActAgo, lastNoteAgo, {
+      const raw = computeFor((metrics ?? []) as M[], lastActAgo, lastNoteAgo, {
         conversionDeltaPct,
         revenueDeltaPct,
         sessionsUpResultsDown,
         funnelDrop,
         trackingStatus,
       });
+      const r = applyAuditPenaltyToHealth(
+        raw,
+        latestAuditByClient.get(String(c.id)),
+      );
       inserts.push({ agency_id: c.agency_id, client_id: c.id, ...r });
 
       const mlist = (metrics ?? []) as M[];

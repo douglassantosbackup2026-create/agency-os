@@ -62,7 +62,11 @@ A função `campaign-ai-audit` aplica:
 - Limite de campanhas enviadas ao modelo (ranking por impacto).
 - Regras TS: volume baixo → não sugerir pausa/escala/corte agressivo sem `investigate` + `requires_human_review`.
 - Tracking crítico → bloqueio de recomendações de escala agressiva.
+- Divergência forte ROAS plataforma vs GA4 atribuído → não escalar/pausar sem `investigate`.
+- Match por `campaigns.external_id` ↔ `ga4_campaign_daily.campaign_id_ga4` quando existir.
+- Cooldown / quota (secrets Supabase): `CAMPAIGN_AUDIT_COOLDOWN_MINUTES` (default 30), `CAMPAIGN_AUDIT_MAX_PER_DAY_PER_CLIENT` (default 8).
 - Persistência em `campaign_ai_audits` com `prompt_version: 07-v1` e evento em `ai_usage_events` (`function_name: campaign-ai-audit`).
+- Estado por recomendação: `campaign_ai_audit_recommendation_status` (UI sincronizada na ficha do cliente).
 
 ## Dados de entrada (pacote)
 

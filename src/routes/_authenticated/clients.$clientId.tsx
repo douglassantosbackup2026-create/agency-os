@@ -119,6 +119,7 @@ function ClientDetail() {
         ga4Tracking,
         actions,
         campaignAudits,
+        auditRecoStatuses,
       ] = await Promise.all([
         supabase.from("clients").select("*").eq("id", clientId).maybeSingle(),
         supabase
@@ -216,6 +217,12 @@ function ClientDetail() {
           .eq("client_id", clientId)
           .order("created_at", { ascending: false })
           .limit(15),
+        (supabase as any)
+          .from("campaign_ai_audit_recommendation_status")
+          .select("*")
+          .eq("client_id", clientId)
+          .order("updated_at", { ascending: false })
+          .limit(400),
       ]);
       return {
         client: client.data,
@@ -235,6 +242,7 @@ function ClientDetail() {
         ga4Tracking: ga4Tracking.data ?? [],
         actions: actions.data ?? [],
         campaignAudits: campaignAudits.data ?? [],
+        auditRecoStatuses: auditRecoStatuses.data ?? [],
       };
     },
   });
@@ -373,6 +381,44 @@ function ClientDetail() {
     ? (auditResultJson.recommendations as Record<string, unknown>[])
     : [];
 
+  const recoStatusByKey = useMemo(() => {
+    const m = new Map<string, string>();
+    const aid = latestAudit?.id ? String(latestAudit.id) : "";
+    if (!aid) return m;
+    for (const row of data?.auditRecoStatuses ?? []) {
+      const r = row as Record<string, unknown>;
+      if (String(r.audit_id) !== aid) continue;
+      m.set(String(r.campaign_id), String(r.user_action ?? ""));
+    }
+    return m;
+  }, [data?.auditRecoStatuses, latestAudit?.id]);
+
+  async function upsertAuditRecoStatus(
+    auditId: string | undefined,
+    campaignId: string | undefined,
+    user_action: "analyzed" | "dismissed" | "task_created",
+  ) {
+    if (!data?.client || !auditId || !campaignId) return;
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    const sb = supabase as any;
+    const { error } = await sb
+      .from("campaign_ai_audit_recommendation_status")
+      .upsert(
+        {
+          agency_id: data.client.agency_id,
+          client_id: clientId,
+          audit_id: auditId,
+          campaign_id: campaignId,
+          user_action,
+          updated_by: user?.id ?? null,
+        },
+        { onConflict: "audit_id,campaign_id" },
+      );
+    if (error) toast.error(error.message);
+  }
+
   async function generateReport() {
     setGenerating(true);
     const { data: res, error } = await supabase.functions.invoke(
@@ -497,6 +543,11 @@ function ClientDetail() {
       toast.error(error.message);
       return;
     }
+    await upsertAuditRecoStatus(
+      latestAudit?.id ? String(latestAudit.id) : undefined,
+      rec.campaign_id ? String(rec.campaign_id) : undefined,
+      "task_created",
+    );
     toast.success("Tarefa criada na Central de Ações.");
     refetch();
   }
@@ -534,6 +585,11 @@ function ClientDetail() {
       toast.error(error.message);
       return;
     }
+    await upsertAuditRecoStatus(
+      latestAudit?.id ? String(latestAudit.id) : undefined,
+      rec.campaign_id ? String(rec.campaign_id) : undefined,
+      kind === "analyzed" ? "analyzed" : "dismissed",
+    );
     toast.success(
       kind === "analyzed" ? "Registado como analisado." : "Registado como ignorado.",
     );
@@ -1208,7 +1264,9 @@ function ClientDetail() {
                 <div className="mt-0.5 text-xs text-muted-foreground">
                   Usa métricas por campanha + GA4 (dimensão campanha quando
                   sincronizado). Sugestões são indicativas — revisão humana
-                  obrigatória para mudanças agressivas.
+                  obrigatória para mudanças agressivas. Limite padrão: intervalo
+                  mínimo entre auditorias e quota diária por cliente (variáveis{" "}
+                  <span className="font-mono">CAMPAIGN_AUDIT_*</span> no Supabase).
                 </div>
               </div>
               <button
@@ -1281,13 +1339,25 @@ function ClientDetail() {
                           <th className="px-3 py-2 font-medium">Sugestão</th>
                           <th className="px-3 py-2 font-medium">Tipo</th>
                           <th className="px-3 py-2 font-medium">Match</th>
+                          <th className="px-3 py-2 font-medium">Estado</th>
                           <th className="px-3 py-2 font-medium text-right">
                             Ações
                           </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-border">
-                        {auditRecommendations.map((rec, idx) => (
+                        {auditRecommendations.map((rec, idx) => {
+                          const cid = String(rec.campaign_id ?? "");
+                          const st = recoStatusByKey.get(cid);
+                          const stLabel =
+                            st === "task_created"
+                              ? "Tarefa criada"
+                              : st === "analyzed"
+                                ? "Analisado"
+                                : st === "dismissed"
+                                  ? "Ignorado"
+                                  : "—";
+                          return (
                           <tr key={`${String(rec.campaign_id ?? idx)}-${idx}`}>
                             <td className="px-3 py-2 align-top">
                               <div className="font-medium">
@@ -1310,6 +1380,9 @@ function ClientDetail() {
                             </td>
                             <td className="whitespace-nowrap px-3 py-2 align-top text-xs">
                               {String(rec.tracking_match ?? "—")}
+                            </td>
+                            <td className="whitespace-nowrap px-3 py-2 align-top text-[11px] text-muted-foreground">
+                              {stLabel}
                             </td>
                             <td className="px-3 py-2 align-top text-right">
                               <div className="flex flex-col items-end gap-1">
@@ -1363,7 +1436,8 @@ function ClientDetail() {
                               </div>
                             </td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>

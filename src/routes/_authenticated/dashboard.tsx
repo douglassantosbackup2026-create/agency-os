@@ -23,6 +23,10 @@ import { toast } from "sonner";
 import { useNavigate } from "@tanstack/react-router";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import {
+  auditBulletsFromResult,
+  auditOverallStatus,
+} from "@/lib/audit-dashboard";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
@@ -57,6 +61,7 @@ function Dashboard() {
         actionCenter,
         reportsReview,
         agencyBriefing,
+        campaignAuditsSnap,
       ] = await Promise.all([
         supabase
           .from("clients")
@@ -127,6 +132,14 @@ function Dashboard() {
           .select("buckets, computed_at")
           .eq("agency_id", agency!.id)
           .maybeSingle(),
+        (supabase as any)
+          .from("campaign_ai_audits")
+          .select(
+            "id, client_id, created_at, ga4_tracking_health, executive_summary_markdown, result_json",
+          )
+          .eq("agency_id", agency!.id)
+          .order("created_at", { ascending: false })
+          .limit(180),
       ]);
       return {
         clients: clients.data ?? [],
@@ -140,6 +153,7 @@ function Dashboard() {
         actionCenter: actionCenter.data ?? [],
         reportsReview: reportsReview.data ?? [],
         agencyBriefing: agencyBriefing.data ?? null,
+        campaignAuditsSnap: campaignAuditsSnap.data ?? [],
       };
     },
   });
@@ -265,6 +279,58 @@ function Dashboard() {
     title: string;
     recommended_action: string | null;
   }>;
+
+  const auditLatestByClient = new Map<string, Record<string, unknown>>();
+  for (const row of data.campaignAuditsSnap ?? []) {
+    const cid = String((row as Record<string, unknown>).client_id ?? "");
+    if (cid && !auditLatestByClient.has(cid)) {
+      auditLatestByClient.set(cid, row as Record<string, unknown>);
+    }
+  }
+  const clientNameById = (id: string) =>
+    data.clients.find((c) => c.id === id)?.name ?? "Cliente";
+
+  const auditAttentionRows = [...auditLatestByClient.values()]
+    .map((row) => {
+      const rj = row.result_json as Record<string, unknown> | undefined;
+      const st = auditOverallStatus(rj);
+      return {
+        row,
+        st,
+        bullets: auditBulletsFromResult(
+          rj,
+          String(row.executive_summary_markdown ?? ""),
+        ),
+      };
+    })
+    .filter(
+      (x) =>
+        x.st === "critical" ||
+        x.st === "risk" ||
+        x.st === "attention",
+    )
+    .sort(
+      (a, b) =>
+        new Date(String(b.row.created_at)).getTime() -
+        new Date(String(a.row.created_at)).getTime(),
+    );
+
+  const auditShowList =
+    auditAttentionRows.length > 0
+      ? auditAttentionRows.slice(0, 6)
+      : [...auditLatestByClient.values()]
+          .slice(0, 4)
+          .map((row) => {
+            const rj = row.result_json as Record<string, unknown> | undefined;
+            return {
+              row,
+              st: auditOverallStatus(rj),
+              bullets: auditBulletsFromResult(
+                rj,
+                String(row.executive_summary_markdown ?? ""),
+              ),
+            };
+          });
 
   const briefingBuckets = data.agencyBriefing?.buckets as
     | Record<string, Array<{ client_id: string; name: string; reason: string }>>
@@ -567,6 +633,67 @@ function Dashboard() {
               </div>
             </Card>
           </div>
+
+          <Card>
+            <CardHeader
+              title="Auditoria de campanhas (IA)"
+              action={
+                <Link to="/clients" className="text-sm text-primary hover:underline">
+                  Ver clientes
+                </Link>
+              }
+            />
+            <div className="space-y-3 p-4 pt-0 text-sm">
+              {auditShowList.length === 0 ? (
+                <p className="text-muted-foreground">
+                  Ainda não há auditorias. Abra um cliente e use a aba
+                  &quot;Auditoria IA&quot;.
+                </p>
+              ) : (
+                <ul className="space-y-3">
+                  {auditShowList.map(({ row, st, bullets }) => {
+                    const cid = String(row.client_id ?? "");
+                    return (
+                      <li
+                        key={String(row.id)}
+                        className="rounded-lg border border-border bg-surface/80 px-3 py-2"
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" />
+                          <Link
+                            to="/clients/$clientId"
+                            params={{ clientId: cid }}
+                            className="font-medium text-primary hover:underline"
+                          >
+                            {clientNameById(cid)}
+                          </Link>
+                          {st ? (
+                            <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
+                              {st}
+                            </span>
+                          ) : null}
+                          <span className="text-[11px] text-muted-foreground">
+                            {timeAgo(String(row.created_at))}
+                          </span>
+                        </div>
+                        {bullets.length > 0 ? (
+                          <ul className="mt-2 list-inside list-disc text-xs text-muted-foreground">
+                            {bullets.map((b, i) => (
+                              <li key={i}>{b}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Ver detalhes na ficha do cliente → Auditoria IA.
+                          </p>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </Card>
 
           <Card>
             <CardHeader

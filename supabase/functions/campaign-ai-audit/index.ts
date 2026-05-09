@@ -5,6 +5,7 @@ import {
   parseAiJson,
   type PromptKey,
 } from "../_shared/ai-v3.ts";
+import { assertUserCanAccessClient } from "../_shared/membership.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -107,6 +108,8 @@ type CampaignAgg = {
     zero_conv_with_spend: boolean;
     tracking_critical: boolean;
     requires_human_review: boolean;
+    strong_platform_ga4_divergence: boolean;
+    ga4_external_id_match: boolean;
   };
 };
 
@@ -227,6 +230,17 @@ function clampRecommendations(
       r.suggestion_type = "investigate";
       r.requires_human_review = true;
     }
+    if (
+      fl?.strong_platform_ga4_divergence &&
+      (st === "scale" ||
+        st === "escalar" ||
+        st === "pause" ||
+        st === "pausa")
+    ) {
+      r.suggestion_type = "investigate";
+      r.requires_human_review = true;
+      r.rationale = `${String(r.rationale ?? "")} [Governança: divergência forte plataforma vs GA4 atribuído.]`;
+    }
     return r;
   });
 }
@@ -289,6 +303,72 @@ Deno.serve(async (req) => {
       });
     }
 
+    const allowed = await assertUserCanAccessClient(admin, userRes.user.id, {
+      id: client.id as string,
+      agency_id: client.agency_id as string,
+    });
+    if (!allowed) {
+      return new Response(JSON.stringify({ error: "Sem permissão para este cliente" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const cooldownMin = Number(
+      Deno.env.get("CAMPAIGN_AUDIT_COOLDOWN_MINUTES") ?? "30",
+    );
+    const maxPerDay = Number(
+      Deno.env.get("CAMPAIGN_AUDIT_MAX_PER_DAY_PER_CLIENT") ?? "8",
+    );
+
+    if (Number.isFinite(cooldownMin) && cooldownMin > 0) {
+      const { data: lastAud } = await admin
+        .from("campaign_ai_audits")
+        .select("created_at")
+        .eq("client_id", client_id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (lastAud?.created_at) {
+        const elapsedMin =
+          (Date.now() - new Date(String(lastAud.created_at)).getTime()) /
+          60_000;
+        if (elapsedMin < cooldownMin) {
+          const wait = Math.ceil(cooldownMin - elapsedMin);
+          return new Response(
+            JSON.stringify({
+              error: `Auditoria em cooldown. Tente novamente em ~${wait} min.`,
+            }),
+            {
+              status: 429,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+      }
+    }
+
+    if (Number.isFinite(maxPerDay) && maxPerDay > 0) {
+      const dayStart = new Date();
+      dayStart.setUTCHours(0, 0, 0, 0);
+      const { count, error: cErr } = await admin
+        .from("campaign_ai_audits")
+        .select("id", { count: "exact", head: true })
+        .eq("client_id", client_id)
+        .gte("created_at", dayStart.toISOString());
+      if (!cErr && (count ?? 0) >= maxPerDay) {
+        return new Response(
+          JSON.stringify({
+            error: "Limite diário de auditorias para este cliente foi atingido.",
+          }),
+          {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+    }
+
     const period_end = formatYMD(new Date());
     const period_start = addDaysYMD(period_end, -(period_days - 1));
     const prev_period_end = addDaysYMD(period_start, -1);
@@ -343,22 +423,27 @@ Deno.serve(async (req) => {
       ]),
     );
 
-    const ga4ByName = new Map<
-      string,
-      { sessions: number; conversions: number; revenue: number }
-    >();
+    type Ga4Agg = {
+      sessions: number;
+      conversions: number;
+      revenue: number;
+      ga4_ids: Set<string>;
+    };
+    const ga4ByName = new Map<string, Ga4Agg>();
     for (const r of ga4CampRows ?? []) {
-      const name = String((r as Record<string, unknown>).campaign_name ?? "");
+      const row = r as Record<string, unknown>;
+      const name = String(row.campaign_name ?? "");
       const cur = ga4ByName.get(name) ?? {
         sessions: 0,
         conversions: 0,
         revenue: 0,
+        ga4_ids: new Set<string>(),
       };
-      cur.sessions += Number((r as Record<string, unknown>).sessions ?? 0);
-      cur.conversions += Number(
-        (r as Record<string, unknown>).conversions ?? 0,
-      );
-      cur.revenue += Number((r as Record<string, unknown>).revenue ?? 0);
+      cur.sessions += Number(row.sessions ?? 0);
+      cur.conversions += Number(row.conversions ?? 0);
+      cur.revenue += Number(row.revenue ?? 0);
+      const gid = String(row.campaign_id_ga4 ?? "").trim();
+      if (gid && gid !== "(not set)") cur.ga4_ids.add(gid);
       ga4ByName.set(name, cur);
     }
 
@@ -474,37 +559,71 @@ Deno.serve(async (req) => {
 
       const spendShare = totalSpend30 > 0 ? b30.spend / totalSpend30 : 0;
 
-      if (hasGa4Campaign) {
-        ga4_method = "ga4_campaign_dimension";
-        let bestScore = 0;
-        let bestName: string | null = null;
-        for (const gn of ga4ByName.keys()) {
-          const sc = matchScore(name, gn);
-          if (sc > bestScore) {
-            bestScore = sc;
-            bestName = gn;
+      const extRaw = String(cmeta?.external_id ?? "").trim();
+      const extNorm = extRaw.replace(/^-+/, "").trim();
+
+      let idMatchedName: string | null = null;
+      if (extNorm && hasGa4Campaign) {
+        outer_id: for (const [gn, agg] of ga4ByName) {
+          for (const gid of agg.ga4_ids) {
+            const gLow = gid.toLowerCase();
+            const eLow = extNorm.toLowerCase();
+            if (
+              gLow === eLow ||
+              gLow.endsWith(eLow) ||
+              eLow.endsWith(gLow)
+            ) {
+              idMatchedName = gn;
+              break outer_id;
+            }
           }
         }
-        match_score = bestName ? bestScore : null;
-        matched_name = bestName;
-        if (bestName && bestScore >= 0.86) {
+      }
+
+      let ga4_external_id_match = false;
+
+      if (hasGa4Campaign) {
+        ga4_method = "ga4_campaign_dimension";
+        if (idMatchedName) {
+          ga4_external_id_match = true;
+          matched_name = idMatchedName;
+          match_score = 1;
           tracking_match = "matched";
-          const g = ga4ByName.get(bestName)!;
-          gSess = g.sessions;
-          gConv = g.conversions;
-          gRev = g.revenue;
-        } else if (bestName && bestScore >= 0.38) {
-          tracking_match = "partial";
-          const g = ga4ByName.get(bestName)!;
+          const g = ga4ByName.get(idMatchedName)!;
           gSess = g.sessions;
           gConv = g.conversions;
           gRev = g.revenue;
         } else {
-          tracking_match = "unmatched";
-          gSess = ga4TotalsPeriod.sessions * spendShare;
-          gConv = ga4TotalsPeriod.conversions * spendShare;
-          gRev = ga4TotalsPeriod.revenue * spendShare;
-          ga4_method = "spend_share_heuristic";
+          let bestScore = 0;
+          let bestName: string | null = null;
+          for (const gn of ga4ByName.keys()) {
+            const sc = matchScore(name, gn);
+            if (sc > bestScore) {
+              bestScore = sc;
+              bestName = gn;
+            }
+          }
+          match_score = bestName ? bestScore : null;
+          matched_name = bestName;
+          if (bestName && bestScore >= 0.86) {
+            tracking_match = "matched";
+            const g = ga4ByName.get(bestName)!;
+            gSess = g.sessions;
+            gConv = g.conversions;
+            gRev = g.revenue;
+          } else if (bestName && bestScore >= 0.38) {
+            tracking_match = "partial";
+            const g = ga4ByName.get(bestName)!;
+            gSess = g.sessions;
+            gConv = g.conversions;
+            gRev = g.revenue;
+          } else {
+            tracking_match = "unmatched";
+            gSess = ga4TotalsPeriod.sessions * spendShare;
+            gConv = ga4TotalsPeriod.conversions * spendShare;
+            gRev = ga4TotalsPeriod.revenue * spendShare;
+            ga4_method = "spend_share_heuristic";
+          }
         }
       } else if (hasGa4Daily) {
         ga4_method = "spend_share_heuristic";
@@ -518,6 +637,14 @@ Deno.serve(async (req) => {
 
       const roas_30d = b30.spend > 0 ? b30.revenue / b30.spend : 0;
       const cpa_30d = b30.conv > 0 ? b30.spend / b30.conv : b30.spend;
+
+      const ga4RoasEst = b30.spend > 5 ? gRev / b30.spend : 0;
+      const strong_platform_ga4_divergence =
+        b30.spend >= 50 &&
+        hasGa4Daily &&
+        roas_30d > 0 &&
+        ga4RoasEst > 0 &&
+        Math.max(roas_30d, ga4RoasEst) / Math.min(roas_30d, ga4RoasEst) >= 2;
 
       const low_volume = b30.spend < LOW_VOL;
       const zero_conv_with_spend = b30.conv < 0.5 && b30.spend >= 20;
@@ -551,7 +678,12 @@ Deno.serve(async (req) => {
           zero_conv_with_spend,
           tracking_critical,
           requires_human_review:
-            low_volume || tracking_critical || tracking_match !== "matched",
+            low_volume ||
+            tracking_critical ||
+            tracking_match !== "matched" ||
+            strong_platform_ga4_divergence,
+          strong_platform_ga4_divergence,
+          ga4_external_id_match,
         },
       });
     }
