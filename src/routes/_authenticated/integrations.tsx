@@ -16,6 +16,7 @@ import { motion } from "framer-motion";
 import { Card, CardHeader, PageSkeleton } from "@/components/operational-ui";
 import { timeAgo } from "@/lib/format";
 import type { Database } from "@/integrations/supabase/types";
+import { edgeFunctionErrorMessage } from "@/lib/edge-function-error";
 
 export const Route = createFileRoute("/_authenticated/integrations")({
   component: Integrations,
@@ -134,7 +135,8 @@ function Integrations() {
       { body: { action: "start", provider } },
     );
     setOauthBusy(null);
-    if (error) return toast.error(error.message);
+    if (error)
+      return toast.error(await edgeFunctionErrorMessage(error, error.message));
     const url = (data as { url?: string })?.url;
     const err = (data as { error?: string })?.error;
     if (err) return toast.error(err);

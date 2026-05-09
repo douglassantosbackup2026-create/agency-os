@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { toast } from "sonner";
+import { edgeFunctionErrorMessage } from "@/lib/edge-function-error";
 
 type InvokeOpts<B> = {
   body?: B;
@@ -29,8 +30,9 @@ export async function invokeWithToast<B extends Record<string, unknown>>(
   });
   if (tid !== undefined) toast.dismiss(tid);
   if (error) {
-    toast.error(error.message);
-    return { ok: false, error: error.message };
+    const msg = await edgeFunctionErrorMessage(error, error.message);
+    toast.error(msg);
+    return { ok: false, error: msg };
   }
   if (!opts.silentSuccess && opts.success) toast.success(opts.success);
   return { ok: true, data };

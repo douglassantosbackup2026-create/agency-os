@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
             "Defina INTEGRATION_OAUTH_STATE_SECRET (min. 16 chars) nas secrets.",
         }),
         {
-          status: 503,
+          status: 422,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         },
       );
@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
           return new Response(
             JSON.stringify({ error: "META_APP_ID não configurado" }),
             {
-              status: 503,
+              status: 422,
               headers: { ...corsHeaders, "Content-Type": "application/json" },
             },
           );
@@ -181,7 +181,7 @@ Deno.serve(async (req) => {
               error: "GOOGLE_OAUTH_CLIENT_ID não configurado",
             }),
             {
-              status: 503,
+              status: 422,
               headers: { ...corsHeaders, "Content-Type": "application/json" },
             },
           );
@@ -202,7 +202,7 @@ Deno.serve(async (req) => {
               error: "TIKTOK_CLIENT_KEY (ou TIKTOK_APP_ID) não configurado",
             }),
             {
-              status: 503,
+              status: 422,
               headers: { ...corsHeaders, "Content-Type": "application/json" },
             },
           );

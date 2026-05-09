@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { edgeFunctionErrorMessage } from "@/lib/edge-function-error";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 
@@ -47,7 +48,8 @@ function OAuthCallback() {
         typeof data === "object" &&
         "error" in data &&
         (data as { error?: string }).error;
-      if (fnErr) toast.error(fnErr.message);
+      if (fnErr)
+        toast.error(await edgeFunctionErrorMessage(fnErr, fnErr.message));
       else if (apiErr) toast.error(String(apiErr));
       else toast.success("Conta conectada via OAuth.");
       navigate({ to: "/integrations" });

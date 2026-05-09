@@ -28,6 +28,7 @@ verify_jwt = true
 [functions.whatsapp-summary]
 verify_jwt = false
 
+# OAuth redirect: definir PUBLIC_SITE_URL ou SITE_URL nas secrets desta função (ex.: https://app.seudominio.com).
 [functions.integration-oauth]
 verify_jwt = true
 
