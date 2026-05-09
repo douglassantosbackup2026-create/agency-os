@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CheckCircle2, XCircle, Plug, RefreshCw, Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
 import { Card, CardHeader, PageSkeleton } from "./dashboard";
 import { timeAgo } from "@/lib/format";
 
@@ -79,7 +80,7 @@ function Integrations() {
   if (isLoading || !data) return <PageSkeleton />;
 
   return (
-    <div className="space-y-5 p-6">
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-5 p-6">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Integrações</h1>
         <p className="mt-0.5 text-sm text-muted-foreground">Conecte suas plataformas de mídia e analytics para puxar métricas reais.</p>
@@ -157,6 +158,6 @@ function Integrations() {
           <p>• Por enquanto, a sync usa dados simulados baseados no orçamento mensal de cada cliente. OAuth real para Meta/Google/TikTok/GA4 exige apps aprovados em cada plataforma — disponível como upgrade.</p>
         </div>
       </Card>
-    </div>
+    </motion.div>
   );
 }

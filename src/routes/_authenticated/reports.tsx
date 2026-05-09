@@ -4,9 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { brl, num, timeAgo } from "@/lib/format";
 import { useState } from "react";
-import { Sparkles, Loader2, Copy, Check } from "lucide-react";
+import { Sparkles, Loader2, Copy, Check, FileDown } from "lucide-react";
 import { Card, Empty, PageSkeleton } from "./dashboard";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
+import jsPDF from "jspdf";
 
 export const Route = createFileRoute("/_authenticated/reports")({ component: Reports });
 
@@ -41,6 +43,65 @@ function Reports() {
     const txt = `${r.executive_summary ?? ""}\n\nPositivos:\n${r.positives ?? "-"}\n\nProblemas:\n${r.problems ?? "-"}\n\nOportunidades:\n${r.opportunities ?? "-"}\n\nPróximos passos:\n${r.next_steps ?? "-"}`;
     navigator.clipboard.writeText(txt);
     setCopied(true); setTimeout(() => setCopied(false), 1500);
+  }
+
+  function exportPDF(r: any) {
+    const doc = new jsPDF({ unit: "pt", format: "a4" });
+    const W = doc.internal.pageSize.getWidth();
+    const margin = 48;
+    let y = margin;
+
+    doc.setFillColor(124, 92, 255);
+    doc.rect(0, 0, W, 6, "F");
+
+    doc.setFont("helvetica", "bold").setFontSize(20);
+    doc.text(r.clients?.name ?? "Relatório", margin, y + 24);
+    doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(120);
+    doc.text(`Período: ${r.period_start ?? "-"} → ${r.period_end ?? "-"}`, margin, y + 42);
+    doc.text(`Gerado em ${new Date(r.created_at).toLocaleString("pt-BR")}`, margin, y + 56);
+    y += 84;
+
+    const sections: Array<[string, string | null]> = [
+      ["Resumo executivo", r.executive_summary],
+      ["Pontos positivos", r.positives],
+      ["Problemas detectados", r.problems],
+      ["Oportunidades", r.opportunities],
+      ["Próximos passos", r.next_steps],
+      ["Versão para o cliente", r.client_friendly_summary],
+    ];
+
+    for (const [title, body] of sections) {
+      if (!body) continue;
+      if (y > 760) { doc.addPage(); y = margin; }
+      doc.setFont("helvetica", "bold").setFontSize(12).setTextColor(20);
+      doc.text(title, margin, y);
+      y += 16;
+      doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(60);
+      const lines = doc.splitTextToSize(body, W - margin * 2);
+      for (const line of lines) {
+        if (y > 800) { doc.addPage(); y = margin; }
+        doc.text(line, margin, y);
+        y += 14;
+      }
+      y += 14;
+    }
+
+    if (r.raw_data) {
+      if (y > 740) { doc.addPage(); y = margin; }
+      doc.setFont("helvetica", "bold").setFontSize(12).setTextColor(20);
+      doc.text("Dados base", margin, y);
+      y += 18;
+      doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(60);
+      const rows = [
+        `Investimento: ${(r.raw_data.spend ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`,
+        `Receita: ${(r.raw_data.revenue ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`,
+        `ROAS: ${Number(r.raw_data.roas ?? 0).toFixed(2)}x`,
+        `Conversões: ${r.raw_data.conv ?? 0}`,
+      ];
+      for (const row of rows) { doc.text(row, margin, y); y += 14; }
+    }
+
+    doc.save(`relatorio-${(r.clients?.name ?? "cliente").toLowerCase().replace(/\s+/g, "-")}-${r.period_end ?? "atual"}.pdf`);
   }
 
   if (isLoading || !data) return <PageSkeleton />;
@@ -90,16 +151,29 @@ function Reports() {
             Selecione um relatório à esquerda ou gere um novo.
           </div>
         ) : (
-          <div className="mx-auto max-w-3xl space-y-5">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={selected.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+              className="mx-auto max-w-3xl space-y-5"
+            >
             <div className="flex items-start justify-between">
               <div>
                 <h2 className="text-xl font-semibold tracking-tight">{selected.clients?.name}</h2>
                 <p className="mt-0.5 text-xs text-muted-foreground">Período: {selected.period_start} → {selected.period_end}</p>
               </div>
-              <button onClick={() => copyToClipboard(selected)} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface-2">
-                {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
-                {copied ? "Copiado" : "Copiar"}
-              </button>
+              <div className="flex gap-2">
+                <button onClick={() => exportPDF(selected)} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface-2">
+                  <FileDown className="h-3 w-3" /> PDF
+                </button>
+                <button onClick={() => copyToClipboard(selected)} className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface-2">
+                  {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                  {copied ? "Copiado" : "Copiar"}
+                </button>
+              </div>
             </div>
             <Section title="Resumo executivo" body={selected.executive_summary} />
             <Section title="Pontos positivos" body={selected.positives} accent="emerald" />
@@ -123,7 +197,8 @@ function Reports() {
             <Link to="/clients/$clientId" params={{ clientId: selected.client_id }} className="inline-block text-xs text-primary hover:underline">
               Ver cliente →
             </Link>
-          </div>
+            </motion.div>
+          </AnimatePresence>
         )}
       </section>
     </div>
