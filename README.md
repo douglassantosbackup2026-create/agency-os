@@ -46,7 +46,7 @@ Configure no Dashboard do Supabase (**Edge Functions → Secrets**):
 
 ### Crons (`pg_cron` + `pg_net`)
 
-A migration `20260508160000_unschedule_hardcoded_cron_jobs.sql` remove jobs que continham URL/chave fixas do repositório. Existe um modelo completo em [`supabase/cron-jobs.example.sql`](supabase/cron-jobs.example.sql). Recrie os agendamentos no **SQL Editor** com a URL do **seu** projeto e o `CRON_SECRET`:
+A migration `20260508160000_unschedule_hardcoded_cron_jobs.sql` remove jobs que continham URL/chave fixas do repositório. Há um modelo com placeholders em [`supabase/cron-jobs.example.sql`](supabase/cron-jobs.example.sql) e, para o projeto Trafego já com ref na URL, [`supabase/cron-jobs.deploy-trafego.sql`](supabase/cron-jobs.deploy-trafego.sql) (substituir `__CRON_SECRET_HERE__` e colar no **SQL Editor** do Supabase).
 
 ```sql
 SELECT cron.schedule(
