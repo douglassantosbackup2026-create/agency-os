@@ -1023,6 +1023,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
   try {
+    const t0 = Date.now();
     const authHeader = req.headers.get("Authorization");
     if (!authHeader)
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -1460,6 +1461,14 @@ Deno.serve(async (req) => {
       .from("integrations")
       .update({ last_sync_at: new Date().toISOString() })
       .eq("id", integ.id);
+    await admin.from("sync_runs").insert({
+      agency_id: client.agency_id,
+      client_id,
+      provider,
+      status: "ok",
+      duration_ms: Date.now() - t0,
+      error_message: null,
+    });
 
     const title =
       mode === "meta_api_campaigns"
@@ -1486,6 +1495,22 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    try {
+      const admin = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      );
+      await admin.from("sync_runs").insert({
+        agency_id: null,
+        client_id: null,
+        provider: "unknown",
+        status: "error",
+        duration_ms: null,
+        error_message: (e as Error).message,
+      });
+    } catch {
+      // noop
+    }
     return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

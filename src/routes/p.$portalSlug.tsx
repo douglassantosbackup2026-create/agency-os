@@ -82,6 +82,7 @@ function PortalPage() {
   );
   const siteCvr = siteSessions > 0 ? siteConversions / siteSessions : 0;
   const siteTicket = siteConversions > 0 ? siteRevenue / siteConversions : 0;
+  const nextAction = (data.actions ?? [])[0];
 
   async function reviewCreative(
     creativeId: string,
@@ -166,7 +167,7 @@ function PortalPage() {
             Olá, {data.client.name}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Resumo de performance dos últimos 30 dias.
+            Resultado do mês, contexto e próximos passos em 4 blocos.
           </p>
         </section>
 
@@ -254,6 +255,35 @@ function PortalPage() {
             )}
           </section>
         )}
+
+        <section className="rounded-xl border border-border bg-card p-5">
+          <h2 className="mb-2 text-sm font-semibold">O que estamos fazendo</h2>
+          {(data.actions ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Nenhuma ação aberta no momento.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {(data.actions ?? []).slice(0, 4).map((a: any, idx: number) => (
+                <div key={idx} className="rounded-md border border-border p-2">
+                  <div className="text-xs font-medium">{a.title}</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {a.description || "Sem detalhe"} · prioridade {a.priority}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-xl border border-border bg-card p-5">
+          <h2 className="mb-2 text-sm font-semibold">Próximo passo</h2>
+          <p className="text-sm leading-relaxed text-foreground/90">
+            {nextAction?.description ||
+              data.report?.next_steps ||
+              "Sem pendências imediatas. Seguimos monitorando e ajustando o plano."}
+          </p>
+        </section>
 
         <section className="rounded-xl border border-border bg-card">
           <div className="border-b border-border px-5 py-3">

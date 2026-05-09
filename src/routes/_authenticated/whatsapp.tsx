@@ -29,6 +29,16 @@ const DEFAULT_TEMPLATES = [
     type: "weekly",
     body: "Boa noite {{cliente}}! Semana fechou com ROAS médio {{roas}}x e {{conv}} conversões.",
   },
+  {
+    name: "Crise de performance",
+    type: "alert",
+    body: "🚨 {{cliente}}, detectamos desvio relevante nos resultados. Equipe já aplicando plano de recuperação.",
+  },
+  {
+    name: "Renovação de contrato",
+    type: "renewal",
+    body: "Olá {{cliente}}! Estamos preparando o plano do próximo ciclo com foco em crescimento e retenção.",
+  },
 ];
 
 function WhatsApp() {
@@ -40,6 +50,7 @@ function WhatsApp() {
   const [sending, setSending] = useState(false);
   const [tplName, setTplName] = useState("");
   const [tplBody, setTplBody] = useState("");
+  const [tplCategory, setTplCategory] = useState("geral");
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["whatsapp", agency?.id],
@@ -94,11 +105,13 @@ function WhatsApp() {
       name: tplName,
       body: tplBody,
       type: "custom",
+      category: tplCategory,
     });
     if (error) return toast.error(error.message);
     toast.success("Template salvo.");
     setTplName("");
     setTplBody("");
+    setTplCategory("geral");
     refetch();
   }
 
@@ -248,6 +261,17 @@ function WhatsApp() {
                 placeholder="Olá {{cliente}}, ..."
                 className="w-full rounded-md border border-border bg-background p-3 text-sm"
               />
+              <select
+                value={tplCategory}
+                onChange={(e) => setTplCategory(e.target.value)}
+                className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
+              >
+                <option value="geral">Geral</option>
+                <option value="bom">Resultado bom</option>
+                <option value="ruim">Resultado ruim</option>
+                <option value="crise">Crise</option>
+                <option value="renovacao">Renovação</option>
+              </select>
               <div className="flex gap-2">
                 <button
                   onClick={saveTemplate}
@@ -281,7 +305,7 @@ function WhatsApp() {
                         <MessageSquare className="h-3.5 w-3.5 text-primary" />
                         <span className="text-sm font-medium">{t.name}</span>
                         <span className="rounded bg-surface px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
-                          {t.type}
+                          {t.type} · {t.category ?? "geral"}
                         </span>
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">

@@ -216,6 +216,37 @@ function Reports() {
     else toast.success("Enfileirado / enviado via WhatsApp.");
   }
 
+  async function setReviewStatus(
+    r: any,
+    decision: "approved" | "edited" | "ignored",
+  ) {
+    const requires = decision === "approved" ? false : r.requer_revisao_humana;
+    const { error } = await supabase
+      .from("reports")
+      .update({
+        requer_revisao_humana: requires,
+        status_envio: decision === "ignored" ? "cancelled" : "ready",
+      })
+      .eq("id", r.id);
+    if (error) return toast.error(error.message);
+    if (decision !== "ignored") {
+      await (supabase as any).from("action_center").insert({
+        agency_id: agency!.id,
+        client_id: r.client_id,
+        source_type: "relatorio_ia",
+        source_ref_id: r.id,
+        title: "Executar ação do relatório revisado",
+        description: r.next_steps || r.executive_summary || "",
+        priority: "media",
+        status: "pendente",
+        due_date: new Date().toISOString().slice(0, 10),
+        metadata: { review_decision: decision },
+      });
+    }
+    toast.success("Revisão atualizada.");
+    refetch();
+  }
+
   function exportPDF(r: any) {
     const doc = new jsPDF({ unit: "pt", format: "a4" });
     const W = doc.internal.pageSize.getWidth();
@@ -437,6 +468,11 @@ function Reports() {
                     {timeAgo(r.created_at)}
                   </div>
                 </div>
+                {r.requer_revisao_humana && (
+                  <div className="mt-1 text-[10px] font-medium uppercase text-amber-500">
+                    Revisão humana pendente
+                  </div>
+                )}
                 <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
                   {r.executive_summary}
                 </p>
@@ -469,8 +505,38 @@ function Reports() {
                   <p className="mt-0.5 text-xs text-muted-foreground">
                     Período: {selected.period_start} → {selected.period_end}
                   </p>
+                  {selected.requer_revisao_humana && (
+                    <p className="mt-1 text-xs font-medium text-amber-500">
+                      Este conteúdo está na fila da Central de Revisão IA.
+                    </p>
+                  )}
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  {selected.requer_revisao_humana && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setReviewStatus(selected, "approved")}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface-2"
+                      >
+                        Aprovar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setReviewStatus(selected, "edited")}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface-2"
+                      >
+                        Editado
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setReviewStatus(selected, "ignored")}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface-2"
+                      >
+                        Ignorar
+                      </button>
+                    </>
+                  )}
                   <button
                     onClick={() => exportPDF(selected)}
                     className="inline-flex items-center gap-1.5 rounded-md border border-border bg-surface px-3 py-1.5 text-xs hover:bg-surface-2"

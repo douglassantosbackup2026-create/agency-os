@@ -74,7 +74,7 @@ function Clients() {
         clientQuery,
         supabase
           .from("health_scores")
-          .select("client_id, score, risk, recorded_at")
+          .select("client_id, score, risk, recorded_at, score_explanation")
           .eq("agency_id", agency!.id)
           .order("recorded_at", { ascending: false }),
       ]);
@@ -89,6 +89,21 @@ function Clients() {
   const filtered = data.clients.filter(
     (c) => !q || c.name.toLowerCase().includes(q.toLowerCase()),
   );
+  const riskOrder: Record<string, number> = {
+    critical: 4,
+    high: 3,
+    medium: 2,
+    low: 1,
+  };
+  const riskRadar = [...filtered]
+    .map((c) => ({ client: c, health: data.latest.get(c.id) as any }))
+    .filter((x) => x.health)
+    .sort(
+      (a, b) =>
+        (riskOrder[b.health.risk] ?? 0) - (riskOrder[a.health.risk] ?? 0) ||
+        Number(a.health.score ?? 0) - Number(b.health.score ?? 0),
+    )
+    .slice(0, 4);
 
   return (
     <div className="space-y-5 p-6">
@@ -129,6 +144,30 @@ function Clients() {
       </header>
 
       <Card>
+        <div className="border-b border-border px-4 py-3">
+          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Client Risk Radar (prioridade de retenção)
+          </div>
+          <div className="mt-2 grid gap-2 md:grid-cols-2">
+            {riskRadar.length === 0 ? (
+              <div className="text-xs text-muted-foreground">
+                Sem clientes com score calculado.
+              </div>
+            ) : (
+              riskRadar.map((item) => (
+                <div
+                  key={item.client.id}
+                  className="rounded border border-border bg-surface px-2.5 py-2 text-xs"
+                >
+                  <div className="font-medium">{item.client.name}</div>
+                  <div className="text-muted-foreground">
+                    risco {item.health.risk} · health {item.health.score}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
         <div className="grid grid-cols-12 border-b border-border px-4 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
           <div className="col-span-4">Cliente</div>
           <div className="col-span-2">Status</div>

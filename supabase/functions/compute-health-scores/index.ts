@@ -97,6 +97,53 @@ function computeFor(
   const risk: "low" | "medium" | "high" =
     score >= 70 ? "low" : score >= 45 ? "medium" : "high";
 
+  const score_explanation = {
+    blocks: {
+      budget_pace: Math.round(stability),
+      media_performance: Math.round(performance),
+      business_ga4: Math.round(optimization),
+      operational_management: Math.round(communication),
+      relationship_risk: Math.round(engagement),
+    },
+    penalties: [
+      ga4.conversionDeltaPct < -20
+        ? {
+            key: "ga4_conversion_drop",
+            points: Math.round(Math.abs(ga4.conversionDeltaPct) * 0.25),
+            reason: `Taxa de conversão em queda (${ga4.conversionDeltaPct.toFixed(1)}%).`,
+          }
+        : null,
+      ga4.revenueDeltaPct < -20
+        ? {
+            key: "ga4_revenue_drop",
+            points: Math.round(Math.abs(ga4.revenueDeltaPct) * 0.25),
+            reason: `Receita em queda (${ga4.revenueDeltaPct.toFixed(1)}%).`,
+          }
+        : null,
+      ga4.sessionsUpResultsDown
+        ? {
+            key: "sessions_up_results_down",
+            points: 10,
+            reason: "Sessões sobem, mas conversões/receita não acompanham.",
+          }
+        : null,
+      ga4.funnelDrop
+        ? {
+            key: "funnel_drop",
+            points: 8,
+            reason: "Gargalo identificado no funil de site/checkout.",
+          }
+        : null,
+      ga4.trackingStatus === "critical"
+        ? {
+            key: "tracking_critical",
+            points: 12,
+            reason: "Tracking crítico, risco de análise incompleta.",
+          }
+        : null,
+    ].filter(Boolean),
+  };
+
   return {
     score,
     risk,
@@ -106,6 +153,7 @@ function computeFor(
     communication_score: Math.round(communication),
     engagement_score: Math.round(engagement),
     ga4_context: ga4,
+    score_explanation,
   };
 }
 

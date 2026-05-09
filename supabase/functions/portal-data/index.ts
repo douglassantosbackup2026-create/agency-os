@@ -64,6 +64,7 @@ Deno.serve(async (req) => {
       { data: pendingCreatives },
       { data: ga4Daily },
       { data: ga4Tracking },
+      { data: actions },
     ] = await Promise.all([
       admin
         .from("metrics_daily")
@@ -115,6 +116,14 @@ Deno.serve(async (req) => {
         .order("date", { ascending: false })
         .limit(1)
         .maybeSingle(),
+      admin
+        .from("action_center")
+        .select("title, description, status, priority, due_date")
+        .eq("client_id", client.id)
+        .in("status", ["pendente", "enviado_cliente", "revisar_depois"])
+        .order("priority", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(6),
     ]);
 
     return new Response(
@@ -128,6 +137,7 @@ Deno.serve(async (req) => {
         pending_creatives: pendingCreatives ?? [],
         ga4_daily: ga4Daily ?? [],
         ga4_tracking: ga4Tracking ?? null,
+        actions: actions ?? [],
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

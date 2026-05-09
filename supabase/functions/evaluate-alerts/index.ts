@@ -380,7 +380,31 @@ Deno.serve(async (req) => {
           ...governance,
         });
         if (!error) created++;
-        else if (
+        if (!error && q.recommended_action) {
+          await admin.from("action_center").insert({
+            agency_id: c.agency_id,
+            client_id: c.id,
+            source_type: "alerta_ia",
+            source_ref_id: null,
+            title: q.title.slice(0, 220),
+            description: q.recommended_action,
+            priority:
+              q.priority === "critical"
+                ? "critica"
+                : q.priority === "high"
+                  ? "alta"
+                  : q.priority === "medium"
+                    ? "media"
+                    : "baixa",
+            status: "pendente",
+            due_date: new Date().toISOString().slice(0, 10),
+            metadata: {
+              alert_type: q.type,
+              confidence: q.confidence,
+              time_to_act: timeToAct,
+            },
+          });
+        } else if (
           typeof error.message === "string" &&
           error.message.includes("Limite de alertas abertos")
         )

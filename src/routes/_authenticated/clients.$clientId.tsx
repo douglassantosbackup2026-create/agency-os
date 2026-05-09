@@ -112,6 +112,7 @@ function ClientDetail() {
         ga4Funnel,
         ga4Channels,
         ga4Tracking,
+        actions,
       ] = await Promise.all([
         supabase.from("clients").select("*").eq("id", clientId).maybeSingle(),
         supabase
@@ -197,6 +198,12 @@ function ClientDetail() {
           .eq("client_id", clientId)
           .order("date", { ascending: false })
           .limit(1),
+        (supabase as any)
+          .from("action_center")
+          .select("*")
+          .eq("client_id", clientId)
+          .order("created_at", { ascending: false })
+          .limit(20),
       ]);
       return {
         client: client.data,
@@ -214,6 +221,7 @@ function ClientDetail() {
         ga4Funnel: ga4Funnel.data ?? [],
         ga4Channels: ga4Channels.data ?? [],
         ga4Tracking: ga4Tracking.data ?? [],
+        actions: actions.data ?? [],
       };
     },
   });
@@ -584,6 +592,74 @@ function ClientDetail() {
                 <Row label="CPA" value={brl(cpa)} />
                 <Row label="CTR médio" value={pct(ctr)} />
                 <Row label="MRR" value={brl(c.mrr)} />
+              </div>
+            </Card>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <Card>
+              <CardHeader title="Health Score explicável (5 blocos)" />
+              <div className="space-y-2 p-4 text-xs">
+                <Row
+                  label="Budget/Pace"
+                  value={String(
+                    latestHealth?.score_explanation?.blocks?.budget_pace ??
+                      latestHealth?.stability_score ??
+                      "—",
+                  )}
+                />
+                <Row
+                  label="Mídia"
+                  value={String(
+                    latestHealth?.score_explanation?.blocks
+                      ?.media_performance ??
+                      latestHealth?.performance_score ??
+                      "—",
+                  )}
+                />
+                <Row
+                  label="Negócio (GA4)"
+                  value={String(
+                    latestHealth?.score_explanation?.blocks?.business_ga4 ??
+                      latestHealth?.optimization_score ??
+                      "—",
+                  )}
+                />
+                <Row
+                  label="Operação"
+                  value={String(
+                    latestHealth?.score_explanation?.blocks
+                      ?.operational_management ??
+                      latestHealth?.communication_score ??
+                      "—",
+                  )}
+                />
+                <Row
+                  label="Relacionamento"
+                  value={String(
+                    latestHealth?.score_explanation?.blocks
+                      ?.relationship_risk ??
+                      latestHealth?.engagement_score ??
+                      "—",
+                  )}
+                />
+              </div>
+            </Card>
+            <Card>
+              <CardHeader title="Central de Ações" />
+              <div className="divide-y divide-border">
+                {(data.actions ?? []).length === 0 ? (
+                  <Empty label="Sem ações abertas para este cliente." />
+                ) : (
+                  (data.actions ?? []).slice(0, 5).map((a: any) => (
+                    <div key={a.id} className="px-4 py-3 text-xs">
+                      <div className="font-medium">{a.title}</div>
+                      <div className="text-muted-foreground">
+                        {a.status} · prioridade {a.priority}
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </Card>
           </div>

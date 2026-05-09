@@ -238,13 +238,22 @@ function Alerts() {
           </div>
         </div>
         {a.status === "open" && (
-          <button
-            type="button"
-            onClick={() => resolve(a.id)}
-            className="shrink-0 rounded-md border border-border px-2.5 py-1 text-xs transition hover:bg-surface-2"
-          >
-            Resolver
-          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              onClick={() => createActionFromAlert(a)}
+              className="rounded-md border border-border px-2.5 py-1 text-xs transition hover:bg-surface-2"
+            >
+              Virar ação
+            </button>
+            <button
+              type="button"
+              onClick={() => resolve(a.id)}
+              className="rounded-md border border-border px-2.5 py-1 text-xs transition hover:bg-surface-2"
+            >
+              Resolver
+            </button>
+          </div>
         )}
       </div>
     );
@@ -273,6 +282,32 @@ function Alerts() {
       toast.success(value ? "Responsável atualizado." : "Atribuição removida.");
       refetch();
     }
+  }
+
+  async function createActionFromAlert(a: any) {
+    const sb = supabase as any;
+    const { error } = await sb.from("action_center").insert({
+      agency_id: agency!.id,
+      client_id: a.client_id ?? null,
+      source_type: "alerta_ia",
+      source_ref_id: a.id,
+      title: a.title,
+      description: a.recommended_action || a.description || null,
+      priority:
+        a.priority === "critical"
+          ? "critica"
+          : a.priority === "high"
+            ? "alta"
+            : a.priority === "medium"
+              ? "media"
+              : "baixa",
+      status: "pendente",
+      due_date: new Date().toISOString().slice(0, 10),
+      assigned_to: a.assigned_to ?? null,
+      metadata: { from: "alerts-ui", alert_type: a.type },
+    });
+    if (error) toast.error(error.message);
+    else toast.success("Ação criada na Central de Ações.");
   }
 
   return (

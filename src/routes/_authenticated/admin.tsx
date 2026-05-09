@@ -75,7 +75,7 @@ function Admin() {
           .limit(20),
       ]);
       const sb = supabase as any;
-      const [clients, scopes] = await Promise.all([
+      const [clients, scopes, syncRuns, integrations] = await Promise.all([
         supabase
           .from("clients")
           .select("id, name")
@@ -85,6 +85,16 @@ function Admin() {
           .from("client_member_scopes")
           .select("id, user_id, client_id")
           .eq("agency_id", agency!.id),
+        sb
+          .from("sync_runs")
+          .select("*")
+          .eq("agency_id", agency!.id)
+          .order("created_at", { ascending: false })
+          .limit(30),
+        supabase
+          .from("integrations")
+          .select("provider, status, token_expires_at, last_sync_at")
+          .eq("agency_id", agency!.id),
       ]);
       return {
         roles: roles.data ?? [],
@@ -93,6 +103,8 @@ function Admin() {
         activity: activity.data ?? [],
         clients: clients.data ?? [],
         scopes: scopes.data ?? [],
+        syncRuns: syncRuns.data ?? [],
+        integrations: integrations.data ?? [],
       };
     },
   });
@@ -363,6 +375,53 @@ function Admin() {
               0 && (
               <Empty label="Convide membros para configurar carteira por cliente." />
             )}
+          </div>
+        </Card>
+
+        <Card className="lg:col-span-2">
+          <CardHeader title="Admin técnico operacional" />
+          <div className="grid gap-3 p-4 md:grid-cols-3">
+            <Stat
+              label="Sync com erro (30 execuções)"
+              value={String(
+                (data.syncRuns ?? []).filter((r: any) => r.status === "error")
+                  .length,
+              )}
+            />
+            <Stat
+              label="Integrações conectadas"
+              value={String(
+                (data.integrations ?? []).filter(
+                  (i: any) => i.status === "connected",
+                ).length,
+              )}
+            />
+            <Stat
+              label="Tokens expiram em 7 dias"
+              value={String(
+                (data.integrations ?? []).filter((i: any) => {
+                  if (!i.token_expires_at) return false;
+                  const t = new Date(i.token_expires_at).getTime();
+                  return t > Date.now() && t < Date.now() + 7 * 86400000;
+                }).length,
+              )}
+            />
+          </div>
+          <div className="divide-y divide-border border-t border-border">
+            {(data.syncRuns ?? []).slice(0, 8).map((r: any) => (
+              <div
+                key={r.id}
+                className="flex items-center justify-between px-4 py-2 text-xs"
+              >
+                <span>
+                  {r.provider} · {r.status}
+                  {r.error_message ? ` · ${r.error_message}` : ""}
+                </span>
+                <span className="text-muted-foreground">
+                  {timeAgo(r.created_at)}
+                </span>
+              </div>
+            ))}
           </div>
         </Card>
 

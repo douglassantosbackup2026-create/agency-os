@@ -52,6 +52,8 @@ function Dashboard() {
         campaignMetrics,
         ga4Daily,
         ga4Tracking,
+        actionCenter,
+        reportsReview,
       ] = await Promise.all([
         supabase
           .from("clients")
@@ -100,6 +102,23 @@ function Dashboard() {
           .select("status")
           .eq("agency_id", agency!.id)
           .gte("date", since14),
+        (supabase as any)
+          .from("action_center")
+          .select("id, title, priority, due_date, status, clients(name)")
+          .eq("agency_id", agency!.id)
+          .in("status", ["pendente", "revisar_depois"])
+          .order("priority", { ascending: false })
+          .order("created_at", { ascending: false })
+          .limit(8),
+        supabase
+          .from("reports")
+          .select(
+            "id, created_at, confianca, requer_revisao_humana, clients(name)",
+          )
+          .eq("agency_id", agency!.id)
+          .eq("requer_revisao_humana", true)
+          .order("created_at", { ascending: false })
+          .limit(8),
       ]);
       return {
         clients: clients.data ?? [],
@@ -110,6 +129,8 @@ function Dashboard() {
         campaignMetrics: campaignMetrics.data ?? [],
         ga4Daily: ga4Daily.data ?? [],
         ga4Tracking: ga4Tracking.data ?? [],
+        actionCenter: actionCenter.data ?? [],
+        reportsReview: reportsReview.data ?? [],
       };
     },
   });
@@ -235,6 +256,13 @@ function Dashboard() {
     title: string;
     recommended_action: string | null;
   }>;
+  const briefing = (data.actionCenter ?? []) as Array<{
+    id: string;
+    title: string;
+    priority: string;
+    due_date: string | null;
+    clients?: { name?: string };
+  }>;
 
   // empty state
   if (data.clients.length === 0) {
@@ -289,6 +317,51 @@ function Dashboard() {
         </div>
         <div className="text-xs text-muted-foreground">Últimos 30 dias</div>
       </header>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader title="Morning Briefing" />
+          <div className="divide-y divide-border">
+            {briefing.length === 0 ? (
+              <Empty label="Sem ações críticas para hoje." />
+            ) : (
+              briefing.slice(0, 4).map((b) => (
+                <div key={b.id} className="px-4 py-3 text-xs">
+                  <div className="font-medium">{b.title}</div>
+                  <div className="text-muted-foreground">
+                    {b.clients?.name ?? "Sem cliente"} · prioridade {b.priority}
+                    {b.due_date ? ` · prazo ${b.due_date}` : ""}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </Card>
+        <Card>
+          <CardHeader title="Central de Revisão IA" />
+          <div className="divide-y divide-border">
+            {(data.reportsReview ?? []).length === 0 ? (
+              <Empty label="Sem itens pendentes de revisão humana." />
+            ) : (
+              (data.reportsReview ?? []).map((r: any) => (
+                <Link
+                  key={r.id}
+                  to="/reports"
+                  className="block px-4 py-3 text-xs hover:bg-surface-2"
+                >
+                  <div className="font-medium">
+                    {(r.clients as any)?.name ?? "Cliente"} · confiança{" "}
+                    {r.confianca ?? "média"}
+                  </div>
+                  <div className="text-muted-foreground">
+                    {timeAgo(r.created_at)} · revisão obrigatória
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
+        </Card>
+      </div>
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
         <Stat

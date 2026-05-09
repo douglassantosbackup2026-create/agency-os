@@ -51,6 +51,9 @@ function Integrations() {
   const [accountId, setAccountId] = useState("");
   const [syncing, setSyncing] = useState<string | null>(null);
   const [oauthBusy, setOauthBusy] = useState<string | null>(null);
+  const [manualClientId, setManualClientId] = useState("");
+  const [manualCsv, setManualCsv] = useState("");
+  const [manualLoading, setManualLoading] = useState(false);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["integrations", agency?.id],
@@ -167,6 +170,49 @@ function Integrations() {
     }
     setSyncing(null);
     toast[fail ? "error" : "success"](`Sync: ${ok} ok, ${fail} falhas`);
+  }
+
+  async function importManualCsv() {
+    if (!manualClientId || !manualCsv.trim()) {
+      toast.error("Selecione cliente e informe CSV.");
+      return;
+    }
+    const lines = manualCsv
+      .split(/\r?\n/)
+      .map((x) => x.trim())
+      .filter(Boolean);
+    if (lines.length < 2) {
+      toast.error("CSV inválido. Use cabeçalho + pelo menos 1 linha.");
+      return;
+    }
+    const head = lines[0].split(",").map((x) => x.trim().toLowerCase());
+    const idx = (k: string) => head.indexOf(k);
+    const colDate = idx("date");
+    if (colDate < 0) return toast.error("CSV precisa da coluna date.");
+    const client = data?.clients.find((c) => c.id === manualClientId);
+    if (!client) return toast.error("Cliente inválido.");
+    setManualLoading(true);
+    const payload = lines.slice(1).map((line) => {
+      const p = line.split(",").map((x) => x.trim());
+      const spend = Number(p[idx("spend")] ?? 0) || 0;
+      const revenue = Number(p[idx("revenue")] ?? 0) || 0;
+      const conv = Number(p[idx("conversions")] ?? 0) || 0;
+      return {
+        agency_id: agency!.id,
+        client_id: manualClientId,
+        date: p[colDate],
+        spend,
+        revenue,
+        conversions: conv,
+        roas: spend > 0 ? revenue / spend : 0,
+        cpa: conv > 0 ? spend / conv : 0,
+      };
+    });
+    const { error } = await supabase.from("metrics_daily").insert(payload);
+    setManualLoading(false);
+    if (error) return toast.error(error.message);
+    toast.success(`Importação manual concluída (${payload.length} linhas).`);
+    setManualCsv("");
   }
 
   if (isLoading || !data) return <PageSkeleton preset="compact" />;
@@ -418,6 +464,43 @@ function Integrations() {
             • Use &quot;Sincronizar todos clientes&quot; após conectar cada
             provedor.
           </p>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader title="Modo manual / importação CSV" />
+        <div className="space-y-2 p-4 text-xs">
+          <p className="text-muted-foreground">
+            Formato esperado: <code>date,spend,revenue,conversions</code>.
+            Exemplo: <code>2026-05-01,1200,3400,18</code>
+          </p>
+          <select
+            value={manualClientId}
+            onChange={(e) => setManualClientId(e.target.value)}
+            className="h-9 w-full rounded-md border border-border bg-background px-2"
+          >
+            <option value="">Selecione o cliente</option>
+            {data.clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <textarea
+            rows={6}
+            value={manualCsv}
+            onChange={(e) => setManualCsv(e.target.value)}
+            className="w-full rounded-md border border-border bg-background p-2 font-mono text-[11px]"
+            placeholder="date,spend,revenue,conversions&#10;2026-05-01,1200,3400,18"
+          />
+          <button
+            type="button"
+            disabled={manualLoading}
+            onClick={importManualCsv}
+            className="rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground disabled:opacity-60"
+          >
+            {manualLoading ? "Importando..." : "Importar CSV"}
+          </button>
         </div>
       </Card>
     </motion.div>

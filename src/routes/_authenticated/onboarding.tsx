@@ -27,6 +27,9 @@ function Onboarding() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
   const [inviting, setInviting] = useState(false);
+  const [quickClientName, setQuickClientName] = useState("");
+  const [quickBudget, setQuickBudget] = useState("");
+  const [quickMrr, setQuickMrr] = useState("");
   const CHECKLIST_STEPS = [
     { key: "platform_access", title: "Solicitar acessos às plataformas" },
     { key: "budget_goal", title: "Configurar budget e meta do cliente" },
@@ -120,6 +123,34 @@ function Onboarding() {
     }
   }
 
+  async function quickCreateClient(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!agency) return;
+    if (!quickClientName.trim())
+      return toast.error("Informe o nome do cliente.");
+    const slug =
+      quickClientName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "") +
+      "-" +
+      Math.random().toString(36).slice(2, 6);
+    const { error } = await supabase.from("clients").insert({
+      agency_id: agency.id,
+      name: quickClientName.trim(),
+      monthly_budget: Number(quickBudget) || 0,
+      mrr: Number(quickMrr) || 0,
+      status: "onboarding",
+      portal_slug: slug,
+    });
+    if (error) return toast.error(error.message);
+    toast.success("Cliente criado em modo onboarding rápido.");
+    setQuickClientName("");
+    setQuickBudget("");
+    setQuickMrr("");
+    refetchChecklist();
+  }
+
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-6">
       <header>
@@ -131,6 +162,47 @@ function Onboarding() {
           para o time e para o cliente final.
         </p>
       </header>
+
+      <Card>
+        <CardHeader title="0. Onboarding em 3 minutos" />
+        <div className="space-y-3 p-4 text-sm text-muted-foreground">
+          <p>
+            Cadastre cliente com dados mínimos para começar a operar e gerar
+            diagnóstico inicial.
+          </p>
+          <form
+            onSubmit={quickCreateClient}
+            className="grid gap-2 sm:grid-cols-4 sm:items-end"
+          >
+            <input
+              value={quickClientName}
+              onChange={(e) => setQuickClientName(e.target.value)}
+              placeholder="Nome do cliente"
+              className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground sm:col-span-2"
+            />
+            <input
+              value={quickBudget}
+              onChange={(e) => setQuickBudget(e.target.value)}
+              placeholder="Budget mensal"
+              type="number"
+              className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground"
+            />
+            <input
+              value={quickMrr}
+              onChange={(e) => setQuickMrr(e.target.value)}
+              placeholder="MRR"
+              type="number"
+              className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground"
+            />
+            <button
+              type="submit"
+              className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground sm:col-span-4"
+            >
+              Criar cliente rápido
+            </button>
+          </form>
+        </div>
+      </Card>
 
       <Card>
         <CardHeader title="1. Marca & portal" />

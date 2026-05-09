@@ -390,6 +390,36 @@ Contexto do clique: ${clickContext}`;
       .select()
       .maybeSingle();
 
+    const actionTitle =
+      mode === "monthly_client"
+        ? `Revisar comunicação para cliente — ${client.name}`
+        : mode === "on_demand"
+          ? `Executar ação recomendada (análise sob demanda) — ${client.name}`
+          : `Executar próximos passos do relatório — ${client.name}`;
+    const actionDesc = String(
+      parsed.next_steps ?? parsed.executive_summary ?? "",
+    ).slice(0, 1000);
+    if (actionDesc) {
+      await admin.from("action_center").insert({
+        agency_id: client.agency_id,
+        client_id,
+        source_type: "relatorio_ia",
+        source_ref_id: report?.id ?? null,
+        title: actionTitle.slice(0, 220),
+        description: actionDesc,
+        priority: mode === "on_demand" ? "alta" : "media",
+        status: "pendente",
+        due_date: new Date().toISOString().slice(0, 10),
+        created_by: userRes.user.id,
+        metadata: {
+          mode,
+          prompt_key: governance.prompt_key,
+          prompt_version: governance.prompt_version,
+          confianca,
+        },
+      });
+    }
+
     await admin.from("activities").insert({
       agency_id: client.agency_id,
       client_id,
