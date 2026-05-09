@@ -1,103 +1,104 @@
+# O que já existe
 
-# Retentio — Sistema operacional para retenção de agências
+**Auth & estrutura:** login, signup, rota `_authenticated`, multi-tenant via `agencies` + `user_roles` + RLS, `handle_new_user` cria agência/perfil/owner.
 
-Como o briefing deixou várias decisões em aberto e você pulou as perguntas, segui com defaults sensatos:
+**Telas:** dashboard, clients (lista + detalhe), alerts, health, reports, activity, settings, command palette.
 
-- **Nome:** **Retentio** (operacional, premium, fácil de lembrar — pode trocar depois)
-- **Escopo desta entrega:** MVP enxuto funcional + estrutura modular para o resto
-- **Integrações externas:** mockadas com seed realista, exceto **Relatórios IA** que rodam de verdade via Lovable AI Gateway
-- **Backend:** Supabase via Lovable Cloud (precisa ser ativado — ver abaixo)
+**Banco:** agencies, profiles, user_roles, clients, campaigns, metrics_daily, alerts, health_scores, reports, integrations, whatsapp_logs, notifications, activities, tasks, notes, feature_flags — todas com RLS por agency.
 
----
-
-## ⚠️ Pré-requisito: ativar Lovable Cloud
-
-O projeto precisa de banco, auth multi-tenant, realtime e IA. **Lovable Cloud está desativado.** Para implementar este plano, ative em: Connectors → Lovable Cloud → Tool Permissions → "Always allow" ou "Ask each time". Sem isso só consigo entregar a casca visual com dados mockados.
+**Edge functions:** `generate-report` (IA), `seed-demo-data`.
 
 ---
 
-## Identidade visual
+# O que falta (por prioridade)
 
-- Dark mode premium inspirado em Linear / Stripe / Vercel
-- Tipografia: Inter (UI) + JetBrains Mono (números/métricas)
-- Tokens em `oklch` no `src/styles.css`: superfície quase preta, accent elétrico discreto, semáforo (verde/âmbar/vermelho) para health & alertas
-- Cards minimalistas, bordas sutis, espaçamento generoso, animações curtas (150–200ms)
-- Sem gráficos pesados — sparklines e barras finas em vez de dashboards poluídos
+## 1. Recuperação de senha & onboarding
+- Tela `/forgot-password` + `/reset-password` (obrigatório p/ produção).
+- Fluxo de onboarding pós-signup: nome da agência, logo, convidar membros, escolher integrações.
 
----
+## 2. Dashboard "painel de guerra" real
+Hoje é estático/básico. Falta:
+- Cards: faturamento gerenciado, ROAS médio, spend total, clientes ativos, clientes em risco, alertas críticos, health geral, pacing mensal, receita estimada.
+- Lista "campanhas em queda" e "campanhas escalando" (deltas vs período anterior em `metrics_daily`).
+- Feed operacional realtime (Supabase Realtime em `activities` + `alerts`).
+- Bloco de "ações recomendadas" (gerado por IA a partir de alerts abertos).
 
-## Arquitetura
+## 3. Health Score automático
+Hoje há tabela mas não há cálculo. Criar:
+- Edge function `compute-health-scores` (cron diário): agrega performance, queda ROAS, alta CPA, dias sem otimização, frequência de acesso, estabilidade → grava `health_scores`.
+- Timeline de deterioração no detalhe do cliente (gráfico simples).
+- Recomendações IA por cliente.
+- Cron via `pg_cron` + `pg_net`.
 
-**Stack:** TanStack Start + React + Tailwind v4 + shadcn + Supabase (Lovable Cloud) + Lovable AI Gateway.
+## 4. Motor de alertas inteligentes
+- Edge function `evaluate-alerts` (cron horário): detecta ROAS caiu, CPA subiu, campanha parada, pacing desalinhado, criativo fadigado, queda CTR, gasto acelerado, sem contato há X dias.
+- Na UI de `/alerts`: filtros (prioridade, tipo, cliente, status), busca, agrupamento, ação "resolver/atribuir", responsável.
 
-**Multi-tenant:** todo registro carrega `agency_id`. RLS por agência + tabela separada `user_roles` (owner / admin / member) com função `has_role` security definer (evita recursão em RLS).
+## 5. Detalhe do cliente completo
+Expandir `clients.$clientId` com abas: Overview, Métricas, Campanhas, Health (timeline), Histórico, Notas, Tarefas, Timeline operacional, Insights IA, Relatórios, Alertas, Comunicação. Hoje provavelmente só tem overview básico.
 
-**Realtime:** feed operacional e alertas via Supabase Realtime channels.
+## 6. Relatórios IA
+- Listagem de reports já gerados, filtro por cliente/período.
+- Botão "gerar novo insight" chamando `generate-report`.
+- Visualização formatada (resumo executivo / positivos / problemas / oportunidades / próximos passos / versão amigável).
+- Ações: copiar, enviar por WhatsApp, exportar PDF.
 
----
+## 7. Portal do cliente (white-label)
+**Não existe.** Criar rota pública `/p/$portalSlug` (sem auth ou com magic link):
+- Métricas simplificadas, evolução, campanhas, insights IA, relatórios, timeline de entregas, próximos passos.
+- Tema usa `agencies.primary_color` + `logo_url`.
 
-## Schema do banco (fase 1)
+## 8. WhatsApp alerts
+- Edge function `send-whatsapp` (Evolution API ready, secret `EVOLUTION_API_URL`/`KEY`).
+- Tela de templates (resumo diário, semanal, alerta crítico).
+- UI em `/settings` para fila + logs (`whatsapp_logs` já existe).
+- Cron para resumos diário/semanal.
 
-`agencies`, `profiles`, `user_roles`, `clients`, `campaigns`, `metrics_daily` (spend / revenue / roas / cpa / ctr por dia), `health_scores` (snapshot diário + componentes), `alerts`, `activities` (timeline), `reports` (IA), `notes`, `tasks`, `integrations` (status mock), `settings` (white-label), `whatsapp_logs` (estrutura preparada), `notifications`, `feature_flags`.
+## 9. Integrações reais
+Hoje só há tabela `integrations`. Implementar OAuth/API key para:
+- Meta Ads, Google Ads, TikTok Ads, GA4, OpenAI, WhatsApp.
+- Edge functions `sync-meta`, `sync-google`, etc., gravando em `metrics_daily` e `campaigns`.
+- UI: status de conexão, última sync, botão "sincronizar agora".
 
-Trigger `handle_new_user` cria profile + agência inicial no signup. Função `recalculate_health_score(client_id)` agrega métricas dos últimos 14 dias.
+## 10. Área administrativa
+Rota `_authenticated/admin` (gate por role `owner`):
+- Gerenciar membros (convidar, remover, mudar role) — tabela `user_roles` já existe.
+- Feature flags (toggles).
+- Logs de atividade da agência.
+- Métricas SaaS internas (uso, clientes, MRR somado).
 
----
+## 11. White-label completo
+Em `/settings`:
+- Upload logo, cor primária, nome, favicon (storage bucket `branding`).
+- Custom domain (campo já existe em `agencies`).
+- Aplicar tema dinâmico no portal do cliente.
 
-## Telas do MVP (fase 1 — entrego agora)
+## 12. Billing / planos / assinaturas
+Falta tabela `subscriptions` + integração Stripe (limites por plano: nº clientes, nº alertas, integrações).
 
-1. **Auth** — login / signup / reset / onboarding (nome da agência, logo opcional)
-2. **Dashboard operacional** — faturamento gerenciado, ROAS médio, spend, clientes ativos, clientes em risco, alertas críticos, health geral, top campanhas escalando/caindo, pacing mensal, feed em tempo real, ações recomendadas
-3. **Clientes** — lista com health score, MRR, status, tags, responsável, busca; detalhe com overview, métricas, campanhas, health timeline, notas, tarefas, alertas, relatórios IA
-4. **Health Score** — visão consolidada + drilldown por componente (performance, otimização, comunicação, acesso, estabilidade), recomendações IA
-5. **Central de Alertas** — feed priorizado, filtros, agrupamento, atribuir responsável, marcar resolvido, regras configuráveis
-6. **Relatórios IA** — gera resumo executivo / pontos positivos / problemas / oportunidades / próximos passos a partir das métricas reais do cliente (Lovable AI, modelo `google/gemini-3-flash-preview`); botão "gerar novo", histórico, copiar, exportar
-7. **Configurações** — perfil, agência, white-label (logo, cor primária, nome), integrações (UI + status mock), API keys, equipe
-8. **Command palette** (⌘K) — busca global de clientes, campanhas, alertas, navegação rápida
-9. **Sidebar premium** colapsável + header com busca e quick actions
+## 13. UX premium
+- Skeletons em todas as telas com loading.
+- Toasts realtime para alertas novos.
+- Quick actions no command palette (criar cliente, criar tarefa, gerar relatório).
+- Busca global (clientes, campanhas, alertas).
+- Animações suaves (framer-motion ou tailwind).
 
----
-
-## Estrutura preparada (stubs nesta fase)
-
-Schema + rotas criadas, UI mínima, evolução em fases futuras:
-
-- **Portal do cliente white-label** (`/portal/:slug`) — rota pública isolada, layout simples, métricas resumidas
-- **WhatsApp Alerts** — tabelas `whatsapp_logs` + UI de templates/fila/status, integração Evolution API plugável
-- **Área administrativa** — `/admin` para owners (contas, planos, feature flags, logs)
-- **Roadmap modular**: AI agents, CRM, aprovações, financeiro, playbooks — pastas e tipos preparados, sem implementação profunda
-
----
-
-## Seed data
-
-Para parecer "produto real" no primeiro acesso: 1 agência, 8 clientes fictícios com 30 dias de métricas, alertas variados, 2 relatórios IA pré-gerados, atividades no feed.
-
----
-
-## Detalhes técnicos
-
-- TanStack Start file-based routing, rotas em `src/routes/` (index, login, signup, _authenticated/dashboard, _authenticated/clients, _authenticated/clients/$id, _authenticated/alerts, _authenticated/health, _authenticated/reports, _authenticated/settings/*, portal/$slug, admin)
-- Server functions (`createServerFn` + `requireSupabaseAuth`) para queries sensíveis e geração de IA
-- RLS em todas tabelas; service role só em rotas server isoladas
-- Componentes shadcn customizados; sem libs de chart pesadas (recharts apenas pontual em sparklines)
-- Realtime hooks para alerts e activities
-- Skeleton states em todas listas; loading otimista em mutations
-
----
-
-## Fora deste primeiro entregável
-
-Estes ficam na estrutura mas não implementados a fundo agora — peça em sessões seguintes:
-
-- Integrações reais Meta/Google/TikTok/GA (precisam OAuth + cron de sync)
-- Evolution API conectada de verdade
-- Domínio customizado white-label
-- Billing / Stripe
-- n8n webhooks operacionais
+## 14. Storage buckets
+Criar `branding` (público) e `reports` (privado, RLS por agency).
 
 ---
 
-## Próximo passo
+# Sugestão de ordem de execução
 
-Ative o Lovable Cloud e me avise — então sigo com a implementação na ordem: schema → auth → seed → dashboard → clientes → health → alertas → relatórios IA → settings/white-label → command palette → polish.
+**Fase 1 (MVP utilizável internamente):** 1, 2, 3, 4, 5
+**Fase 2 (valor pro cliente final):** 6, 7, 8
+**Fase 3 (escala/comercial):** 9, 10, 11, 12
+**Fase 4 (polish):** 13, 14
+
+Cada fase é um conjunto grande — recomendo aprovar uma fase por vez, não tudo de uma vez, pra manter qualidade e poder validar.
+
+---
+
+# Pergunta antes de começar
+
+Por qual fase quer começar? Sugiro **Fase 1** (motor de health score + alertas + dashboard real + detalhe do cliente) — é o que faz a plataforma deixar de ser "casca" e virar produto operacional.
