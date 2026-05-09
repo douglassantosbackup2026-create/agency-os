@@ -15,6 +15,7 @@
     "format": "prettier --write .",
     "test": "vitest",
     "test:e2e": "playwright test",
+    "db:lint": "npx supabase db lint",
     "perf:lighthouse": "node scripts/lighthouse-authenticated.mjs"
   },
   "dependencies": {

@@ -34,6 +34,7 @@ npm ci
 npm run dev          # desenvolvimento
 npm run lint
 npm run test         # testes unitários (Vitest)
+npm run db:lint      # PostgreSQL advisors via Supabase CLI (projeto ligado)
 npm run build        # build de produção (requer env acima)
 ```
 
@@ -41,9 +42,11 @@ npm run build        # build de produção (requer env acima)
 
 ```bash
 npx supabase link --project-ref <ref>
-npx supabase db push    # migrations
+npx supabase db push    # migrations (inclui correções RLS críticas)
 npx supabase functions serve   # opcional: testar functions localmente
 ```
+
+Para invocar funções cron localmente **sem** definir `CRON_SECRET`, configure no ambiente das Edge Functions `ALLOW_INSECURE_CRON_ANON=true` (só local).
 
 ### Secrets das Edge Functions
 
@@ -51,9 +54,12 @@ Configure no Dashboard do Supabase (**Edge Functions → Secrets**):
 
 | Secret                                    | Uso                                                                                                                                                                                                                                                                                                    |
 | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `CRON_SECRET`                             | Chamadas agendadas devem usar `Authorization: Bearer <CRON_SECRET>` ou `x-cron-secret`. Utilizadores autenticados podem invocar as mesmas functions com o JWT da sessão. Sem `CRON_SECRET`, apenas `apikey` anon é aceite (legado — evitar em produção). |
+| `CRON_SECRET`                             | **Obrigatório em produção.** Cron: `Authorization: Bearer <CRON_SECRET>` ou `x-cron-secret`. Utilizadores autenticados podem invocar com o JWT da sessão. Sem este secret, pedidos são **recusados**, salvo `ALLOW_INSECURE_CRON_ANON=true` (apenas dev local). |
+| `ALLOW_INSECURE_CRON_ANON`               | Se `true` e `CRON_SECRET` vazio, aceita chamadas só com `apikey` anon — **proibido em produção**. |
 | `EVOLUTION_API_URL` / `EVOLUTION_API_KEY` | WhatsApp via Evolution API (opcional).                                                                                                                                                                                                                                                                 |
-| `PORTAL_ALLOWED_ORIGINS`                  | Lista separada por vírgula de origens permitidas para CORS no `portal-data`; se vazio, mantém `*`.                                                                                                                                                                                                     |
+| `PORTAL_ALLOWED_ORIGINS`                  | Lista separada por vírgula para CORS no `portal-data`; se vazio, cai em `*` (endurecer em produção com o domínio do portal).                                                                                              |
+| `PORTAL_RATE_LIMIT_MAX_PER_WINDOW`       | Opcional: máximo de pedidos por janela por IP+slug nas funções `portal-data` e `portal-creative-review` (predefinição **120**).                                                                             |
+| `PORTAL_RATE_LIMIT_WINDOW_MS`             | Opcional: duração da janela em ms (predefinição **60000**). Para picos elevados, use também CDN/API Gateway.                                                                                               |
 
 Opcional no runtime **`portal-data`**: `PORTAL_SLUG_MIN_LENGTH` (predefinição **4**) — comprimento mínimo do `slug` na query; caracteres permitidos: letras, dígitos, `_` e `-`.
 

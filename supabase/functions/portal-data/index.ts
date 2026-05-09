@@ -1,6 +1,10 @@
 // Public endpoint — returns sanitized client portal data given a portal_slug.
 // No auth required; uses service role on the server side.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import {
+  portalClientIp,
+  portalRateLimitExceeded,
+} from "../_shared/portal-rate-limit.ts";
 
 function corsFor(req: Request): Record<string, string> {
   const allowList = Deno.env
@@ -189,7 +193,8 @@ Deno.serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
-    return new Response(JSON.stringify({ error: (e as Error).message }), {
+    console.error("[portal-data]", e);
+    return new Response(JSON.stringify({ error: "internal_error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

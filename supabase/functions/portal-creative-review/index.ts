@@ -1,5 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { BodyTooLargeError, readJsonBody } from "../_shared/edge-json-body.ts";
+import {
+  portalClientIp,
+  portalRateLimitExceeded,
+} from "../_shared/portal-rate-limit.ts";
 
 const MAX_SLUG_LEN = 160;
 
@@ -42,6 +46,15 @@ Deno.serve(async (req) => {
     if (!slug || !creativeId || !["approved", "rejected"].includes(decision)) {
       return new Response(JSON.stringify({ error: "payload inválido" }), {
         status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const ip = portalClientIp(req);
+    const rateKey = `${ip}:${slug}:${creativeId}`;
+    if (portalRateLimitExceeded(rateKey)) {
+      return new Response(JSON.stringify({ error: "too_many_requests" }), {
+        status: 429,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -98,7 +111,8 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: (e as Error).message }), {
+    console.error("[portal-creative-review]", e);
+    return new Response(JSON.stringify({ error: "internal_error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

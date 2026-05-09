@@ -44,9 +44,26 @@ function Settings() {
     refreshAgency();
   }
 
+  const MAX_LOGO_BYTES = 2 * 1024 * 1024;
+  const LOGO_MIME = new Set(["image/png", "image/jpeg", "image/webp"]);
+
   async function uploadLogo(file: File) {
+    if (!LOGO_MIME.has(file.type)) {
+      toast.error("Use PNG, JPEG ou WebP (máx. 2 MB).");
+      return;
+    }
+    if (file.size > MAX_LOGO_BYTES) {
+      toast.error("Logo demasiado grande (máx. 2 MB).");
+      return;
+    }
     setUploading(true);
-    const path = `${agency!.id}/logo-${Date.now()}.${file.name.split(".").pop()}`;
+    const ext =
+      file.type === "image/png"
+        ? "png"
+        : file.type === "image/webp"
+          ? "webp"
+          : "jpg";
+    const path = `${agency!.id}/logo-${Date.now()}.${ext}`;
     const { error } = await supabase.storage
       .from("branding")
       .upload(path, file, { upsert: true });
@@ -135,7 +152,7 @@ function Settings() {
                   {uploading ? "Carregando..." : "Upload"}
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/png,image/jpeg,image/webp"
                     className="hidden"
                     onChange={(e) =>
                       e.target.files?.[0] && uploadLogo(e.target.files[0])

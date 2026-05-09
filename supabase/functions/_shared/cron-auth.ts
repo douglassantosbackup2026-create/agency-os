@@ -1,8 +1,8 @@
 /**
  * Cron + dashboard invocations for privileged functions.
- * - Set CRON_SECRET; scheduled jobs send Authorization: Bearer <CRON_SECRET> or x-cron-secret.
+ * - Production: define CRON_SECRET; cron sends Authorization: Bearer <CRON_SECRET> or x-cron-secret.
  * - Logged-in users may invoke with a normal Supabase JWT (Authorization: Bearer <session>).
- * - Legacy: if CRON_SECRET is unset, anon apikey-only calls are still allowed (not for production).
+ * - Without CRON_SECRET: requests are rejected unless ALLOW_INSECURE_CRON_ANON=true (local/dev only).
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
@@ -18,6 +18,8 @@ export function cronUnauthorized(): Response {
 
 export async function assertCronOrUser(req: Request): Promise<Response | null> {
   const secret = Deno.env.get("CRON_SECRET");
+  const allowInsecureAnon =
+    Deno.env.get("ALLOW_INSECURE_CRON_ANON") === "true";
   const authHeader = req.headers.get("authorization") ?? "";
   const bearer = authHeader.startsWith("Bearer ")
     ? authHeader.slice(7).trim()
@@ -43,14 +45,20 @@ export async function assertCronOrUser(req: Request): Promise<Response | null> {
   }
 
   if (!secret) {
-    const anon = Deno.env.get("SUPABASE_ANON_KEY");
-    const apikey = req.headers.get("apikey") ?? "";
-    if (anon && apikey === anon) {
-      console.warn(
-        "[cron-auth] CRON_SECRET not set; allowing anon apikey only. Configure CRON_SECRET for production.",
-      );
-      return null;
+    if (allowInsecureAnon) {
+      const anon = Deno.env.get("SUPABASE_ANON_KEY");
+      const apikey = req.headers.get("apikey") ?? "";
+      if (anon && apikey === anon) {
+        console.warn(
+          "[cron-auth] ALLOW_INSECURE_CRON_ANON=true: anon apikey aceite. Nunca em produção.",
+        );
+        return null;
+      }
     }
+    console.warn(
+      "[cron-auth] CRON_SECRET ausente e modo inseguro desativado — pedido recusado.",
+    );
+    return cronUnauthorized();
   }
 
   return cronUnauthorized();
