@@ -2,6 +2,7 @@
 // verify_jwt=false — use CRON_SECRET + Authorization Bearer (see _shared/cron-auth.ts).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { assertCronOrUser } from "../_shared/cron-auth.ts";
+import { resolveCronDualAuthAgencyScope } from "../_shared/cron-agency-scope.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -308,15 +309,9 @@ Deno.serve(async (req) => {
     const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const admin = createClient(url, key);
 
-    let agencyFilter: string | undefined;
-    if (req.method === "POST") {
-      try {
-        const b = await req.json();
-        if (b?.agency_id) agencyFilter = b.agency_id as string;
-      } catch {
-        /* empty body */
-      }
-    }
+    const scope = await resolveCronDualAuthAgencyScope(req, admin, corsHeaders);
+    if (!scope.ok) return scope.response;
+    const agencyFilter = scope.agencyFilter;
 
     let q = admin.from("clients").select("id, agency_id, name");
     if (agencyFilter) q = q.eq("agency_id", agencyFilter);

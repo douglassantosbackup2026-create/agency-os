@@ -15,6 +15,96 @@ import {
 import { motion } from "framer-motion";
 import { Card, CardHeader, Empty, PageSkeleton } from "./dashboard";
 import { timeAgo, initials } from "@/lib/format";
+import type { Database } from "@/integrations/supabase/types";
+
+type AiUsageRow = Pick<
+  Database["public"]["Tables"]["ai_usage_events"]["Row"],
+  | "function_name"
+  | "estimated_cost_usd"
+  | "prompt_tokens"
+  | "completion_tokens"
+  | "day"
+>;
+
+type FeatureFlagRow = Database["public"]["Tables"]["feature_flags"]["Row"];
+type SyncRunRow = Database["public"]["Tables"]["sync_runs"]["Row"];
+type IntegrationRow = Pick<
+  Database["public"]["Tables"]["integrations"]["Row"],
+  "provider" | "status" | "token_expires_at" | "last_sync_at"
+>;
+
+type AdminRoleRow = Database["public"]["Tables"]["user_roles"]["Row"] & {
+  profiles?: {
+    email?: string | null;
+    display_name?: string | null;
+    avatar_url?: string | null;
+  } | null;
+};
+
+type ClientMini = Pick<
+  Database["public"]["Tables"]["clients"]["Row"],
+  "id" | "name"
+>;
+
+type ScopeRow = Pick<
+  Database["public"]["Tables"]["client_member_scopes"]["Row"],
+  "id" | "user_id" | "client_id"
+>;
+
+type ActivityRow = Database["public"]["Tables"]["activities"]["Row"] & {
+  profiles?: { display_name?: string | null } | null;
+};
+
+function exportAuditActionCsv(
+  recoByAction: Record<string, number>,
+  auditActionsByStatus: Record<string, number>,
+  rows: Array<{
+    id: string;
+    status: string;
+    title: string;
+    client_id: string | null;
+    created_at: string;
+  }>,
+) {
+  const lines: string[] = [];
+  lines.push(
+    `${csvEscape("tipo")},${csvEscape("chave")},${csvEscape("valor")}`,
+  );
+  for (const [k, v] of Object.entries(recoByAction)) {
+    lines.push(
+      `${csvEscape("reco_user_action")},${csvEscape(k)},${csvEscape(String(v))}`,
+    );
+  }
+  for (const [k, v] of Object.entries(auditActionsByStatus)) {
+    lines.push(
+      `${csvEscape("central_acoes_status")},${csvEscape(k)},${csvEscape(String(v))}`,
+    );
+  }
+  lines.push("");
+  lines.push(
+    `${csvEscape("id")},${csvEscape("status")},${csvEscape("client_id")},${csvEscape("created_at")},${csvEscape("title")}`,
+  );
+  for (const r of rows) {
+    lines.push(
+      `${csvEscape(r.id)},${csvEscape(r.status)},${csvEscape(r.client_id ?? "")},${csvEscape(r.created_at)},${csvEscape(r.title ?? "")}`,
+    );
+  }
+  const blob = new Blob([lines.join("\n")], {
+    type: "text/csv;charset=utf-8",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `auditoria-acoes-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function csvEscape(cell: string): string {
+  const s = String(cell ?? "");
+  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
 
 export const Route = createFileRoute("/_authenticated/admin")({
   beforeLoad: async () => {
@@ -74,59 +164,93 @@ function Admin() {
           .order("created_at", { ascending: false })
           .limit(20),
       ]);
-      const sb = supabase as any;
       const sinceAi = new Date(Date.now() - 30 * 86400000)
         .toISOString()
         .slice(0, 10);
-      const [clients, scopes, syncRuns, syncRunErrors, aiUsage, integrations] =
-        await Promise.all([
-          supabase
-            .from("clients")
-            .select("id, name")
-            .eq("agency_id", agency!.id)
-            .order("name"),
-          sb
-            .from("client_member_scopes")
-            .select("id, user_id, client_id")
-            .eq("agency_id", agency!.id),
-          sb
-            .from("sync_runs")
-            .select("*")
-            .eq("agency_id", agency!.id)
-            .order("created_at", { ascending: false })
-            .limit(24),
-          sb
-            .from("sync_runs")
-            .select("*")
-            .eq("agency_id", agency!.id)
-            .eq("status", "error")
-            .order("created_at", { ascending: false })
-            .limit(50),
-          sb
-            .from("ai_usage_events")
-            .select(
-              "function_name, estimated_cost_usd, prompt_tokens, completion_tokens, day",
-            )
-            .eq("agency_id", agency!.id)
-            .gte("day", sinceAi)
-            .order("day", { ascending: false })
-            .limit(500),
-          supabase
-            .from("integrations")
-            .select("provider, status, token_expires_at, last_sync_at")
-            .eq("agency_id", agency!.id),
-        ]);
+      const [
+        clients,
+        scopes,
+        syncRuns,
+        syncRunErrors,
+        aiUsage,
+        integrations,
+        auditRecoStatuses,
+        auditCampaignActions,
+      ] = await Promise.all([
+        supabase
+          .from("clients")
+          .select("id, name")
+          .eq("agency_id", agency!.id)
+          .order("name"),
+        supabase
+          .from("client_member_scopes")
+          .select("id, user_id, client_id")
+          .eq("agency_id", agency!.id),
+        supabase
+          .from("sync_runs")
+          .select("*")
+          .eq("agency_id", agency!.id)
+          .order("created_at", { ascending: false })
+          .limit(24),
+        supabase
+          .from("sync_runs")
+          .select("*")
+          .eq("agency_id", agency!.id)
+          .eq("status", "error")
+          .order("created_at", { ascending: false })
+          .limit(50),
+        supabase
+          .from("ai_usage_events")
+          .select(
+            "function_name, estimated_cost_usd, prompt_tokens, completion_tokens, day",
+          )
+          .eq("agency_id", agency!.id)
+          .gte("day", sinceAi)
+          .order("day", { ascending: false })
+          .limit(500),
+        supabase
+          .from("integrations")
+          .select("provider, status, token_expires_at, last_sync_at")
+          .eq("agency_id", agency!.id),
+        supabase
+          .from("campaign_ai_audit_recommendation_status")
+          .select("user_action")
+          .eq("agency_id", agency!.id)
+          .limit(4000),
+        supabase
+          .from("action_center")
+          .select("id, status, title, client_id, created_at")
+          .eq("agency_id", agency!.id)
+          .eq("source_type", "auditoria_campanhas_ia")
+          .order("created_at", { ascending: false })
+          .limit(500),
+      ]);
+
+      const recoByAction: Record<string, number> = {};
+      for (const row of auditRecoStatuses.data ?? []) {
+        const k = String(row.user_action ?? "—");
+        recoByAction[k] = (recoByAction[k] ?? 0) + 1;
+      }
+      const auditActionsByStatus: Record<string, number> = {};
+      for (const row of auditCampaignActions.data ?? []) {
+        const k = String(row.status ?? "—");
+        auditActionsByStatus[k] = (auditActionsByStatus[k] ?? 0) + 1;
+      }
+
       return {
-        roles: roles.data ?? [],
-        flags: flags.data ?? [],
+        roles: (roles.data ?? []) as AdminRoleRow[],
+        flags: (flags.data ?? []) as FeatureFlagRow[],
         sub: sub.data,
-        activity: activity.data ?? [],
-        clients: clients.data ?? [],
-        scopes: scopes.data ?? [],
-        syncRuns: syncRuns.data ?? [],
-        syncRunErrors: syncRunErrors.data ?? [],
-        aiUsage: aiUsage.data ?? [],
-        integrations: integrations.data ?? [],
+        activity: (activity.data ?? []) as ActivityRow[],
+        clients: (clients.data ?? []) as ClientMini[],
+        scopes: (scopes.data ?? []) as ScopeRow[],
+        syncRuns: (syncRuns.data ?? []) as SyncRunRow[],
+        syncRunErrors: (syncRunErrors.data ?? []) as SyncRunRow[],
+        aiUsage: (aiUsage.data ?? []) as AiUsageRow[],
+        integrations: (integrations.data ?? []) as IntegrationRow[],
+        recoByAction,
+        auditActionsByStatus,
+        auditCampaignActions: auditCampaignActions.data ?? [],
       };
     },
   });
@@ -170,7 +294,7 @@ function Admin() {
     refetch();
   }
 
-  async function toggleFlag(key: string, current?: any) {
+  async function toggleFlag(key: string, current?: FeatureFlagRow) {
     if (current) {
       await supabase
         .from("feature_flags")
@@ -189,9 +313,8 @@ function Admin() {
     clientId: string,
     active: boolean,
   ) {
-    const sb = supabase as any;
     if (active) {
-      const { error } = await sb
+      const { error } = await supabase
         .from("client_member_scopes")
         .delete()
         .eq("agency_id", agency!.id)
@@ -199,7 +322,7 @@ function Admin() {
         .eq("client_id", clientId);
       if (error) return toast.error(error.message);
     } else {
-      const { error } = await sb.from("client_member_scopes").insert({
+      const { error } = await supabase.from("client_member_scopes").insert({
         agency_id: agency!.id,
         user_id: userId,
         client_id: clientId,
@@ -260,7 +383,7 @@ function Admin() {
             </div>
           </div>
           <div className="divide-y divide-border">
-            {data.roles.map((r: any) => (
+            {data.roles.map((r: AdminRoleRow) => (
               <div
                 key={r.id}
                 className="flex items-center justify-between px-4 py-3"
@@ -300,7 +423,9 @@ function Admin() {
           <CardHeader title="Feature flags" />
           <div className="divide-y divide-border">
             {DEFAULT_FLAGS.map((f) => {
-              const current = data.flags.find((x: any) => x.key === f.key);
+              const current = data.flags.find(
+                (x: FeatureFlagRow) => x.key === f.key,
+              );
               const enabled = current?.enabled ?? false;
               return (
                 <button
@@ -359,8 +484,8 @@ function Admin() {
           <CardHeader title="Escopo por carteira de clientes (membros)" />
           <div className="space-y-3 p-4">
             {data.roles
-              .filter((r: any) => r.role === "member")
-              .map((member: any) => (
+              .filter((r: AdminRoleRow) => r.role === "member")
+              .map((member: AdminRoleRow) => (
                 <div
                   key={member.id}
                   className="rounded-md border border-border p-3"
@@ -369,9 +494,9 @@ function Admin() {
                     {member.profiles?.display_name || member.profiles?.email}
                   </div>
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {data.clients.map((c: any) => {
+                    {data.clients.map((c: ClientMini) => {
                       const active = data.scopes.some(
-                        (s: any) =>
+                        (s: ScopeRow) =>
                           s.user_id === member.user_id && s.client_id === c.id,
                       );
                       return (
@@ -393,8 +518,8 @@ function Admin() {
                   </div>
                 </div>
               ))}
-            {data.roles.filter((r: any) => r.role === "member").length ===
-              0 && (
+            {data.roles.filter((r: AdminRoleRow) => r.role === "member")
+              .length === 0 && (
               <Empty label="Convide membros para configurar carteira por cliente." />
             )}
           </div>
@@ -413,20 +538,22 @@ function Admin() {
                 </p>
               ) : (
                 <ul className="mt-2 max-h-48 space-y-1 overflow-y-auto text-xs">
-                  {(data.syncRunErrors ?? []).slice(0, 25).map((r: any) => (
-                    <li
-                      key={r.id}
-                      className="rounded border border-border/80 bg-surface px-2 py-1"
-                    >
-                      <span className="font-medium">{r.provider}</span>
-                      {r.error_message
-                        ? ` — ${String(r.error_message).slice(0, 160)}`
-                        : ""}
-                      <span className="block text-[10px] text-muted-foreground">
-                        {timeAgo(r.created_at)}
-                      </span>
-                    </li>
-                  ))}
+                  {(data.syncRunErrors ?? [])
+                    .slice(0, 25)
+                    .map((r: SyncRunRow) => (
+                      <li
+                        key={r.id}
+                        className="rounded border border-border/80 bg-surface px-2 py-1"
+                      >
+                        <span className="font-medium">{r.provider}</span>
+                        {r.error_message
+                          ? ` — ${String(r.error_message).slice(0, 160)}`
+                          : ""}
+                        <span className="block text-[10px] text-muted-foreground">
+                          {timeAgo(r.created_at)}
+                        </span>
+                      </li>
+                    ))}
                 </ul>
               )}
             </div>
@@ -444,12 +571,12 @@ function Admin() {
                   { usd: number; tokens: number; n: number }
                 >();
                 for (const row of data.aiUsage ?? []) {
-                  const fn = String((row as any).function_name ?? "?");
+                  const fn = String(row.function_name ?? "?");
                   const cur = agg.get(fn) ?? { usd: 0, tokens: 0, n: 0 };
-                  cur.usd += Number((row as any).estimated_cost_usd ?? 0);
+                  cur.usd += Number(row.estimated_cost_usd ?? 0);
                   cur.tokens +=
-                    Number((row as any).prompt_tokens ?? 0) +
-                    Number((row as any).completion_tokens ?? 0);
+                    Number(row.prompt_tokens ?? 0) +
+                    Number(row.completion_tokens ?? 0);
                   cur.n += 1;
                   agg.set(fn, cur);
                 }
@@ -481,27 +608,99 @@ function Admin() {
         </Card>
 
         <Card className="lg:col-span-2">
+          <CardHeader title="Central de Ações — auditoria IA" />
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+            <p className="max-w-xl text-xs text-muted-foreground">
+              Agregados por origem{" "}
+              <span className="font-mono">auditoria_campanhas_ia</span> na
+              Central de Ações e contagem de estados persistidos em{" "}
+              <span className="font-mono">
+                campaign_ai_audit_recommendation_status
+              </span>
+              .
+            </p>
+            <button
+              type="button"
+              className="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-surface"
+              onClick={() => {
+                exportAuditActionCsv(
+                  data.recoByAction,
+                  data.auditActionsByStatus,
+                  data.auditCampaignActions,
+                );
+                toast.success("CSV exportado.");
+              }}
+            >
+              Exportar CSV
+            </button>
+          </div>
+          <div className="grid gap-4 p-4 md:grid-cols-2">
+            <div>
+              <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Tarefas (auditoria_campanhas_ia)
+              </div>
+              <ul className="mt-2 space-y-1 text-xs">
+                {Object.entries(data.auditActionsByStatus).length === 0 ? (
+                  <li className="text-muted-foreground">
+                    Sem tarefas registadas.
+                  </li>
+                ) : (
+                  Object.entries(data.auditActionsByStatus).map(([st, n]) => (
+                    <li key={st} className="flex justify-between gap-2">
+                      <span className="font-mono">{st}</span>
+                      <span>{n}</span>
+                    </li>
+                  ))
+                )}
+              </ul>
+              <div className="mt-2 text-[10px] text-muted-foreground">
+                Amostra: {(data.auditCampaignActions ?? []).length} linhas
+                recentes.
+              </div>
+            </div>
+            <div>
+              <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Estados persistidos (recomendações)
+              </div>
+              <ul className="mt-2 space-y-1 text-xs">
+                {Object.entries(data.recoByAction).length === 0 ? (
+                  <li className="text-muted-foreground">Sem registos.</li>
+                ) : (
+                  Object.entries(data.recoByAction).map(([act, n]) => (
+                    <li key={act} className="flex justify-between gap-2">
+                      <span className="font-mono">{act}</span>
+                      <span>{n}</span>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="lg:col-span-2">
           <CardHeader title="Admin técnico operacional" />
           <div className="grid gap-3 p-4 md:grid-cols-3">
             <Stat
               label="Sync com erro (amostra recente)"
               value={String(
-                (data.syncRuns ?? []).filter((r: any) => r.status === "error")
-                  .length,
+                (data.syncRuns ?? []).filter(
+                  (r: SyncRunRow) => r.status === "error",
+                ).length,
               )}
             />
             <Stat
               label="Integrações conectadas"
               value={String(
                 (data.integrations ?? []).filter(
-                  (i: any) => i.status === "connected",
+                  (i: IntegrationRow) => i.status === "connected",
                 ).length,
               )}
             />
             <Stat
               label="Tokens expiram em 7 dias"
               value={String(
-                (data.integrations ?? []).filter((i: any) => {
+                (data.integrations ?? []).filter((i: IntegrationRow) => {
                   if (!i.token_expires_at) return false;
                   const t = new Date(i.token_expires_at).getTime();
                   return t > Date.now() && t < Date.now() + 7 * 86400000;
@@ -510,7 +709,7 @@ function Admin() {
             />
           </div>
           <div className="divide-y divide-border border-t border-border">
-            {(data.syncRuns ?? []).slice(0, 8).map((r: any) => (
+            {(data.syncRuns ?? []).slice(0, 8).map((r: SyncRunRow) => (
               <div
                 key={r.id}
                 className="flex items-center justify-between px-4 py-2 text-xs"
@@ -533,7 +732,7 @@ function Admin() {
             <Empty label="Sem atividade ainda." />
           ) : (
             <div className="divide-y divide-border">
-              {data.activity.map((a: any) => (
+              {data.activity.map((a: ActivityRow) => (
                 <div
                   key={a.id}
                   className="flex items-center justify-between px-4 py-2.5"

@@ -117,6 +117,19 @@ Deno.serve(async (req) => {
         headers: corsHeaders,
       });
 
+    const { data: seedCaller } = await admin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userRes.user.id)
+      .eq("agency_id", agencyId)
+      .maybeSingle();
+    if (!seedCaller || !["owner", "admin"].includes(seedCaller.role)) {
+      return new Response(JSON.stringify({ error: "forbidden" }), {
+        status: 403,
+        headers: corsHeaders,
+      });
+    }
+
     // skip if already has clients
     const { count } = await admin
       .from("clients")

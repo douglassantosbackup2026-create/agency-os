@@ -24,7 +24,8 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   try {
     const url = new URL(req.url);
-    const slug = url.searchParams.get("slug");
+    const slugRaw = url.searchParams.get("slug");
+    const slug = slugRaw ? slugRaw.trim().slice(0, 160) : "";
     if (!slug) {
       return new Response(JSON.stringify({ error: "slug required" }), {
         status: 400,

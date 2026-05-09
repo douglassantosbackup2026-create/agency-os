@@ -1,5 +1,6 @@
 // OAuth start URL + exchange code → integrations row (Meta, Google family, TikTok).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { BodyTooLargeError, readJsonBody } from "../_shared/edge-json-body.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -114,7 +115,21 @@ Deno.serve(async (req) => {
         headers: corsHeaders,
       });
 
-    const body = await req.json().catch(() => ({}));
+    let body: Record<string, unknown>;
+    try {
+      body = await readJsonBody(req);
+    } catch (e) {
+      if (e instanceof BodyTooLargeError) {
+        return new Response(
+          JSON.stringify({ error: "payload demasiado grande" }),
+          {
+            status: 413,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+      body = {};
+    }
     const action = body?.action as string;
     const provider = body?.provider as Provider;
 

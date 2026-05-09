@@ -1,4 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { BodyTooLargeError, readJsonBody } from "../_shared/edge-json-body.ts";
+
+const MAX_SLUG_LEN = 160;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,8 +14,24 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
   try {
-    const body = await req.json().catch(() => ({}));
-    const slug = String(body?.slug ?? "").trim();
+    let body: Record<string, unknown>;
+    try {
+      body = await readJsonBody(req);
+    } catch (e) {
+      if (e instanceof BodyTooLargeError) {
+        return new Response(
+          JSON.stringify({ error: "payload demasiado grande" }),
+          {
+            status: 413,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+      body = {};
+    }
+    const slug = String(body?.slug ?? "")
+      .trim()
+      .slice(0, MAX_SLUG_LEN);
     const creativeId = String(body?.creative_id ?? "").trim();
     const decision = String(body?.decision ?? "").trim();
     const feedback = body?.feedback ? String(body.feedback) : null;

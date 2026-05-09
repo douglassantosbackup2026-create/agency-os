@@ -17,6 +17,15 @@ import { Card, Empty, PageSkeleton } from "./dashboard";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import jsPDF from "jspdf";
+import type { Database } from "@/integrations/supabase/types";
+
+type ReportRow = Database["public"]["Tables"]["reports"]["Row"] & {
+  clients?: {
+    id: string;
+    name: string;
+    contact_phone?: string | null;
+  } | null;
+};
 
 export const Route = createFileRoute("/_authenticated/reports")({
   component: Reports,
@@ -48,7 +57,7 @@ function applyReportPeriodPreset(
 
 function Reports() {
   const { agency } = useAuth();
-  const [selected, setSelected] = useState<any>(null);
+  const [selected, setSelected] = useState<ReportRow | null>(null);
   const [generating, setGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
   const [filterClientId, setFilterClientId] = useState<string>("all");
@@ -79,7 +88,10 @@ function Reports() {
           .eq("agency_id", agency!.id)
           .order("name"),
       ]);
-      return { reports: reports.data ?? [], clients: clients.data ?? [] };
+      return {
+        reports: (reports.data ?? []) as ReportRow[],
+        clients: clients.data ?? [],
+      };
     },
   });
 
@@ -178,7 +190,7 @@ function Reports() {
 
   const filteredReports = useMemo(() => {
     if (!data?.reports) return [];
-    let list = data.reports as any[];
+    let list: ReportRow[] = [...data.reports];
     if (filterClientId !== "all") {
       list = list.filter((r) => r.client_id === filterClientId);
     }
@@ -243,8 +255,8 @@ function Reports() {
   ]);
 
   const previousReportById = useMemo(() => {
-    const map = new Map<string, any>();
-    const all = (data?.reports ?? []) as any[];
+    const map = new Map<string, ReportRow>();
+    const all = data?.reports ?? [];
     for (const r of all) {
       const prev = all.find(
         (x) =>
@@ -270,14 +282,14 @@ function Reports() {
     refetch();
   }
 
-  function copyToClipboard(r: any) {
+  function copyToClipboard(r: ReportRow) {
     const txt = `${r.executive_summary ?? ""}\n\nPositivos:\n${r.positives ?? "-"}\n\nProblemas:\n${r.problems ?? "-"}\n\nOportunidades:\n${r.opportunities ?? "-"}\n\nPróximos passos:\n${r.next_steps ?? "-"}`;
     navigator.clipboard.writeText(txt);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }
 
-  async function sendWhatsAppSummary(r: any) {
+  async function sendWhatsAppSummary(r: ReportRow) {
     const defaultPhone = r.clients?.contact_phone as string | undefined;
     const recipient =
       defaultPhone ||
@@ -316,7 +328,7 @@ function Reports() {
   }
 
   async function setReviewStatus(
-    r: any,
+    r: ReportRow,
     decision: "approved" | "edited" | "ignored",
   ) {
     const { error } = await supabase
@@ -328,7 +340,7 @@ function Reports() {
       .eq("id", r.id);
     if (error) return toast.error(error.message);
     if (decision !== "ignored") {
-      await (supabase as any).from("action_center").insert({
+      await supabase.from("action_center").insert({
         agency_id: agency!.id,
         client_id: r.client_id,
         source_type: "relatorio_ia",
@@ -345,7 +357,7 @@ function Reports() {
     refetch();
   }
 
-  function exportPDF(r: any) {
+  function exportPDF(r: ReportRow) {
     const doc = new jsPDF({ unit: "pt", format: "a4" });
     const W = doc.internal.pageSize.getWidth();
     const margin = 48;
@@ -589,7 +601,7 @@ function Reports() {
           </div>
         ) : (
           <div className="divide-y divide-border">
-            {filteredReports.map((r: any) => (
+            {filteredReports.map((r: ReportRow) => (
               <button
                 key={r.id}
                 onClick={() => setSelected(r)}

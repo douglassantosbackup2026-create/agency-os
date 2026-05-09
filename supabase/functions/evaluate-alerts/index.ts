@@ -1,6 +1,7 @@
 // Cron-friendly: evaluates rules and inserts new alerts (deduped by type+client open).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { assertCronOrUser } from "../_shared/cron-auth.ts";
+import { resolveCronDualAuthAgencyScope } from "../_shared/cron-agency-scope.ts";
 import { baseGovernance } from "../_shared/ai-v3.ts";
 
 const corsHeaders = {
@@ -104,15 +105,9 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    let agencyFilter: string | undefined;
-    if (req.method === "POST") {
-      try {
-        const b = await req.json();
-        if (b?.agency_id) agencyFilter = b.agency_id;
-      } catch {
-        /* empty */
-      }
-    }
+    const scope = await resolveCronDualAuthAgencyScope(req, admin, corsHeaders);
+    if (!scope.ok) return scope.response;
+    const agencyFilter = scope.agencyFilter;
 
     let cq = admin
       .from("clients")

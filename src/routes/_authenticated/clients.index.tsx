@@ -20,6 +20,9 @@ import {
   type SubscriptionLimits,
 } from "@/lib/subscription-limits";
 import { auditOverallStatus } from "@/lib/audit-dashboard";
+import type { Database } from "@/integrations/supabase/types";
+
+type HealthScoreRow = Database["public"]["Tables"]["health_scores"]["Row"];
 
 export const Route = createFileRoute("/_authenticated/clients/")({
   component: Clients,
@@ -42,7 +45,6 @@ function Clients() {
     queryKey: ["clients", agency?.id],
     enabled: !!agency,
     queryFn: async () => {
-      const sb = supabase as any;
       const { data: myRoles } = await supabase
         .from("user_roles")
         .select("role")
@@ -52,8 +54,8 @@ function Clients() {
         (r) => r.role === "owner" || r.role === "admin",
       );
       const { data: scopedRows } = canSeeAll
-        ? { data: [] as any[] }
-        : await sb
+        ? { data: [] as { client_id: string }[] }
+        : await supabase
             .from("client_member_scopes")
             .select("client_id")
             .eq("agency_id", agency!.id)
@@ -65,7 +67,7 @@ function Clients() {
         .eq("agency_id", agency!.id)
         .order("created_at", { ascending: false });
       if (!canSeeAll) {
-        const ids = (scopedRows ?? []).map((x: any) => x.client_id);
+        const ids = (scopedRows ?? []).map((x) => x.client_id);
         clientQuery = ids.length
           ? clientQuery.in("id", ids)
           : clientQuery.limit(0);
@@ -85,16 +87,17 @@ function Clients() {
           .eq("status", "open")
           .order("created_at", { ascending: false })
           .limit(200),
-        sb
+        supabase
           .from("campaign_ai_audits")
           .select("client_id, created_at, result_json")
           .eq("agency_id", agency!.id)
           .order("created_at", { ascending: false })
           .limit(400),
       ]);
-      const latest = new Map<string, Record<string, unknown>>();
-      for (const h of health.data ?? [])
-        if (!latest.has(h.client_id)) latest.set(h.client_id, h as any);
+      const latest = new Map<string, HealthScoreRow>();
+      for (const h of health.data ?? []) {
+        if (!latest.has(h.client_id)) latest.set(h.client_id, h);
+      }
 
       const latestAuditByClient = new Map<
         string,
@@ -145,7 +148,10 @@ function Clients() {
     low: 1,
   };
   const riskRadar = [...filtered]
-    .map((c) => ({ client: c, health: data.latest.get(c.id) as any }))
+    .map((c) => ({
+      client: c,
+      health: data.latest.get(c.id) as HealthScoreRow | undefined,
+    }))
     .filter((x) => x.health)
     .sort(
       (a, b) =>

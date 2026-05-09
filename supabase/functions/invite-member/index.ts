@@ -1,6 +1,7 @@
 // Admin/owner invites a new member to the agency.
 // Creates the auth user (if needed) and assigns a role.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { BodyTooLargeError, readJsonBody } from "../_shared/edge-json-body.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -19,12 +20,42 @@ Deno.serve(async (req) => {
         headers: corsHeaders,
       });
 
-    const { email, role } = await req.json();
-    if (!email)
-      return new Response(JSON.stringify({ error: "email required" }), {
+    let body: Record<string, unknown>;
+    try {
+      body = await readJsonBody(req);
+    } catch (e) {
+      if (e instanceof BodyTooLargeError) {
+        return new Response(
+          JSON.stringify({ error: "payload demasiado grande" }),
+          {
+            status: 413,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+      body = {};
+    }
+    const emailRaw = typeof body.email === "string" ? body.email.trim() : "";
+    const roleRaw = typeof body.role === "string" ? body.role.trim() : "member";
+    if (!emailRaw || emailRaw.length > 254) {
+      return new Response(
+        JSON.stringify({ error: "email required ou inválido" }),
+        {
+          status: 400,
+          headers: corsHeaders,
+        },
+      );
+    }
+    const APP_ROLES = ["owner", "admin", "member"] as const;
+    const role = (APP_ROLES as readonly string[]).includes(roleRaw)
+      ? roleRaw
+      : null;
+    if (!role) {
+      return new Response(JSON.stringify({ error: "role inválido" }), {
         status: 400,
         headers: corsHeaders,
       });
+    }
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -68,11 +99,11 @@ Deno.serve(async (req) => {
     // Find or invite user
     const { data: existing } = await admin.auth.admin.listUsers();
     let target = existing.users.find(
-      (x) => x.email?.toLowerCase() === email.toLowerCase(),
+      (x) => x.email?.toLowerCase() === emailRaw.toLowerCase(),
     );
     if (!target) {
       const { data: invited, error: inviteErr } =
-        await admin.auth.admin.inviteUserByEmail(email);
+        await admin.auth.admin.inviteUserByEmail(emailRaw);
       if (inviteErr)
         return new Response(JSON.stringify({ error: inviteErr.message }), {
           status: 400,
@@ -101,7 +132,7 @@ Deno.serve(async (req) => {
       {
         user_id: target.id,
         agency_id: profile.agency_id,
-        role: role ?? "member",
+        role,
       },
       { onConflict: "user_id,agency_id,role", ignoreDuplicates: true },
     );

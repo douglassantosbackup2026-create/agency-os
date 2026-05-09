@@ -5,6 +5,20 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardHeader, Empty, PageSkeleton } from "./dashboard";
 import { toast } from "sonner";
+import type { Database } from "@/integrations/supabase/types";
+
+type ClientMini = Pick<
+  Database["public"]["Tables"]["clients"]["Row"],
+  "id" | "name"
+>;
+type WatchlistRow =
+  Database["public"]["Tables"]["competitor_watchlist"]["Row"] & {
+    clients?: { name?: string | null } | null;
+  };
+type SnapshotRow =
+  Database["public"]["Tables"]["competitor_snapshots"]["Row"] & {
+    competitor_watchlist?: { competitor_name?: string | null } | null;
+  };
 
 export const Route = createFileRoute("/_authenticated/competitors")({
   component: CompetitorsPage,
@@ -20,19 +34,18 @@ function CompetitorsPage() {
     queryKey: ["competitors", agency?.id],
     enabled: !!agency,
     queryFn: async () => {
-      const sb = supabase as any;
       const [clientsRes, wlRes, snapRes] = await Promise.all([
         supabase
           .from("clients")
           .select("id, name")
           .eq("agency_id", agency!.id)
           .order("name"),
-        sb
+        supabase
           .from("competitor_watchlist")
           .select("*, clients(name)")
           .eq("agency_id", agency!.id)
           .order("created_at", { ascending: false }),
-        sb
+        supabase
           .from("competitor_snapshots")
           .select("*, competitor_watchlist(competitor_name)")
           .eq("agency_id", agency!.id)
@@ -53,8 +66,7 @@ function CompetitorsPage() {
       toast.error("Selecione cliente e concorrente.");
       return;
     }
-    const sb = supabase as any;
-    const { error } = await sb.from("competitor_watchlist").insert({
+    const { error } = await supabase.from("competitor_watchlist").insert({
       agency_id: agency.id,
       client_id: clientId,
       competitor_name: name.trim(),
@@ -81,7 +93,11 @@ function CompetitorsPage() {
       toast.error(error.message);
       return;
     }
-    toast.success(`Snapshots criados: ${(res as any)?.created ?? 0}`);
+    const created =
+      res && typeof res === "object" && "created" in res
+        ? Number((res as { created?: number }).created ?? 0)
+        : 0;
+    toast.success(`Snapshots criados: ${created}`);
     refetch();
   }
 
@@ -116,7 +132,7 @@ function CompetitorsPage() {
             className="h-9 rounded-md border border-border bg-background px-2 text-sm"
           >
             <option value="">Cliente</option>
-            {data.clients.map((c: any) => (
+            {data.clients.map((c: ClientMini) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>
@@ -146,12 +162,11 @@ function CompetitorsPage() {
           <Empty label="Nenhum concorrente cadastrado." />
         ) : (
           <div className="divide-y divide-border">
-            {data.watchlist.map((w: any) => (
+            {data.watchlist.map((w: WatchlistRow) => (
               <div key={w.id} className="px-4 py-2 text-sm">
                 <div className="font-medium">{w.competitor_name}</div>
                 <div className="text-xs text-muted-foreground">
-                  {(w.clients as any)?.name ?? "Cliente"} ·{" "}
-                  {w.source_url || "sem URL"}
+                  {w.clients?.name ?? "Cliente"} · {w.source_url || "sem URL"}
                 </div>
               </div>
             ))}
@@ -165,14 +180,13 @@ function CompetitorsPage() {
           <Empty label="Sem snapshots ainda." />
         ) : (
           <div className="divide-y divide-border">
-            {data.snapshots.map((s: any) => (
+            {data.snapshots.map((s: SnapshotRow) => (
               <div key={s.id} className="space-y-1 px-4 py-3 text-sm">
                 <div className="font-medium">{s.headline}</div>
                 <div className="text-xs text-muted-foreground">
-                  {(s.competitor_watchlist as any)?.competitor_name ??
-                    "Concorrente"}{" "}
-                  · {new Date(s.captured_at).toLocaleString("pt-BR")} ·
-                  anúncios: {s.ad_count ?? 0}
+                  {s.competitor_watchlist?.competitor_name ?? "Concorrente"} ·{" "}
+                  {new Date(s.captured_at).toLocaleString("pt-BR")} · anúncios:{" "}
+                  {s.ad_count ?? 0}
                 </div>
                 {s.insight ? <div className="text-sm">{s.insight}</div> : null}
               </div>

@@ -7,6 +7,7 @@ import { Card, Empty, PageSkeleton } from "./dashboard";
 import { toast } from "sonner";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import type { Database } from "@/integrations/supabase/types";
 
 export const Route = createFileRoute("/_authenticated/ai-review")({
   component: AiReviewCenter,
@@ -22,6 +23,53 @@ type QueueItem = {
   client_name: string;
 };
 
+type ClientNameJoin = { name?: string | null } | null;
+
+type QueueReportRow = {
+  id: string;
+  created_at: string;
+  client_id: string | null;
+  executive_summary?: string | null;
+  clients?: ClientNameJoin;
+};
+
+type QueueAlertRow = {
+  id: string;
+  created_at: string;
+  client_id: string | null;
+  title?: string | null;
+  description?: string | null;
+  clients?: ClientNameJoin;
+};
+
+type QueueMeetingRow = {
+  id: string;
+  created_at: string;
+  client_id: string | null;
+  agenda?: string | null;
+  clients?: ClientNameJoin;
+};
+
+type QueueWhatsRow = {
+  id: string;
+  created_at: string;
+  client_id: string | null;
+  message?: string | null;
+  clients?: ClientNameJoin;
+};
+
+type QueueCompetitorRow = {
+  id: string;
+  created_at: string;
+  client_id: string | null;
+  summary?: string | null;
+  insight?: string | null;
+  headline?: string | null;
+  clients?: ClientNameJoin;
+};
+
+type ActionInsert = Database["public"]["Tables"]["action_center"]["Insert"];
+
 function AiReviewCenter() {
   const { agency } = useAuth();
   const [kindFilter, setKindFilter] = useState<QueueKind | "all">("all");
@@ -30,7 +78,6 @@ function AiReviewCenter() {
     queryKey: ["ai-review-queue", agency?.id],
     enabled: !!agency,
     queryFn: async () => {
-      const sb = supabase as any;
       const [reports, alerts, meetings, wa, competitors] = await Promise.all([
         supabase
           .from("reports")
@@ -51,14 +98,14 @@ function AiReviewCenter() {
           .not("ai_output_json", "is", null)
           .order("created_at", { ascending: false })
           .limit(50),
-        sb
+        supabase
           .from("meeting_reports")
           .select("id, created_at, client_id, agenda, confianca, clients(name)")
           .eq("agency_id", agency!.id)
           .eq("requer_revisao_humana", true)
           .order("created_at", { ascending: false })
           .limit(50),
-        sb
+        supabase
           .from("whatsapp_logs")
           .select(
             "id, created_at, recipient, message, client_id, clients(name)",
@@ -67,7 +114,7 @@ function AiReviewCenter() {
           .eq("pending_review", true)
           .order("created_at", { ascending: false })
           .limit(50),
-        sb
+        supabase
           .from("competitor_snapshots")
           .select(
             "id, created_at, client_id, summary, insight, headline, confianca, clients(name)",
@@ -94,7 +141,7 @@ function AiReviewCenter() {
         raw: Record<string, unknown>;
       }
     > = [];
-    for (const r of data.reports as any[]) {
+    for (const r of data.reports as QueueReportRow[]) {
       items.push({
         kind: "report",
         id: r.id,
@@ -104,7 +151,7 @@ function AiReviewCenter() {
         raw: r,
       });
     }
-    for (const a of data.alerts as any[]) {
+    for (const a of data.alerts as QueueAlertRow[]) {
       items.push({
         kind: "alert",
         id: a.id,
@@ -114,7 +161,7 @@ function AiReviewCenter() {
         raw: a,
       });
     }
-    for (const m of data.meetings as any[]) {
+    for (const m of data.meetings as QueueMeetingRow[]) {
       items.push({
         kind: "meeting",
         id: m.id,
@@ -124,7 +171,7 @@ function AiReviewCenter() {
         raw: m,
       });
     }
-    for (const w of data.whatsapp as any[]) {
+    for (const w of data.whatsapp as QueueWhatsRow[]) {
       items.push({
         kind: "whatsapp",
         id: w.id,
@@ -134,7 +181,7 @@ function AiReviewCenter() {
         raw: w,
       });
     }
-    for (const c of data.competitors as any[]) {
+    for (const c of data.competitors as QueueCompetitorRow[]) {
       items.push({
         kind: "competitor",
         id: c.id,
@@ -231,8 +278,7 @@ function AiReviewCenter() {
   }
 
   async function approveMeeting(id: string) {
-    const sb = supabase as any;
-    const { error } = await sb
+    const { error } = await supabase
       .from("meeting_reports")
       .update({
         requer_revisao_humana: false,
@@ -247,8 +293,7 @@ function AiReviewCenter() {
   }
 
   async function discardMeeting(id: string) {
-    const sb = supabase as any;
-    const { error } = await sb
+    const { error } = await supabase
       .from("meeting_reports")
       .update({
         requer_revisao_humana: false,
@@ -263,8 +308,7 @@ function AiReviewCenter() {
   }
 
   async function approveCompetitor(id: string) {
-    const sb = supabase as any;
-    const { error } = await sb
+    const { error } = await supabase
       .from("competitor_snapshots")
       .update({
         requer_revisao_humana: false,
@@ -279,8 +323,7 @@ function AiReviewCenter() {
   }
 
   async function discardCompetitor(id: string) {
-    const sb = supabase as any;
-    const { error } = await sb
+    const { error } = await supabase
       .from("competitor_snapshots")
       .update({
         requer_revisao_humana: false,
@@ -294,9 +337,8 @@ function AiReviewCenter() {
     }
   }
 
-  async function insertAction(payload: Record<string, unknown>) {
-    const sb = supabase as any;
-    const { error } = await sb.from("action_center").insert(payload);
+  async function insertAction(payload: ActionInsert) {
+    const { error } = await supabase.from("action_center").insert(payload);
     if (error) toast.error(error.message);
     else {
       toast.success("Ação criada.");
@@ -304,7 +346,7 @@ function AiReviewCenter() {
     }
   }
 
-  function createActionFromReport(r: any) {
+  function createActionFromReport(r: QueueReportRow) {
     insertAction({
       agency_id: agency!.id,
       client_id: r.client_id,
@@ -319,7 +361,7 @@ function AiReviewCenter() {
     });
   }
 
-  function createActionFromAlert(a: any) {
+  function createActionFromAlert(a: QueueAlertRow) {
     insertAction({
       agency_id: agency!.id,
       client_id: a.client_id,
@@ -334,7 +376,7 @@ function AiReviewCenter() {
     });
   }
 
-  function createActionFromMeeting(m: any) {
+  function createActionFromMeeting(m: QueueMeetingRow) {
     insertAction({
       agency_id: agency!.id,
       client_id: m.client_id,
@@ -349,7 +391,7 @@ function AiReviewCenter() {
     });
   }
 
-  function createActionFromCompetitor(c: any) {
+  function createActionFromCompetitor(c: QueueCompetitorRow) {
     insertAction({
       agency_id: agency!.id,
       client_id: c.client_id,
@@ -367,7 +409,7 @@ function AiReviewCenter() {
     });
   }
 
-  function createActionFromWhatsApp(w: any) {
+  function createActionFromWhatsApp(w: QueueWhatsRow) {
     insertAction({
       agency_id: agency!.id,
       client_id: w.client_id,
@@ -396,8 +438,7 @@ function AiReviewCenter() {
   }
 
   async function discardWhatsDraft(logId: string) {
-    const sb = supabase as any;
-    const { error } = await sb
+    const { error } = await supabase
       .from("whatsapp_logs")
       .update({
         pending_review: false,
