@@ -253,14 +253,34 @@ export function Badge({ children }: { children: React.ReactNode }) {
 export function PageSkeleton() {
   return (
     <div className="space-y-4 p-6">
-      <div className="h-7 w-48 animate-pulse rounded bg-surface" />
+      <div className="space-y-2">
+        <Shimmer className="h-7 w-48" />
+        <Shimmer className="h-3 w-72" />
+      </div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
-        {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-20 animate-pulse rounded-xl bg-surface" />)}
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Shimmer key={i} className="h-20 rounded-xl" style={{ animationDelay: `${i * 60}ms` }} />
+        ))}
       </div>
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="h-80 animate-pulse rounded-xl bg-surface lg:col-span-2" />
-        <div className="h-80 animate-pulse rounded-xl bg-surface" />
+        <Shimmer className="h-80 rounded-xl lg:col-span-2" style={{ animationDelay: "120ms" }} />
+        <Shimmer className="h-80 rounded-xl" style={{ animationDelay: "180ms" }} />
       </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Shimmer className="h-48 rounded-xl" style={{ animationDelay: "240ms" }} />
+        <Shimmer className="h-48 rounded-xl" style={{ animationDelay: "300ms" }} />
+      </div>
+    </div>
+  );
+}
+
+export function Shimmer({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
+  return (
+    <div
+      className={`relative overflow-hidden bg-surface ${className}`}
+      style={style}
+    >
+      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-foreground/[0.04] to-transparent" />
     </div>
   );
 }
