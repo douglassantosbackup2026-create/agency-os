@@ -163,7 +163,7 @@ function Admin() {
           )}
         </Card>
       </div>
-    </div>
+    </motion.div>
   );
 }
 

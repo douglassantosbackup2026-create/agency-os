@@ -158,6 +158,6 @@ function Integrations() {
           <p>• Por enquanto, a sync usa dados simulados baseados no orçamento mensal de cada cliente. OAuth real para Meta/Google/TikTok/GA4 exige apps aprovados em cada plataforma — disponível como upgrade.</p>
         </div>
       </Card>
-    </div>
+    </motion.div>
   );
 }
