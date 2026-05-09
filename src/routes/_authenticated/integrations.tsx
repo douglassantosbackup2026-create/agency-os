@@ -13,7 +13,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { Card, CardHeader, PageSkeleton } from "./dashboard";
+import { Card, CardHeader, PageSkeleton } from "@/components/operational-ui";
 import { timeAgo } from "@/lib/format";
 import type { Database } from "@/integrations/supabase/types";
 

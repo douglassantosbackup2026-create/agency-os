@@ -7,6 +7,7 @@ import {
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { invokeWithToast } from "@/lib/supabase-invoke";
 import { Loader2 } from "lucide-react";
 import { AuthShell, Field } from "./login";
 
@@ -43,11 +44,7 @@ function Signup() {
       return;
     }
     // try seed automatically
-    try {
-      await supabase.functions.invoke("seed-demo-data");
-    } catch {
-      /* ignore */
-    }
+    await invokeWithToast(supabase, "seed-demo-data", { silent: true });
     setLoading(false);
     toast.success("Agência criada. Bem-vindo ao Retentio.");
     navigate({ to: "/onboarding" });

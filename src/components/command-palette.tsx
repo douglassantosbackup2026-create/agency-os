@@ -33,8 +33,8 @@ import {
   Image as ImageIcon,
   Radar,
 } from "lucide-react";
-import { toast } from "sonner";
 import { toggleTheme as applyToggleTheme } from "@/lib/theme";
+import { invokeWithToast } from "@/lib/supabase-invoke";
 
 type ClientItem = { id: string; name: string };
 type ReportPick = { id: string; excerpt: string; clientName: string };
@@ -111,43 +111,35 @@ export function CommandPalette({
 
   const seed = async () => {
     close();
-    const tid = toast.loading("Gerando dados de exemplo...");
-    const { error } = await supabase.functions.invoke("seed-demo-data");
-    toast.dismiss(tid);
-    if (error) toast.error(error.message);
-    else toast.success("Dados criados. Recarregando...");
-    setTimeout(() => window.location.reload(), 800);
+    const res = await invokeWithToast(supabase, "seed-demo-data", {
+      loading: "Gerando dados de exemplo...",
+      success: "Dados criados. Recarregando...",
+    });
+    if (res.ok) setTimeout(() => window.location.reload(), 800);
   };
 
   const recomputeHealth = async () => {
     close();
-    const tid = toast.loading(
-      "Atualizando indicadores de saúde da carteira...",
-    );
-    const { error } = await supabase.functions.invoke("compute-health-scores");
-    toast.dismiss(tid);
-    if (error) toast.error(error.message);
-    else toast.success("Indicadores e briefing atualizados.");
+    await invokeWithToast(supabase, "compute-health-scores", {
+      loading: "Atualizando indicadores de saúde da carteira...",
+      success: "Indicadores e briefing atualizados.",
+    });
   };
 
   const evalAlerts = async () => {
     close();
-    const tid = toast.loading("Avaliando alertas...");
-    const { error } = await supabase.functions.invoke("evaluate-alerts");
-    toast.dismiss(tid);
-    if (error) toast.error(error.message);
-    else toast.success("Alertas reavaliados.");
+    await invokeWithToast(supabase, "evaluate-alerts", {
+      loading: "Avaliando alertas...",
+      success: "Alertas reavaliados.",
+    });
   };
 
   const runDailySummary = async () => {
     close();
-    const tid = toast.loading("Enviando resumos do dia...");
-    const { error } = await supabase.functions.invoke(
-      "whatsapp-summary?period=daily",
-    );
-    toast.dismiss(tid);
-    if (error) toast.error(error.message);
-    else toast.success("Resumos enviados.");
+    await invokeWithToast(supabase, "whatsapp-summary?period=daily", {
+      loading: "Enviando resumos do dia...",
+      success: "Resumos enviados.",
+    });
   };
 
   const toggleTheme = () => {

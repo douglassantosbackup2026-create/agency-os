@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/use-auth";
-import { Card, CardHeader } from "./dashboard";
+import { Card, CardHeader } from "@/components/operational-ui";
 import {
   ArrowRight,
   ExternalLink,
@@ -13,6 +13,7 @@ import { useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { ONBOARDING_CHECKLIST_STEPS } from "@/lib/onboarding-checklist";
 
 export const Route = createFileRoute("/_authenticated/onboarding")({
   component: Onboarding,
@@ -31,16 +32,6 @@ function Onboarding() {
   const [quickClientName, setQuickClientName] = useState("");
   const [quickBudget, setQuickBudget] = useState("");
   const [quickMrr, setQuickMrr] = useState("");
-  const CHECKLIST_STEPS = [
-    { key: "platform_access", title: "Solicitar acessos às plataformas" },
-    { key: "budget_goal", title: "Configurar budget e meta do cliente" },
-    { key: "portal_sent", title: "Enviar link do portal ao cliente" },
-    { key: "first_report", title: "Gerar primeiro relatório IA" },
-    {
-      key: "diagnostic_run",
-      title: "Diagnóstico inicial de saúde da carteira",
-    },
-  ] as const;
 
   const { data: checklistData, refetch: refetchChecklist } = useQuery({
     queryKey: ["onboarding-checklist", agency?.id],
@@ -85,13 +76,13 @@ function Onboarding() {
       client_id: clientId,
       step_key: stepKey,
       title:
-        CHECKLIST_STEPS.find((s) => s.key === stepKey)?.title ??
+        ONBOARDING_CHECKLIST_STEPS.find((s) => s.key === stepKey)?.title ??
         "Etapa onboarding",
       status: done ? "done" : "pending",
       completed_at: done ? new Date().toISOString() : null,
       sort_order: Math.max(
         0,
-        CHECKLIST_STEPS.findIndex((s) => s.key === stepKey),
+        ONBOARDING_CHECKLIST_STEPS.findIndex((s) => s.key === stepKey),
       ),
     };
     const op = existing
@@ -177,13 +168,13 @@ function Onboarding() {
           client_id: inserted.id,
           step_key: "diagnostic_run",
           title:
-            CHECKLIST_STEPS.find((s) => s.key === "diagnostic_run")?.title ??
+            ONBOARDING_CHECKLIST_STEPS.find((s) => s.key === "diagnostic_run")?.title ??
             "Diagnóstico inicial de saúde da carteira",
           status: "done" as const,
           completed_at: new Date().toISOString(),
           sort_order: Math.max(
             0,
-            CHECKLIST_STEPS.findIndex((s) => s.key === "diagnostic_run"),
+            ONBOARDING_CHECKLIST_STEPS.findIndex((s) => s.key === "diagnostic_run"),
           ),
         };
         await supabase.from("onboarding_checklist_items").upsert(payload, {
@@ -386,7 +377,7 @@ function Onboarding() {
             </p>
           ) : (
             (checklistData?.clients ?? []).map((client) => {
-              const doneCount = CHECKLIST_STEPS.filter((step) =>
+              const doneCount = ONBOARDING_CHECKLIST_STEPS.filter((step) =>
                 checklistData?.items.some(
                   (i) =>
                     i.client_id === client.id &&
@@ -395,7 +386,7 @@ function Onboarding() {
                 ),
               ).length;
               const pct = Math.round(
-                (doneCount / CHECKLIST_STEPS.length) * 100,
+                (doneCount / ONBOARDING_CHECKLIST_STEPS.length) * 100,
               );
               return (
                 <div
@@ -405,7 +396,7 @@ function Onboarding() {
                   <div className="mb-2 flex items-center justify-between">
                     <div className="text-sm font-medium">{client.name}</div>
                     <div className="text-xs text-muted-foreground">
-                      {doneCount}/{CHECKLIST_STEPS.length} · {pct}%
+                      {doneCount}/{ONBOARDING_CHECKLIST_STEPS.length} · {pct}%
                     </div>
                   </div>
                   <div className="h-1.5 overflow-hidden rounded bg-surface">
@@ -415,7 +406,7 @@ function Onboarding() {
                     />
                   </div>
                   <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                    {CHECKLIST_STEPS.map((step) => {
+                    {ONBOARDING_CHECKLIST_STEPS.map((step) => {
                       const done = checklistData?.items.some(
                         (i) =>
                           i.client_id === client.id &&

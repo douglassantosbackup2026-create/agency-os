@@ -13,9 +13,16 @@ import {
   Loader2,
 } from "lucide-react";
 import { motion } from "framer-motion";
-import { Card, CardHeader, Empty, PageSkeleton } from "./dashboard";
+import {
+  Card,
+  CardHeader,
+  Empty,
+  PageSkeleton,
+} from "@/components/operational-ui";
+import { AgencyClientSelect } from "@/components/agency-client-select";
 import { timeAgo, initials } from "@/lib/format";
 import type { Database } from "@/integrations/supabase/types";
+import { escapeCsvField } from "@/lib/csv";
 
 type AiUsageRow = Pick<
   Database["public"]["Tables"]["ai_usage_events"]["Row"],
@@ -68,25 +75,25 @@ function exportAuditActionCsv(
 ) {
   const lines: string[] = [];
   lines.push(
-    `${csvEscape("tipo")},${csvEscape("chave")},${csvEscape("valor")}`,
+    `${escapeCsvField("tipo")},${escapeCsvField("chave")},${escapeCsvField("valor")}`,
   );
   for (const [k, v] of Object.entries(recoByAction)) {
     lines.push(
-      `${csvEscape("reco_user_action")},${csvEscape(k)},${csvEscape(String(v))}`,
+      `${escapeCsvField("reco_user_action")},${escapeCsvField(k)},${escapeCsvField(String(v))}`,
     );
   }
   for (const [k, v] of Object.entries(auditActionsByStatus)) {
     lines.push(
-      `${csvEscape("central_acoes_status")},${csvEscape(k)},${csvEscape(String(v))}`,
+      `${escapeCsvField("central_acoes_status")},${escapeCsvField(k)},${escapeCsvField(String(v))}`,
     );
   }
   lines.push("");
   lines.push(
-    `${csvEscape("id")},${csvEscape("status")},${csvEscape("client_id")},${csvEscape("created_at")},${csvEscape("title")}`,
+    `${escapeCsvField("id")},${escapeCsvField("status")},${escapeCsvField("client_id")},${escapeCsvField("created_at")},${escapeCsvField("title")}`,
   );
   for (const r of rows) {
     lines.push(
-      `${csvEscape(r.id)},${csvEscape(r.status)},${csvEscape(r.client_id ?? "")},${csvEscape(r.created_at)},${csvEscape(r.title ?? "")}`,
+      `${escapeCsvField(r.id)},${escapeCsvField(r.status)},${escapeCsvField(r.client_id ?? "")},${escapeCsvField(r.created_at)},${escapeCsvField(r.title ?? "")}`,
     );
   }
   const blob = new Blob([lines.join("\n")], {
@@ -98,12 +105,6 @@ function exportAuditActionCsv(
   a.download = `auditoria-acoes-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
-}
-
-function csvEscape(cell: string): string {
-  const s = String(cell ?? "");
-  if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
 }
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -653,18 +654,18 @@ function Admin() {
                 </label>
                 <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
                   Cliente
-                  <select
+                  <AgencyClientSelect
+                    variant="native"
+                    clients={(data.clients ?? []).map((c) => ({
+                      id: c.id,
+                      name: c.name ?? "",
+                    }))}
                     value={auditClientId}
-                    onChange={(e) => setAuditClientId(e.target.value)}
-                    className="max-w-[200px] rounded border border-border bg-background px-2 py-1 text-foreground"
-                  >
-                    <option value="">Todos</option>
-                    {(data.clients ?? []).map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
+                    onValueChange={setAuditClientId}
+                    triggerClassName="max-w-[200px] rounded border border-border bg-background px-2 py-1 text-foreground text-[11px]"
+                    allLabel="Todos"
+                    allValue=""
+                  />
                 </label>
               </div>
             </div>

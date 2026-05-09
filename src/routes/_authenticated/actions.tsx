@@ -4,7 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { timeAgo } from "@/lib/format";
-import { Card, Empty, PageSkeleton } from "./dashboard";
+import { Card, Empty, PageSkeleton } from "@/components/operational-ui";
+import { FilterDrawer } from "@/components/filter-drawer";
+import { AgencyClientSelect } from "@/components/agency-client-select";
+import { PageHeader } from "@/components/page-header";
+import { useAgencyClientsOptions } from "@/hooks/use-agency-clients-options";
+import { useAgencyTeammates } from "@/hooks/use-agency-teammates";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,26 +20,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { SlidersHorizontal } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
+import { ACTION_CENTER_OPEN_STATUSES_SET } from "@/lib/action-center-status";
+import { FILTER_SELECT_TRIGGER_CLASSES } from "@/lib/ui/filter-classes";
 
 type ActionCenterRow = Database["public"]["Tables"]["action_center"]["Row"] & {
   clients?: { id: string; name: string } | null;
 };
-
-const SLA_OPEN_STATUSES = new Set([
-  "pendente",
-  "revisar_depois",
-  "adiado",
-  "anotacao",
-  "enviado_cliente",
-]);
 
 const ACTIONS_FILTERS_LS = "action-center-filters-v1";
 
@@ -49,7 +42,7 @@ function addDaysISO(days: number) {
 }
 
 function isActionOverdue(a: { due_date?: string | null; status?: string }) {
-  if (!a.due_date || !a.status || !SLA_OPEN_STATUSES.has(a.status))
+  if (!a.due_date || !a.status || !ACTION_CENTER_OPEN_STATUSES_SET.has(a.status))
     return false;
   return a.due_date < todayISO();
 }
@@ -58,7 +51,7 @@ function dueWithinDays(
   a: { due_date?: string | null; status?: string },
   days: number,
 ) {
-  if (!a.due_date || !a.status || !SLA_OPEN_STATUSES.has(a.status))
+  if (!a.due_date || !a.status || !ACTION_CENTER_OPEN_STATUSES_SET.has(a.status))
     return false;
   const t = todayISO();
   const limit = addDaysISO(days);
@@ -76,7 +69,10 @@ function passesDueSla(
   if (slaFilter === "soon_3") return dueWithinDays(a, 3);
   if (slaFilter === "soon_7") return dueWithinDays(a, 7);
   if (slaFilter === "range") {
-    if (!a.due_date || !SLA_OPEN_STATUSES.has(String(a.status ?? "")))
+    if (
+      !a.due_date ||
+      !ACTION_CENTER_OPEN_STATUSES_SET.has(String(a.status ?? ""))
+    )
       return false;
     if (dueFrom && a.due_date < dueFrom) return false;
     if (dueTo && a.due_date > dueTo) return false;
@@ -170,7 +166,7 @@ function ActionsCenter() {
     sortDue,
   ]);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data: actionsRows, isLoading, refetch } = useQuery({
     queryKey: [
       "action-center",
       agency?.id,
@@ -193,29 +189,19 @@ function ActionsCenter() {
       if (priority !== "all") q = q.eq("priority", priority);
       if (clientFilter !== "all") q = q.eq("client_id", clientFilter);
 
-      const [{ data: rows }, { data: clients }] = await Promise.all([
-        q,
-        supabase
-          .from("clients")
-          .select("id, name")
-          .eq("agency_id", agency!.id)
-          .order("name"),
-      ]);
-      const { data: teammates } = await supabase
-        .from("profiles")
-        .select("id, display_name, email")
-        .eq("agency_id", agency!.id)
-        .order("display_name");
-      return {
-        actions: rows ?? [],
-        clients: clients ?? [],
-        teammates: teammates ?? [],
-      };
+      const { data: rows, error } = await q;
+      if (error) throw error;
+      return rows ?? [];
     },
   });
 
+  const { data: clients = [], isLoading: clientsLoading } =
+    useAgencyClientsOptions(agency?.id);
+  const { data: teammates = [], isLoading: teammatesLoading } =
+    useAgencyTeammates(agency?.id);
+
   const headerCounts = useMemo(() => {
-    const rows = (data?.actions ?? []) as ActionCenterRow[];
+    const rows = (actionsRows ?? []) as ActionCenterRow[];
     let overdue = 0;
     let soon7 = 0;
     for (const a of rows) {
@@ -223,15 +209,15 @@ function ActionsCenter() {
       if (dueWithinDays(a, 7)) soon7++;
     }
     return { total: rows.length, overdue, soon7 };
-  }, [data?.actions]);
+  }, [actionsRows]);
 
   const filtered = useMemo(() => {
-    const rows = (data?.actions ?? []) as ActionCenterRow[];
+    const rows = (actionsRows ?? []) as ActionCenterRow[];
     const passed = rows.filter((a) =>
       passesDueSla(a, slaFilter, dueFrom, dueTo),
     );
     return sortByDue(passed, sortDue);
-  }, [data?.actions, slaFilter, dueFrom, dueTo, sortDue]);
+  }, [actionsRows, slaFilter, dueFrom, dueTo, sortDue]);
 
   const idSet = useMemo(() => new Set(filtered.map((a) => a.id)), [filtered]);
 
@@ -330,55 +316,57 @@ function ActionsCenter() {
     } else toast.error("Algumas atualizações falharam — verifique permissões.");
   }
 
-  if (isLoading || !data) return <PageSkeleton preset="compact" />;
+  if (
+    isLoading ||
+    clientsLoading ||
+    teammatesLoading ||
+    actionsRows === undefined
+  )
+    return <PageSkeleton preset="compact" />;
 
   const allVisibleSelected =
     filtered.length > 0 && filtered.every((a) => selectedIds.includes(a.id));
 
   return (
     <div className="space-y-5 p-6">
-      <header className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Central de Ações
-          </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Priorize execução por cliente e origem (IA ou manual).
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Lista atual: {headerCounts.total} linhas · {headerCounts.overdue}{" "}
-            atrasadas (SLA) · {headerCounts.soon7} com prazo em até 7 dias
-          </p>
-        </div>
+      <PageHeader
+        title="Central de Ações"
+        description={
+          <>
+            <span className="block">
+              Priorize execução por cliente e origem (IA ou manual).
+            </span>
+            <span className="mt-1 block text-xs text-muted-foreground">
+              Lista atual: {headerCounts.total} linhas · {headerCounts.overdue}{" "}
+              atrasadas (SLA) · {headerCounts.soon7} com prazo em até 7 dias
+            </span>
+          </>
+        }
+      >
         <Link
           to="/clients"
           className="text-sm font-medium text-primary hover:underline"
         >
           Ver clientes
         </Link>
-      </header>
+      </PageHeader>
 
-      <div className="flex md:hidden">
-        <Button
-          type="button"
-          variant="outline"
-          className="h-11 w-full gap-2"
-          onClick={() => setFiltersSheetOpen(true)}
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-          Filtros da lista
-        </Button>
-      </div>
-
-      <Sheet open={filtersSheetOpen} onOpenChange={setFiltersSheetOpen}>
-        <SheetContent
-          side="bottom"
-          className="flex max-h-[90vh] flex-col gap-0 p-0"
-        >
-          <SheetHeader className="border-b border-border px-4 py-4 text-left">
-            <SheetTitle>Filtros</SheetTitle>
-          </SheetHeader>
-          <div className="flex flex-col gap-3 overflow-y-auto px-4 py-4">
+      <FilterDrawer
+        open={filtersSheetOpen}
+        onOpenChange={setFiltersSheetOpen}
+        title="Filtros"
+        trigger={
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 w-full gap-2"
+            onClick={() => setFiltersSheetOpen(true)}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            Filtros da lista
+          </Button>
+        }
+      >
             <Select value={status} onValueChange={setStatus}>
               <SelectTrigger className="h-11 w-full">
                 <SelectValue placeholder="Estado" />
@@ -424,19 +412,13 @@ function ActionsCenter() {
                 <SelectItem value="baixa">Baixa</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={clientFilter} onValueChange={setClientFilter}>
-              <SelectTrigger className="h-11 w-full">
-                <SelectValue placeholder="Cliente" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos clientes</SelectItem>
-                {data.clients.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <AgencyClientSelect
+              clients={clients}
+              value={clientFilter}
+              onValueChange={setClientFilter}
+              triggerClassName={FILTER_SELECT_TRIGGER_CLASSES.drawer}
+              allLabel="Todos clientes"
+            />
             <Select
               value={slaFilter}
               onValueChange={(v) => setSlaFilter(v as typeof slaFilter)}
@@ -483,16 +465,7 @@ function ActionsCenter() {
                 />
               </div>
             )}
-            <Button
-              type="button"
-              className="h-11 w-full"
-              onClick={() => setFiltersSheetOpen(false)}
-            >
-              Aplicar e fechar
-            </Button>
-          </div>
-        </SheetContent>
-      </Sheet>
+      </FilterDrawer>
 
       <div className="hidden flex-wrap gap-2 md:flex">
         <Select value={status} onValueChange={setStatus}>
@@ -538,19 +511,13 @@ function ActionsCenter() {
             <SelectItem value="baixa">Baixa</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={clientFilter} onValueChange={setClientFilter}>
-          <SelectTrigger className="h-9 min-w-[160px] max-w-[280px] shrink-0">
-            <SelectValue placeholder="Cliente" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos clientes</SelectItem>
-            {data.clients.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <AgencyClientSelect
+          clients={clients}
+          value={clientFilter}
+          onValueChange={setClientFilter}
+          triggerClassName={FILTER_SELECT_TRIGGER_CLASSES.barClient}
+          allLabel="Todos clientes"
+        />
         <Select
           value={slaFilter}
           onValueChange={(v) => setSlaFilter(v as typeof slaFilter)}
@@ -632,7 +599,7 @@ function ActionsCenter() {
             <SelectContent>
               <SelectItem value="__none__">Sem responsável</SelectItem>
               {user?.id && <SelectItem value={user.id}>Eu</SelectItem>}
-              {data.teammates.map((t) => (
+              {teammates.map((t) => (
                 <SelectItem key={t.id} value={t.id}>
                   {t.display_name || t.email}
                 </SelectItem>
@@ -773,7 +740,7 @@ function ActionsCenter() {
                               {user?.id && (
                                 <SelectItem value={user.id}>Eu</SelectItem>
                               )}
-                              {data.teammates.map((t) => (
+                              {teammates.map((t) => (
                                 <SelectItem key={t.id} value={t.id}>
                                   {t.display_name || t.email}
                                 </SelectItem>

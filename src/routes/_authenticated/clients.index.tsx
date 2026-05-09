@@ -12,7 +12,7 @@ import {
   PageSkeleton,
   RiskDot,
   ScoreBar,
-} from "./dashboard";
+} from "@/components/operational-ui";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,23 +28,11 @@ import {
 } from "@/lib/subscription-limits";
 import { auditOverallStatus } from "@/lib/audit-dashboard";
 import type { Database } from "@/integrations/supabase/types";
+import { ACTION_CENTER_OPEN_STATUSES } from "@/lib/action-center-status";
+import { rowsToCsv } from "@/lib/csv";
+import { PageHeader } from "@/components/page-header";
 
 type HealthScoreRow = Database["public"]["Tables"]["health_scores"]["Row"];
-
-const OPEN_ACTION_STATUSES = [
-  "pendente",
-  "revisar_depois",
-  "adiado",
-  "anotacao",
-  "enviado_cliente",
-] as const;
-
-function csvEscapeCell(value: string) {
-  if (/[",\n\r]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
-  }
-  return value;
-}
 
 function isoToday() {
   return new Date().toISOString().slice(0, 10);
@@ -131,7 +119,7 @@ function Clients() {
           .from("action_center")
           .select("client_id")
           .eq("agency_id", agency!.id)
-          .in("status", [...OPEN_ACTION_STATUSES])
+          .in("status", [...ACTION_CENTER_OPEN_STATUSES])
           .limit(2500),
         supabase
           .from("sync_runs")
@@ -257,7 +245,7 @@ function Clients() {
         auLabel,
       ]);
     }
-    const body = rows.map((r) => r.map(csvEscapeCell).join(",")).join("\r\n");
+    const body = rowsToCsv(rows);
     const blob = new Blob([body], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -270,13 +258,11 @@ function Clients() {
 
   return (
     <div className="space-y-5 p-6">
-      <header className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Clientes</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {data.clients.length} cliente(s) na operação
-          </p>
-        </div>
+      <PageHeader
+        className="gap-3 md:flex-row md:items-center md:justify-between"
+        title="Clientes"
+        description={`${data.clients.length} cliente(s) na operação`}
+      >
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           <div className="relative hidden md:block">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -316,7 +302,7 @@ function Clients() {
             <Plus className="h-4 w-4" /> Novo cliente
           </Button>
         </div>
-      </header>
+      </PageHeader>
 
       <Sheet open={listToolbarOpen} onOpenChange={setListToolbarOpen}>
         <SheetContent side="bottom" className="p-0">

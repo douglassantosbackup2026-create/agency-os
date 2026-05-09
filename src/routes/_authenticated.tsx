@@ -45,6 +45,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { ONBOARDING_STEP_KEYS } from "@/lib/onboarding-checklist";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
@@ -53,15 +54,6 @@ export const Route = createFileRoute("/_authenticated")({
   },
   component: AuthenticatedLayout,
 });
-
-/** Mantém-se alinhado a onboarding.tsx — cliente só sai da vista quando todas as etapas estão feitas. */
-const ONBOARDING_STEP_KEYS = [
-  "platform_access",
-  "budget_goal",
-  "portal_sent",
-  "first_report",
-  "diagnostic_run",
-] as const;
 
 type NavItemDef = { to: string; label: string; icon: LucideIcon };
 

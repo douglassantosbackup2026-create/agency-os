@@ -10,7 +10,12 @@ import {
   Empty,
   PageSkeleton,
   PriorityDot,
-} from "./dashboard";
+} from "@/components/operational-ui";
+import { FilterDrawer } from "@/components/filter-drawer";
+import { AgencyClientSelect } from "@/components/agency-client-select";
+import { PageHeader } from "@/components/page-header";
+import { useAgencyClientsOptions } from "@/hooks/use-agency-clients-options";
+import { useAgencyTeammates } from "@/hooks/use-agency-teammates";
 import {
   Accordion,
   AccordionContent,
@@ -28,13 +33,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { SlidersHorizontal } from "lucide-react";
+import { FILTER_SELECT_TRIGGER_CLASSES } from "@/lib/ui/filter-classes";
 
 export const Route = createFileRoute("/_authenticated/alerts")({
   component: Alerts,
@@ -98,31 +98,10 @@ function Alerts() {
     return m;
   }, [data?.waPrefs]);
 
-  const { data: clientOptions } = useQuery({
-    queryKey: ["alert-filter-clients", agency?.id],
-    enabled: !!agency,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("clients")
-        .select("id, name")
-        .eq("agency_id", agency!.id)
-        .order("name");
-      return data ?? [];
-    },
-  });
-
-  const { data: teammates } = useQuery({
-    queryKey: ["alert-teammates", agency?.id],
-    enabled: !!agency,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("profiles")
-        .select("id, display_name, email")
-        .eq("agency_id", agency!.id)
-        .order("display_name");
-      return data ?? [];
-    },
-  });
+  const { data: clients = [], isLoading: clientsLoading } =
+    useAgencyClientsOptions(agency?.id);
+  const { data: teammates = [], isLoading: teammatesLoading } =
+    useAgencyTeammates(agency?.id);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -228,7 +207,13 @@ function Alerts() {
     );
   }
 
-  if (isLoading || !data) return <PageSkeleton preset="compact" />;
+  if (
+    isLoading ||
+    clientsLoading ||
+    teammatesLoading ||
+    !data
+  )
+    return <PageSkeleton preset="compact" />;
 
   function alertRow(a: (typeof filtered)[number]) {
     return (
@@ -289,7 +274,7 @@ function Alerts() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">—</SelectItem>
-                  {(teammates ?? []).map((t) => (
+                  {teammates.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
                       {t.display_name || t.email}
                     </SelectItem>
@@ -411,66 +396,60 @@ function Alerts() {
 
   return (
     <div className="space-y-5 p-6">
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Central de alertas
-          </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            {filtered.length} exibidos · {alerts.length} no total
-          </p>
+      <PageHeader
+        className="gap-4 sm:items-start"
+        title="Central de alertas"
+        description={`${filtered.length} exibidos · ${alerts.length} no total`}
+      >
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
+          <div className="flex flex-wrap gap-1 rounded-md border border-border bg-surface p-1">
+            {(["open", "resolved", "all"] as const).map((f) => (
+              <Button
+                key={f}
+                type="button"
+                variant={filter === f ? "default" : "ghost"}
+                size="sm"
+                className="text-xs"
+                onClick={() => setFilter(f)}
+              >
+                {f === "open"
+                  ? "Abertos"
+                  : f === "resolved"
+                    ? "Resolvidos"
+                    : "Todos"}
+              </Button>
+            ))}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={toggleDesktopNotifications}
+          >
+            {desktopNotifications
+              ? "Notificações no desktop ativas"
+              : "Ativar notificações no desktop"}
+          </Button>
         </div>
-        <div className="flex flex-wrap gap-1 rounded-md border border-border bg-surface p-1">
-          {(["open", "resolved", "all"] as const).map((f) => (
-            <Button
-              key={f}
-              type="button"
-              variant={filter === f ? "default" : "ghost"}
-              size="sm"
-              className="text-xs"
-              onClick={() => setFilter(f)}
-            >
-              {f === "open"
-                ? "Abertos"
-                : f === "resolved"
-                  ? "Resolvidos"
-                  : "Todos"}
-            </Button>
-          ))}
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={toggleDesktopNotifications}
-        >
-          {desktopNotifications
-            ? "Notificações no desktop ativas"
-            : "Ativar notificações no desktop"}
-        </Button>
-      </header>
+      </PageHeader>
 
-      <div className="flex md:hidden">
-        <Button
-          type="button"
-          variant="outline"
-          className="h-11 w-full gap-2"
-          onClick={() => setFiltersSheetOpen(true)}
-        >
-          <SlidersHorizontal className="h-4 w-4" />
-          Busca e filtros
-        </Button>
-      </div>
-
-      <Sheet open={filtersSheetOpen} onOpenChange={setFiltersSheetOpen}>
-        <SheetContent
-          side="bottom"
-          className="flex max-h-[90vh] flex-col gap-0 p-0"
-        >
-          <SheetHeader className="border-b border-border px-4 py-4 text-left">
-            <SheetTitle>Busca e filtros</SheetTitle>
-          </SheetHeader>
-          <div className="flex flex-col gap-3 overflow-y-auto px-4 py-4">
+      <FilterDrawer
+        open={filtersSheetOpen}
+        onOpenChange={setFiltersSheetOpen}
+        title="Busca e filtros"
+        applyLabel="Fechar"
+        trigger={
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 w-full gap-2"
+            onClick={() => setFiltersSheetOpen(true)}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            Busca e filtros
+          </Button>
+        }
+      >
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -478,7 +457,7 @@ function Alerts() {
               className="h-11 min-h-[44px]"
             />
             <Select value={priority} onValueChange={setPriority}>
-              <SelectTrigger className="h-11 w-full">
+              <SelectTrigger className={FILTER_SELECT_TRIGGER_CLASSES.drawer}>
                 <SelectValue placeholder="Prioridade" />
               </SelectTrigger>
               <SelectContent>
@@ -489,21 +468,15 @@ function Alerts() {
                 <SelectItem value="low">Baixo</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={clientFilter} onValueChange={setClientFilter}>
-              <SelectTrigger className="h-11 w-full">
-                <SelectValue placeholder="Cliente" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos clientes</SelectItem>
-                {(clientOptions ?? []).map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <AgencyClientSelect
+              clients={clients}
+              value={clientFilter}
+              onValueChange={setClientFilter}
+              triggerClassName={FILTER_SELECT_TRIGGER_CLASSES.drawer}
+              allLabel="Todos clientes"
+            />
             <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
-              <SelectTrigger className="h-11 w-full">
+              <SelectTrigger className={FILTER_SELECT_TRIGGER_CLASSES.drawer}>
                 <SelectValue placeholder="Responsável" />
               </SelectTrigger>
               <SelectContent>
@@ -512,7 +485,7 @@ function Alerts() {
                 {user?.id && (
                   <SelectItem value="me">Atribuídos a mim</SelectItem>
                 )}
-                {(teammates ?? []).map((t) => (
+                {teammates.map((t) => (
                   <SelectItem key={t.id} value={t.id}>
                     {t.display_name || t.email}
                   </SelectItem>
@@ -523,7 +496,7 @@ function Alerts() {
               value={groupBy}
               onValueChange={(v) => setGroupBy(v as "none" | "client")}
             >
-              <SelectTrigger className="h-11 w-full">
+              <SelectTrigger className={FILTER_SELECT_TRIGGER_CLASSES.drawer}>
                 <SelectValue placeholder="Visualização" />
               </SelectTrigger>
               <SelectContent>
@@ -531,16 +504,7 @@ function Alerts() {
                 <SelectItem value="client">Agrupar por cliente</SelectItem>
               </SelectContent>
             </Select>
-            <Button
-              type="button"
-              className="h-11 w-full"
-              onClick={() => setFiltersSheetOpen(false)}
-            >
-              Fechar
-            </Button>
-          </div>
-        </SheetContent>
-      </Sheet>
+      </FilterDrawer>
 
       <div className="hidden md:flex md:flex-row md:flex-wrap md:items-center md:gap-2">
         <Input
@@ -561,19 +525,13 @@ function Alerts() {
             <SelectItem value="low">Baixo</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={clientFilter} onValueChange={setClientFilter}>
-          <SelectTrigger className="h-9 min-w-[160px] max-w-[280px] shrink-0">
-            <SelectValue placeholder="Cliente" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos clientes</SelectItem>
-            {(clientOptions ?? []).map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <AgencyClientSelect
+          clients={clients}
+          value={clientFilter}
+          onValueChange={setClientFilter}
+          triggerClassName={FILTER_SELECT_TRIGGER_CLASSES.barClient}
+          allLabel="Todos clientes"
+        />
         <Select value={assigneeFilter} onValueChange={setAssigneeFilter}>
           <SelectTrigger className="h-9 min-w-[160px] max-w-[260px] shrink-0">
             <SelectValue placeholder="Responsável" />
@@ -582,7 +540,7 @@ function Alerts() {
             <SelectItem value="all">Todos responsáveis</SelectItem>
             <SelectItem value="unassigned">Sem responsável</SelectItem>
             {user?.id && <SelectItem value="me">Atribuídos a mim</SelectItem>}
-            {(teammates ?? []).map((t) => (
+            {teammates.map((t) => (
               <SelectItem key={t.id} value={t.id}>
                 {t.display_name || t.email}
               </SelectItem>

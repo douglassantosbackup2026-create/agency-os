@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { timeAgo } from "@/lib/format";
-import { Card, Empty, PageSkeleton } from "./dashboard";
+import { Card, Empty, PageSkeleton } from "@/components/operational-ui";
 import { Activity as Act } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/activity")({

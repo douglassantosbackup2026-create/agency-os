@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { Card, CardHeader, Empty, PageSkeleton } from "./dashboard";
+import { Card, CardHeader, Empty, PageSkeleton } from "@/components/operational-ui";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 

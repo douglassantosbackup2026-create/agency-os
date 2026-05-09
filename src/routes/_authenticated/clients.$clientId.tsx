@@ -46,8 +46,9 @@ import {
   RiskDot,
   ScoreBar,
   Stat,
-} from "./dashboard";
+} from "@/components/operational-ui";
 import { toast } from "sonner";
+import { isOpenActionCenterStatus } from "@/lib/action-center-status";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -86,14 +87,6 @@ const SECTION_TABS: Record<ClientSection, ClientTab[]> = {
   campanhas: ["ad_accounts", "campaigns", "campaign_audit"],
   gestao: ["alerts", "reports", "notes", "tasks", "activity"],
 };
-
-const CLIENT_OPEN_ACTION_STATUSES = new Set([
-  "pendente",
-  "revisar_depois",
-  "adiado",
-  "anotacao",
-  "enviado_cliente",
-]);
 
 function sectionForTab(t: ClientTab): ClientSection {
   if (t === "overview") return "resumo";
@@ -438,7 +431,7 @@ function ClientDetail() {
 
   const clientNextStep = (() => {
     const actionsOpen = (data.actions ?? []).filter((a: { status?: string }) =>
-      CLIENT_OPEN_ACTION_STATUSES.has(String(a.status ?? "")),
+      isOpenActionCenterStatus(a.status),
     );
     const firstAction = actionsOpen[0] as { title?: string } | undefined;
     const openAlert = (data.alerts ?? []).find(

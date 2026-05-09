@@ -13,7 +13,8 @@ import {
   FileDown,
   MessageSquare,
 } from "lucide-react";
-import { Card, Empty, PageSkeleton } from "./dashboard";
+import { Card, Empty, PageSkeleton } from "@/components/operational-ui";
+import { AgencyClientSelect } from "@/components/agency-client-select";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import jsPDF from "jspdf";
@@ -453,18 +454,12 @@ function Reports() {
         </div>
         <div className="border-b border-border px-3 pb-3 pt-1">
           <div className="flex flex-col gap-2 text-xs">
-            <select
+            <AgencyClientSelect
+              variant="native"
+              clients={data.clients ?? []}
               value={filterClientId}
-              onChange={(e) => setFilterClientId(e.target.value)}
-              className="h-9 w-full rounded-md border border-border bg-background px-2"
-            >
-              <option value="all">Todos os clientes</option>
-              {(data.clients ?? []).map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+              onValueChange={setFilterClientId}
+            />
             <div className="flex gap-2">
               <input
                 type="date"

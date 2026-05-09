@@ -3,7 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { brl } from "@/lib/format";
-import { Card, Empty, PageSkeleton, RiskDot, ScoreBar } from "./dashboard";
+import {
+  Card,
+  Empty,
+  PageSkeleton,
+  RiskDot,
+  ScoreBar,
+} from "@/components/operational-ui";
 import type { Database } from "@/integrations/supabase/types";
 
 type ClientBrief = Pick<

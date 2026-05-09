@@ -2,8 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState, useSyncExternalStore } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { Card, CardHeader } from "./dashboard";
+import { Card, CardHeader } from "@/components/operational-ui";
+import { PageHeader } from "@/components/page-header";
 import { toast } from "sonner";
+import { invokeWithToast } from "@/lib/supabase-invoke";
 import { Database, Upload, Loader2, Moon, Sun } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
@@ -60,23 +62,20 @@ function Settings() {
 
   async function seed() {
     setSeeding(true);
-    const { error } = await supabase.functions.invoke("seed-demo-data");
+    const res = await invokeWithToast(supabase, "seed-demo-data", {
+      loading: "Gerando dados de exemplo…",
+      success: "Dados criados.",
+    });
     setSeeding(false);
-    if (error) toast.error(error.message);
-    else {
-      toast.success("Dados criados.");
-      setTimeout(() => window.location.reload(), 600);
-    }
+    if (res.ok) setTimeout(() => window.location.reload(), 600);
   }
 
   return (
     <div className="space-y-5 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Configurações</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">
-          White-label, domínio e operação.
-        </p>
-      </header>
+      <PageHeader
+        title="Configurações"
+        description="White-label, domínio e operação."
+      />
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="lg:col-span-2">
