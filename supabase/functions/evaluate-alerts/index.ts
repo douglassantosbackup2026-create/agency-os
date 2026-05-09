@@ -118,12 +118,32 @@ Deno.serve(async (req) => {
     const { data: clients, error: cErr } = await cq;
     if (cErr) throw cErr;
 
+    const clientIds = (clients ?? []).map((c) => c.id).filter(Boolean);
+    const muteWhatsappUntilByClient = new Map<string, string>();
+    if (clientIds.length) {
+      const { data: waPrefs } = await admin
+        .from("client_whatsapp_prefs")
+        .select("client_id, mute_whatsapp_until")
+        .in("client_id", clientIds);
+      for (const p of waPrefs ?? []) {
+        const cid = String(p.client_id ?? "");
+        const until = p.mute_whatsapp_until
+          ? String(p.mute_whatsapp_until)
+          : "";
+        if (cid && until) muteWhatsappUntilByClient.set(cid, until);
+      }
+    }
+
     const since = new Date(Date.now() - 28 * 86400000)
       .toISOString()
       .slice(0, 10);
     let created = 0;
 
     for (const c of clients ?? []) {
+      const muteUntil = muteWhatsappUntilByClient.get(String(c.id)) ?? "";
+      const whatsappMuted =
+        !!muteUntil && new Date(muteUntil).getTime() > Date.now();
+
       const [
         { data: metrics },
         { data: openAlerts },
@@ -411,7 +431,8 @@ Deno.serve(async (req) => {
           time_to_act: timeToAct,
         });
         const aiOutputJson = {
-          send_whatsapp: true,
+          send_whatsapp: !whatsappMuted,
+          whatsapp_muted_until: whatsappMuted ? muteUntil : null,
           severity:
             q.priority === "critical"
               ? "critico"

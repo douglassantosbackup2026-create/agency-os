@@ -688,6 +688,45 @@ export type Database = {
           },
         ];
       };
+      client_whatsapp_prefs: {
+        Row: {
+          agency_id: string;
+          client_id: string;
+          id: string;
+          mute_whatsapp_until: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          agency_id: string;
+          client_id: string;
+          id?: string;
+          mute_whatsapp_until?: string | null;
+          updated_at?: string;
+        };
+        Update: {
+          agency_id?: string;
+          client_id?: string;
+          id?: string;
+          mute_whatsapp_until?: string | null;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "client_whatsapp_prefs_agency_id_fkey";
+            columns: ["agency_id"];
+            isOneToOne: false;
+            referencedRelation: "agencies";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "client_whatsapp_prefs_client_id_fkey";
+            columns: ["client_id"];
+            isOneToOne: false;
+            referencedRelation: "clients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       clients: {
         Row: {
           agency_id: string;

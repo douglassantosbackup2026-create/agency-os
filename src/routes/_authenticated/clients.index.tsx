@@ -24,6 +24,25 @@ import type { Database } from "@/integrations/supabase/types";
 
 type HealthScoreRow = Database["public"]["Tables"]["health_scores"]["Row"];
 
+const OPEN_ACTION_STATUSES = [
+  "pendente",
+  "revisar_depois",
+  "adiado",
+  "anotacao",
+  "enviado_cliente",
+] as const;
+
+function csvEscapeCell(value: string) {
+  if (/[",\n\r]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+function isoToday() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export const Route = createFileRoute("/_authenticated/clients/")({
   component: Clients,
   validateSearch: (s) => ({ new: (s.new as string) || undefined }),
@@ -73,7 +92,14 @@ function Clients() {
           : clientQuery.limit(0);
       }
 
-      const [clients, health, openAlerts, auditsSnap] = await Promise.all([
+      const [
+        clients,
+        health,
+        openAlerts,
+        auditsSnap,
+        openActionsSnap,
+        syncRunsSnap,
+      ] = await Promise.all([
         clientQuery,
         supabase
           .from("health_scores")
@@ -93,6 +119,19 @@ function Clients() {
           .eq("agency_id", agency!.id)
           .order("created_at", { ascending: false })
           .limit(400),
+        supabase
+          .from("action_center")
+          .select("client_id")
+          .eq("agency_id", agency!.id)
+          .in("status", [...OPEN_ACTION_STATUSES])
+          .limit(2500),
+        supabase
+          .from("sync_runs")
+          .select("client_id, status, created_at")
+          .eq("agency_id", agency!.id)
+          .not("client_id", "is", null)
+          .order("created_at", { ascending: false })
+          .limit(800),
       ]);
       const latest = new Map<string, HealthScoreRow>();
       for (const h of health.data ?? []) {
@@ -128,11 +167,33 @@ function Clients() {
         });
       }
 
+      const openActionsByClient = new Map<string, number>();
+      for (const row of openActionsSnap.data ?? []) {
+        const cid = row.client_id as string | null;
+        if (!cid) continue;
+        openActionsByClient.set(cid, (openActionsByClient.get(cid) ?? 0) + 1);
+      }
+
+      const latestSyncByClient = new Map<
+        string,
+        { status: string; created_at: string }
+      >();
+      for (const s of syncRunsSnap.data ?? []) {
+        const cid = s.client_id as string | null;
+        if (!cid || latestSyncByClient.has(cid)) continue;
+        latestSyncByClient.set(cid, {
+          status: String(s.status ?? ""),
+          created_at: String(s.created_at ?? ""),
+        });
+      }
+
       return {
         clients: clients.data ?? [],
         latest,
         latestGa4AlertByClient,
         latestAuditByClient,
+        openActionsByClient,
+        latestSyncByClient,
       };
     },
   });
@@ -159,6 +220,45 @@ function Clients() {
         Number(a.health.score ?? 0) - Number(b.health.score ?? 0),
     )
     .slice(0, 4);
+
+  function downloadCockpitCsv() {
+    const rows: string[][] = [
+      [
+        "Cliente",
+        "Health score",
+        "Risco",
+        "Ações abertas",
+        "Último sync status",
+        "Último sync em",
+        "Última auditoria IA",
+      ],
+    ];
+    for (const c of filtered) {
+      const h = data.latest.get(c.id);
+      const openN = data.openActionsByClient.get(c.id) ?? 0;
+      const sync = data.latestSyncByClient.get(c.id);
+      const au = data.latestAuditByClient.get(c.id);
+      const auLabel = au?.created_at ? String(au.created_at).slice(0, 10) : "";
+      rows.push([
+        c.name,
+        h ? String(h.score ?? "") : "",
+        h ? String(h.risk ?? "") : "",
+        String(openN),
+        sync ? sync.status : "",
+        sync ? sync.created_at.slice(0, 19) : "",
+        auLabel,
+      ]);
+    }
+    const body = rows.map((r) => r.map(csvEscapeCell).join(",")).join("\r\n");
+    const blob = new Blob([body], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cockpit-clientes-${isoToday()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("CSV exportado.");
+  }
 
   return (
     <div className="space-y-5 p-6">
@@ -197,6 +297,96 @@ function Clients() {
           </button>
         </div>
       </header>
+
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+          <div>
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Cockpit operacional
+            </div>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Health, ações abertas, último sync e auditoria IA — útil para
+              stand-up.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={downloadCockpitCsv}
+            className="shrink-0 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-surface"
+          >
+            Exportar CSV
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <div className="grid min-w-[760px] grid-cols-12 gap-2 border-b border-border px-4 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            <div className="col-span-3">Cliente</div>
+            <div className="col-span-2">Health</div>
+            <div className="col-span-2 text-center">Ações</div>
+            <div className="col-span-3">Último sync</div>
+            <div className="col-span-2">Auditoria IA</div>
+          </div>
+          {filtered.length === 0 ? (
+            <div className="px-4 py-6 text-sm text-muted-foreground">
+              Nenhum cliente na lista.
+            </div>
+          ) : (
+            filtered.map((c) => {
+              const h = data.latest.get(c.id);
+              const openN = data.openActionsByClient.get(c.id) ?? 0;
+              const sync = data.latestSyncByClient.get(c.id);
+              const au = data.latestAuditByClient.get(c.id);
+              const syncTone =
+                sync?.status === "error"
+                  ? "text-destructive"
+                  : sync?.status === "warning"
+                    ? "text-amber-700 dark:text-amber-400"
+                    : "text-muted-foreground";
+              return (
+                <Link
+                  key={`cockpit-${c.id}`}
+                  to="/clients/$clientId"
+                  params={{ clientId: c.id }}
+                  className="grid min-w-[760px] grid-cols-12 gap-2 border-b border-border px-4 py-2.5 text-sm last:border-0 hover:bg-surface-2"
+                >
+                  <div className="col-span-3 truncate font-medium">
+                    {c.name}
+                  </div>
+                  <div className="col-span-2 flex items-center gap-2">
+                    {h ? (
+                      <>
+                        <RiskDot risk={h.risk} />
+                        <span className="font-mono tabular text-xs">
+                          {h.score}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    )}
+                  </div>
+                  <div className="col-span-2 text-center font-mono tabular text-xs">
+                    {openN}
+                  </div>
+                  <div className={`col-span-3 text-xs ${syncTone}`}>
+                    {sync ? (
+                      <>
+                        <span className="font-medium">{sync.status}</span>
+                        <span className="block text-[10px] text-muted-foreground">
+                          {sync.created_at.slice(0, 19).replace("T", " ")}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground">Sem sync</span>
+                    )}
+                  </div>
+                  <div className="col-span-2 text-xs text-muted-foreground">
+                    {au?.created_at ? String(au.created_at).slice(0, 10) : "—"}
+                  </div>
+                </Link>
+              );
+            })
+          )}
+        </div>
+      </Card>
 
       <Card>
         <div className="border-b border-border px-4 py-3">

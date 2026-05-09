@@ -123,6 +123,7 @@ Deno.serve(async (req) => {
       requires_human_review,
       approved_by_human,
       draft,
+      dry_run,
       resend_from_log_id,
       skip_merge,
     } = body as Record<string, unknown>;
@@ -154,6 +155,68 @@ Deno.serve(async (req) => {
       });
 
     const agency_id = profile.agency_id as string;
+
+    const cidEarly =
+      typeof client_id === "string" && client_id ? client_id : null;
+    if (dry_run === true) {
+      const msg = message != null ? String(message) : "";
+      if (!msg.trim()) {
+        return new Response(JSON.stringify({ error: "message required" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (cidEarly) {
+        const { data: clRow } = await admin
+          .from("clients")
+          .select("id, agency_id")
+          .eq("id", cidEarly)
+          .maybeSingle();
+        if (!clRow) {
+          return new Response(
+            JSON.stringify({ error: "Cliente não encontrado" }),
+            {
+              status: 404,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+        if (String(clRow.agency_id) !== agency_id) {
+          return new Response(
+            JSON.stringify({ error: "Cliente não pertence à sua agência" }),
+            {
+              status: 403,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+        const waAllowed = await assertUserCanAccessClient(admin, u.user.id, {
+          id: cidEarly,
+          agency_id: String(clRow.agency_id),
+        });
+        if (!waAllowed) {
+          return new Response(
+            JSON.stringify({ error: "Sem permissão para este cliente" }),
+            {
+              status: 403,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+      }
+      const mergeVars = await buildMergeVariables(admin, agency_id, cidEarly);
+      const merged = applyTemplate(msg, mergeVars).text;
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          preview: merged,
+          merge_variables: mergeVars,
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
 
     if (typeof resend_from_log_id === "string" && resend_from_log_id) {
       const { data: existing } = await admin
@@ -227,6 +290,34 @@ Deno.serve(async (req) => {
           JSON.stringify({ error: "Sem permissão para este cliente" }),
           {
             status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+    }
+
+    if (
+      cid &&
+      draft !== true &&
+      !(typeof resend_from_log_id === "string" && resend_from_log_id)
+    ) {
+      const { data: pref } = await admin
+        .from("client_whatsapp_prefs")
+        .select("mute_whatsapp_until")
+        .eq("client_id", cid)
+        .maybeSingle();
+      const until = pref?.mute_whatsapp_until;
+      if (
+        until &&
+        !Number.isNaN(new Date(String(until)).getTime()) &&
+        new Date(String(until)).getTime() > Date.now()
+      ) {
+        return new Response(
+          JSON.stringify({
+            error: `WhatsApp silenciado para este cliente até ${new Date(String(until)).toLocaleString("pt-BR")}.`,
+          }),
+          {
+            status: 409,
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           },
         );

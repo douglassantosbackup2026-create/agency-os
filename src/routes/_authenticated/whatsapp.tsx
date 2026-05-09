@@ -51,6 +51,7 @@ function WhatsApp() {
   const [tplName, setTplName] = useState("");
   const [tplBody, setTplBody] = useState("");
   const [tplCategory, setTplCategory] = useState("geral");
+  const [mergedPreview, setMergedPreview] = useState<string | null>(null);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["whatsapp", agency?.id],
@@ -86,32 +87,69 @@ function WhatsApp() {
     if (!recipient || !message)
       return toast.error("Preencha destinatário e mensagem.");
     setSending(true);
-    const { error } = await supabase.functions.invoke("send-whatsapp", {
-      body: { recipient, message, client_id: clientId || null },
-    });
+    const { data: res, error } = await supabase.functions.invoke(
+      "send-whatsapp",
+      {
+        body: { recipient, message, client_id: clientId || null },
+      },
+    );
     setSending(false);
     if (error) return toast.error(error.message);
+    if (res && typeof res === "object" && "error" in res && res.error) {
+      return toast.error(String((res as { error: string }).error));
+    }
     toast.success("Mensagem enviada.");
     setMessage("");
     setRecipient("");
     setClientId("");
+    setMergedPreview(null);
     refetch();
+  }
+
+  async function previewMergedMessage() {
+    if (!message.trim())
+      return toast.error("Escreva uma mensagem para pré-visualizar.");
+    setSending(true);
+    const { data: res, error } = await supabase.functions.invoke(
+      "send-whatsapp",
+      {
+        body: {
+          dry_run: true,
+          message,
+          client_id: clientId || null,
+        },
+      },
+    );
+    setSending(false);
+    if (error) return toast.error(error.message);
+    if (res && typeof res === "object" && "error" in res && res.error) {
+      return toast.error(String((res as { error: string }).error));
+    }
+    const preview = (res as { preview?: string })?.preview ?? null;
+    setMergedPreview(preview);
+    if (!preview) toast.error("Não foi possível gerar a pré-visualização.");
   }
 
   async function saveDraftForReview() {
     if (!recipient || !message)
       return toast.error("Preencha destinatário e mensagem.");
     setSending(true);
-    const { error } = await supabase.functions.invoke("send-whatsapp", {
-      body: {
-        recipient,
-        message,
-        client_id: clientId || null,
-        draft: true,
+    const { data: res, error } = await supabase.functions.invoke(
+      "send-whatsapp",
+      {
+        body: {
+          recipient,
+          message,
+          client_id: clientId || null,
+          draft: true,
+        },
       },
-    });
+    );
     setSending(false);
     if (error) return toast.error(error.message);
+    if (res && typeof res === "object" && "error" in res && res.error) {
+      return toast.error(String((res as { error: string }).error));
+    }
     toast.success("Rascunho salvo — revise em Central de Revisão IA.");
     refetch();
   }
@@ -251,7 +289,25 @@ function WhatsApp() {
               </code>{" "}
               (últimos 30 dias de métricas agregadas).
             </p>
+            {mergedPreview !== null && (
+              <div className="rounded-md border border-border bg-surface p-3">
+                <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Pré-visualização (texto final após merge)
+                </div>
+                <pre className="whitespace-pre-wrap break-words font-sans text-xs leading-relaxed text-foreground">
+                  {mergedPreview || "—"}
+                </pre>
+              </div>
+            )}
             <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={previewMergedMessage}
+                disabled={sending}
+                className="rounded-md border border-border px-4 py-2 text-sm hover:bg-surface disabled:opacity-60"
+              >
+                Pré-visualizar merge
+              </button>
               <button
                 onClick={send}
                 disabled={sending}

@@ -545,7 +545,7 @@ function ClientDetail() {
 
   async function generateMeetingReport() {
     setGeneratingMeeting(true);
-    const { error } = await supabase.functions.invoke(
+    const { data: res, error } = await supabase.functions.invoke(
       "generate-meeting-report",
       {
         body: { client_id: clientId },
@@ -554,6 +554,10 @@ function ClientDetail() {
     setGeneratingMeeting(false);
     if (error) {
       toast.error(error.message);
+      return;
+    }
+    if (res && typeof res === "object" && "error" in res && res.error) {
+      toast.error(String((res as { error: string }).error));
       return;
     }
     toast.success("Pauta de reunião gerada.");

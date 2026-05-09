@@ -33,6 +33,9 @@ export const Route = createFileRoute("/_authenticated/alerts")({
   component: Alerts,
 });
 
+/** Stable fallback — avoids new [] each render (react-hooks/exhaustive-deps). */
+const EMPTY_ALERTS_LIST: unknown[] = [];
+
 function Alerts() {
   const { agency, user } = useAuth();
   const [filter, setFilter] = useState<"all" | "open" | "resolved">("open");
@@ -62,10 +65,30 @@ function Alerts() {
         .order("created_at", { ascending: false })
         .limit(200);
       if (filter !== "all") q = q.eq("status", filter);
-      const { data } = await q;
-      return data ?? [];
+      const [{ data: rows }, { data: prefs }] = await Promise.all([
+        q,
+        supabase
+          .from("client_whatsapp_prefs")
+          .select("client_id, mute_whatsapp_until")
+          .eq("agency_id", agency!.id),
+      ]);
+      return {
+        alerts: rows ?? [],
+        waPrefs: prefs ?? [],
+      };
     },
   });
+
+  const alerts = data?.alerts ?? EMPTY_ALERTS_LIST;
+  const waMuteUntil = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of data?.waPrefs ?? []) {
+      const cid = p.client_id as string | undefined;
+      const until = p.mute_whatsapp_until as string | null | undefined;
+      if (cid && until) m.set(cid, until);
+    }
+    return m;
+  }, [data?.waPrefs]);
 
   const { data: clientOptions } = useQuery({
     queryKey: ["alert-filter-clients", agency?.id],
@@ -94,9 +117,8 @@ function Alerts() {
   });
 
   const filtered = useMemo(() => {
-    if (!data) return [];
     const q = search.trim().toLowerCase();
-    return data.filter((a: any) => {
+    return alerts.filter((a: any) => {
       if (priority !== "all" && a.priority !== priority) return false;
       if (clientFilter !== "all" && a.client_id !== clientFilter) return false;
       if (assigneeFilter === "unassigned" && a.assigned_to) return false;
@@ -115,7 +137,7 @@ function Alerts() {
       const client = (a.clients?.name ?? "").toLowerCase();
       return title.includes(q) || desc.includes(q) || client.includes(q);
     });
-  }, [data, search, priority, clientFilter, assigneeFilter, user?.id]);
+  }, [alerts, search, priority, clientFilter, assigneeFilter, user?.id]);
 
   const groupedByClient = useMemo(() => {
     const m = new Map<string, typeof filtered>();
@@ -215,6 +237,22 @@ function Alerts() {
                 · {a.clients.name}
               </span>
             )}
+            {a.client_id &&
+              waMuteUntil.get(String(a.client_id)) &&
+              new Date(waMuteUntil.get(String(a.client_id))!).getTime() >
+                Date.now() && (
+                <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                  WhatsApp silenciado até{" "}
+                  {new Date(
+                    waMuteUntil.get(String(a.client_id))!,
+                  ).toLocaleString("pt-BR", {
+                    day: "2-digit",
+                    month: "short",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              )}
           </div>
           {a.description && (
             <div className="mt-0.5 text-xs text-muted-foreground">
@@ -273,10 +311,42 @@ function Alerts() {
             >
               Resolver
             </Button>
+            {a.client_id && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-xs"
+                title="Não sugerir WhatsApp automático por 24h para este cliente"
+                onClick={() => muteWhatsapp24h(String(a.client_id))}
+              >
+                Silenciar WhatsApp 24h
+              </Button>
+            )}
           </div>
         )}
       </div>
     );
+  }
+
+  async function muteWhatsapp24h(clientId: string) {
+    if (!agency) return;
+    const until = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const { error } = await supabase.from("client_whatsapp_prefs").upsert(
+      {
+        agency_id: agency.id,
+        client_id: clientId,
+        mute_whatsapp_until: until,
+      },
+      { onConflict: "agency_id,client_id" },
+    );
+    if (error) toast.error(error.message);
+    else {
+      toast.success(
+        "Preferência guardada: alertas novos não marcarão envio WhatsApp automático nas próximas 24h.",
+      );
+      refetch();
+    }
   }
 
   async function resolve(id: string) {
@@ -339,7 +409,7 @@ function Alerts() {
             Central de alertas
           </h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            {filtered.length} exibidos · {data.length} no total
+            {filtered.length} exibidos · {alerts.length} no total
           </p>
         </div>
         <div className="flex flex-wrap gap-1 rounded-md border border-border bg-surface p-1">

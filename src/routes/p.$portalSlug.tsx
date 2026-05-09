@@ -188,11 +188,18 @@ function PortalPage() {
             </div>
           </div>
           {data.health && (
-            <div className="flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-1.5">
-              <Heart className="h-3.5 w-3.5" style={{ color: themeColor }} />
-              <span className="text-xs font-medium">
-                Saúde da operação: {data.health.score}/100
-              </span>
+            <div className="flex max-w-[min(100%,280px)] flex-col gap-0.5 rounded-md border border-border bg-surface px-3 py-1.5 text-right">
+              <div className="flex items-center justify-end gap-2">
+                <Heart className="h-3.5 w-3.5" style={{ color: themeColor }} />
+                <span className="text-xs font-medium">
+                  Saúde: {data.health.score}/100 · risco {data.health.risk}
+                </span>
+              </div>
+              {data.health.suggested_next_step && (
+                <span className="line-clamp-2 text-[10px] text-muted-foreground">
+                  {data.health.suggested_next_step}
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -231,7 +238,23 @@ function PortalPage() {
         </section>
 
         <section className="rounded-xl border border-border bg-card p-5">
-          <h2 className="mb-3 text-sm font-semibold">Resultado no site</h2>
+          <h2 className="mb-2 text-sm font-semibold">Indicadores · site</h2>
+          {data.health?.penalties_preview &&
+          data.health.penalties_preview.length > 0 ? (
+            <ul className="mb-4 list-inside list-disc space-y-1 text-xs text-muted-foreground">
+              {(data.health.penalties_preview as string[]).map((line, i) => (
+                <li key={i}>{line}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mb-4 text-xs text-muted-foreground">
+              Sem alertas resumidos neste período — métricas abaixo vêm do GA4 e
+              do período recente.
+            </p>
+          )}
+          <div className="mb-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            GA4 (últimos 30 dias)
+          </div>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
             <Stat
               icon={TrendingUp}
@@ -270,26 +293,73 @@ function PortalPage() {
           </div>
         </section>
 
-        {data.report && (
-          <section className="rounded-xl border border-border bg-card p-5">
-            <div className="mb-3 flex items-center gap-2">
-              <Sparkles className="h-4 w-4" style={{ color: themeColor }} />
-              <h2 className="text-sm font-semibold">Análise da agência</h2>
-            </div>
-            <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/90">
-              {data.report.client_friendly_summary ??
-                data.report.executive_summary}
-            </p>
-            {data.report.next_steps && (
-              <div className="mt-4 border-t border-border pt-3">
-                <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  Próximos passos
+        <section className="rounded-xl border border-border bg-card p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <Sparkles className="h-4 w-4" style={{ color: themeColor }} />
+            <h2 className="text-sm font-semibold">Último relatório</h2>
+          </div>
+          {data.report ? (
+            <>
+              <p className="text-[11px] text-muted-foreground">
+                {data.report.period_end || data.report.created_at
+                  ? `Referência ${String(data.report.period_end ?? data.report.created_at).slice(0, 10)} · atualizado ${new Date(String(data.report.created_at)).toLocaleDateString("pt-BR")}`
+                  : null}
+              </p>
+              <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground/90">
+                {data.report.client_friendly_summary ??
+                  data.report.executive_summary}
+              </p>
+              {data.report.next_steps && (
+                <div className="mt-4 border-t border-border pt-3">
+                  <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    Próximos passos
+                  </div>
+                  <p className="whitespace-pre-line text-sm">
+                    {data.report.next_steps}
+                  </p>
                 </div>
-                <p className="whitespace-pre-line text-sm">
-                  {data.report.next_steps}
-                </p>
-              </div>
-            )}
+              )}
+            </>
+          ) : (
+            <div className="rounded-md border border-dashed border-border bg-muted/30 px-4 py-6 text-center">
+              <p className="text-sm text-muted-foreground">
+                Ainda não há relatório publicado neste portal.
+              </p>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Peça à sua agência um envio ou atualização — assim que existir,
+                aparecerá aqui com destaque.
+              </p>
+            </div>
+          )}
+        </section>
+
+        {(data.reports_recent ?? []).length > 1 && (
+          <section className="rounded-xl border border-border bg-card p-5">
+            <h2 className="mb-3 text-sm font-semibold">Relatórios recentes</h2>
+            <ul className="space-y-3">
+              {(data.reports_recent as Array<Record<string, unknown>>)
+                .slice(1, 5)
+                .map((r, idx) => {
+                  const sum =
+                    (r.client_friendly_summary as string | undefined) ??
+                    (r.executive_summary as string | undefined) ??
+                    "";
+                  const dt = String(r.created_at ?? "").slice(0, 10);
+                  return (
+                    <li
+                      key={`${dt}-${idx}`}
+                      className="rounded-md border border-border p-3"
+                    >
+                      <div className="text-[11px] text-muted-foreground">
+                        {dt ? new Date(dt).toLocaleDateString("pt-BR") : "—"}
+                      </div>
+                      <p className="mt-1 line-clamp-3 text-sm text-foreground/90">
+                        {sum || "Sem resumo disponível."}
+                      </p>
+                    </li>
+                  );
+                })}
+            </ul>
           </section>
         )}
 

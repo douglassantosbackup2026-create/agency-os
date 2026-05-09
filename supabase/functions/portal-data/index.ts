@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
     const [
       { data: metrics },
       { data: campaigns },
-      { data: report },
+      { data: reportsRecent },
       { data: health },
       { data: pendingCreatives },
       { data: ga4Daily },
@@ -92,15 +92,14 @@ Deno.serve(async (req) => {
       admin
         .from("reports")
         .select(
-          "client_friendly_summary, executive_summary, opportunities, next_steps, created_at",
+          "client_friendly_summary, executive_summary, opportunities, next_steps, positives, problems, created_at, period_start, period_end",
         )
         .eq("client_id", client.id)
         .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
+        .limit(5),
       admin
         .from("health_scores")
-        .select("score, risk, recorded_at")
+        .select("score, risk, recorded_at, score_explanation")
         .eq("client_id", client.id)
         .order("recorded_at", { ascending: false })
         .limit(1)
@@ -137,6 +136,42 @@ Deno.serve(async (req) => {
         .limit(6),
     ]);
 
+    const reports_recent = reportsRecent ?? [];
+    const report = reports_recent[0] ?? null;
+
+    let health_portal: {
+      score: number | null;
+      risk: string | null;
+      recorded_at: string | null;
+      suggested_next_step: string | null;
+      penalties_preview: string[];
+    } | null = null;
+    if (health) {
+      const base = {
+        score: health.score ?? null,
+        risk: health.risk ?? null,
+        recorded_at: health.recorded_at ?? null,
+        suggested_next_step: null as string | null,
+        penalties_preview: [] as string[],
+      };
+      const expl = health.score_explanation;
+      if (expl && typeof expl === "object") {
+        const e = expl as Record<string, unknown>;
+        if (typeof e.suggested_next_step === "string") {
+          base.suggested_next_step = e.suggested_next_step;
+        }
+        const penalties = Array.isArray(e.penalties) ? e.penalties : [];
+        base.penalties_preview = penalties
+          .slice(0, 4)
+          .map((p: unknown) => {
+            const o = p as { reason?: string };
+            return typeof o?.reason === "string" ? o.reason : null;
+          })
+          .filter((x): x is string => Boolean(x));
+      }
+      health_portal = base;
+    }
+
     return new Response(
       JSON.stringify({
         client: { name: client.name, segment: client.segment },
@@ -144,7 +179,8 @@ Deno.serve(async (req) => {
         metrics: metrics ?? [],
         campaigns: campaigns ?? [],
         report,
-        health,
+        reports_recent,
+        health: health_portal,
         pending_creatives: pendingCreatives ?? [],
         ga4_daily: ga4Daily ?? [],
         ga4_tracking: ga4Tracking ?? null,
