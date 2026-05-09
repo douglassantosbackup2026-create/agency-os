@@ -88,6 +88,10 @@ function ClientDetail() {
   const [newAccountId, setNewAccountId] = useState("");
   const [newAccountName, setNewAccountName] = useState("");
   const [generatingMeeting, setGeneratingMeeting] = useState(false);
+  const [analyzingNow, setAnalyzingNow] = useState(false);
+  const [clickContext, setClickContext] = useState<
+    "reuniao" | "pos_ajuste" | "suspeita_problema" | "checkin_rotina"
+  >("checkin_rotina");
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["client", clientId],
@@ -325,6 +329,25 @@ function ClientDetail() {
     refetch();
   }
 
+  async function analyzeNow() {
+    setAnalyzingNow(true);
+    const { error } = await supabase.functions.invoke("generate-report", {
+      body: {
+        client_id: clientId,
+        mode: "on_demand",
+        click_context: clickContext,
+      },
+    });
+    setAnalyzingNow(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Análise sob demanda gerada.");
+    refetch();
+    setTab("reports");
+  }
+
   return (
     <div className="space-y-5 p-6">
       <Link
@@ -347,6 +370,36 @@ function ClientDetail() {
           </div>
         </div>
         <div className="flex gap-2">
+          <select
+            value={clickContext}
+            onChange={(e) =>
+              setClickContext(
+                e.target.value as
+                  | "reuniao"
+                  | "pos_ajuste"
+                  | "suspeita_problema"
+                  | "checkin_rotina",
+              )
+            }
+            className="h-9 rounded-md border border-border bg-background px-2 text-xs"
+          >
+            <option value="checkin_rotina">Check-in de rotina</option>
+            <option value="reuniao">Antes de reunião</option>
+            <option value="pos_ajuste">Após ajuste de campanha</option>
+            <option value="suspeita_problema">Suspeita de problema</option>
+          </select>
+          <button
+            onClick={analyzeNow}
+            disabled={analyzingNow}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-2 text-sm hover:bg-surface disabled:opacity-60 transition"
+          >
+            {analyzingNow ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5" />
+            )}
+            Analisar agora
+          </button>
           <button
             onClick={generateReport}
             disabled={generating}

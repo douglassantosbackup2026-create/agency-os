@@ -17,7 +17,24 @@ Deno.serve(async (req) => {
         headers: corsHeaders,
       });
 
-    const { client_id, recipient, message, template } = await req.json();
+    const {
+      client_id,
+      recipient,
+      message,
+      template,
+      requires_human_review,
+      approved_by_human,
+    } = await req.json();
+    if (requires_human_review && !approved_by_human) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Envio bloqueado: conteúdo exige revisão humana e ainda não foi aprovado.",
+        }),
+        { status: 400, headers: corsHeaders },
+      );
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const userClient = createClient(
@@ -75,8 +92,11 @@ Deno.serve(async (req) => {
         agency_id: profile.agency_id,
         client_id: client_id ?? null,
         recipient,
-        message,
         template: template ?? null,
+        message:
+          typeof message === "string"
+            ? message.slice(0, 3900)
+            : String(message),
         status,
         error,
         sent_at: status === "sent" ? new Date().toISOString() : null,

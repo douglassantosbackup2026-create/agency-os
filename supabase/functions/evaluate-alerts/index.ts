@@ -1,6 +1,7 @@
 // Cron-friendly: evaluates rules and inserts new alerts (deduped by type+client open).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { assertCronOrUser } from "../_shared/cron-auth.ts";
+import { baseGovernance } from "../_shared/ai-v3.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -104,6 +105,8 @@ Deno.serve(async (req) => {
         description: string;
         priority: "low" | "medium" | "high" | "critical";
         recommended_action: string;
+        confidence: "alta" | "media" | "baixa";
+        time_to_act: "agora" | "hoje" | "amanha_cedo" | "monitorar";
       }[] = [];
 
       if (priRoas > 0 && recRoas < priRoas * 0.8) {
@@ -114,6 +117,8 @@ Deno.serve(async (req) => {
           priority: recRoas < priRoas * 0.6 ? "critical" : "high",
           recommended_action:
             "Revisar criativos e públicos das campanhas com pior performance.",
+          confidence: "media",
+          time_to_act: "hoje",
         });
       }
       if (priCpa > 0 && recCpa > priCpa * 1.25) {
@@ -123,6 +128,8 @@ Deno.serve(async (req) => {
           description: `CPA recente R$ ${recCpa.toFixed(2)} vs R$ ${priCpa.toFixed(2)}.`,
           priority: "high",
           recommended_action: "Pausar criativos fadigados e ajustar lances.",
+          confidence: "media",
+          time_to_act: "hoje",
         });
       }
       if (priCtr > 0 && recCtr < priCtr * 0.7) {
@@ -132,6 +139,8 @@ Deno.serve(async (req) => {
           description: `CTR ${(recCtr * 100).toFixed(2)}% vs ${(priCtr * 100).toFixed(2)}% anterior.`,
           priority: "medium",
           recommended_action: "Renovar criativos. Provável fadiga.",
+          confidence: "media",
+          time_to_act: "monitorar",
         });
       }
       if (noActivity) {
@@ -143,6 +152,8 @@ Deno.serve(async (req) => {
           priority: "critical",
           recommended_action:
             "Verificar status das campanhas e saldo da conta de anúncios.",
+          confidence: "alta",
+          time_to_act: "agora",
         });
       }
       if (c.monthly_budget && totalSpend > Number(c.monthly_budget) * 1.1) {
@@ -152,6 +163,8 @@ Deno.serve(async (req) => {
           description: `Investido R$ ${totalSpend.toFixed(2)} vs orçamento mensal R$ ${Number(c.monthly_budget).toFixed(2)}.`,
           priority: "high",
           recommended_action: "Reduzir orçamentos diários para alinhar pacing.",
+          confidence: "alta",
+          time_to_act: "hoje",
         });
       }
       const noteAgo = lastNote
@@ -164,11 +177,78 @@ Deno.serve(async (req) => {
           description: "Cliente sem registro de comunicação recente.",
           priority: noteAgo > 30 ? "high" : "medium",
           recommended_action: "Agendar reunião de alinhamento.",
+          confidence: "media",
+          time_to_act: "amanha_cedo",
         });
       }
 
+      const priorityRank: Record<string, number> = {
+        low: 1,
+        medium: 2,
+        high: 3,
+        critical: 4,
+      };
+      const isOffHours = (() => {
+        const d = new Date();
+        const h = d.getHours();
+        const wd = d.getDay();
+        return wd === 0 || wd === 6 || h < 8 || h >= 18;
+      })();
+
       for (const q of queue) {
         if (openTypes.has(q.type)) continue;
+        if (!q.recommended_action?.trim()) continue;
+
+        const dedupSince = new Date(
+          Date.now() - 24 * 60 * 60 * 1000,
+        ).toISOString();
+        const { data: lastSimilar } = await admin
+          .from("alerts")
+          .select("id, priority, created_at")
+          .eq("client_id", c.id)
+          .eq("type", q.type)
+          .gte("created_at", dedupSince)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (
+          lastSimilar &&
+          priorityRank[q.priority] <= priorityRank[lastSimilar.priority]
+        ) {
+          continue;
+        }
+
+        const timeToAct =
+          isOffHours && q.time_to_act === "agora"
+            ? "amanha_cedo"
+            : q.time_to_act;
+        const governance = baseGovernance("04-alerta-whatsapp", false);
+        console.info("prompt_v3.alert", {
+          client_id: c.id,
+          type: q.type,
+          priority: q.priority,
+          time_to_act: timeToAct,
+        });
+        const aiOutputJson = {
+          send_whatsapp: true,
+          severity:
+            q.priority === "critical"
+              ? "critico"
+              : q.priority === "high"
+                ? "urgente"
+                : "aviso",
+          client: c.name,
+          trigger: q.type,
+          problem: q.description,
+          probable_cause: "Variação relevante recente nos indicadores.",
+          recommended_action: q.recommended_action,
+          time_to_act: timeToAct,
+          confidence: q.confidence,
+          should_create_task: true,
+          task_title: q.title,
+          avoid_duplicate_until: "24h",
+        };
+
         const { error } = await admin.from("alerts").insert({
           agency_id: c.agency_id,
           client_id: c.id,
@@ -178,6 +258,16 @@ Deno.serve(async (req) => {
           priority: q.priority,
           status: "open",
           recommended_action: q.recommended_action,
+          ai_output_text: `${q.title}\n${q.description}\nAção: ${q.recommended_action}`,
+          ai_output_json: aiOutputJson,
+          confianca: q.confidence,
+          should_create_task: true,
+          task_title: q.title.slice(0, 180),
+          avoid_duplicate_until: new Date(
+            Date.now() + 24 * 60 * 60 * 1000,
+          ).toISOString(),
+          time_to_act: timeToAct,
+          ...governance,
         });
         if (!error) created++;
         else if (

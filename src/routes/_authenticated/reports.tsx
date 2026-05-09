@@ -157,10 +157,13 @@ function Reports() {
     return map;
   }, [data?.reports]);
 
-  async function generateFor(clientId: string) {
+  async function generateFor(
+    clientId: string,
+    mode: "monthly_manager" | "monthly_client" = "monthly_manager",
+  ) {
     setGenerating(true);
     const { error } = await supabase.functions.invoke("generate-report", {
-      body: { client_id: clientId },
+      body: { client_id: clientId, mode },
     });
     setGenerating(false);
     if (error) return toast.error(error.message);
@@ -182,6 +185,12 @@ function Reports() {
       window.prompt("Telefone (DDI + DDD + número, só dígitos)") ||
       "";
     if (!recipient.trim()) return;
+    if (r.requer_revisao_humana) {
+      const ok = window.confirm(
+        "Este conteúdo exige revisão humana. Confirma envio manual agora?",
+      );
+      if (!ok) return;
+    }
     const text = [
       r.executive_summary,
       r.positives ? `Positivos:\n${r.positives}` : "",
@@ -198,6 +207,8 @@ function Reports() {
         message: text,
         client_id: r.client_id,
         template: "report_summary",
+        requires_human_review: Boolean(r.requer_revisao_humana),
+        approved_by_human: true,
       },
     });
     toast.dismiss(tid);
@@ -373,14 +384,28 @@ function Reports() {
             </summary>
             <div className="mt-2 max-h-64 overflow-y-auto rounded-md border border-border">
               {data.clients.map((c) => (
-                <button
+                <div
                   key={c.id}
-                  onClick={() => generateFor(c.id)}
-                  disabled={generating}
-                  className="block w-full px-3 py-2 text-left text-xs hover:bg-surface disabled:opacity-50"
+                  className="border-b border-border last:border-b-0"
                 >
-                  {c.name}
-                </button>
+                  <div className="px-3 pt-2 text-xs font-medium">{c.name}</div>
+                  <div className="flex gap-1 p-2">
+                    <button
+                      onClick={() => generateFor(c.id, "monthly_manager")}
+                      disabled={generating}
+                      className="flex-1 rounded border border-border px-2 py-1.5 text-left text-[11px] hover:bg-surface disabled:opacity-50"
+                    >
+                      Versão gestor
+                    </button>
+                    <button
+                      onClick={() => generateFor(c.id, "monthly_client")}
+                      disabled={generating}
+                      className="flex-1 rounded border border-border px-2 py-1.5 text-left text-[11px] hover:bg-surface disabled:opacity-50"
+                    >
+                      Versão cliente
+                    </button>
+                  </div>
+                </div>
               ))}
             </div>
             {generating && (

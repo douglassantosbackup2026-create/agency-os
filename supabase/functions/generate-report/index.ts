@@ -1,4 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import {
+  baseGovernance,
+  normalizeConfidence,
+  parseAiJson,
+} from "../_shared/ai-v3.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,7 +23,13 @@ Deno.serve(async (req) => {
         headers: corsHeaders,
       });
 
-    const { client_id } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const { client_id } = body;
+    const mode = String(body?.mode ?? "monthly_manager") as
+      | "monthly_manager"
+      | "monthly_client"
+      | "on_demand";
+    const clickContext = String(body?.click_context ?? "checkin_rotina");
     if (!client_id)
       return new Response(JSON.stringify({ error: "client_id required" }), {
         status: 400,
@@ -88,7 +99,21 @@ Deno.serve(async (req) => {
 
     const deltaRevenuePct =
       prevRevenue > 0 ? ((revenue - prevRevenue) / prevRevenue) * 100 : 0;
-    const summary = `Cliente: ${client.name}\nSegmento: ${client.segment ?? "—"}\nÚltimos 30 dias:\n- Investimento: R$ ${spend.toFixed(2)}\n- Receita: R$ ${revenue.toFixed(2)}\n- ROAS médio: ${roas.toFixed(2)}x\n- CPA médio: R$ ${cpa.toFixed(2)}\n- Conversões: ${conv}\n- ROAS primeira metade: ${firstHalfRoas.toFixed(2)}x\n- ROAS segunda metade: ${secondHalfRoas.toFixed(2)}x\nComparativo com 30 dias anteriores:\n- Investimento anterior: R$ ${prevSpend.toFixed(2)}\n- Receita anterior: R$ ${prevRevenue.toFixed(2)}\n- Variação de receita: ${deltaRevenuePct.toFixed(1)}%`;
+    const summary = `Cliente: ${client.name}
+Segmento: ${client.segment ?? "—"}
+Últimos 30 dias:
+- Investimento: R$ ${spend.toFixed(2)}
+- Receita: R$ ${revenue.toFixed(2)}
+- ROAS médio: ${roas.toFixed(2)}x
+- CPA médio: R$ ${cpa.toFixed(2)}
+- Conversões: ${conv}
+- ROAS primeira metade: ${firstHalfRoas.toFixed(2)}x
+- ROAS segunda metade: ${secondHalfRoas.toFixed(2)}x
+Comparativo com 30 dias anteriores:
+- Investimento anterior: R$ ${prevSpend.toFixed(2)}
+- Receita anterior: R$ ${prevRevenue.toFixed(2)}
+- Variação de receita: ${deltaRevenuePct.toFixed(1)}%
+Contexto do clique: ${clickContext}`;
 
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");
     if (!lovableKey)
@@ -96,6 +121,74 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: "LOVABLE_API_KEY não configurada" }),
         { status: 500, headers: corsHeaders },
       );
+
+    const modeConfig = {
+      monthly_manager: {
+        promptKey: "01-analise-mensal-gestor",
+        requiresReview: false,
+        system:
+          "Você é especialista sênior em tráfego pago. Não invente dados. Diferencie inferência de evidência e responda em JSON válido.",
+        user: `Gere análise mensal para gestor com base nos dados abaixo.\n${summary}\n\nFormato JSON obrigatório:\n{
+  "executive_summary": "",
+  "positives": "",
+  "problems": "",
+  "opportunities": "",
+  "next_steps": "",
+  "client_friendly_summary": "",
+  "confianca_analise": "alta|media|baixa",
+  "principais_problemas": [{"problema":"","evidencia":"","causa_provavel":"","impacto":"baixo|medio|alto"}],
+  "acoes_recomendadas": [{"acao":"","onde":"","impacto_esperado":"","prazo":"","prioridade":"baixa|media|alta","requer_revisao_humana":true}]
+}`,
+      },
+      monthly_client: {
+        promptKey: "02-analise-mensal-cliente",
+        requiresReview: true,
+        system:
+          "Você escreve para cliente final em linguagem de negócio, sem siglas técnicas (CTR, CPL, CPC, CPA, ROAS, CPM). Nunca prometa resultado garantido. Responda JSON válido.",
+        user: `Gere análise mensal para cliente final com revisão humana obrigatória.\n${summary}\n\nFormato JSON obrigatório:\n{
+  "executive_summary": "",
+  "positives": "",
+  "problems": "",
+  "opportunities": "",
+  "next_steps": "",
+  "client_friendly_summary": "",
+  "confianca_analise": "alta|media|baixa",
+  "status_cliente": "positivo|atencao|critico",
+  "pode_enviar_sem_revisao": false,
+  "pontos_sensiveis": [""],
+  "acoes_comunicadas": [""]
+}`,
+      },
+      on_demand: {
+        promptKey: "03-analise-sob-demanda",
+        requiresReview: true,
+        system:
+          "Você analisa o momento atual da conta. Responda de forma curta, acionável e em JSON válido.",
+        user: `Analise agora esta conta no contexto "${clickContext}".\n${summary}\n\nFormato JSON obrigatório:\n{
+  "executive_summary": "",
+  "problems": "",
+  "next_steps": "",
+  "confianca_analise": "alta|media|baixa",
+  "status_agora": "saudavel|atencao|risco|critico",
+  "maior_risco": "",
+  "oportunidade_visivel": "",
+  "acao_recomendada": {
+    "acao": "",
+    "onde": "",
+    "impacto_esperado": "",
+    "prazo": "",
+    "prioridade": "baixa|media|alta"
+  },
+  "requer_revisao_humana": true
+}`,
+      },
+    }[mode];
+
+    console.info("prompt_v3.generate_report", {
+      mode,
+      client_id,
+      prompt_key: modeConfig.promptKey,
+    });
 
     const aiResp = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -110,12 +203,11 @@ Deno.serve(async (req) => {
           messages: [
             {
               role: "system",
-              content:
-                "Você é um analista sênior de tráfego pago de uma agência de performance. Analise os dados do cliente e responda em JSON estruturado, em português brasileiro, claro, humano, sem jargão técnico desnecessário.",
+              content: modeConfig.system,
             },
             {
               role: "user",
-              content: `Dados:\n${summary}\n\nResponda APENAS com JSON válido neste formato:\n{\n  "executive_summary": "...",\n  "positives": "...",\n  "problems": "...",\n  "opportunities": "...",\n  "next_steps": "...",\n  "client_friendly_summary": "..."\n}`,
+              content: modeConfig.user,
             },
           ],
         }),
@@ -145,16 +237,20 @@ Deno.serve(async (req) => {
 
     const aiJson = await aiResp.json();
     const content: string = aiJson.choices?.[0]?.message?.content ?? "{}";
-    const cleaned = content
-      .replace(/```json\n?/g, "")
-      .replace(/```/g, "")
-      .trim();
-    let parsed: any = {};
-    try {
-      parsed = JSON.parse(cleaned);
-    } catch {
-      parsed = { executive_summary: cleaned };
-    }
+    const parsedContent = parseAiJson(content);
+    const parsed: Record<string, unknown> = parsedContent.parseOk
+      ? parsedContent.json
+      : {
+          executive_summary: parsedContent.text,
+          client_friendly_summary: null,
+        };
+    const confianca = normalizeConfidence(
+      parsed.confianca_analise ?? parsed.confianca ?? parsed.confidence,
+    );
+    const governance = baseGovernance(
+      modeConfig.promptKey,
+      modeConfig.requiresReview,
+    );
 
     const { data: report } = await admin
       .from("reports")
@@ -164,12 +260,17 @@ Deno.serve(async (req) => {
         generated_by: userRes.user.id,
         period_start: since,
         period_end: new Date().toISOString().slice(0, 10),
-        executive_summary: parsed.executive_summary ?? null,
-        positives: parsed.positives ?? null,
-        problems: parsed.problems ?? null,
-        opportunities: parsed.opportunities ?? null,
-        next_steps: parsed.next_steps ?? null,
-        client_friendly_summary: parsed.client_friendly_summary ?? null,
+        executive_summary: String(parsed.executive_summary ?? "") || null,
+        positives: String(parsed.positives ?? "") || null,
+        problems: String(parsed.problems ?? "") || null,
+        opportunities: String(parsed.opportunities ?? "") || null,
+        next_steps: String(parsed.next_steps ?? "") || null,
+        client_friendly_summary:
+          String(parsed.client_friendly_summary ?? "") || null,
+        ai_output_text: parsedContent.text,
+        ai_output_json: parsed,
+        confianca,
+        ...governance,
         raw_data: {
           spend,
           revenue,
@@ -178,6 +279,9 @@ Deno.serve(async (req) => {
           conv,
           prev_spend: prevSpend,
           prev_revenue: prevRevenue,
+          mode,
+          click_context: clickContext,
+          parse_ok: parsedContent.parseOk,
         },
       })
       .select()

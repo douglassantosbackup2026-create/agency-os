@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { baseGovernance, normalizeConfidence } from "../_shared/ai-v3.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -20,6 +21,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const clientId = String(body?.client_id ?? "");
+    const requestedMode = String(body?.mode ?? "").trim();
     if (!clientId) {
       return new Response(JSON.stringify({ error: "client_id obrigatório" }), {
         status: 400,
@@ -73,6 +75,20 @@ Deno.serve(async (req) => {
     );
     const roas = spend > 0 ? revenue / spend : 0;
     const cpa = conv > 0 ? spend / conv : 0;
+    const pctMeta = Number(body?.pct_meta_atingida ?? 0);
+    const mode =
+      requestedMode ||
+      (pctMeta > 120
+        ? "upsell"
+        : pctMeta > 0 && pctMeta < 65
+          ? "crise"
+          : "revisao_padrao");
+    const tom =
+      mode === "crise"
+        ? "cuidadoso"
+        : mode === "upsell"
+          ? "celebrativo"
+          : "consultivo";
 
     const agenda = [
       `1) Revisão do período: investimento ${spend.toFixed(2)} e receita ${revenue.toFixed(2)}.`,
@@ -93,6 +109,29 @@ Deno.serve(async (req) => {
       "Rodar 2-3 novos testes criativos por semana, revisar funil semanalmente e reequilibrar orçamento por desempenho.";
     const strategicQuestions =
       "Quais ofertas têm maior margem? Qual objetivo comercial prioritário do próximo mês? Há sazonalidade relevante no período?";
+    const shortVersion = `Resultado principal: investimento R$ ${spend.toFixed(2)}, receita R$ ${revenue.toFixed(2)}, ROAS ${roas.toFixed(2)}x. Maior ajuste: ${whatToImprove}. Próximo passo: validar plano de 30 dias e responsáveis.`;
+    const aiOutputJson = {
+      modo_reuniao: mode,
+      risco_churn: mode === "crise" ? "alto" : "medio",
+      tom_recomendado: tom,
+      tempo_total_minutos: 30,
+      principais_pontos: [
+        "Resultado principal do período",
+        "O que funcionou com evidência",
+        "Ajustes para próximo ciclo",
+      ],
+      perguntas_cliente: strategicQuestions.split("?").filter(Boolean),
+      proximo_passo_recomendado: nextMonthPlan,
+      requer_preparacao_extra: mode === "crise" || mode === "renovacao",
+      versao_curta_5_minutos: shortVersion,
+      confianca: normalizeConfidence(conv > 20 ? "alta" : "media"),
+    };
+    console.info("prompt_v3.meeting_report", {
+      client_id: clientId,
+      mode,
+      confidence: aiOutputJson.confianca,
+    });
+    const governance = baseGovernance("05-pauta-reuniao", true);
 
     const { error: insErr } = await admin.from("meeting_reports").insert({
       agency_id: client.agency_id,
@@ -105,6 +144,10 @@ Deno.serve(async (req) => {
       what_to_improve: whatToImprove,
       next_month_plan: nextMonthPlan,
       strategic_questions: strategicQuestions,
+      ai_output_text: `${agenda}\n\nVERSÃO CURTA — 5 MINUTOS\n${shortVersion}`,
+      ai_output_json: aiOutputJson,
+      confianca: aiOutputJson.confianca,
+      ...governance,
     });
     if (insErr) throw insErr;
 

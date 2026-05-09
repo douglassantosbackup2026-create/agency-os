@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { baseGovernance, normalizeConfidence } from "../_shared/ai-v3.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,10 +52,75 @@ Deno.serve(async (req) => {
     let created = 0;
     for (const item of watchlist ?? []) {
       const adCount = Math.max(1, Math.floor(Math.random() * 12));
+      const { data: lastSnapshot } = await admin
+        .from("competitor_snapshots")
+        .select("ad_count, captured_at")
+        .eq("competitor_watchlist_id", item.id)
+        .order("captured_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const baselineDisponivel = Boolean(lastSnapshot);
+      const delta = baselineDisponivel
+        ? adCount - Number(lastSnapshot?.ad_count ?? 0)
+        : 0;
+      const categoriaDominante =
+        adCount >= 8
+          ? "urgencia"
+          : adCount >= 4
+            ? "qualidade_autoridade"
+            : "branding";
+      const categoriaPoucoExplorada =
+        categoriaDominante === "urgencia"
+          ? "relacionamento_prova_social"
+          : "preco";
+      const confianca = normalizeConfidence(
+        adCount >= 8 ? "alta" : adCount >= 4 ? "media" : "baixa",
+      );
       const insight =
         adCount > 6
           ? "Concorrente com alta atividade criativa; considerar testes de resposta rápida."
           : "Atividade estável; oportunidade para diferenciar oferta e criativo.";
+      const aiOutputJson = {
+        baseline_disponivel: baselineDisponivel,
+        categoria_dominante: categoriaDominante,
+        categoria_pouco_explorada: categoriaPoucoExplorada,
+        mudancas_relevantes: baselineDisponivel
+          ? [
+              {
+                concorrente: item.competitor_name,
+                mudanca: `Variação de ${delta >= 0 ? "+" : ""}${delta} anúncios ativos`,
+                interpretacao:
+                  delta > 0
+                    ? "Pressão competitiva crescente."
+                    : delta < 0
+                      ? "Possível retração de oferta criativa."
+                      : "Estratégia estável.",
+                confianca,
+              },
+            ]
+          : [],
+        oportunidade_cliente:
+          delta > 2
+            ? "Testar narrativa de diferenciação imediata."
+            : "Nenhuma oportunidade clara identificada nesta semana.",
+        acoes_recomendadas:
+          delta !== 0
+            ? [
+                {
+                  acao: "Monitorar criativos com maior longevidade e adaptar oferta.",
+                  prioridade: delta > 2 ? "alta" : "media",
+                  baseada_em: `delta_anuncios_${delta}`,
+                },
+              ]
+            : [],
+        ha_acao_recomendada: delta !== 0,
+      };
+      const governance = baseGovernance("06-inteligencia-concorrentes", false);
+      console.info("prompt_v3.competitor_snapshot", {
+        watchlist_id: item.id,
+        baseline_disponivel: baselineDisponivel,
+        confianca,
+      });
       const { error } = await admin.from("competitor_snapshots").insert({
         agency_id: item.agency_id,
         client_id: item.client_id,
@@ -65,6 +131,10 @@ Deno.serve(async (req) => {
           : "Fonte não informada",
         ad_count: adCount,
         insight,
+        ai_output_text: `${item.competitor_name}: ${insight}`,
+        ai_output_json: aiOutputJson,
+        confianca,
+        ...governance,
       });
       if (!error) created++;
     }

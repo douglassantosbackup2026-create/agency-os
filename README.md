@@ -113,3 +113,48 @@ As migrations criam buckets `branding` (público) e `reports` (privado por agên
 ## CI
 
 O workflow `.github/workflows/ci.yml` executa lint, testes e build com variáveis placeholder para o Vite.
+
+## Prompts IA v3
+
+Os Prompts v3 foram incorporados em formato **docs-first**: documentação e versionamento primeiro, rollout técnico depois.
+
+### Onde estão os prompts
+
+- `docs/prompts/v3/01-analise-mensal-gestor.md`
+- `docs/prompts/v3/02-analise-mensal-cliente.md`
+- `docs/prompts/v3/03-analise-sob-demanda.md`
+- `docs/prompts/v3/04-alerta-whatsapp.md`
+- `docs/prompts/v3/05-pauta-reuniao.md`
+- `docs/prompts/v3/06-inteligencia-concorrentes.md`
+- `docs/prompts/v3/_template.md`
+
+### Governança e segurança
+
+- Todas as respostas devem persistir texto + JSON estruturado + metadados (cliente, plataforma, período, tipo de análise, confiança, revisão humana, ação recomendada, status e timestamp).
+- Mensagens para cliente final (inclusive cenários de crise) exigem revisão humana do gestor antes de envio.
+- O sistema não deve enviar alerta sem ação clara.
+- Alertas iguais não devem repetir em menos de 24h.
+- Sempre que houver ação recomendada, permitir converter em tarefa operacional.
+
+### Ordem recomendada de implementação (rollout)
+
+1. Prompt 04 — Alerta WhatsApp
+2. Prompt 03 — Análise sob demanda
+3. Prompt 02 — Análise mensal para cliente final
+4. Prompt 01 — Análise mensal para gestor
+5. Prompt 05 — Pauta de reunião
+6. Prompt 06 — Inteligência de concorrentes
+
+### Mapeamento prompt -> função/tela atual
+
+- Prompt 01/02 -> `supabase/functions/generate-report/index.ts` + `src/routes/_authenticated/reports.tsx`
+- Prompt 03 -> ação de análise contextual em `src/routes/_authenticated/clients.$clientId.tsx`
+- Prompt 04 -> `supabase/functions/evaluate-alerts/index.ts` e envio em `supabase/functions/send-whatsapp/index.ts`
+- Prompt 05 -> `supabase/functions/generate-meeting-report/index.ts`
+- Prompt 06 -> `supabase/functions/sync-competitors/index.ts` + `src/routes/_authenticated/competitors.tsx`
+
+### Política de deduplicação de alertas (v3)
+
+- Janela padrão de deduplicação: `24h` por cliente + plataforma + tipo de gatilho.
+- Se o problema não piorou e já existe alerta recente, não reenviar.
+- Priorizar alertas por severidade e potencial impacto financeiro.
