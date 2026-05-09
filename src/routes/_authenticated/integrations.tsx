@@ -206,6 +206,11 @@ function Integrations() {
         conversions: conv,
         roas: spend > 0 ? revenue / spend : 0,
         cpa: conv > 0 ? spend / conv : 0,
+        impressions: 0,
+        clicks: 0,
+        ctr: 0,
+        data_source: "manual_csv",
+        data_reliability: "medium",
       };
     });
     const { error } = await supabase.from("metrics_daily").insert(payload);
@@ -472,7 +477,10 @@ function Integrations() {
         <div className="space-y-2 p-4 text-xs">
           <p className="text-muted-foreground">
             Formato esperado: <code>date,spend,revenue,conversions</code>.
-            Exemplo: <code>2026-05-01,1200,3400,18</code>
+            Linhas são gravadas como{" "}
+            <code className="rounded bg-surface px-1">manual_csv</code> com
+            confiabilidade{" "}
+            <code className="rounded bg-surface px-1">medium</code>.
           </p>
           <select
             value={manualClientId}

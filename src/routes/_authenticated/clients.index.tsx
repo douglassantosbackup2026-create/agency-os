@@ -78,9 +78,9 @@ function Clients() {
           .eq("agency_id", agency!.id)
           .order("recorded_at", { ascending: false }),
       ]);
-      const latest = new Map<string, { score: number; risk: string }>();
+      const latest = new Map<string, Record<string, unknown>>();
       for (const h of health.data ?? [])
-        if (!latest.has(h.client_id)) latest.set(h.client_id, h);
+        if (!latest.has(h.client_id)) latest.set(h.client_id, h as any);
       return { clients: clients.data ?? [], latest };
     },
   });
@@ -154,17 +154,42 @@ function Clients() {
                 Sem clientes com score calculado.
               </div>
             ) : (
-              riskRadar.map((item) => (
-                <div
-                  key={item.client.id}
-                  className="rounded border border-border bg-surface px-2.5 py-2 text-xs"
-                >
-                  <div className="font-medium">{item.client.name}</div>
-                  <div className="text-muted-foreground">
-                    risco {item.health.risk} · health {item.health.score}
+              riskRadar.map((item) => {
+                const pen = (
+                  (item.health?.score_explanation as { penalties?: unknown[] })
+                    ?.penalties ?? []
+                ).filter(Boolean) as Array<{ reason?: string }>;
+                const bullets = pen
+                  .slice(0, 3)
+                  .map((p) => p.reason)
+                  .filter(Boolean);
+                return (
+                  <div
+                    key={item.client.id}
+                    className="rounded border border-border bg-surface px-2.5 py-2 text-xs"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="font-medium">{item.client.name}</div>
+                      <Link
+                        to="/actions"
+                        className="shrink-0 text-[10px] text-primary hover:underline"
+                      >
+                        Ações
+                      </Link>
+                    </div>
+                    <div className="text-muted-foreground">
+                      risco {item.health.risk} · health {item.health.score}
+                    </div>
+                    {bullets.length > 0 && (
+                      <ul className="mt-1.5 list-inside list-disc text-[10px] text-muted-foreground">
+                        {bullets.map((b, i) => (
+                          <li key={i}>{b}</li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>

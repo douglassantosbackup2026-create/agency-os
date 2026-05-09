@@ -285,94 +285,96 @@ function PortalPage() {
           </p>
         </section>
 
-        <section className="rounded-xl border border-border bg-card">
-          <div className="border-b border-border px-5 py-3">
-            <h2 className="text-sm font-semibold">Campanhas ativas</h2>
+        <details className="rounded-xl border border-border bg-card open:bg-card">
+          <summary className="cursor-pointer px-5 py-3 text-sm font-semibold text-foreground marker:text-muted-foreground">
+            Detalhes operacionais (campanhas e criativos)
+          </summary>
+          <div className="border-t border-border">
+            <div className="border-b border-border px-5 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Campanhas ativas
+            </div>
+            {data.campaigns.length === 0 ? (
+              <div className="px-5 py-6 text-center text-sm text-muted-foreground">
+                Nenhuma campanha registrada.
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {data.campaigns.map((c: any, i: number) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between px-5 py-3"
+                  >
+                    <div>
+                      <div className="text-sm font-medium">{c.name}</div>
+                      <div className="text-[11px] text-muted-foreground">
+                        {c.platform} · {c.objective ?? "—"}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs font-medium">
+                        {brl(c.daily_budget)}/dia
+                      </div>
+                      <span
+                        className={`text-[10px] uppercase ${c.status === "active" ? "text-emerald-500" : "text-muted-foreground"}`}
+                      >
+                        {c.status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="border-t border-border px-5 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              Aprovação de criativos
+            </div>
+            {(data.pending_creatives ?? []).length === 0 ? (
+              <div className="px-5 py-6 text-center text-sm text-muted-foreground">
+                Sem criativos pendentes.
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {(data.pending_creatives ?? []).map((item: any) => (
+                  <div key={item.id} className="space-y-2 px-5 py-3">
+                    <div className="text-sm font-medium">{item.title}</div>
+                    {item.description ? (
+                      <div className="text-xs text-muted-foreground">
+                        {item.description}
+                      </div>
+                    ) : null}
+                    {item.preview_url ? (
+                      <a
+                        href={item.preview_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-primary hover:underline"
+                      >
+                        Ver preview
+                      </a>
+                    ) : null}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={reviewingId === item.id}
+                        onClick={() => reviewCreative(item.id, "approved")}
+                        className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-600"
+                      >
+                        Aprovar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={reviewingId === item.id}
+                        onClick={() => reviewCreative(item.id, "rejected")}
+                        className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-xs text-destructive"
+                      >
+                        Reprovar
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-          {data.campaigns.length === 0 ? (
-            <div className="px-5 py-8 text-center text-sm text-muted-foreground">
-              Nenhuma campanha registrada.
-            </div>
-          ) : (
-            <div className="divide-y divide-border">
-              {data.campaigns.map((c: any, i: number) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-between px-5 py-3"
-                >
-                  <div>
-                    <div className="text-sm font-medium">{c.name}</div>
-                    <div className="text-[11px] text-muted-foreground">
-                      {c.platform} · {c.objective ?? "—"}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-xs font-medium">
-                      {brl(c.daily_budget)}/dia
-                    </div>
-                    <span
-                      className={`text-[10px] uppercase ${c.status === "active" ? "text-emerald-500" : "text-muted-foreground"}`}
-                    >
-                      {c.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="rounded-xl border border-border bg-card">
-          <div className="border-b border-border px-5 py-3">
-            <h2 className="text-sm font-semibold">Aprovação de criativos</h2>
-          </div>
-          {(data.pending_creatives ?? []).length === 0 ? (
-            <div className="px-5 py-8 text-center text-sm text-muted-foreground">
-              Sem criativos pendentes.
-            </div>
-          ) : (
-            <div className="divide-y divide-border">
-              {(data.pending_creatives ?? []).map((item: any) => (
-                <div key={item.id} className="space-y-2 px-5 py-3">
-                  <div className="text-sm font-medium">{item.title}</div>
-                  {item.description ? (
-                    <div className="text-xs text-muted-foreground">
-                      {item.description}
-                    </div>
-                  ) : null}
-                  {item.preview_url ? (
-                    <a
-                      href={item.preview_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-xs text-primary hover:underline"
-                    >
-                      Ver preview
-                    </a>
-                  ) : null}
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      disabled={reviewingId === item.id}
-                      onClick={() => reviewCreative(item.id, "approved")}
-                      className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-600"
-                    >
-                      Aprovar
-                    </button>
-                    <button
-                      type="button"
-                      disabled={reviewingId === item.id}
-                      onClick={() => reviewCreative(item.id, "rejected")}
-                      className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-1.5 text-xs text-destructive"
-                    >
-                      Reprovar
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+        </details>
 
         <footer className="pt-4 text-center text-[11px] text-muted-foreground">
           Powered by {data.agency?.name}

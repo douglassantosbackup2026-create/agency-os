@@ -220,12 +220,11 @@ function Reports() {
     r: any,
     decision: "approved" | "edited" | "ignored",
   ) {
-    const requires = decision === "approved" ? false : r.requer_revisao_humana;
     const { error } = await supabase
       .from("reports")
       .update({
-        requer_revisao_humana: requires,
-        status_envio: decision === "ignored" ? "cancelled" : "ready",
+        requer_revisao_humana: false,
+        status_envio: decision === "ignored" ? "descartado" : "aprovado",
       })
       .eq("id", r.id);
     if (error) return toast.error(error.message);

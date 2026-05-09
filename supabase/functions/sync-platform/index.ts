@@ -1022,6 +1022,12 @@ function simulatedRows(
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
+  /** Context for sync_runs on failure (agency_id is NOT NULL in DB). */
+  let syncRunContext: {
+    agency_id: string;
+    client_id: string;
+    provider: string;
+  } | null = null;
   try {
     const t0 = Date.now();
     const authHeader = req.headers.get("Authorization");
@@ -1063,6 +1069,12 @@ Deno.serve(async (req) => {
         status: 404,
         headers: corsHeaders,
       });
+
+    syncRunContext = {
+      agency_id: client.agency_id as string,
+      client_id: client_id as string,
+      provider: provider as string,
+    };
 
     const { data: integ } = await admin
       .from("integrations")
@@ -1496,18 +1508,20 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     try {
-      const admin = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-      );
-      await admin.from("sync_runs").insert({
-        agency_id: null,
-        client_id: null,
-        provider: "unknown",
-        status: "error",
-        duration_ms: null,
-        error_message: (e as Error).message,
-      });
+      if (syncRunContext) {
+        const admin = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+        );
+        await admin.from("sync_runs").insert({
+          agency_id: syncRunContext.agency_id,
+          client_id: syncRunContext.client_id,
+          provider: syncRunContext.provider,
+          status: "error",
+          duration_ms: null,
+          error_message: (e as Error).message,
+        });
+      }
     } catch {
       // noop
     }

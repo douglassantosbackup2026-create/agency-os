@@ -98,6 +98,24 @@ function WhatsApp() {
     refetch();
   }
 
+  async function saveDraftForReview() {
+    if (!recipient || !message)
+      return toast.error("Preencha destinatário e mensagem.");
+    setSending(true);
+    const { error } = await supabase.functions.invoke("send-whatsapp", {
+      body: {
+        recipient,
+        message,
+        client_id: clientId || null,
+        draft: true,
+      },
+    });
+    setSending(false);
+    if (error) return toast.error(error.message);
+    toast.success("Rascunho salvo — revise em Central de Revisão IA.");
+    refetch();
+  }
+
   async function saveTemplate() {
     if (!tplName || !tplBody) return toast.error("Preencha nome e corpo.");
     const { error } = await supabase.from("whatsapp_templates").insert({
@@ -221,18 +239,35 @@ function WhatsApp() {
                 className="w-full rounded-md border border-border bg-background p-3 text-sm"
               />
             </label>
-            <button
-              onClick={send}
-              disabled={sending}
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
-            >
-              {sending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Send className="h-3.5 w-3.5" />
-              )}
-              Enviar
-            </button>
+            <p className="text-[11px] text-muted-foreground">
+              Placeholders são mesclados no envio:{" "}
+              <code className="rounded bg-surface px-1">
+                {"{{cliente}} {{roas}} {{spend}} {{conv}} {{revenue}}"}
+              </code>{" "}
+              (últimos 30 dias de métricas agregadas).
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={send}
+                disabled={sending}
+                className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-60"
+              >
+                {sending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Send className="h-3.5 w-3.5" />
+                )}
+                Enviar
+              </button>
+              <button
+                type="button"
+                onClick={saveDraftForReview}
+                disabled={sending}
+                className="rounded-md border border-border px-4 py-2 text-sm hover:bg-surface disabled:opacity-60"
+              >
+                Salvar para revisão
+              </button>
+            </div>
             {!import.meta.env.VITE_EVOLUTION_CONFIGURED && (
               <p className="text-[11px] text-amber-500">
                 ⚠️ Sem EVOLUTION_API_URL configurada — envios são simulados

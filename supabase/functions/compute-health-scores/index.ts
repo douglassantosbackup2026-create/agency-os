@@ -157,6 +157,51 @@ function computeFor(
   };
 }
 
+type BriefRow = {
+  agency_id: string;
+  client_id: string;
+  name: string;
+  score: number;
+  risk: string;
+  trackingStatus: string;
+  daysSinceMetric: number;
+  sessionsUpResultsDown: boolean;
+};
+
+type BriefEntry = { client_id: string; name: string; reason: string };
+
+type BriefBuckets = {
+  critico: BriefEntry[];
+  atencao: BriefEntry[];
+  sem_atualizacao: BriefEntry[];
+  oportunidade: BriefEntry[];
+};
+
+function briefingBucket(row: BriefRow): keyof BriefBuckets | null {
+  const trackingCrit = row.trackingStatus === "critical";
+  if (row.score < 45 || row.risk === "high" || trackingCrit) return "critico";
+  if (row.daysSinceMetric > 7) return "sem_atualizacao";
+  if (row.score < 70 || row.risk === "medium") return "atencao";
+  if (row.score >= 75 && row.risk === "low" && !row.sessionsUpResultsDown) {
+    return "oportunidade";
+  }
+  return null;
+}
+
+function reasonForBucket(b: keyof BriefBuckets, row: BriefRow): string {
+  if (b === "critico") {
+    const bits = [`Score ${row.score}`, `risco ${row.risk}`];
+    if (row.trackingStatus === "critical") bits.push("tracking GA4 crítico");
+    return bits.join(" · ");
+  }
+  if (b === "sem_atualizacao") {
+    return `Sem métricas agregadas há ${Math.round(row.daysSinceMetric)} dias`;
+  }
+  if (b === "atencao")
+    return `Score ${row.score} — revisar ritmo e comunicação`;
+  return "Operação estável — avaliar escala ou novos testes";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
@@ -187,6 +232,7 @@ Deno.serve(async (req) => {
       .slice(0, 10);
     let processed = 0;
     const inserts: Record<string, unknown>[] = [];
+    const briefRows: BriefRow[] = [];
 
     for (const c of clients ?? []) {
       const [
@@ -283,12 +329,64 @@ Deno.serve(async (req) => {
         trackingStatus,
       });
       inserts.push({ agency_id: c.agency_id, client_id: c.id, ...r });
+
+      const mlist = (metrics ?? []) as M[];
+      const dates = mlist
+        .map((x) => x.date)
+        .filter(Boolean)
+        .sort();
+      const lastD = dates.length ? dates[dates.length - 1] : null;
+      const daysSinceMetric = lastD
+        ? (Date.now() - new Date(`${lastD}T12:00:00Z`).getTime()) / 86400000
+        : 999;
+
+      briefRows.push({
+        agency_id: c.agency_id as string,
+        client_id: c.id as string,
+        name: (c.name as string) ?? "Cliente",
+        score: r.score,
+        risk: r.risk,
+        trackingStatus,
+        daysSinceMetric,
+        sessionsUpResultsDown,
+      });
       processed++;
     }
 
     if (inserts.length) {
       const { error } = await admin.from("health_scores").insert(inserts);
       if (error) throw error;
+    }
+
+    const agencyBucketMap = new Map<string, BriefBuckets>();
+    for (const row of briefRows) {
+      const b = briefingBucket(row);
+      if (!b) continue;
+      if (!agencyBucketMap.has(row.agency_id)) {
+        agencyBucketMap.set(row.agency_id, {
+          critico: [],
+          atencao: [],
+          sem_atualizacao: [],
+          oportunidade: [],
+        });
+      }
+      const bk = agencyBucketMap.get(row.agency_id)!;
+      bk[b].push({
+        client_id: row.client_id,
+        name: row.name,
+        reason: reasonForBucket(b, row),
+      });
+    }
+    for (const [agency_id, buckets] of agencyBucketMap) {
+      const { error: bErr } = await admin.from("agency_briefings").upsert(
+        {
+          agency_id,
+          buckets,
+          computed_at: new Date().toISOString(),
+        },
+        { onConflict: "agency_id" },
+      );
+      if (bErr) console.error("agency_briefings upsert", bErr);
     }
 
     return new Response(JSON.stringify({ ok: true, processed }), {

@@ -54,6 +54,7 @@ function Dashboard() {
         ga4Tracking,
         actionCenter,
         reportsReview,
+        agencyBriefing,
       ] = await Promise.all([
         supabase
           .from("clients")
@@ -119,6 +120,11 @@ function Dashboard() {
           .eq("requer_revisao_humana", true)
           .order("created_at", { ascending: false })
           .limit(8),
+        (supabase as any)
+          .from("agency_briefings")
+          .select("buckets, computed_at")
+          .eq("agency_id", agency!.id)
+          .maybeSingle(),
       ]);
       return {
         clients: clients.data ?? [],
@@ -131,6 +137,7 @@ function Dashboard() {
         ga4Tracking: ga4Tracking.data ?? [],
         actionCenter: actionCenter.data ?? [],
         reportsReview: reportsReview.data ?? [],
+        agencyBriefing: agencyBriefing.data ?? null,
       };
     },
   });
@@ -256,14 +263,6 @@ function Dashboard() {
     title: string;
     recommended_action: string | null;
   }>;
-  const briefing = (data.actionCenter ?? []) as Array<{
-    id: string;
-    title: string;
-    priority: string;
-    due_date: string | null;
-    clients?: { name?: string };
-  }>;
-
   // empty state
   if (data.clients.length === 0) {
     return (
@@ -320,21 +319,70 @@ function Dashboard() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader title="Morning Briefing" />
-          <div className="divide-y divide-border">
-            {briefing.length === 0 ? (
-              <Empty label="Sem ações críticas para hoje." />
+          <CardHeader title="Morning Briefing (buckets)" />
+          <div className="space-y-3 p-4 text-xs">
+            {!data.agencyBriefing?.buckets ? (
+              <Empty label="Sem briefing persistido. Rode compute-health-scores (cron) para preencher buckets." />
             ) : (
-              briefing.slice(0, 4).map((b) => (
-                <div key={b.id} className="px-4 py-3 text-xs">
-                  <div className="font-medium">{b.title}</div>
-                  <div className="text-muted-foreground">
-                    {b.clients?.name ?? "Sem cliente"} · prioridade {b.priority}
-                    {b.due_date ? ` · prazo ${b.due_date}` : ""}
+              (
+                [
+                  "critico",
+                  "sem_atualizacao",
+                  "atencao",
+                  "oportunidade",
+                ] as const
+              ).map((key) => {
+                const label =
+                  key === "critico"
+                    ? "Crítico"
+                    : key === "sem_atualizacao"
+                      ? "Sem atualização"
+                      : key === "atencao"
+                        ? "Atenção"
+                        : "Oportunidade";
+                const items = ((
+                  data.agencyBriefing.buckets as Record<string, unknown[]>
+                )[key] ?? []) as Array<{
+                  client_id: string;
+                  name: string;
+                  reason: string;
+                }>;
+                return (
+                  <div key={key}>
+                    <div className="mb-1 font-medium text-foreground">
+                      {label}
+                    </div>
+                    {items.length === 0 ? (
+                      <div className="text-muted-foreground">—</div>
+                    ) : (
+                      <ul className="space-y-1">
+                        {items.slice(0, 4).map((it) => (
+                          <li key={it.client_id}>
+                            <Link
+                              to="/clients/$clientId"
+                              params={{ clientId: it.client_id }}
+                              className="font-medium text-primary hover:underline"
+                            >
+                              {it.name}
+                            </Link>
+                            <span className="text-muted-foreground">
+                              {" "}
+                              · {it.reason}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
+            <Link
+              to="/actions"
+              className="inline-block pt-1 text-[11px] font-medium text-primary hover:underline"
+            >
+              Abrir Central de Ações
+            </Link>
           </div>
         </Card>
         <Card>
@@ -346,7 +394,7 @@ function Dashboard() {
               (data.reportsReview ?? []).map((r: any) => (
                 <Link
                   key={r.id}
-                  to="/reports"
+                  to="/ai-review"
                   className="block px-4 py-3 text-xs hover:bg-surface-2"
                 >
                   <div className="font-medium">
@@ -359,6 +407,12 @@ function Dashboard() {
                 </Link>
               ))
             )}
+            <Link
+              to="/ai-review"
+              className="block px-4 py-2 text-[11px] font-medium text-primary hover:bg-surface-2"
+            >
+              Ver fila completa
+            </Link>
           </div>
         </Card>
       </div>

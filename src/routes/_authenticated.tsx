@@ -13,10 +13,12 @@ import {
   Bell,
   Command,
   LayoutDashboard,
+  ListTodo,
   LogOut,
   MessageSquare,
   Plug,
   Rocket,
+  ScanSearch,
   Search,
   Settings,
   Shield,
@@ -40,7 +42,9 @@ const NAV = [
   { to: "/onboarding", label: "Começar", icon: Rocket },
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/clients", label: "Clientes", icon: Users },
+  { to: "/actions", label: "Central de Ações", icon: ListTodo },
   { to: "/alerts", label: "Alertas", icon: Bell },
+  { to: "/ai-review", label: "Revisão IA", icon: ScanSearch },
   { to: "/health", label: "Health Score", icon: ShieldCheck },
   { to: "/reports", label: "Relatórios IA", icon: Sparkles },
   { to: "/whatsapp", label: "WhatsApp", icon: MessageSquare },
@@ -228,7 +232,9 @@ function pageTitle(path: string) {
   if (path.startsWith("/onboarding")) return "Começar";
   if (path.startsWith("/dashboard")) return "Dashboard operacional";
   if (path.startsWith("/clients")) return "Clientes";
+  if (path.startsWith("/actions")) return "Central de Ações";
   if (path.startsWith("/alerts")) return "Central de alertas";
+  if (path.startsWith("/ai-review")) return "Revisão IA";
   if (path.startsWith("/health")) return "Health Score";
   if (path.startsWith("/reports")) return "Relatórios IA";
   if (path.startsWith("/whatsapp")) return "WhatsApp";
