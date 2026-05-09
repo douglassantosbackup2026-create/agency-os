@@ -141,9 +141,11 @@ function Admin() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("member");
   const [inviting, setInviting] = useState(false);
+  const [auditDays, setAuditDays] = useState<number>(30);
+  const [auditClientId, setAuditClientId] = useState("");
 
   const { data, isLoading, refetch } = useQuery({
-    queryKey: ["admin", agency?.id],
+    queryKey: ["admin", agency?.id, auditDays, auditClientId],
     enabled: !!agency,
     queryFn: async () => {
       const [roles, flags, sub, activity] = await Promise.all([
@@ -212,18 +214,34 @@ function Admin() {
           .from("integrations")
           .select("provider, status, token_expires_at, last_sync_at")
           .eq("agency_id", agency!.id),
-        supabase
-          .from("campaign_ai_audit_recommendation_status")
-          .select("user_action")
-          .eq("agency_id", agency!.id)
-          .limit(4000),
-        supabase
-          .from("action_center")
-          .select("id, status, title, client_id, created_at")
-          .eq("agency_id", agency!.id)
-          .eq("source_type", "auditoria_campanhas_ia")
-          .order("created_at", { ascending: false })
-          .limit(500),
+        (() => {
+          const auditSinceBound = new Date(
+            Date.now() - auditDays * 86400000,
+          ).toISOString();
+          let q = supabase
+            .from("campaign_ai_audit_recommendation_status")
+            .select("user_action")
+            .eq("agency_id", agency!.id)
+            .gte("updated_at", auditSinceBound)
+            .limit(4000);
+          if (auditClientId.trim()) q = q.eq("client_id", auditClientId.trim());
+          return q;
+        })(),
+        (() => {
+          const auditSinceBound = new Date(
+            Date.now() - auditDays * 86400000,
+          ).toISOString();
+          let q = supabase
+            .from("action_center")
+            .select("id, status, title, client_id, created_at")
+            .eq("agency_id", agency!.id)
+            .eq("source_type", "auditoria_campanhas_ia")
+            .gte("created_at", auditSinceBound)
+            .order("created_at", { ascending: false })
+            .limit(500);
+          if (auditClientId.trim()) q = q.eq("client_id", auditClientId.trim());
+          return q;
+        })(),
       ]);
 
       const recoByAction: Record<string, number> = {};
@@ -610,15 +628,46 @@ function Admin() {
         <Card className="lg:col-span-2">
           <CardHeader title="Central de Ações — auditoria IA" />
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
-            <p className="max-w-xl text-xs text-muted-foreground">
-              Agregados por origem{" "}
-              <span className="font-mono">auditoria_campanhas_ia</span> na
-              Central de Ações e contagem de estados persistidos em{" "}
-              <span className="font-mono">
-                campaign_ai_audit_recommendation_status
-              </span>
-              .
-            </p>
+            <div className="flex max-w-xl flex-col gap-2">
+              <p className="text-xs text-muted-foreground">
+                Agregados por origem{" "}
+                <span className="font-mono">auditoria_campanhas_ia</span> na
+                Central de Ações e contagem de estados persistidos em{" "}
+                <span className="font-mono">
+                  campaign_ai_audit_recommendation_status
+                </span>
+                .
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                  Período
+                  <select
+                    value={auditDays}
+                    onChange={(e) => setAuditDays(Number(e.target.value) || 30)}
+                    className="rounded border border-border bg-background px-2 py-1 text-foreground"
+                  >
+                    <option value={7}>7 dias</option>
+                    <option value={30}>30 dias</option>
+                    <option value={90}>90 dias</option>
+                  </select>
+                </label>
+                <label className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                  Cliente
+                  <select
+                    value={auditClientId}
+                    onChange={(e) => setAuditClientId(e.target.value)}
+                    className="max-w-[200px] rounded border border-border bg-background px-2 py-1 text-foreground"
+                  >
+                    <option value="">Todos</option>
+                    {(data.clients ?? []).map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </div>
             <button
               type="button"
               className="rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium hover:bg-surface"

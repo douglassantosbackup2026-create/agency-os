@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4?dts";
 import { baseGovernance, normalizeConfidence } from "../_shared/ai-v3.ts";
 import { assertUserCanAccessClient } from "../_shared/membership.ts";
 import { BodyTooLargeError, readJsonBody } from "../_shared/edge-json-body.ts";
+import { edgeLogDone, edgeLog, truncateError } from "../_shared/edge-log.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,6 +14,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
 
+  const t0 = Date.now();
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader)
@@ -79,6 +81,61 @@ Deno.serve(async (req) => {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    const reportCooldownMin = Number(
+      Deno.env.get("GENERATE_REPORT_COOLDOWN_MINUTES") ?? "20",
+    );
+    const reportMaxPerDay = Number(
+      Deno.env.get("GENERATE_REPORT_MAX_PER_DAY_PER_CLIENT") ?? "12",
+    );
+
+    if (Number.isFinite(reportCooldownMin) && reportCooldownMin > 0) {
+      const { data: lastMr } = await admin
+        .from("meeting_reports")
+        .select("created_at")
+        .eq("client_id", clientId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (lastMr?.created_at) {
+        const elapsedMin =
+          (Date.now() - new Date(String(lastMr.created_at)).getTime()) / 60_000;
+        if (elapsedMin < reportCooldownMin) {
+          const wait = Math.ceil(reportCooldownMin - elapsedMin);
+          return new Response(
+            JSON.stringify({
+              error: `Pauta de reunião em cooldown. Tente novamente em ~${wait} min.`,
+            }),
+            {
+              status: 429,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+      }
+    }
+
+    if (Number.isFinite(reportMaxPerDay) && reportMaxPerDay > 0) {
+      const dayStart = new Date();
+      dayStart.setUTCHours(0, 0, 0, 0);
+      const { count, error: cErr } = await admin
+        .from("meeting_reports")
+        .select("id", { count: "exact", head: true })
+        .eq("client_id", clientId)
+        .gte("created_at", dayStart.toISOString());
+      if (!cErr && (count ?? 0) >= reportMaxPerDay) {
+        return new Response(
+          JSON.stringify({
+            error:
+              "Limite diário de pautas de reunião para este cliente foi atingido.",
+          }),
+          {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
     }
 
     const since = new Date(Date.now() - 30 * 86400000)
@@ -178,10 +235,18 @@ Deno.serve(async (req) => {
     });
     if (insErr) throw insErr;
 
+    edgeLogDone("generate_meeting_report.ok", t0, {
+      client_id: clientId,
+      agency_id: client.agency_id,
+    });
     return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    edgeLog("generate_meeting_report.error", {
+      latency_ms: Math.max(0, Date.now() - t0),
+      error_trunc: truncateError((e as Error).message),
+    });
     return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

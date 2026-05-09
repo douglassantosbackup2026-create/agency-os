@@ -26,8 +26,18 @@ Deno.serve(async (req) => {
     const url = new URL(req.url);
     const slugRaw = url.searchParams.get("slug");
     const slug = slugRaw ? slugRaw.trim().slice(0, 160) : "";
+    const slugMin = Math.max(
+      1,
+      Math.min(64, Number(Deno.env.get("PORTAL_SLUG_MIN_LENGTH") ?? "4") || 4),
+    );
     if (!slug) {
       return new Response(JSON.stringify({ error: "slug required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (slug.length < slugMin || !/^[a-z0-9_-]+$/i.test(slug)) {
+      return new Response(JSON.stringify({ error: "invalid slug" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

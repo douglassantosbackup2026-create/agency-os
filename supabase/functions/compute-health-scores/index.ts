@@ -3,6 +3,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { assertCronOrUser } from "../_shared/cron-auth.ts";
 import { resolveCronDualAuthAgencyScope } from "../_shared/cron-agency-scope.ts";
+import { edgeLogDone, edgeLog, truncateError } from "../_shared/edge-log.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -304,6 +305,7 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   const denied = await assertCronOrUser(req);
   if (denied) return denied;
+  const t0 = Date.now();
   try {
     const url = Deno.env.get("SUPABASE_URL")!;
     const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -506,11 +508,19 @@ Deno.serve(async (req) => {
       if (bErr) console.error("agency_briefings upsert", bErr);
     }
 
+    edgeLogDone("compute_health_scores.ok", t0, {
+      processed,
+      agency_id: agencyFilter ?? null,
+    });
     return new Response(JSON.stringify({ ok: true, processed }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error(e);
+    edgeLog("compute_health_scores.error", {
+      latency_ms: Math.max(0, Date.now() - t0),
+      error_trunc: truncateError((e as Error).message),
+    });
     return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

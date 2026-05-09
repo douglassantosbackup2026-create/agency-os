@@ -4,6 +4,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { brl } from "@/lib/format";
 import { Card, Empty, PageSkeleton, RiskDot, ScoreBar } from "./dashboard";
+import type { Database } from "@/integrations/supabase/types";
+
+type ClientBrief = Pick<
+  Database["public"]["Tables"]["clients"]["Row"],
+  "id" | "name" | "mrr" | "segment"
+>;
+type HealthLatest = Database["public"]["Tables"]["health_scores"]["Row"];
+type ClientWithHealth = ClientBrief & HealthLatest;
 
 export const Route = createFileRoute("/_authenticated/health")({
   component: Health,
@@ -26,25 +34,32 @@ function Health() {
           .eq("agency_id", agency!.id)
           .order("recorded_at", { ascending: false }),
       ]);
-      const latest = new Map<string, any>();
+      const latest = new Map<string, HealthLatest>();
       for (const h of scores.data ?? [])
         if (!latest.has(h.client_id)) latest.set(h.client_id, h);
-      return { clients: clients.data ?? [], latest };
+      return { clients: (clients.data ?? []) as ClientBrief[], latest };
     },
   });
 
   if (isLoading || !data) return <PageSkeleton />;
 
-  const grouped = {
-    high: [] as any[],
-    medium: [] as any[],
-    low: [] as any[],
-    none: [] as any[],
+  const grouped: {
+    high: ClientWithHealth[];
+    medium: ClientWithHealth[];
+    low: ClientWithHealth[];
+    none: ClientBrief[];
+  } = {
+    high: [],
+    medium: [],
+    low: [],
+    none: [],
   };
   for (const c of data.clients) {
     const h = data.latest.get(c.id);
-    if (!h) grouped.none.push({ ...c });
-    else (grouped as any)[h.risk].push({ ...c, ...h });
+    if (!h) grouped.none.push(c);
+    else if (h.risk === "high" || h.risk === "medium" || h.risk === "low") {
+      grouped[h.risk].push({ ...c, ...h });
+    } else grouped.none.push(c);
   }
 
   return (
@@ -91,7 +106,7 @@ function RiskColumn({
 }: {
   title: string;
   risk: string;
-  items: any[];
+  items: ClientWithHealth[];
 }) {
   return (
     <Card>

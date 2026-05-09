@@ -1,0 +1,40 @@
+name: PageSpeed (Lighthouse autenticado)
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Segunda-feira 06:00 UTC — relatório semanal opcional
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # Lighthouse 13 exige Node >= 22.19
+          node-version: "22.19"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lighthouse (produção + login)
+        env:
+          LIGHTHOUSE_BASE_URL: ${{ secrets.LIGHTHOUSE_BASE_URL }}
+          PERF_TEST_EMAIL: ${{ secrets.PERF_TEST_EMAIL }}
+          PERF_TEST_PASSWORD: ${{ secrets.PERF_TEST_PASSWORD }}
+          PERF_URLS: ${{ secrets.PERF_URLS }}
+          LIGHTHOUSE_LOG_LEVEL: error
+        run: npm run perf:lighthouse
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lighthouse-reports
+          path: lighthouse-reports/

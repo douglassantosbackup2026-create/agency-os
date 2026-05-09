@@ -4,6 +4,7 @@ import {
   assertUserCanAccessClient,
   assertUserMemberOfAgency,
 } from "../_shared/membership.ts";
+import { BodyTooLargeError, readJsonBody } from "../_shared/edge-json-body.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,7 +39,21 @@ Deno.serve(async (req) => {
       });
     }
     const admin = createClient(supabaseUrl, serviceKey);
-    const body = await req.json().catch(() => ({}));
+    let body: Record<string, unknown>;
+    try {
+      body = await readJsonBody(req);
+    } catch (e) {
+      if (e instanceof BodyTooLargeError) {
+        return new Response(
+          JSON.stringify({ error: "payload demasiado grande" }),
+          {
+            status: 413,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+      body = {};
+    }
     const agencyId = String(body?.agency_id ?? "").trim();
     if (!agencyId) {
       return new Response(JSON.stringify({ error: "agency_id obrigatório" }), {

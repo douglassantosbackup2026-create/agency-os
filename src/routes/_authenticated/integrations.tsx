@@ -15,6 +15,7 @@ import {
 import { motion } from "framer-motion";
 import { Card, CardHeader, PageSkeleton } from "./dashboard";
 import { timeAgo } from "@/lib/format";
+import type { Database } from "@/integrations/supabase/types";
 
 export const Route = createFileRoute("/_authenticated/integrations")({
   component: Integrations,
@@ -87,7 +88,8 @@ function Integrations() {
     } else {
       const { error } = await supabase.from("integrations").insert({
         agency_id: agency!.id,
-        provider: provider as any,
+        provider:
+          provider as Database["public"]["Enums"]["integration_provider"],
         status: "connected",
         api_key_encrypted: apiKey,
         account_id: accountId || null,

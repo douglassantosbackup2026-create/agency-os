@@ -14,6 +14,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { Database } from "@/integrations/supabase/types";
+
+type ActionCenterRow = Database["public"]["Tables"]["action_center"]["Row"] & {
+  clients?: { id: string; name: string } | null;
+};
 
 const SLA_OPEN_STATUSES = new Set([
   "pendente",
@@ -57,8 +62,7 @@ function ActionsCenter() {
     ],
     enabled: !!agency,
     queryFn: async () => {
-      const sb = supabase as any;
-      let q = sb
+      let q = supabase
         .from("action_center")
         .select("*, clients(id, name)")
         .eq("agency_id", agency!.id)
@@ -92,9 +96,8 @@ function ActionsCenter() {
   });
 
   const filtered = useMemo(() => {
-    const rows = data?.actions ?? [];
-    if (slaFilter === "overdue")
-      return rows.filter((a: any) => isActionOverdue(a));
+    const rows = (data?.actions ?? []) as ActionCenterRow[];
+    if (slaFilter === "overdue") return rows.filter((a) => isActionOverdue(a));
     return rows;
   }, [data?.actions, slaFilter]);
 
@@ -102,8 +105,7 @@ function ActionsCenter() {
     queryKey: ["action-center-events", expandedId],
     enabled: !!expandedId,
     queryFn: async () => {
-      const sb = supabase as any;
-      const { data: ev, error } = await sb
+      const { data: ev, error } = await supabase
         .from("action_center_events")
         .select("id, event_type, payload, created_at")
         .eq("action_id", expandedId!)
@@ -114,9 +116,14 @@ function ActionsCenter() {
     },
   });
 
-  async function patchAction(id: string, patch: Record<string, unknown>) {
-    const sb = supabase as any;
-    const { error } = await sb.from("action_center").update(patch).eq("id", id);
+  async function patchAction(
+    id: string,
+    patch: Database["public"]["Tables"]["action_center"]["Update"],
+  ) {
+    const { error } = await supabase
+      .from("action_center")
+      .update(patch)
+      .eq("id", id);
     if (error) toast.error(error.message);
     else {
       toast.success("Ação atualizada.");

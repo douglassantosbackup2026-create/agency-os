@@ -45,14 +45,13 @@ function Onboarding() {
     queryKey: ["onboarding-checklist", agency?.id],
     enabled: !!agency,
     queryFn: async () => {
-      const sb = supabase as any;
       const [clientsRes, itemsRes] = await Promise.all([
-        sb
+        supabase
           .from("clients")
           .select("id, name")
           .eq("agency_id", agency!.id)
           .order("name"),
-        sb
+        supabase
           .from("onboarding_checklist_items")
           .select("id, client_id, step_key, status")
           .eq("agency_id", agency!.id),
@@ -77,7 +76,6 @@ function Onboarding() {
     done: boolean,
   ) {
     if (!agency) return;
-    const sb = supabase as any;
     const existing = checklistData?.items.find(
       (i) => i.client_id === clientId && i.step_key === stepKey,
     );
@@ -96,11 +94,11 @@ function Onboarding() {
       ),
     };
     const op = existing
-      ? sb
+      ? supabase
           .from("onboarding_checklist_items")
           .update(payload)
           .eq("id", existing.id)
-      : sb.from("onboarding_checklist_items").insert(payload);
+      : supabase.from("onboarding_checklist_items").insert(payload);
     const { error } = await op;
     if (error) {
       toast.error(error.message);
@@ -170,7 +168,6 @@ function Onboarding() {
         toast.success(
           "Indicadores de saúde e briefing atualizados para a agência (inclui o novo cliente quando houver dados).",
         );
-        const sb = supabase as any;
         const payload = {
           agency_id: agency.id,
           client_id: inserted.id,
@@ -185,7 +182,7 @@ function Onboarding() {
             CHECKLIST_STEPS.findIndex((s) => s.key === "diagnostic_run"),
           ),
         };
-        await sb.from("onboarding_checklist_items").upsert(payload, {
+        await supabase.from("onboarding_checklist_items").upsert(payload, {
           onConflict: "client_id,step_key",
         });
         refetchChecklist();

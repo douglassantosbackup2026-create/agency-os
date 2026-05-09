@@ -13,7 +13,7 @@ Se `git push` devolver **403**, o Git está a usar uma conta sem permissão de e
 
 ## Requisitos
 
-- Node.js 22+
+- Node.js >= 22.19 (exigido pelo script `perf:lighthouse`; para dev/build basta Node 22 compatível com o teu ambiente)
 - Conta [Supabase](https://supabase.com) (projeto com migrations e Edge Functions deste repositório)
 
 ## Variáveis de ambiente
@@ -54,6 +54,8 @@ Configure no Dashboard do Supabase (**Edge Functions → Secrets**):
 | `CRON_SECRET`                             | Chamadas agendadas devem usar `Authorization: Bearer <CRON_SECRET>` ou `x-cron-secret`. Utilizadores autenticados podem invocar as mesmas functions com o JWT da sessão. Sem `CRON_SECRET`, apenas `apikey` anon é aceite (legado — evitar em produção). |
 | `EVOLUTION_API_URL` / `EVOLUTION_API_KEY` | WhatsApp via Evolution API (opcional).                                                                                                                                                                                                                                                                 |
 | `PORTAL_ALLOWED_ORIGINS`                  | Lista separada por vírgula de origens permitidas para CORS no `portal-data`; se vazio, mantém `*`.                                                                                                                                                                                                     |
+
+Opcional no runtime **`portal-data`**: `PORTAL_SLUG_MIN_LENGTH` (predefinição **4**) — comprimento mínimo do `slug` na query; caracteres permitidos: letras, dígitos, `_` e `-`.
 
 Secrets adicionais da função **`integration-oauth`** (OAuth browser para Meta / Google / TikTok / GA4):
 
@@ -112,7 +114,43 @@ As migrations criam buckets `branding` (público) e `reports` (privado por agên
 
 ## CI
 
-O workflow `.github/workflows/ci.yml` executa lint, testes e build com variáveis placeholder para o Vite.
+O workflow `.github/workflows/ci.yml` executa lint, testes e build com variáveis placeholder para o Vite (Node **22.19+**, alinhado ao Lighthouse e ao Playwright).
+
+### E2E smoke (Playwright)
+
+Workflow manual [`.github/workflows/e2e-smoke.yml`](.github/workflows/e2e-smoke.yml). Corre `npm run test:e2e` contra o ambiente definido em `E2E_BASE_URL`.
+
+| Secret | Descrição |
+| ------ | --------- |
+| `E2E_BASE_URL` | URL pública do frontend (sem barra final) |
+| `E2E_TEST_EMAIL` / `E2E_TEST_PASSWORD` | Credenciais de conta de teste |
+
+Localmente: `npx playwright install chromium` (uma vez) e `npm run test:e2e` com as mesmas variáveis de ambiente.
+
+### Supabase DB lint (opcional)
+
+Workflow manual [`.github/workflows/supabase-db-lint.yml`](.github/workflows/supabase-db-lint.yml) — executa `supabase db lint` com `continue-on-error` até haver projeto linkado na CI.
+
+### PageSpeed / Lighthouse (produção + rotas autenticadas)
+
+O workflow [`.github/workflows/pagespeed.yml`](.github/workflows/pagespeed.yml) corre na segunda-feira (UTC) e pode ser disparado manualmente (**Actions → PageSpeed → Run workflow**). Usa Puppeteer para entrar em `/login` com uma conta de teste e grava um JSON por rota em `lighthouse-reports/` (artefacto `lighthouse-reports`), mais `summary.json` com scores agregados.
+
+**Secrets do repositório** (GitHub → Settings → Secrets and variables → Actions):
+
+| Secret | Descrição |
+| ------ | --------- |
+| `LIGHTHOUSE_BASE_URL` | URL pública do frontend (sem barra final), ex. `https://app.example.com` |
+| `PERF_TEST_EMAIL` | E-mail da conta de teste (apenas para CI) |
+| `PERF_TEST_PASSWORD` | Palavra-passe da conta de teste |
+| `PERF_URLS` | (Opcional) Lista separada por vírgulas de paths; se vazio, usa `/dashboard`, `/clients`, `/reports`, `/actions`, `/ai-review`, `/integrations` |
+
+**Localmente** (não commitar credenciais): define `LIGHTHOUSE_BASE_URL`, `PERF_TEST_EMAIL` e `PERF_TEST_PASSWORD` no ambiente, por exemplo PowerShell `$env:LIGHTHOUSE_BASE_URL="https://..."` ou bash `export LIGHTHOUSE_BASE_URL=https://...`, depois:
+
+```bash
+npm run perf:lighthouse
+```
+
+Os ficheiros ficam em `lighthouse-reports/` (ignorados pelo Git).
 
 ## Prompts IA v3
 

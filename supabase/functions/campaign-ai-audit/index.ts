@@ -16,6 +16,13 @@ import {
   matchScore,
   type AuditCampaignFlags,
 } from "../_shared/campaign-audit-helpers.ts";
+import { BodyTooLargeError, readJsonBody } from "../_shared/edge-json-body.ts";
+import {
+  clampCampaignAuditPeriodDays,
+  contentFromGatewayChatCompletion,
+  textFromAnthropicMessagesPayload,
+} from "../_shared/ai-response-parse.ts";
+import { edgeLog, edgeLogDone, truncateError } from "../_shared/edge-log.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -86,11 +93,7 @@ async function callCampaignAuditModel(
       throw new Error(`Anthropic: ${r.status} ${t.slice(0, 400)}`);
     }
     const j = await r.json();
-    const parts = (j.content ?? []) as Array<{ type?: string; text?: string }>;
-    const text = parts
-      .filter((p) => p.type === "text")
-      .map((p) => p.text ?? "")
-      .join("\n");
+    const text = textFromAnthropicMessagesPayload(j);
     const usage = j.usage as
       | { input_tokens?: number; output_tokens?: number }
       | undefined;
@@ -132,7 +135,7 @@ async function callCampaignAuditModel(
     throw new Error(`Gateway IA: ${r.status} ${text.slice(0, 400)}`);
   }
   const aiJson = await r.json();
-  const content: string = aiJson.choices?.[0]?.message?.content ?? "{}";
+  const content: string = contentFromGatewayChatCompletion(aiJson);
   const usage = aiJson.usage as
     | { prompt_tokens?: number; completion_tokens?: number }
     | undefined;
@@ -149,6 +152,7 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const t0 = Date.now();
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -158,12 +162,23 @@ Deno.serve(async (req) => {
       });
     }
 
-    const body = await req.json().catch(() => ({}));
+    let body: Record<string, unknown>;
+    try {
+      body = await readJsonBody(req);
+    } catch (e) {
+      if (e instanceof BodyTooLargeError) {
+        return new Response(
+          JSON.stringify({ error: "payload demasiado grande" }),
+          {
+            status: 413,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+      body = {};
+    }
     const client_id = body?.client_id as string | undefined;
-    const period_days = Math.min(
-      90,
-      Math.max(7, Number(body?.period_days ?? 30) || 30),
-    );
+    const period_days = clampCampaignAuditPeriodDays(body?.period_days);
 
     if (!client_id) {
       return new Response(JSON.stringify({ error: "client_id required" }), {
@@ -775,11 +790,20 @@ Devolve JSON com esta forma (chaves fixas):
       if (uErr) console.warn("ai_usage_events", uErr);
     }
 
+    edgeLogDone("campaign_ai_audit.ok", t0, {
+      client_id,
+      agency_id: client.agency_id,
+      period_days,
+    });
     return new Response(JSON.stringify({ ok: true, audit }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error(e);
+    edgeLog("campaign_ai_audit.error", {
+      latency_ms: Math.max(0, Date.now() - t0),
+      error_trunc: truncateError((e as Error).message),
+    });
     return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

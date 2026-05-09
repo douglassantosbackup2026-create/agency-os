@@ -18,6 +18,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { toast } from "sonner";
+import type { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -303,9 +304,10 @@ function Alerts() {
     }
   }
 
-  async function createActionFromAlert(a: any) {
-    const sb = supabase as any;
-    const { error } = await sb.from("action_center").insert({
+  async function createActionFromAlert(
+    a: Database["public"]["Tables"]["alerts"]["Row"],
+  ) {
+    const { error } = await supabase.from("action_center").insert({
       agency_id: agency!.id,
       client_id: a.client_id ?? null,
       source_type: "alerta_ia",

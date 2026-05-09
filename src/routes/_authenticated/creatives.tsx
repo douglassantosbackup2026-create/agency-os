@@ -5,6 +5,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardHeader, Empty, PageSkeleton } from "./dashboard";
 import { toast } from "sonner";
+import type { Database } from "@/integrations/supabase/types";
+
+type ClientMini = Pick<
+  Database["public"]["Tables"]["clients"]["Row"],
+  "id" | "name"
+>;
+type CreativeAssetRow =
+  Database["public"]["Tables"]["creative_assets"]["Row"] & {
+    clients?: { name: string } | null;
+  };
 
 export const Route = createFileRoute("/_authenticated/creatives")({
   component: CreativesPage,
@@ -21,22 +31,21 @@ function CreativesPage() {
     queryKey: ["creatives", agency?.id],
     enabled: !!agency,
     queryFn: async () => {
-      const sb = supabase as any;
       const [clientsRes, creativesRes] = await Promise.all([
-        sb
+        supabase
           .from("clients")
           .select("id, name")
           .eq("agency_id", agency!.id)
           .order("name"),
-        sb
+        supabase
           .from("creative_assets")
           .select("*, clients(name)")
           .eq("agency_id", agency!.id)
           .order("created_at", { ascending: false }),
       ]);
       return {
-        clients: clientsRes.data ?? [],
-        creatives: creativesRes.data ?? [],
+        clients: (clientsRes.data ?? []) as ClientMini[],
+        creatives: (creativesRes.data ?? []) as CreativeAssetRow[],
       };
     },
   });
@@ -47,8 +56,7 @@ function CreativesPage() {
       toast.error("Selecione cliente e título.");
       return;
     }
-    const sb = supabase as any;
-    const { error } = await sb.from("creative_assets").insert({
+    const { error } = await supabase.from("creative_assets").insert({
       agency_id: agency.id,
       client_id: clientId,
       title: title.trim(),
@@ -89,7 +97,7 @@ function CreativesPage() {
             className="h-9 rounded-md border border-border bg-background px-2 text-sm"
           >
             <option value="">Selecione o cliente</option>
-            {data.clients.map((c: any) => (
+            {data.clients.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>
@@ -137,7 +145,7 @@ function CreativesPage() {
                 <div className="min-w-0">
                   <div className="truncate text-sm font-medium">{it.title}</div>
                   <div className="text-xs text-muted-foreground">
-                    {(it.clients as any)?.name ?? "Cliente"} · {it.status}
+                    {it.clients?.name ?? "Cliente"} · {it.status}
                   </div>
                 </div>
                 {it.preview_url ? (

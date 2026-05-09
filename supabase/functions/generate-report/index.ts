@@ -4,6 +4,9 @@ import {
   normalizeConfidence,
   parseAiJson,
 } from "../_shared/ai-v3.ts";
+import { contentFromGatewayChatCompletion } from "../_shared/ai-response-parse.ts";
+import { BodyTooLargeError, readJsonBody } from "../_shared/edge-json-body.ts";
+import { edgeLogDone, truncateError, edgeLog } from "../_shared/edge-log.ts";
 import { assertUserCanAccessClient } from "../_shared/membership.ts";
 
 const corsHeaders = {
@@ -16,6 +19,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
 
+  const t0 = Date.now();
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader)
@@ -24,8 +28,22 @@ Deno.serve(async (req) => {
         headers: corsHeaders,
       });
 
-    const body = await req.json().catch(() => ({}));
-    const { client_id } = body;
+    let body: Record<string, unknown>;
+    try {
+      body = await readJsonBody(req);
+    } catch (e) {
+      if (e instanceof BodyTooLargeError) {
+        return new Response(
+          JSON.stringify({ error: "payload demasiado grande" }),
+          {
+            status: 413,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+      body = {};
+    }
+    const client_id = String(body.client_id ?? "").trim();
     const mode = String(body?.mode ?? "monthly_manager") as
       | "monthly_manager"
       | "monthly_client"
@@ -426,7 +444,7 @@ Contexto do clique: ${clickContext}`;
     }
 
     const aiJson = await aiResp.json();
-    const content: string = aiJson.choices?.[0]?.message?.content ?? "{}";
+    const content: string = contentFromGatewayChatCompletion(aiJson);
     const parsedContent = parseAiJson(content);
     const parsed: Record<string, unknown> = parsedContent.parseOk
       ? parsedContent.json
@@ -544,11 +562,20 @@ Contexto do clique: ${clickContext}`;
       title: `Relatório IA gerado para ${client.name}`,
     });
 
+    edgeLogDone("generate_report.ok", t0, {
+      client_id,
+      agency_id: client.agency_id,
+      mode,
+    });
     return new Response(JSON.stringify({ ok: true, report }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
     console.error(e);
+    edgeLog("generate_report.error", {
+      latency_ms: Math.max(0, Date.now() - t0),
+      error_trunc: truncateError((e as Error).message),
+    });
     return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

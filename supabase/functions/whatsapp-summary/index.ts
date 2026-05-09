@@ -3,6 +3,7 @@
 // metrics + the agency's matching template, and dispatches via Evolution API.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { assertCronOrUser } from "../_shared/cron-auth.ts";
+import { edgeLogDone, edgeLog, truncateError } from "../_shared/edge-log.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -136,6 +137,13 @@ Deno.serve(async (req) => {
       else failed++;
     }
 
+    edgeLogDone("whatsapp_summary.ok", t0, {
+      period,
+      sent,
+      failed,
+      skipped,
+      total: clients?.length ?? 0,
+    });
     return new Response(
       JSON.stringify({
         ok: true,
@@ -150,6 +158,10 @@ Deno.serve(async (req) => {
       },
     );
   } catch (e) {
+    edgeLog("whatsapp_summary.error", {
+      latency_ms: Math.max(0, Date.now() - t0),
+      error_trunc: truncateError((e as Error).message),
+    });
     return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -26,18 +26,27 @@ Resposta **429** com mensagem de cooldown ou limite diário: comportamento esper
 
 Alinhado ao padrão da auditoria: usa a tabela `reports` para último pedido e contagem do dia (UTC).
 
+### Pauta de reunião (`generate-meeting-report`)
+
+Usa os **mesmos** limites globais que o relatório: `GENERATE_REPORT_COOLDOWN_MINUTES` e `GENERATE_REPORT_MAX_PER_DAY_PER_CLIENT`, aplicados sobre a tabela `meeting_reports` por cliente.
+
 ## Fluxo de sincronização GA4 / plataformas
 
 1. Utilizador liga integração via `integration-oauth`.
 2. `sync-platform` corre por cliente com JWT válido e membership no cliente.
 3. Métricas e GA4 alimentam auditoria e relatórios.
 
-Com falhas externas, consultar logs estruturados no dashboard Supabase (funções `sync_platform`, `campaign_ai_audit`, `generate_report`) — campos `evt`, `client_id`, `agency_id`.
+Com falhas externas, consultar logs das Edge Functions no dashboard Supabase: eventos JSON por linha com `evt`, `latency_ms`, identificadores de negócio e `error_trunc` quando aplicável (ex.: `generate_report.ok`, `campaign_ai_audit.ok`, `sync_platform.ok`, `evaluate_alerts.ok`, `compute_health_scores.ok`, `whatsapp_summary.ok`).
+
+## Portal público (`portal-data`)
+
+- O slug é truncado no servidor e validado contra `[a-z0-9_-]+`.
+- Opcional: `PORTAL_SLUG_MIN_LENGTH` (predefinição 4) para exigir slugs mais longos em produção.
 
 ## Observabilidade
 
 - Eventos de uso IA: tabela `ai_usage_events` (funções registam tokens estimados).
-- Logs recomendados: uma linha JSON por evento com `evt`, `client_id`, `agency_id`, latência ou erro truncado.
+- Logs estruturados: uma linha JSON por pedido relevante (`evt`, `latency_ms`, `agency_id` / `client_id` quando seguro, `error_trunc` em falhas).
 
 ## Troubleshooting rápido
 
@@ -45,6 +54,7 @@ Com falhas externas, consultar logs estruturados no dashboard Supabase (funçõe
 |--------|-----------|
 | 429 na auditoria | Cooldown / quota diária; mensagem no body JSON da função. |
 | 429 no relatório | `GENERATE_REPORT_*`; contagens em `reports`. |
+| 429 na pauta de reunião | Mesmos `GENERATE_REPORT_*`; contagens em `meeting_reports`. |
 | 402 gateway IA | Créditos Lovable / billing. |
 | Sync sem dados | Integração `connected`; `client_platform_accounts`; logs `sync_platform.start`. |
 

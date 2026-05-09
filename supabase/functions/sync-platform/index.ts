@@ -2,6 +2,8 @@
 // Sem credenciais continua simulado para esse cliente.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { assertUserCanAccessClient } from "../_shared/membership.ts";
+import { BodyTooLargeError, readJsonBody } from "../_shared/edge-json-body.ts";
+import { edgeLogDone, edgeLog, truncateError } from "../_shared/edge-log.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1104,7 +1106,26 @@ Deno.serve(async (req) => {
         headers: corsHeaders,
       });
 
-    const { provider, client_id, account_external_id } = await req.json();
+    let syncBody: Record<string, unknown>;
+    try {
+      syncBody = await readJsonBody(req);
+    } catch (e) {
+      if (e instanceof BodyTooLargeError) {
+        return new Response(
+          JSON.stringify({ error: "payload demasiado grande" }),
+          {
+            status: 413,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+      syncBody = {};
+    }
+    const provider = syncBody.provider as string | undefined;
+    const client_id = syncBody.client_id as string | undefined;
+    const account_external_id = syncBody.account_external_id as
+      | string
+      | undefined;
     if (!provider || !client_id)
       return new Response(
         JSON.stringify({ error: "provider and client_id required" }),
@@ -1610,10 +1631,20 @@ Deno.serve(async (req) => {
       title,
     });
 
+    edgeLogDone("sync_platform.ok", t0, {
+      client_id,
+      provider,
+      mode,
+      rows: rows.length,
+    });
     return new Response(JSON.stringify({ ok: true, rows: rows.length, mode }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    edgeLog("sync_platform.error", {
+      latency_ms: Math.max(0, Date.now() - t0),
+      error_trunc: truncateError((e as Error).message),
+    });
     try {
       if (syncRunContext) {
         const admin = createClient(

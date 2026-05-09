@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { brl, num, pct } from "@/lib/format";
 import { Sparkles, TrendingUp, Wallet, Target, Heart } from "lucide-react";
 import { toast } from "sonner";
@@ -141,18 +141,22 @@ function PortalPage() {
       );
       return;
     }
-    setData((prev: any) => ({
-      ...prev,
-      pending_creatives: (prev?.pending_creatives ?? []).filter(
-        (c: any) => c.id !== creativeId,
-      ),
+    setData((prev: Record<string, unknown> | null) => ({
+      ...(prev ?? {}),
+      pending_creatives: (
+        (prev?.pending_creatives ?? []) as Array<{ id: string }>
+      ).filter((c) => c.id !== creativeId),
     }));
   }
 
   return (
     <div
       className="min-h-screen bg-background text-foreground"
-      style={{ ["--primary" as any]: themeColor }}
+      style={
+        {
+          "--primary": themeColor,
+        } as CSSProperties
+      }
     >
       <header
         className="border-b border-border"

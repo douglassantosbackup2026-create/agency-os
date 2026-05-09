@@ -175,14 +175,19 @@ function WhatsApp() {
       </header>
 
       <div className="flex gap-1 border-b border-border">
-        {[
-          { k: "send", l: "Enviar" },
-          { k: "templates", l: `Templates (${data.templates.length})` },
-          { k: "logs", l: `Histórico (${data.logs.length})` },
-        ].map((t) => (
+        {(
+          [
+            { k: "send" as const, l: "Enviar" },
+            {
+              k: "templates" as const,
+              l: `Templates (${data.templates.length})`,
+            },
+            { k: "logs" as const, l: `Histórico (${data.logs.length})` },
+          ] as const
+        ).map((t) => (
           <button
             key={t.k}
-            onClick={() => setTab(t.k as any)}
+            onClick={() => setTab(t.k)}
             className={`px-3 py-2 text-xs font-medium transition ${tab === t.k ? "border-b-2 border-primary text-foreground" : "text-muted-foreground hover:text-foreground"}`}
           >
             {t.l}
