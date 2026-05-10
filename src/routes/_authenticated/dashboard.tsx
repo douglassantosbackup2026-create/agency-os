@@ -117,7 +117,7 @@ function Dashboard() {
       ] = await Promise.all([
         supabase
           .from("clients")
-          .select("id, name, status, mrr, monthly_budget")
+          .select("id, name, status, mrr, monthly_budget, started_at")
           .eq("agency_id", agency!.id),
         supabase
           .from("metrics_daily")

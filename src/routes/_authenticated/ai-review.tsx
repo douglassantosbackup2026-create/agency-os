@@ -15,13 +15,19 @@ export const Route = createFileRoute("/_authenticated/ai-review")({
 
 type QueueKind = "report" | "alert" | "meeting" | "whatsapp" | "competitor";
 
-type QueueItem = {
-  kind: QueueKind;
+type QueueItemBase = {
   id: string;
   created_at: string;
   client_id: string | null;
   client_name: string;
 };
+
+type QueueItem =
+  | (QueueItemBase & { kind: "report"; raw: QueueReportRow })
+  | (QueueItemBase & { kind: "alert"; raw: QueueAlertRow })
+  | (QueueItemBase & { kind: "meeting"; raw: QueueMeetingRow })
+  | (QueueItemBase & { kind: "whatsapp"; raw: QueueWhatsRow })
+  | (QueueItemBase & { kind: "competitor"; raw: QueueCompetitorRow });
 
 type ClientNameJoin = { name?: string | null } | null;
 
@@ -30,6 +36,7 @@ type QueueReportRow = {
   created_at: string;
   client_id: string | null;
   executive_summary?: string | null;
+  confianca?: string | null;
   clients?: ClientNameJoin;
 };
 
@@ -39,6 +46,7 @@ type QueueAlertRow = {
   client_id: string | null;
   title?: string | null;
   description?: string | null;
+  confianca?: string | null;
   clients?: ClientNameJoin;
 };
 
@@ -47,6 +55,7 @@ type QueueMeetingRow = {
   created_at: string;
   client_id: string | null;
   agenda?: string | null;
+  confianca?: string | null;
   clients?: ClientNameJoin;
 };
 
@@ -55,16 +64,19 @@ type QueueWhatsRow = {
   created_at: string;
   client_id: string | null;
   message?: string | null;
+  recipient?: string | null;
+  confianca?: string | null;
   clients?: ClientNameJoin;
 };
 
 type QueueCompetitorRow = {
   id: string;
-  created_at: string;
+  captured_at: string;
   client_id: string | null;
   summary?: string | null;
   insight?: string | null;
   headline?: string | null;
+  confianca?: string | null;
   clients?: ClientNameJoin;
 };
 
@@ -117,11 +129,11 @@ function AiReviewCenter() {
         supabase
           .from("competitor_snapshots")
           .select(
-            "id, created_at, client_id, summary, insight, headline, confianca, clients(name)",
+            "id, captured_at, client_id, summary, insight, headline, confianca, clients(name)",
           )
           .eq("agency_id", agency!.id)
           .eq("requer_revisao_humana", true)
-          .order("created_at", { ascending: false })
+          .order("captured_at", { ascending: false })
           .limit(50),
       ]);
       return {
@@ -136,11 +148,7 @@ function AiReviewCenter() {
 
   const queue = useMemo(() => {
     if (!data) return [];
-    const items: Array<
-      QueueItem & {
-        raw: Record<string, unknown>;
-      }
-    > = [];
+    const items: QueueItem[] = [];
     for (const r of data.reports as QueueReportRow[]) {
       items.push({
         kind: "report",
@@ -185,7 +193,7 @@ function AiReviewCenter() {
       items.push({
         kind: "competitor",
         id: c.id,
-        created_at: c.created_at,
+        created_at: c.captured_at,
         client_id: c.client_id,
         client_name: c.clients?.name ?? "Cliente",
         raw: c,
@@ -531,7 +539,11 @@ function AiReviewCenter() {
                     <span className="text-xs text-muted-foreground">
                       {timeAgo(item.created_at)}
                       {" · confiança "}
-                      {(r.confianca as string) ?? "—"}
+                      {String(
+                        "confianca" in r && r.confianca != null
+                          ? r.confianca
+                          : "—",
+                      )}
                     </span>
                   </div>
 

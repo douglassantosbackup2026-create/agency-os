@@ -162,8 +162,9 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const colorMode = useSyncExternalStore(
     subscribeTheme,
-    () => (getSnapshotTheme() === "dark" ? "dark" : "light"),
-    () => "light",
+    (): "dark" | "light" =>
+      getSnapshotTheme() === "dark" ? "dark" : "light",
+    (): "light" => "light",
   );
 
   useEffect(() => {

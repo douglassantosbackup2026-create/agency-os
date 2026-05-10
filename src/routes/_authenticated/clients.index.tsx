@@ -36,7 +36,11 @@ import { QueryErrorState } from "@/components/query-error-state";
 import { throwIfSupabaseError } from "@/lib/supabase-result";
 import { formatSyncAgeShort } from "@/lib/sync-freshness";
 
-type HealthScoreRow = Database["public"]["Tables"]["health_scores"]["Row"];
+/** Campos devolvidos pelo select do cockpit (subset da linha completa). */
+type ClientListHealthRow = Pick<
+  Database["public"]["Tables"]["health_scores"]["Row"],
+  "client_id" | "score" | "risk" | "recorded_at" | "score_explanation"
+>;
 
 function isoToday() {
   return new Date().toISOString().slice(0, 10);
@@ -152,7 +156,7 @@ function Clients() {
       throwIfSupabaseError(openActionsSnap.error, "clients_page.action_center");
       throwIfSupabaseError(syncRunsSnap.error, "clients_page.sync_runs");
 
-      const latest = new Map<string, HealthScoreRow>();
+      const latest = new Map<string, ClientListHealthRow>();
       for (const h of health.data ?? []) {
         if (!latest.has(h.client_id)) latest.set(h.client_id, h);
       }
@@ -256,7 +260,7 @@ function Clients() {
   const riskRadar = [...filtered]
     .map((c) => ({
       client: c,
-      health: data.latest.get(c.id) as HealthScoreRow | undefined,
+      health: data.latest.get(c.id),
     }))
     .filter((x) => x.health)
     .sort(
@@ -341,7 +345,7 @@ function Clients() {
             onClick={() => {
               const sub = limits.data?.subscription;
               const n = limits.data?.clientCount ?? 0;
-              if (!canCreateClient(n, sub)) {
+              if (!canCreateClient(n, sub ?? null)) {
                 toast.error(
                   `Limite do plano atingido (${sub?.max_clients ?? 5} clientes). Faça upgrade em Admin.`,
                 );
@@ -584,7 +588,7 @@ function Clients() {
                   onClick={() => {
                     const sub = limits.data?.subscription;
                     const n = limits.data?.clientCount ?? 0;
-                    if (!canCreateClient(n, sub)) {
+                    if (!canCreateClient(n, sub ?? null)) {
                       toast.error(
                         `Limite do plano atingido (${sub?.max_clients ?? 5} clientes). Faça upgrade em Admin.`,
                       );
@@ -701,7 +705,7 @@ function Clients() {
                   onClick={() => {
                     const sub = limits.data?.subscription;
                     const n = limits.data?.clientCount ?? 0;
-                    if (!canCreateClient(n, sub)) {
+                    if (!canCreateClient(n, sub ?? null)) {
                       toast.error(
                         `Limite do plano atingido (${sub?.max_clients ?? 5} clientes). Faça upgrade em Admin.`,
                       );

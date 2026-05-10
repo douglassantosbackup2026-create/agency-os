@@ -142,7 +142,7 @@ function PlatformAdmin() {
         className="space-y-2"
       >
         <div className="flex items-center gap-2 text-primary">
-          <Glob className="h-6 w-6" />
+          <Globe className="h-6 w-6" />
           <h1 className="text-2xl font-semibold tracking-tight">
             Administração da plataforma
           </h1>

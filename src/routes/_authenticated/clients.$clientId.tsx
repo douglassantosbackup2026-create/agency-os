@@ -19,7 +19,11 @@ import {
   overallStatusLabel,
   recommendationCampaignKeys,
 } from "@/lib/audit-client-message";
-import type { Database } from "@/integrations/supabase/types";
+import type { Database, Json } from "@/integrations/supabase/types";
+import {
+  getJsonNestedRecord,
+  jsonDisplay,
+} from "@/lib/supabase-json";
 import {
   Dialog,
   DialogContent,
@@ -82,6 +86,22 @@ export const Route = createFileRoute("/_authenticated/clients/$clientId")({
 
 type PlatformAccountRow =
   Database["public"]["Tables"]["client_platform_accounts"]["Row"];
+
+type IntegrationProvider = Database["public"]["Enums"]["integration_provider"];
+
+const ACCOUNT_UI_PROVIDERS: readonly IntegrationProvider[] = [
+  "meta_ads",
+  "google_ads",
+  "google_analytics",
+  "tiktok_ads",
+];
+
+function integrationProviderFromUi(value: string): IntegrationProvider {
+  if ((ACCOUNT_UI_PROVIDERS as readonly string[]).includes(value)) {
+    return value as IntegrationProvider;
+  }
+  return "meta_ads";
+}
 
 type ClientTab =
   | "overview"
@@ -586,6 +606,10 @@ function ClientDetail() {
     ? last30.reduce((a, b) => a + Number(b.ctr ?? 0), 0) / last30.length
     : 0;
   const latestHealth = data.health[0];
+  const scoreExplBlocks = getJsonNestedRecord(
+    latestHealth?.score_explanation ?? null,
+    "blocks",
+  );
 
   const syncUi = syncLabelForCockpit(
     data.latestSync?.status,
@@ -740,7 +764,7 @@ function ClientDetail() {
     const { error } = await supabase.from("client_platform_accounts").insert({
       agency_id: data.client.agency_id,
       client_id: clientId,
-      provider: newAccountProvider,
+      provider: integrationProviderFromUi(newAccountProvider),
       account_external_id: newAccountId.trim(),
       account_name: newAccountName.trim() || null,
       is_active: true,
@@ -838,7 +862,7 @@ function ClientDetail() {
         suggestion_type: rec.suggestion_type ?? null,
         campaign_id: rec.campaign_id ?? null,
         tracking_match: rec.tracking_match ?? null,
-      },
+      } as Json,
     });
     if (error) {
       toast.error(error.message);
@@ -879,7 +903,7 @@ function ClientDetail() {
         feedback: kind,
         campaign_id: rec.campaign_id ?? null,
         suggestion_type: rec.suggestion_type ?? null,
-      },
+      } as Json,
     });
     if (error) {
       toast.error(error.message);
@@ -1289,45 +1313,37 @@ function ClientDetail() {
               <div className="space-y-2 p-4 text-xs">
                 <Row
                   label="Budget/Pace"
-                  value={String(
-                    latestHealth?.score_explanation?.blocks?.budget_pace ??
-                      latestHealth?.stability_score ??
-                      "—",
+                  value={jsonDisplay(
+                    scoreExplBlocks?.["budget_pace"],
+                    latestHealth?.stability_score ?? "—",
                   )}
                 />
                 <Row
                   label="Mídia"
-                  value={String(
-                    latestHealth?.score_explanation?.blocks
-                      ?.media_performance ??
-                      latestHealth?.performance_score ??
-                      "—",
+                  value={jsonDisplay(
+                    scoreExplBlocks?.["media_performance"],
+                    latestHealth?.performance_score ?? "—",
                   )}
                 />
                 <Row
                   label="Negócio (GA4)"
-                  value={String(
-                    latestHealth?.score_explanation?.blocks?.business_ga4 ??
-                      latestHealth?.optimization_score ??
-                      "—",
+                  value={jsonDisplay(
+                    scoreExplBlocks?.["business_ga4"],
+                    latestHealth?.optimization_score ?? "—",
                   )}
                 />
                 <Row
                   label="Operação"
-                  value={String(
-                    latestHealth?.score_explanation?.blocks
-                      ?.operational_management ??
-                      latestHealth?.communication_score ??
-                      "—",
+                  value={jsonDisplay(
+                    scoreExplBlocks?.["operational_management"],
+                    latestHealth?.communication_score ?? "—",
                   )}
                 />
                 <Row
                   label="Relacionamento"
-                  value={String(
-                    latestHealth?.score_explanation?.blocks
-                      ?.relationship_risk ??
-                      latestHealth?.engagement_score ??
-                      "—",
+                  value={jsonDisplay(
+                    scoreExplBlocks?.["relationship_risk"],
+                    latestHealth?.engagement_score ?? "—",
                   )}
                 />
               </div>

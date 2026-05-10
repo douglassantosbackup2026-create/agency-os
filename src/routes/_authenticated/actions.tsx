@@ -32,6 +32,9 @@ import {
 
 const ACTIONS_FILTERS_LS = "action-center-filters-v1";
 
+type SlaFilterType = "all" | "overdue" | "soon_3" | "soon_7" | "range";
+type SortDueType = "none" | "due_asc" | "due_desc";
+
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -69,7 +72,7 @@ function dueWithinDays(
 
 function passesDueSla(
   a: ActionCenterRow,
-  slaFilter: "all" | "overdue" | "soon_3" | "soon_7" | "range",
+  slaFilter: SlaFilterType,
   dueFrom: string,
   dueTo: string,
 ) {
@@ -90,10 +93,7 @@ function passesDueSla(
   return true;
 }
 
-function sortByDue(
-  rows: ActionCenterRow[],
-  sortDue: "none" | "due_asc" | "due_desc",
-) {
+function sortByDue(rows: ActionCenterRow[], sortDue: SortDueType) {
   if (sortDue === "none") return rows;
   const far = sortDue === "due_asc" ? "9999-12-31" : "0000-01-01";
   return [...rows].sort((a, b) => {
@@ -141,13 +141,13 @@ function ActionsCenter() {
   const [clientFilter, setClientFilter] = useState<string>(
     String(saved?.clientFilter ?? "all"),
   );
-  const [slaFilter, setSlaFilter] = useState<
-    "all" | "overdue" | "soon_3" | "soon_7" | "range"
-  >((saved?.slaFilter as typeof slaFilter) ?? "all");
+  const [slaFilter, setSlaFilter] = useState<SlaFilterType>(
+    (saved?.slaFilter as SlaFilterType | undefined) ?? "all",
+  );
   const [dueFrom, setDueFrom] = useState<string>(String(saved?.dueFrom ?? ""));
   const [dueTo, setDueTo] = useState<string>(String(saved?.dueTo ?? ""));
-  const [sortDue, setSortDue] = useState<"none" | "due_asc" | "due_desc">(
-    (saved?.sortDue as typeof sortDue) ?? "none",
+  const [sortDue, setSortDue] = useState<SortDueType>(
+    (saved?.sortDue as SortDueType | undefined) ?? "none",
   );
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);

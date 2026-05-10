@@ -15,7 +15,7 @@ import {
 import { motion } from "framer-motion";
 import { Card, CardHeader, PageSkeleton } from "@/components/operational-ui";
 import { timeAgo } from "@/lib/format";
-import type { Database } from "@/integrations/supabase/types";
+import type { Database, Json } from "@/integrations/supabase/types";
 import { edgeFunctionErrorMessage } from "@/lib/edge-function-error";
 
 export const Route = createFileRoute("/_authenticated/integrations")({
@@ -116,7 +116,7 @@ function Integrations() {
       !Array.isArray(existing.config)
         ? { ...(existing.config as Record<string, unknown>) }
         : {};
-    const next = { ...base, ...patch };
+    const next = { ...base, ...patch } as Json;
     const { error } = await supabase
       .from("integrations")
       .update({ config: next })

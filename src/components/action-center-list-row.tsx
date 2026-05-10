@@ -4,6 +4,7 @@ import { timeAgo } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { Database } from "@/integrations/supabase/types";
+import { getJsonNumber } from "@/lib/supabase-json";
 
 export type ActionCenterListRowModel =
   Database["public"]["Tables"]["action_center"]["Row"] & {
@@ -50,6 +51,7 @@ function ActionCenterListRowInner({
   onPatchStatus,
   onAssignee,
 }: Props) {
+  const mergeCount = getJsonNumber(a.metadata, "merge_count", 0);
   return (
     <div>
       <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
@@ -89,10 +91,8 @@ function ActionCenterListRowInner({
             <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
               <span>{timeAgo(a.created_at)}</span>
               {a.due_date && <span>Prazo {a.due_date}</span>}
-              {Number(a.metadata?.merge_count) > 0 && (
-                <span title="Mesclagens por dedupe">
-                  Mesclas {a.metadata.merge_count}
-                </span>
+              {mergeCount > 0 && (
+                <span title="Mesclagens por dedupe">Mesclas {mergeCount}</span>
               )}
               <Button
                 type="button"

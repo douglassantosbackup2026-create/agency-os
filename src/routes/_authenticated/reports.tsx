@@ -20,6 +20,10 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import jsPDF from "jspdf";
 import type { Database } from "@/integrations/supabase/types";
+import {
+  getReportMetricsBlock,
+  getReportRawDataView,
+} from "@/lib/supabase-json";
 
 type ReportRow = Database["public"]["Tables"]["reports"]["Row"] & {
   clients?: {
@@ -469,11 +473,12 @@ function Reports() {
       doc.text("Dados base", margin, y);
       y += 18;
       doc.setFont("helvetica", "normal").setFontSize(10).setTextColor(60);
+      const m = getReportMetricsBlock(r.raw_data);
       const rows = [
-        `Investimento: ${(r.raw_data.spend ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`,
-        `Receita: ${(r.raw_data.revenue ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`,
-        `ROAS: ${Number(r.raw_data.roas ?? 0).toFixed(2)}x`,
-        `Conversões: ${r.raw_data.conv ?? 0}`,
+        `Investimento: ${m.spend.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`,
+        `Receita: ${m.revenue.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}`,
+        `ROAS: ${Number(m.roas).toFixed(2)}x`,
+        `Conversões: ${m.conv}`,
       ];
       for (const row of rows) {
         doc.text(row, margin, y);
@@ -757,8 +762,10 @@ function Reports() {
                   </button>
                 </div>
               </div>
-              {previousReportById.get(selected.id)?.raw_data &&
-                selected.raw_data && (
+              {(() => {
+                const prevRep = previousReportById.get(selected.id);
+                const prevRaw = prevRep?.raw_data;
+                return prevRaw && selected.raw_data ? (
                   <Card>
                     <div className="border-b border-border px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       Comparativo com relatório anterior
@@ -766,11 +773,10 @@ function Reports() {
                     <div className="grid grid-cols-2 gap-3 p-4 text-xs sm:grid-cols-4">
                       {(["spend", "revenue", "roas", "conv"] as const).map(
                         (k) => {
-                          const prev = Number(
-                            previousReportById.get(selected.id).raw_data?.[k] ??
-                              0,
-                          );
-                          const cur = Number(selected.raw_data?.[k] ?? 0);
+                          const prevM = getReportMetricsBlock(prevRaw);
+                          const curM = getReportMetricsBlock(selected.raw_data);
+                          const prev = prevM[k];
+                          const cur = curM[k];
                           const pct =
                             prev > 0 ? ((cur - prev) / prev) * 100 : 0;
                           return (
@@ -784,7 +790,8 @@ function Reports() {
                       )}
                     </div>
                   </Card>
-                )}
+                ) : null;
+              })()}
               <Section
                 title="Resumo executivo"
                 body={selected.executive_summary}
@@ -811,49 +818,45 @@ function Reports() {
                   body={selected.client_friendly_summary}
                 />
               )}
-              {selected.raw_data && (
-                <Card>
-                  <div className="border-b border-border px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    Dados base
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 p-4 text-xs sm:grid-cols-4">
-                    <Metric
-                      label="Investimento"
-                      value={brl(selected.raw_data.spend)}
-                    />
-                    <Metric
-                      label="Receita"
-                      value={brl(selected.raw_data.revenue)}
-                    />
-                    <Metric
-                      label="ROAS"
-                      value={`${num(selected.raw_data.roas, 2)}x`}
-                    />
-                    <Metric
-                      label="Conversões"
-                      value={String(selected.raw_data.conv ?? 0)}
-                    />
-                    <Metric
-                      label="Sessões (GA4)"
-                      value={String(selected.raw_data.ga4_sessions ?? 0)}
-                    />
-                    <Metric
-                      label="CVR (GA4)"
-                      value={`${num((selected.raw_data.ga4_cvr ?? 0) * 100, 2)}%`}
-                    />
-                    <Metric
-                      label="Ticket (GA4)"
-                      value={brl(selected.raw_data.ga4_avg_ticket ?? 0)}
-                    />
-                    <Metric
-                      label="Tracking"
-                      value={String(
-                        selected.raw_data.ga4_tracking_status ?? "n/d",
-                      )}
-                    />
-                  </div>
-                </Card>
-              )}
+              {selected.raw_data &&
+                (() => {
+                  const rd = getReportRawDataView(selected.raw_data);
+                  return (
+                    <Card>
+                      <div className="border-b border-border px-4 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Dados base
+                      </div>
+                      <div className="grid grid-cols-2 gap-3 p-4 text-xs sm:grid-cols-4">
+                        <Metric
+                          label="Investimento"
+                          value={brl(rd.spend)}
+                        />
+                        <Metric label="Receita" value={brl(rd.revenue)} />
+                        <Metric
+                          label="ROAS"
+                          value={`${num(rd.roas, 2)}x`}
+                        />
+                        <Metric
+                          label="Conversões"
+                          value={String(rd.conv)}
+                        />
+                        <Metric
+                          label="Sessões (GA4)"
+                          value={String(rd.ga4_sessions)}
+                        />
+                        <Metric
+                          label="CVR (GA4)"
+                          value={`${num(rd.ga4_cvr * 100, 2)}%`}
+                        />
+                        <Metric
+                          label="Ticket (GA4)"
+                          value={brl(rd.ga4_avg_ticket)}
+                        />
+                        <Metric label="Tracking" value={rd.ga4_tracking_status} />
+                      </div>
+                    </Card>
+                  );
+                })()}
               <Link
                 to="/clients/$clientId"
                 params={{ clientId: selected.client_id }}
