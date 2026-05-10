@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import {
   Bell,
+  Globe,
   LayoutDashboard,
   ShieldCheck,
   Sparkles,
@@ -49,7 +50,7 @@ export function CommandPalette({
   onOpenChange: (v: boolean) => void;
 }) {
   const navigate = useNavigate();
-  const { agency } = useAuth();
+  const { agency, isPlatformAdmin } = useAuth();
   const [clients, setClients] = useState<ClientItem[]>([]);
   const [openAlerts, setOpenAlerts] = useState<ClientItem[]>([]);
   const [recentReports, setRecentReports] = useState<ReportPick[]>([]);
@@ -240,8 +241,13 @@ export function CommandPalette({
           <CommandItem onSelect={() => go("/onboarding")}>
             <Sparkles className="mr-2 h-4 w-4" /> Onboarding
           </CommandItem>
+          {isPlatformAdmin && (
+            <CommandItem onSelect={() => go("/platform-admin")}>
+              <Globe className="mr-2 h-4 w-4" /> Plataforma
+            </CommandItem>
+          )}
           <CommandItem onSelect={() => go("/admin")}>
-            <ShieldAlert className="mr-2 h-4 w-4" /> Admin
+            <ShieldAlert className="mr-2 h-4 w-4" /> Equipa e auditoria
           </CommandItem>
           <CommandItem onSelect={() => go("/settings")}>
             <Settings className="mr-2 h-4 w-4" /> Configurações

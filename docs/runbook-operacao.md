@@ -11,6 +11,20 @@ Documento único para secrets, limites de IA e troubleshooting em produção.
 - IA auditoria de campanhas: preferir `ANTHROPIC_API_KEY`; alternativa `LOVABLE_API_KEY` com `CAMPAIGN_AUDIT_GATEWAY_MODEL`.
 - OAuth integrações: `INTEGRATION_OAUTH_STATE_SECRET` (mín. 16 caracteres), `META_APP_ID`, `GOOGLE_OAUTH_CLIENT_ID`, etc., conforme integrações ativas.
 
+## Operador da plataforma (`/platform-admin`)
+
+- Coluna `profiles.is_platform_admin`: só pode ser alterada com **service role** ou via **SQL Editor** no Dashboard (pedidos sem JWT de utilizador). Utilizadores **não** podem auto-promover esta flag pela API.
+- Para promover o primeiro operador (substituir o email), executar no SQL Editor do projeto:
+
+```sql
+UPDATE public.profiles
+SET is_platform_admin = true
+WHERE email = 'seu-email@exemplo.com';
+```
+
+- Depois do login, o menu mostra **Plataforma** e a rota `/platform-admin` (visão global de agências + estado das secrets OAuth via função `oauth-env-status`).
+- Fazer deploy da Edge Function `oauth-env-status` junto com as alterações de funções, e aplicar a migração com `npx supabase db push` (ou migrações equivalentes).
+
 ## Variáveis de limite / custo IA
 
 ### Auditoria de campanhas (`campaign-ai-audit`)

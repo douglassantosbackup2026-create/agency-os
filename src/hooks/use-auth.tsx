@@ -20,6 +20,8 @@ type AuthCtx = {
   session: Session | null;
   user: User | null;
   agency: AgencyContext;
+  /** Operador global da instância (área /platform-admin). */
+  isPlatformAdmin: boolean;
   /** Mensagem quando o carregamento da agência falhou (rede/PostgREST), não confundir com «sem agência». */
   agencyLoadError: string | null;
   loading: boolean;
@@ -32,6 +34,7 @@ const Ctx = createContext<AuthCtx | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [agency, setAgency] = useState<AgencyContext>(null);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [agencyLoadError, setAgencyLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -39,16 +42,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: profile, error } = await supabase
       .from("profiles")
       .select(
-        "agency_id, agencies:agency_id(id, name, slug, logo_url, primary_color)",
+        "agency_id, is_platform_admin, agencies:agency_id(id, name, slug, logo_url, primary_color)",
       )
       .eq("id", userId)
       .maybeSingle();
     if (error) {
       setAgencyLoadError(error.message);
       setAgency(null);
+      setIsPlatformAdmin(false);
       return;
     }
     setAgencyLoadError(null);
+    setIsPlatformAdmin(!!profile?.is_platform_admin);
     setAgency(
       (profile as unknown as { agencies: AgencyContext })?.agencies ?? null,
     );
@@ -62,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setTimeout(() => loadAgency(s.user.id), 0);
       } else {
         setAgency(null);
+        setIsPlatformAdmin(false);
         setAgencyLoadError(null);
       }
     });
@@ -85,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     user: session?.user ?? null,
     agency,
+    isPlatformAdmin,
     agencyLoadError,
     loading,
     signOut: async () => {

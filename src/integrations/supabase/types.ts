@@ -1778,6 +1778,7 @@ export type Database = {
           email: string | null;
           has_completed_product_tour: boolean;
           id: string;
+          is_platform_admin: boolean;
           updated_at: string;
         };
         Insert: {
@@ -1788,6 +1789,7 @@ export type Database = {
           email?: string | null;
           has_completed_product_tour?: boolean;
           id: string;
+          is_platform_admin?: boolean;
           updated_at?: string;
         };
         Update: {
@@ -1798,6 +1800,7 @@ export type Database = {
           email?: string | null;
           has_completed_product_tour?: boolean;
           id?: string;
+          is_platform_admin?: boolean;
           updated_at?: string;
         };
         Relationships: [
@@ -2244,6 +2247,7 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      auth_is_platform_admin: { Args: never; Returns: boolean };
       count_open_alerts: { Args: { _agency: string }; Returns: number };
       current_user_agency: { Args: never; Returns: string };
       has_role: {
@@ -2257,6 +2261,23 @@ export type Database = {
       is_member_of: { Args: { _agency_id: string }; Returns: boolean };
       is_owner_or_admin: { Args: { _agency_id: string }; Returns: boolean };
       max_alerts_for_agency: { Args: { _agency: string }; Returns: number };
+      platform_list_agencies_minimal: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          created_at: string;
+          id: string;
+          name: string;
+          slug: string;
+        }[];
+      };
+      platform_overview_counts: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          agencies_count: number;
+          clients_count: number;
+          profiles_with_agency_count: number;
+        }[];
+      };
     };
     Enums: {
       alert_priority: "low" | "medium" | "high" | "critical";

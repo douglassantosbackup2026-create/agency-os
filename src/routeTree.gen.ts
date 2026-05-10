@@ -21,6 +21,7 @@ import { Route as AuthenticatedWhatsappRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedStandupRouteImport } from './routes/_authenticated/standup'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
+import { Route as AuthenticatedPlatformAdminRouteImport } from './routes/_authenticated/platform-admin'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
 import { Route as AuthenticatedHealthRouteImport } from './routes/_authenticated/health'
@@ -95,6 +96,12 @@ const AuthenticatedReportsRoute = AuthenticatedReportsRouteImport.update({
   path: '/reports',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedPlatformAdminRoute =
+  AuthenticatedPlatformAdminRouteImport.update({
+    id: '/platform-admin',
+    path: '/platform-admin',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
@@ -189,6 +196,7 @@ export interface FileRoutesByFullPath {
   '/health': typeof AuthenticatedHealthRoute
   '/integrations': typeof AuthenticatedIntegrationsRouteWithChildren
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/platform-admin': typeof AuthenticatedPlatformAdminRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/standup': typeof AuthenticatedStandupRoute
@@ -216,6 +224,7 @@ export interface FileRoutesByTo {
   '/health': typeof AuthenticatedHealthRoute
   '/integrations': typeof AuthenticatedIntegrationsRouteWithChildren
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/platform-admin': typeof AuthenticatedPlatformAdminRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/standup': typeof AuthenticatedStandupRoute
@@ -245,6 +254,7 @@ export interface FileRoutesById {
   '/_authenticated/health': typeof AuthenticatedHealthRoute
   '/_authenticated/integrations': typeof AuthenticatedIntegrationsRouteWithChildren
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
+  '/_authenticated/platform-admin': typeof AuthenticatedPlatformAdminRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/standup': typeof AuthenticatedStandupRoute
@@ -274,6 +284,7 @@ export interface FileRouteTypes {
     | '/health'
     | '/integrations'
     | '/onboarding'
+    | '/platform-admin'
     | '/reports'
     | '/settings'
     | '/standup'
@@ -301,6 +312,7 @@ export interface FileRouteTypes {
     | '/health'
     | '/integrations'
     | '/onboarding'
+    | '/platform-admin'
     | '/reports'
     | '/settings'
     | '/standup'
@@ -329,6 +341,7 @@ export interface FileRouteTypes {
     | '/_authenticated/health'
     | '/_authenticated/integrations'
     | '/_authenticated/onboarding'
+    | '/_authenticated/platform-admin'
     | '/_authenticated/reports'
     | '/_authenticated/settings'
     | '/_authenticated/standup'
@@ -434,6 +447,13 @@ declare module '@tanstack/react-router' {
       path: '/reports'
       fullPath: '/reports'
       preLoaderRoute: typeof AuthenticatedReportsRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/platform-admin': {
+      id: '/_authenticated/platform-admin'
+      path: '/platform-admin'
+      fullPath: '/platform-admin'
+      preLoaderRoute: typeof AuthenticatedPlatformAdminRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/onboarding': {
@@ -564,6 +584,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedHealthRoute: typeof AuthenticatedHealthRoute
   AuthenticatedIntegrationsRoute: typeof AuthenticatedIntegrationsRouteWithChildren
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
+  AuthenticatedPlatformAdminRoute: typeof AuthenticatedPlatformAdminRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedStandupRoute: typeof AuthenticatedStandupRoute
@@ -584,6 +605,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedHealthRoute: AuthenticatedHealthRoute,
   AuthenticatedIntegrationsRoute: AuthenticatedIntegrationsRouteWithChildren,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
+  AuthenticatedPlatformAdminRoute: AuthenticatedPlatformAdminRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedStandupRoute: AuthenticatedStandupRoute,

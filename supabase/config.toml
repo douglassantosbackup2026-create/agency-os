@@ -32,6 +32,9 @@ verify_jwt = false
 [functions.integration-oauth]
 verify_jwt = true
 
+[functions.oauth-env-status]
+verify_jwt = true
+
 [functions.portal-creative-review]
 verify_jwt = false
 

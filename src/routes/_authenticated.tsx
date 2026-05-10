@@ -28,6 +28,7 @@ import {
   ScanSearch,
   Search,
   Settings,
+  Globe,
   Shield,
   ShieldCheck,
   Sparkles,
@@ -101,7 +102,8 @@ const NAV_GROUPS: { id: string; label: string; items: NavItemDef[] }[] = [
 ];
 
 const SECONDARY = [
-  { to: "/admin", label: "Administração", icon: Shield },
+  { to: "/platform-admin", label: "Plataforma", icon: Globe },
+  { to: "/admin", label: "Equipa e auditoria", icon: Shield },
   { to: "/settings", label: "Configurações", icon: Settings },
 ] as const;
 
@@ -158,6 +160,7 @@ function NavLinks({
   showOnboardingLink,
   openAlertsCount,
   showAdminLink,
+  showPlatformAdminLink,
 }: {
   path: string;
   onNavigate?: () => void;
@@ -165,6 +168,7 @@ function NavLinks({
   showOnboardingLink: boolean;
   openAlertsCount: number;
   showAdminLink: boolean;
+  showPlatformAdminLink: boolean;
 }) {
   const base =
     variant === "sidebar"
@@ -237,8 +241,11 @@ function NavLinks({
         ))}
       </nav>
       <div className={`space-y-0.5 border-t px-2 py-2 ${groupBorder}`}>
-        {SECONDARY.filter((item) => showAdminLink || item.to !== "/admin").map(
-          (item) => {
+        {SECONDARY.filter((item) => {
+          if (item.to === "/platform-admin") return showPlatformAdminLink;
+          if (item.to === "/admin") return showAdminLink;
+          return true;
+        }).map((item) => {
             const active = path.startsWith(item.to);
             return (
               <Link
@@ -251,15 +258,21 @@ function NavLinks({
                 <span>{item.label}</span>
               </Link>
             );
-          },
-        )}
+          })}
       </div>
     </>
   );
 }
 
 function AuthenticatedLayout() {
-  const { user, agency, agencyLoadError, refreshAgency, signOut } = useAuth();
+  const {
+    user,
+    agency,
+    agencyLoadError,
+    refreshAgency,
+    signOut,
+    isPlatformAdmin,
+  } = useAuth();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [memberRole, setMemberRole] = useState<string | null>(null);
@@ -469,6 +482,7 @@ function AuthenticatedLayout() {
             showOnboardingLink={navMeta?.showOnboardingLink ?? true}
             openAlertsCount={navMeta?.openAlertsCount ?? 0}
             showAdminLink={memberRole !== "member"}
+            showPlatformAdminLink={isPlatformAdmin}
           />
 
           <div className="border-t border-sidebar-border p-3">
@@ -530,6 +544,7 @@ function AuthenticatedLayout() {
                 showOnboardingLink={navMeta?.showOnboardingLink ?? true}
                 openAlertsCount={navMeta?.openAlertsCount ?? 0}
                 showAdminLink={memberRole !== "member"}
+                showPlatformAdminLink={isPlatformAdmin}
               />
             </div>
             <div className="border-t border-border p-3">
