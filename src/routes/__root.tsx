@@ -108,6 +108,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
                 { name: "twitter:card", content: "summary_large_image" },
               ] as const)
             : []),
+          { title: "Lovable App" },
+          { property: "og:title", content: "Lovable App" },
+          { name: "twitter:title", content: "Lovable App" },
+          { name: "description", content: "Agency OS is a SaaS platform designed as an operational system for performance marketing agencies." },
+          { property: "og:description", content: "Agency OS is a SaaS platform designed as an operational system for performance marketing agencies." },
+          { name: "twitter:description", content: "Agency OS is a SaaS platform designed as an operational system for performance marketing agencies." },
+          { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/fbfd06c5-df86-43bd-8a10-5a047e2b1bb9/id-preview-d29176f4--9ee84330-8b5f-4426-81f4-618b5ae00757.lovable.app-1778371800390.png" },
+          { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/fbfd06c5-df86-43bd-8a10-5a047e2b1bb9/id-preview-d29176f4--9ee84330-8b5f-4426-81f4-618b5ae00757.lovable.app-1778371800390.png" },
         ],
         links: [
           { rel: "stylesheet", href: appCss },
