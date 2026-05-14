@@ -521,7 +521,7 @@ function AiReviewCenter() {
         ) : (
           <div className="divide-y divide-border">
             {filtered.map((item) => {
-              const r = item.raw;
+              const r = item.raw as any;
               return (
                 <div
                   key={`${item.kind}-${item.id}`}
