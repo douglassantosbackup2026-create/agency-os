@@ -842,7 +842,7 @@ function Dashboard() {
                             ? "Atenção"
                             : "Oportunidade";
                     const items = ((
-                      data.agencyBriefing.buckets as Record<string, unknown[]>
+                      data.agencyBriefing!.buckets as Record<string, unknown[]>
                     )[key] ?? []) as Array<{
                       client_id: string;
                       name: string;
