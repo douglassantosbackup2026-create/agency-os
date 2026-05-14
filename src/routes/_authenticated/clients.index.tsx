@@ -260,9 +260,9 @@ function Clients() {
   const riskRadar = [...filtered]
     .map((c) => ({
       client: c,
-      health: data.latest.get(c.id),
+      health: data.latest.get(c.id)!,
     }))
-    .filter((x) => x.health)
+    .filter((x) => Boolean(x.health))
     .sort(
       (a, b) =>
         (riskOrder[b.health.risk] ?? 0) - (riskOrder[a.health.risk] ?? 0) ||
