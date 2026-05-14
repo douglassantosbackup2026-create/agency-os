@@ -1,25 +1,30 @@
-# Estado do produto (feature-complete sem gateway de pagamento)
+## Plano: Fallback hardcoded no `client.ts`
 
-## Implementado neste âmbito
+Adicionar valores públicos do Supabase como fallback no `src/integrations/supabase/client.ts`, para o app nunca quebrar quando o `.env` desaparecer do sandbox.
 
-**Auth & estrutura:** login, signup, recuperação de palavra-passe, rotas autenticadas, multi-tenant com RLS, onboarding.
+### Mudança
 
-**Integrações:** OAuth via Edge Function `integration-oauth` (Meta, Google Ads/GA4, TikTok), tokens em `integrations` com refresh onde a API devolve; UI em `/integrations` com reconexão, token manual, **janela de sync** (`sync_days`) e **granularidade Meta** (`meta_granularity`). `sync-platform` usa GAQL / relatórios / Marketing API com intervalos configuráveis.
+Em `src/integrations/supabase/client.ts`, dentro de `createSupabaseClient()`:
 
-**Operação:** README com checklist `CRON_SECRET`, `pg_cron`, `PORTAL_ALLOWED_ORIGINS`; `portal-data` com allowlist CORS; migrations para remover crons hardcoded e modelo SQL em `cron-jobs.example.sql` / `cron-jobs.deploy-trafego.sql`.
+```ts
+const FALLBACK_URL = "https://uvuotaxikuxejfeitlaw.supabase.co";
+const FALLBACK_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2dW90YXhpa3V4ZWpmZWl0bGF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNzk4MjcsImV4cCI6MjA5Mzg1NTgyN30.32xOultMJNFLQ98Nw3VxQR5t5wyEH1NxTyg6K_bMl_s";
 
-**Limites:** trigger em `alerts` para `max_alerts` por agência (fallback 100); `evaluate-alerts` trata limite na criação em batch.
+const SUPABASE_URL =
+  import.meta.env.VITE_SUPABASE_URL ?? FALLBACK_URL;
+const SUPABASE_PUBLISHABLE_KEY =
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? FALLBACK_PUBLISHABLE_KEY;
+```
 
-**Telas:** dashboard; clientes; detalhe de cliente com aba **Insights IA** (último relatório + leitura rápida de health); relatórios com filtros por datas de criação e **período do relatório**, busca no resumo e ordenação; alertas com **agrupamento por cliente** (accordion); palette com relatórios recentes e navegação; skeletons compact/split conforme o tipo de página.
+E remover o `throw new Error(...)` (já não é alcançável). Mantém o `console.warn` se algum dos dois caiu para fallback, para ajudar a diagnosticar `.env` ausente sem quebrar runtime.
 
-**Qualidade:** Vitest em `format` e `subscription-limits`; CI no GitHub Actions.
+### Segurança
 
-## Fora de âmbito (decisão atual)
+- URL do projeto e **anon key** são valores públicos por design (já presentes em `.env.example` e expostos a qualquer cliente compilado). Não são secrets.
+- `SUPABASE_SERVICE_ROLE_KEY` **não** entra no client — continua só no servidor.
+- RLS continua a ser a barreira real de segurança.
 
-- Gateway de pagamento (Stripe/checkout/webhooks) e cobrança automática.
+### Escopo
 
-## Manutenção recomendada
-
-- Aplicar jobs `pg_cron` no projeto real com secrets próprios.
-- Rever **Supabase Advisors** após mudanças de RLS/policies.
-- Validar chamadas TikTok/Google contra a documentação atual das APIs (mudam com frequência).
+- Edita apenas `src/integrations/supabase/client.ts`.
+- Não toca em `client.server.ts`, `auth-middleware.ts`, edge functions, ou `.env`.
