@@ -1,30 +1,58 @@
-## Plano: Fallback hardcoded no `client.ts`
+## Plano: Resolver erro 403 do Facebook Sharing Debugger
 
-Adicionar valores públicos do Supabase como fallback no `src/integrations/supabase/client.ts`, para o app nunca quebrar quando o `.env` desaparecer do sandbox.
+### Diagnóstico
 
-### Mudança
+Testei agora a URL pública com `User-Agent: facebookexternalhit/1.1` e o site responde **HTTP 200** (servido por Cloudflare). O 403 mostrado pelo Debugger foi provavelmente:
 
-Em `src/integrations/supabase/client.ts`, dentro de `createSupabaseClient()`:
+1. Transiente (challenge do Cloudflare antes de "aprender" o bot), **ou**
+2. Causado por **falta de `robots.txt`** — o Debugger reporta isso de forma genérica como "could be due to a robots.txt block".
 
-```ts
-const FALLBACK_URL = "https://uvuotaxikuxejfeitlaw.supabase.co";
-const FALLBACK_PUBLISHABLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2dW90YXhpa3V4ZWpmZWl0bGF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNzk4MjcsImV4cCI6MjA5Mzg1NTgyN30.32xOultMJNFLQ98Nw3VxQR5t5wyEH1NxTyg6K_bMl_s";
+O projeto **não tem `public/robots.txt`** (verificado: só existem `landing/`, `manifest.webmanifest`, `sw.js`).
 
-const SUPABASE_URL =
-  import.meta.env.VITE_SUPABASE_URL ?? FALLBACK_URL;
-const SUPABASE_PUBLISHABLE_KEY =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? FALLBACK_PUBLISHABLE_KEY;
+### Mudanças
+
+**1. Criar `public/robots.txt`** com allow explícito para `facebookexternalhit` (e amigos):
+
+```
+User-agent: *
+Allow: /
+
+User-agent: facebookexternalhit
+Allow: /
+
+User-agent: facebookcatalog
+Allow: /
+
+User-agent: Twitterbot
+Allow: /
+
+User-agent: LinkedInBot
+Allow: /
+
+User-agent: WhatsApp
+Allow: /
+
+Sitemap: https://opus-retention-os.lovable.app/sitemap.xml
 ```
 
-E remover o `throw new Error(...)` (já não é alcançável). Mantém o `console.warn` se algum dos dois caiu para fallback, para ajudar a diagnosticar `.env` ausente sem quebrar runtime.
+Isto remove qualquer ambiguidade para o crawler e satisfaz a recomendação literal da mensagem do Debugger ("allowlist facebookexternalhit").
 
-### Segurança
+**2. (Opcional, recomendo) Verificar OG tags em `src/routes/index.tsx`**
 
-- URL do projeto e **anon key** são valores públicos por design (já presentes em `.env.example` e expostos a qualquer cliente compilado). Não são secrets.
-- `SUPABASE_SERVICE_ROLE_KEY` **não** entra no client — continua só no servidor.
-- RLS continua a ser a barreira real de segurança.
+Para o preview do link sair bonito no Facebook/WhatsApp, a homepage deve ter no `head()`:
+- `og:title`, `og:description`, `og:url`, `og:type: website`
+- `og:image` (1200×630, absoluta) — sem ela o preview fica sem imagem.
+
+Se já existem, não toco. Se faltar `og:image`, pergunto se queres gerar uma ou usar uma existente em `landing-raw-png/` / `public/landing/`.
+
+### Próximo passo após o deploy
+
+1. Publicar.
+2. No Facebook Sharing Debugger clicar **"Extrair novamente"** (Scrape Again) — Facebook tem cache agressivo (~24h) e precisa ser forçado.
+3. Confirmar 200 + preview com imagem.
 
 ### Escopo
 
-- Edita apenas `src/integrations/supabase/client.ts`.
-- Não toca em `client.server.ts`, `auth-middleware.ts`, edge functions, ou `.env`.
+- Cria apenas `public/robots.txt`.
+- Eventualmente edita `src/routes/index.tsx` para OG tags (a confirmar contigo após eu ler o ficheiro).
+- Não toca em código de runtime, server functions, ou `__root.tsx`.
