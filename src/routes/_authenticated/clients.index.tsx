@@ -283,10 +283,10 @@ function Clients() {
       ],
     ];
     for (const c of filtered) {
-      const h = data.latest.get(c.id);
-      const openN = data.openActionsByClient.get(c.id) ?? 0;
-      const sync = data.latestSyncByClient.get(c.id);
-      const au = data.latestAuditByClient.get(c.id);
+      const h = data!.latest.get(c.id);
+      const openN = data!.openActionsByClient.get(c.id) ?? 0;
+      const sync = data!.latestSyncByClient.get(c.id);
+      const au = data!.latestAuditByClient.get(c.id);
       const auLabel = au?.created_at ? String(au.created_at).slice(0, 10) : "";
       rows.push([
         c.name,
