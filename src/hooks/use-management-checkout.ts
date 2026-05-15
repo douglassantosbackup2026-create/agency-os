@@ -19,7 +19,13 @@ export function useManagementCheckout() {
     try {
       const res = await invokeDiagnosisFunction("create-management-checkout", {
         method: "POST",
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          diagnosis_id: payload.diagnosisId,
+          secret_slug: payload.secretSlug,
+          business_name: payload.business_name,
+          website: payload.website,
+          instagram: payload.instagram,
+        }),
       });
       const j = (await res.json()) as {
         init_point?: string;
