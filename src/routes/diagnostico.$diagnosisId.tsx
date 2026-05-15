@@ -475,7 +475,7 @@ function DiagnosticoReportPage() {
                   onClick={() =>
                     void mgmt.checkout({
                       diagnosisId,
-                      secret_slug: s ?? "",
+                      secretSlug: s ?? "",
                       business_name: businessName.trim(),
                       website: website.trim(),
                       instagram: instagram.trim(),
