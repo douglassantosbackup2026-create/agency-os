@@ -99,7 +99,7 @@ export function AuthShell({
     <div className="min-h-screen bg-background text-foreground">
       <div className="grid-bg absolute inset-0 -z-10 opacity-40" />
       <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-10">
-        <Link to="/" className="mb-8 flex items-center gap-2">
+        <Link to="/retentio" className="mb-8 flex items-center gap-2">
           <div className="grid h-8 w-8 place-items-center rounded-md bg-primary text-primary-foreground font-bold">
             R
           </div>

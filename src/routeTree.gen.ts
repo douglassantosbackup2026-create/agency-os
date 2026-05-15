@@ -10,13 +10,16 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as RetentioRouteImport } from './routes/retentio'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as ObrigadoRouteImport } from './routes/obrigado'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as DemoRouteImport } from './routes/demo'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as PPortalSlugRouteImport } from './routes/p.$portalSlug'
+import { Route as DiagnosticoDiagnosisIdRouteImport } from './routes/diagnostico.$diagnosisId'
 import { Route as AuthenticatedWhatsappRouteImport } from './routes/_authenticated/whatsapp'
 import { Route as AuthenticatedStandupRouteImport } from './routes/_authenticated/standup'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
@@ -42,9 +45,19 @@ const SignupRoute = SignupRouteImport.update({
   path: '/signup',
   getParentRoute: () => rootRouteImport,
 } as any)
+const RetentioRoute = RetentioRouteImport.update({
+  id: '/retentio',
+  path: '/retentio',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ObrigadoRoute = ObrigadoRouteImport.update({
+  id: '/obrigado',
+  path: '/obrigado',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -74,6 +87,11 @@ const IndexRoute = IndexRouteImport.update({
 const PPortalSlugRoute = PPortalSlugRouteImport.update({
   id: '/p/$portalSlug',
   path: '/p/$portalSlug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DiagnosticoDiagnosisIdRoute = DiagnosticoDiagnosisIdRouteImport.update({
+  id: '/diagnostico/$diagnosisId',
+  path: '/diagnostico/$diagnosisId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedWhatsappRoute = AuthenticatedWhatsappRouteImport.update({
@@ -183,7 +201,9 @@ export interface FileRoutesByFullPath {
   '/demo': typeof DemoRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/obrigado': typeof ObrigadoRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/retentio': typeof RetentioRoute
   '/signup': typeof SignupRoute
   '/actions': typeof AuthenticatedActionsRoute
   '/activity': typeof AuthenticatedActivityRoute
@@ -201,6 +221,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/standup': typeof AuthenticatedStandupRoute
   '/whatsapp': typeof AuthenticatedWhatsappRoute
+  '/diagnostico/$diagnosisId': typeof DiagnosticoDiagnosisIdRoute
   '/p/$portalSlug': typeof PPortalSlugRoute
   '/clients/$clientId': typeof AuthenticatedClientsClientIdRoute
   '/clients/': typeof AuthenticatedClientsIndexRoute
@@ -211,7 +232,9 @@ export interface FileRoutesByTo {
   '/demo': typeof DemoRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/obrigado': typeof ObrigadoRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/retentio': typeof RetentioRoute
   '/signup': typeof SignupRoute
   '/actions': typeof AuthenticatedActionsRoute
   '/activity': typeof AuthenticatedActivityRoute
@@ -229,6 +252,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/standup': typeof AuthenticatedStandupRoute
   '/whatsapp': typeof AuthenticatedWhatsappRoute
+  '/diagnostico/$diagnosisId': typeof DiagnosticoDiagnosisIdRoute
   '/p/$portalSlug': typeof PPortalSlugRoute
   '/clients/$clientId': typeof AuthenticatedClientsClientIdRoute
   '/clients': typeof AuthenticatedClientsIndexRoute
@@ -241,7 +265,9 @@ export interface FileRoutesById {
   '/demo': typeof DemoRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/obrigado': typeof ObrigadoRoute
   '/reset-password': typeof ResetPasswordRoute
+  '/retentio': typeof RetentioRoute
   '/signup': typeof SignupRoute
   '/_authenticated/actions': typeof AuthenticatedActionsRoute
   '/_authenticated/activity': typeof AuthenticatedActivityRoute
@@ -259,6 +285,7 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/standup': typeof AuthenticatedStandupRoute
   '/_authenticated/whatsapp': typeof AuthenticatedWhatsappRoute
+  '/diagnostico/$diagnosisId': typeof DiagnosticoDiagnosisIdRoute
   '/p/$portalSlug': typeof PPortalSlugRoute
   '/_authenticated/clients/$clientId': typeof AuthenticatedClientsClientIdRoute
   '/_authenticated/clients/': typeof AuthenticatedClientsIndexRoute
@@ -271,7 +298,9 @@ export interface FileRouteTypes {
     | '/demo'
     | '/forgot-password'
     | '/login'
+    | '/obrigado'
     | '/reset-password'
+    | '/retentio'
     | '/signup'
     | '/actions'
     | '/activity'
@@ -289,6 +318,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/standup'
     | '/whatsapp'
+    | '/diagnostico/$diagnosisId'
     | '/p/$portalSlug'
     | '/clients/$clientId'
     | '/clients/'
@@ -299,7 +329,9 @@ export interface FileRouteTypes {
     | '/demo'
     | '/forgot-password'
     | '/login'
+    | '/obrigado'
     | '/reset-password'
+    | '/retentio'
     | '/signup'
     | '/actions'
     | '/activity'
@@ -317,6 +349,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/standup'
     | '/whatsapp'
+    | '/diagnostico/$diagnosisId'
     | '/p/$portalSlug'
     | '/clients/$clientId'
     | '/clients'
@@ -328,7 +361,9 @@ export interface FileRouteTypes {
     | '/demo'
     | '/forgot-password'
     | '/login'
+    | '/obrigado'
     | '/reset-password'
+    | '/retentio'
     | '/signup'
     | '/_authenticated/actions'
     | '/_authenticated/activity'
@@ -346,6 +381,7 @@ export interface FileRouteTypes {
     | '/_authenticated/settings'
     | '/_authenticated/standup'
     | '/_authenticated/whatsapp'
+    | '/diagnostico/$diagnosisId'
     | '/p/$portalSlug'
     | '/_authenticated/clients/$clientId'
     | '/_authenticated/clients/'
@@ -358,8 +394,11 @@ export interface RootRouteChildren {
   DemoRoute: typeof DemoRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
+  ObrigadoRoute: typeof ObrigadoRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  RetentioRoute: typeof RetentioRoute
   SignupRoute: typeof SignupRoute
+  DiagnosticoDiagnosisIdRoute: typeof DiagnosticoDiagnosisIdRoute
   PPortalSlugRoute: typeof PPortalSlugRoute
 }
 
@@ -372,11 +411,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SignupRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/retentio': {
+      id: '/retentio'
+      path: '/retentio'
+      fullPath: '/retentio'
+      preLoaderRoute: typeof RetentioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reset-password': {
       id: '/reset-password'
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/obrigado': {
+      id: '/obrigado'
+      path: '/obrigado'
+      fullPath: '/obrigado'
+      preLoaderRoute: typeof ObrigadoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -419,6 +472,13 @@ declare module '@tanstack/react-router' {
       path: '/p/$portalSlug'
       fullPath: '/p/$portalSlug'
       preLoaderRoute: typeof PPortalSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/diagnostico/$diagnosisId': {
+      id: '/diagnostico/$diagnosisId'
+      path: '/diagnostico/$diagnosisId'
+      fullPath: '/diagnostico/$diagnosisId'
+      preLoaderRoute: typeof DiagnosticoDiagnosisIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/whatsapp': {
@@ -624,10 +684,23 @@ const rootRouteChildren: RootRouteChildren = {
   DemoRoute: DemoRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
+  ObrigadoRoute: ObrigadoRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  RetentioRoute: RetentioRoute,
   SignupRoute: SignupRoute,
+  DiagnosticoDiagnosisIdRoute: DiagnosticoDiagnosisIdRoute,
   PPortalSlugRoute: PPortalSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

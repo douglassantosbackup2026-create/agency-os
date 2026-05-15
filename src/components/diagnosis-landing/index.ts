@@ -1,0 +1,13 @@
+export { DiagnosisLandingHeader } from "./diagnosis-landing-header";
+export { DiagnosisHero } from "./diagnosis-hero";
+export { DiagnosisWhatIs } from "./diagnosis-what-is";
+export { DiagnosisQualification } from "./diagnosis-qualification";
+export { DiagnosisWhatItDoes } from "./diagnosis-what-it-does";
+export { DiagnosisHowItWorks } from "./diagnosis-how-it-works";
+export { DiagnosisAuthor } from "./diagnosis-author";
+export { DiagnosisSocialProof } from "./diagnosis-social-proof";
+export { DiagnosisGuarantee } from "./diagnosis-guarantee";
+export { DiagnosisFaq } from "./diagnosis-faq";
+export { DiagnosisFinalCta } from "./diagnosis-final-cta";
+export { DiagnosisFooter } from "./diagnosis-footer";
+export { DiagnosisStickyCta } from "./diagnosis-sticky-cta";

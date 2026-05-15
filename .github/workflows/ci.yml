@@ -18,3 +18,7 @@ jobs:
       - run: npm run lint
       - run: npm test -- --run
       - run: npm run build
+      - run: npm ci --prefix diagnostico-meta
+      - run: npm run diag:lint
+      - run: npm run diag:test
+      - run: npm run diag:build

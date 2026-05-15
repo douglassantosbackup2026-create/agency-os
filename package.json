@@ -18,7 +18,11 @@
     "db:lint": "npx supabase db lint",
     "perf:lighthouse": "node scripts/lighthouse-authenticated.mjs",
     "landing:assets": "node scripts/generate-landing-assets.mjs",
-    "landing:from-png": "node scripts/process-landing-screenshots.mjs ./landing-raw-png"
+    "landing:from-png": "node scripts/process-landing-screenshots.mjs ./landing-raw-png",
+    "diag:dev": "npm --prefix diagnostico-meta run dev",
+    "diag:build": "npm --prefix diagnostico-meta run build",
+    "diag:lint": "npm --prefix diagnostico-meta run lint",
+    "diag:test": "npm --prefix diagnostico-meta run test"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",

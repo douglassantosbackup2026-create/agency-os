@@ -38,6 +38,10 @@ npm run db:lint      # PostgreSQL advisors via Supabase CLI (projeto ligado)
 npm run build        # build de produção (requer env acima)
 ```
 
+## Produto Diagnóstico Meta
+
+**Homepage (`/`)** = landing do diagnóstico; **landing Retentio** em [`/retentio`](src/routes/retentio.tsx). Rotas: `/obrigado`, `/diagnostico/$id?s=`. Sub-app legado em `diagnostico-meta/` (`npm run diag:dev`) — preferir o app principal. Runbook: [`docs/diagnostico-meta-runbook.md`](docs/diagnostico-meta-runbook.md).
+
 ## Supabase local
 
 ```bash

@@ -204,7 +204,7 @@ export default function Demo() {
       <header className="sticky top-0 z-50 border-b border-border/70 bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
           <Link
-            to="/"
+            to="/retentio"
             className="flex items-center gap-2 rounded-md outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
           >
             <div className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
@@ -374,7 +374,7 @@ export default function Demo() {
               <ArrowRight className="ml-1.5 h-4 w-4" />
             </Link>
             <Link
-              to="/"
+              to="/retentio"
               className="inline-flex min-h-10 items-center justify-center rounded-lg border border-border px-5 text-sm font-medium transition hover:bg-muted/70"
             >
               Saiba mais
