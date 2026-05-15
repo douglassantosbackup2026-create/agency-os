@@ -104,3 +104,12 @@
   padding-left: 1rem;
   margin-bottom: 1rem;
 }
+
+.diagnosis-funnel .field-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 1rem;
+}

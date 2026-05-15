@@ -1,9 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { invokeDiagnosisFunction } from "@/lib/diagnosis-invoke";
+import {
+  buildGestaoIntroMessage,
+  whatsappGestaoHref,
+} from "@/lib/gestao-whatsapp";
+import { useManagementCheckout } from "@/hooks/use-management-checkout";
 import "@/styles/diagnosis.css";
 
-type DiagnosticoSearch = { s?: string };
+type DiagnosticoSearch = { s?: string; gestaoCheckout?: string };
 
 type Analysis = {
   score: number;
@@ -33,15 +38,28 @@ type Analysis = {
 export const Route = createFileRoute("/diagnostico/$diagnosisId")({
   validateSearch: (search: Record<string, unknown>): DiagnosticoSearch => ({
     s: typeof search.s === "string" ? search.s : undefined,
+    gestaoCheckout:
+      typeof search.gestaoCheckout === "string"
+        ? search.gestaoCheckout
+        : undefined,
   }),
   component: DiagnosticoReportPage,
 });
 
 function DiagnosticoReportPage() {
   const { diagnosisId } = Route.useParams();
-  const { s } = Route.useSearch();
+  const { s, gestaoCheckout } = Route.useSearch();
+  const mgmt = useManagementCheckout();
+  const [businessName, setBusinessName] = useState("");
+  const [website, setWebsite] = useState("");
+  const [instagram, setInstagram] = useState("");
   const [data, setData] = useState<{
-    diagnosis?: { status?: string; failed_reason?: string | null };
+    diagnosis?: {
+      status?: string;
+      failed_reason?: string | null;
+      management_status?: string | null;
+      management_business_name?: string | null;
+    };
     report?: {
       analysis_json?: Analysis | null;
       management_cta_eligible?: boolean;
@@ -110,6 +128,17 @@ function DiagnosticoReportPage() {
       }),
     });
   }
+
+  const managementPaid = data?.diagnosis?.management_status === "paid";
+  const whatsappGestaoLink = useMemo(() => {
+    if (!managementPaid || !data?.diagnosis) return "";
+    return whatsappGestaoHref(
+      buildGestaoIntroMessage({
+        diagnosisId,
+        storeName: data.diagnosis.management_business_name ?? undefined,
+      }),
+    );
+  }, [managementPaid, data?.diagnosis, diagnosisId]);
 
   if (!s) {
     return (
@@ -339,19 +368,126 @@ function DiagnosticoReportPage() {
         {data.report?.management_cta_eligible ? (
           <section className="card" style={{ border: "2px solid #2563eb" }}>
             <h2>Gestão de tráfego</h2>
-            <p>
-              Queres que a nossa equipa execute este plano? Clica abaixo para
-              ver a proposta.
-            </p>
-            <a
-              className="btn btn-primary"
-              href={import.meta.env.VITE_MANAGEMENT_CTA_URL ?? "#"}
-              target="_blank"
-              rel="noreferrer"
-              onClick={() => void trackCta()}
-            >
-              Ver proposta de gestão
-            </a>
+            {gestaoCheckout === "falha" ? (
+              <p
+                role="alert"
+                style={{ color: "#b91c1c", marginBottom: "1rem" }}
+              >
+                O Mercado Pago não concluiu o pagamento. Podes tentar de novo em
+                seguida.
+              </p>
+            ) : gestaoCheckout === "pending" ? (
+              <p className="muted" style={{ marginBottom: "1rem" }}>
+                Pagamento pendente no Mercado Pago. Esta página será actualizada
+                quando o relatório rever o estado da gestão — ou volta à página
+                de confirmação se acabaste de pagar.
+              </p>
+            ) : null}
+            {managementPaid ? (
+              <>
+                <p>
+                  Pagamento registado — obrigado. Fala connosco no WhatsApp com
+                  o link abaixo (incluímos os dados da loja que indicaste).
+                </p>
+                {whatsappGestaoLink ? (
+                  <a
+                    className="btn btn-primary"
+                    href={whatsappGestaoLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={() => void trackCta()}
+                  >
+                    WhatsApp — próximos passos
+                  </a>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <p style={{ marginBottom: "1rem" }}>
+                  Queres que a nossa equipa execute este plano? Preenche os
+                  campos abaixo e segue para o pagamento de{" "}
+                  <strong>R$ 1.997</strong> (valor único), via Mercado Pago.
+                </p>
+                <div
+                  style={{
+                    display: "grid",
+                    gap: "0.75rem",
+                    maxWidth: "28rem",
+                    marginBottom: "1rem",
+                  }}
+                >
+                  <label style={{ display: "grid", gap: "0.25rem" }}>
+                    <span className="muted" style={{ fontSize: "0.85rem" }}>
+                      Nome da loja
+                    </span>
+                    <input
+                      className="field-input"
+                      value={businessName}
+                      onChange={(e) => setBusinessName(e.target.value)}
+                      autoComplete="organization"
+                      maxLength={240}
+                      required
+                    />
+                  </label>
+                  <label style={{ display: "grid", gap: "0.25rem" }}>
+                    <span className="muted" style={{ fontSize: "0.85rem" }}>
+                      Site / URL principal
+                    </span>
+                    <input
+                      className="field-input"
+                      type="url"
+                      inputMode="url"
+                      placeholder="https://..."
+                      value={website}
+                      onChange={(e) => setWebsite(e.target.value)}
+                      maxLength={500}
+                      required
+                    />
+                  </label>
+                  <label style={{ display: "grid", gap: "0.25rem" }}>
+                    <span className="muted" style={{ fontSize: "0.85rem" }}>
+                      Instagram (@conta ou URL)
+                    </span>
+                    <input
+                      className="field-input"
+                      value={instagram}
+                      onChange={(e) => setInstagram(e.target.value)}
+                      maxLength={240}
+                      placeholder="@loja ou link"
+                      required
+                    />
+                  </label>
+                </div>
+                {mgmt.error ? (
+                  <p style={{ color: "#b91c1c", marginBottom: "0.5rem" }}>
+                    {mgmt.error}
+                  </p>
+                ) : null}
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={
+                    mgmt.loading ||
+                    !businessName.trim() ||
+                    !website.trim() ||
+                    !instagram.trim()
+                  }
+                  onClick={() =>
+                    void mgmt.checkout({
+                      diagnosisId,
+                      secret_slug: s ?? "",
+                      business_name: businessName.trim(),
+                      website: website.trim(),
+                      instagram: instagram.trim(),
+                    })
+                  }
+                >
+                  {mgmt.loading
+                    ? "A abrir Mercado Pago…"
+                    : "Pagar gestão — R$ 1.997"}
+                </button>
+              </>
+            )}
           </section>
         ) : null}
 

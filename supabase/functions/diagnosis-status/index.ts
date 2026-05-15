@@ -17,7 +17,9 @@ Deno.serve(async (req) => {
   const sb = diagnosisServiceClient();
   const { data } = await sb
     .from("diagnoses")
-    .select("status, failed_reason, completed_at")
+    .select(
+      "status, failed_reason, completed_at, management_status, management_paid_at, management_business_name, management_website, management_instagram",
+    )
     .eq("id", d)
     .single();
 
@@ -25,5 +27,10 @@ Deno.serve(async (req) => {
     status: data?.status,
     failed_reason: data?.failed_reason ?? null,
     completed_at: data?.completed_at ?? null,
+    management_status: data?.management_status ?? null,
+    management_paid_at: data?.management_paid_at ?? null,
+    management_business_name: data?.management_business_name ?? null,
+    management_website: data?.management_website ?? null,
+    management_instagram: data?.management_instagram ?? null,
   });
 });

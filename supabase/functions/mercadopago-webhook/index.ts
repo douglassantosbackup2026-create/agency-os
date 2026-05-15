@@ -15,6 +15,11 @@ async function fetchPayment(
   return (await r.json()) as Record<string, unknown>;
 }
 
+const DIAGNOSIS_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const MGMT_PREFIX = "mgmt:";
+
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
@@ -63,6 +68,54 @@ Deno.serve(async (req) => {
   }
 
   const sb = diagnosisServiceClient();
+
+  if (typeof extRef === "string" && extRef.startsWith(MGMT_PREFIX)) {
+    const rawId = extRef.slice(MGMT_PREFIX.length);
+    if (!DIAGNOSIS_ID_RE.test(rawId)) {
+      return jsonResponse(
+        { ok: true, note: "invalid mgmt external_reference" },
+        200,
+      );
+    }
+    const { data: existing } = await sb
+      .from("diagnoses")
+      .select("id, management_mp_payment_id")
+      .eq("id", rawId)
+      .maybeSingle();
+
+    if (!existing) {
+      return jsonResponse({ ok: true, note: "unknown diagnosis (mgmt)" }, 200);
+    }
+
+    if (existing.management_mp_payment_id === dataId) {
+      return jsonResponse({ ok: true, idempotent: true, branch: "mgmt" }, 200);
+    }
+
+    const paidAt = new Date().toISOString();
+    const { error: upErr } = await sb
+      .from("diagnoses")
+      .update({
+        management_mp_payment_id: dataId,
+        management_status: "paid",
+        management_paid_at: paidAt,
+      })
+      .eq("id", rawId);
+
+    if (upErr) {
+      console.error(upErr);
+      return jsonResponse({ error: "db update failed (mgmt)" }, 500);
+    }
+
+    return jsonResponse({ ok: true, branch: "mgmt" }, 200);
+  }
+
+  if (!DIAGNOSIS_ID_RE.test(extRef)) {
+    return jsonResponse(
+      { ok: true, note: "invalid diagnosis external_reference" },
+      200,
+    );
+  }
+
   const { data: existing } = await sb
     .from("diagnoses")
     .select("id, status, mp_payment_id")

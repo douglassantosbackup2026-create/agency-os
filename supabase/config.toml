@@ -48,6 +48,9 @@ verify_jwt = true
 [functions.create-diagnosis-checkout]
 verify_jwt = false
 
+[functions.create-management-checkout]
+verify_jwt = false
+
 [functions.mercadopago-webhook]
 verify_jwt = false
 

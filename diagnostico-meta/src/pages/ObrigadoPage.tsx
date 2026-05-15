@@ -195,7 +195,7 @@ export function ObrigadoPage() {
           <Link
             to="/diagnostico/$diagnosisId"
             params={{ diagnosisId: d }}
-            search={{ s }}
+            search={{ s, gestaoCheckout: undefined }}
             className="btn btn-primary"
           >
             Ver diagnóstico

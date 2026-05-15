@@ -2239,6 +2239,14 @@ export type Database = {
           viewed_at: string | null;
           cta_clicked_at: string | null;
           report_version: number;
+          management_status: "none" | "awaiting_payment" | "paid";
+          management_amount_cents: number;
+          management_mp_preference_id: string | null;
+          management_mp_payment_id: string | null;
+          management_business_name: string | null;
+          management_website: string | null;
+          management_instagram: string | null;
+          management_paid_at: string | null;
         };
         Insert: {
           id?: string;
@@ -2261,6 +2269,14 @@ export type Database = {
           viewed_at?: string | null;
           cta_clicked_at?: string | null;
           report_version?: number;
+          management_status?: "none" | "awaiting_payment" | "paid";
+          management_amount_cents?: number;
+          management_mp_preference_id?: string | null;
+          management_mp_payment_id?: string | null;
+          management_business_name?: string | null;
+          management_website?: string | null;
+          management_instagram?: string | null;
+          management_paid_at?: string | null;
         };
         Update: {
           id?: string;
@@ -2283,6 +2299,14 @@ export type Database = {
           viewed_at?: string | null;
           cta_clicked_at?: string | null;
           report_version?: number;
+          management_status?: "none" | "awaiting_payment" | "paid";
+          management_amount_cents?: number;
+          management_mp_preference_id?: string | null;
+          management_mp_payment_id?: string | null;
+          management_business_name?: string | null;
+          management_website?: string | null;
+          management_instagram?: string | null;
+          management_paid_at?: string | null;
         };
         Relationships: [];
       };
