@@ -5,9 +5,12 @@ async function fetchPayment(
   paymentId: string,
   accessToken: string,
 ): Promise<Record<string, unknown> | null> {
-  const r = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  const r = await fetch(
+    `https://api.mercadopago.com/v1/payments/${paymentId}`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    },
+  );
   if (!r.ok) return null;
   return (await r.json()) as Record<string, unknown>;
 }
@@ -31,10 +34,11 @@ Deno.serve(async (req) => {
 
   const topic = typeof body.type === "string" ? body.type : "";
   const dataId =
-    typeof body.data === "object" && body.data !== null &&
-      typeof (body.data as { id?: string }).id === "string"
-    ? (body.data as { id: string }).id
-    : null;
+    typeof body.data === "object" &&
+    body.data !== null &&
+    typeof (body.data as { id?: string }).id === "string"
+      ? (body.data as { id: string }).id
+      : null;
 
   if (topic !== "payment" || !dataId) {
     return new Response(JSON.stringify({ ok: true, ignored: true }), {

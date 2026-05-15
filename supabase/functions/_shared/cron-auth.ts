@@ -18,8 +18,7 @@ export function cronUnauthorized(): Response {
 
 export async function assertCronOrUser(req: Request): Promise<Response | null> {
   const secret = Deno.env.get("CRON_SECRET");
-  const allowInsecureAnon =
-    Deno.env.get("ALLOW_INSECURE_CRON_ANON") === "true";
+  const allowInsecureAnon = Deno.env.get("ALLOW_INSECURE_CRON_ANON") === "true";
   const authHeader = req.headers.get("authorization") ?? "";
   const bearer = authHeader.startsWith("Bearer ")
     ? authHeader.slice(7).trim()

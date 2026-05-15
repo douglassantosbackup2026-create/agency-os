@@ -6,7 +6,12 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Send, MessageSquare, Plus, Trash2, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
-import { Card, CardHeader, Empty, PageSkeleton } from "@/components/operational-ui";
+import {
+  Card,
+  CardHeader,
+  Empty,
+  PageSkeleton,
+} from "@/components/operational-ui";
 import { timeAgo } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/whatsapp")({

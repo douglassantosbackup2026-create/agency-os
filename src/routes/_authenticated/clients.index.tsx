@@ -64,13 +64,7 @@ function Clients() {
     setCreating(!!search.new);
   }, [search.new]);
 
-  const {
-    data,
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["clients", agency?.id],
     enabled: !!agency,
     queryFn: async () => {
@@ -534,6 +528,7 @@ function Clients() {
                       <div className="font-medium">{item.client.name}</div>
                       <Link
                         to="/actions"
+                        search={{ sla: undefined }}
                         className="inline-flex min-h-11 shrink-0 items-center text-xs text-primary hover:underline"
                       >
                         Ações
@@ -795,7 +790,7 @@ function Clients() {
         <NewClientDialog
           onClose={() => {
             setCreating(false);
-            navigate({ to: "/clients", search: {} });
+            navigate({ to: "/clients", search: { new: undefined } });
             refetch();
             limits.refetch();
           }}

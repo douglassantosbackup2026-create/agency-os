@@ -2,9 +2,16 @@
 export const SYNC_WARNING_HOURS = 24;
 export const SYNC_CRITICAL_HOURS = 72;
 
-export type SyncFreshnessLevel = "ok" | "warning" | "critical" | "error" | "none";
+export type SyncFreshnessLevel =
+  | "ok"
+  | "warning"
+  | "critical"
+  | "error"
+  | "none";
 
-export function hoursSinceSync(isoDate: string | null | undefined): number | null {
+export function hoursSinceSync(
+  isoDate: string | null | undefined,
+): number | null {
   if (!isoDate) return null;
   const t = new Date(isoDate).getTime();
   if (Number.isNaN(t)) return null;

@@ -1,5 +1,9 @@
 import { Quote, TrendingUp } from "lucide-react";
-import { ANCHOR_RESULTADOS, socialProofSection, type SocialProofCase } from "@/content/diagnosis-landing";
+import {
+  ANCHOR_RESULTADOS,
+  socialProofSection,
+  type SocialProofCase,
+} from "@/content/diagnosis-landing";
 import {
   LANDING_SECTION_SCROLL,
   landingSectionMutedClass,

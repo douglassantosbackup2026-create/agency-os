@@ -1,9 +1,6 @@
 import { AlertTriangle, CheckCircle2, Users, XCircle } from "lucide-react";
 import { ANCHOR_PARA_QUEM, forWhoSection } from "@/content/diagnosis-landing";
-import {
-  LANDING_SECTION_SCROLL,
-  landingEyebrowClass,
-} from "@/lib/landing-ui";
+import { LANDING_SECTION_SCROLL, landingEyebrowClass } from "@/lib/landing-ui";
 
 export function DiagnosisQualification() {
   return (

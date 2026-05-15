@@ -1,6 +1,9 @@
 const enc = new TextEncoder();
 
-export async function hmacSign(message: string, secret: string): Promise<string> {
+export async function hmacSign(
+  message: string,
+  secret: string,
+): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",
     enc.encode(secret),

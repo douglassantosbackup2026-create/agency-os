@@ -104,7 +104,17 @@ function sortByDue(rows: ActionCenterRow[], sortDue: SortDueType) {
 }
 
 function exportActionsToCsv(rows: ActionCenterRow[]) {
-  const header = ["ID", "Cliente", "Título", "Origem", "Prioridade", "Estado", "Responsável", "Prazo", "Criado em"];
+  const header = [
+    "ID",
+    "Cliente",
+    "Título",
+    "Origem",
+    "Prioridade",
+    "Estado",
+    "Responsável",
+    "Prazo",
+    "Criado em",
+  ];
   const body = rows.map((a) => [
     a.id,
     (a.clients as { name?: string } | null)?.name ?? "",
@@ -443,6 +453,7 @@ function ActionsCenter() {
         </Button>
         <Link
           to="/clients"
+          search={{ new: undefined }}
           className="text-sm font-medium text-primary hover:underline"
         >
           Ver clientes

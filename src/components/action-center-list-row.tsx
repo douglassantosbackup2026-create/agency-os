@@ -74,11 +74,13 @@ function ActionCenterListRowInner({
               <span className="rounded bg-surface px-1.5 py-0.5 text-xs text-muted-foreground">
                 {a.source_type}
               </span>
-              <span className="text-xs text-muted-foreground">{a.priority}</span>
+              <span className="text-xs text-muted-foreground">
+                {a.priority}
+              </span>
               {a.clients?.name && (
                 <Link
                   to="/clients/$clientId"
-                  params={{ clientId: a.client_id }}
+                  params={{ clientId: a.client_id! }}
                   className="text-sm text-primary hover:underline"
                 >
                   {a.clients.name}
@@ -86,7 +88,9 @@ function ActionCenterListRowInner({
               )}
             </div>
             {a.description && (
-              <p className="mt-1 text-xs text-muted-foreground">{a.description}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {a.description}
+              </p>
             )}
             <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
               <span>{timeAgo(a.created_at)}</span>
@@ -104,16 +108,16 @@ function ActionCenterListRowInner({
                 {expanded ? "Ocultar histórico" : "Histórico"}
               </Button>
               <label className="flex items-center gap-2 font-normal">
-                <span className="shrink-0 text-muted-foreground">Responsável</span>
+                <span className="shrink-0 text-muted-foreground">
+                  Responsável
+                </span>
                 <select
                   value={a.assigned_to ?? ""}
                   onChange={(e) => void onAssignee(a.id, e.target.value)}
                   className="h-7 max-w-[160px] rounded-md border border-border bg-background px-2 text-xs"
                 >
                   <option value="">—</option>
-                  {currentUserId && (
-                    <option value={currentUserId}>Eu</option>
-                  )}
+                  {currentUserId && <option value={currentUserId}>Eu</option>}
                   {teammates
                     .filter((t) => t.id !== currentUserId)
                     .map((t) => (

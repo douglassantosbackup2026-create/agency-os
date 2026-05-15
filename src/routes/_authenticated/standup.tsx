@@ -13,9 +13,7 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { useOperationClientScope } from "@/hooks/use-operation-client-scope";
-import {
-  ACTION_CENTER_OPEN_STATUSES,
-} from "@/lib/action-center-status";
+import { ACTION_CENTER_OPEN_STATUSES } from "@/lib/action-center-status";
 import {
   syncLabelForCockpit,
   hoursSinceSync,
@@ -75,46 +73,41 @@ function StandupPage() {
     enabled: !!agency?.id && !!user?.id,
     queryFn: async () => {
       const todayIso = new Date().toISOString().slice(0, 10);
-      const [
-        actionsRes,
-        alertsRes,
-        syncRes,
-        clientsRes,
-        snoozeRes,
-      ] = await Promise.all([
-        supabase
-          .from("action_center")
-          .select("id, title, due_date, client_id, priority, clients(name)")
-          .eq("agency_id", agency!.id)
-          .in("status", [...ACTION_CENTER_OPEN_STATUSES])
-          .not("due_date", "is", null)
-          .lte("due_date", todayIso)
-          .limit(80),
-        supabase
-          .from("alerts")
-          .select("id, title, priority, client_id, clients(name)")
-          .eq("agency_id", agency!.id)
-          .eq("status", "open")
-          .eq("priority", "critical")
-          .limit(80),
-        supabase
-          .from("sync_runs")
-          .select("client_id, status, created_at")
-          .eq("agency_id", agency!.id)
-          .not("client_id", "is", null)
-          .order("created_at", { ascending: false })
-          .limit(600),
-        supabase
-          .from("clients")
-          .select("id, name")
-          .eq("agency_id", agency!.id)
-          .limit(500),
-        supabase
-          .from("standup_snoozes")
-          .select("item_key, hidden_until")
-          .eq("agency_id", agency!.id)
-          .eq("user_id", user!.id),
-      ]);
+      const [actionsRes, alertsRes, syncRes, clientsRes, snoozeRes] =
+        await Promise.all([
+          supabase
+            .from("action_center")
+            .select("id, title, due_date, client_id, priority, clients(name)")
+            .eq("agency_id", agency!.id)
+            .in("status", [...ACTION_CENTER_OPEN_STATUSES])
+            .not("due_date", "is", null)
+            .lte("due_date", todayIso)
+            .limit(80),
+          supabase
+            .from("alerts")
+            .select("id, title, priority, client_id, clients(name)")
+            .eq("agency_id", agency!.id)
+            .eq("status", "open")
+            .eq("priority", "critical")
+            .limit(80),
+          supabase
+            .from("sync_runs")
+            .select("client_id, status, created_at")
+            .eq("agency_id", agency!.id)
+            .not("client_id", "is", null)
+            .order("created_at", { ascending: false })
+            .limit(600),
+          supabase
+            .from("clients")
+            .select("id, name")
+            .eq("agency_id", agency!.id)
+            .limit(500),
+          supabase
+            .from("standup_snoozes")
+            .select("item_key, hidden_until")
+            .eq("agency_id", agency!.id)
+            .eq("user_id", user!.id),
+        ]);
       throwIfSupabaseError(actionsRes.error, "standup.actions");
       throwIfSupabaseError(alertsRes.error, "standup.alerts");
       throwIfSupabaseError(syncRes.error, "standup.sync");
@@ -191,8 +184,7 @@ function StandupPage() {
         level.level === "error" ||
         (h != null && h >= SYNC_CRITICAL_HOURS)
       ) {
-        const name =
-          data.clients.find((c) => c.id === cid)?.name ?? "Cliente";
+        const name = data.clients.find((c) => c.id === cid)?.name ?? "Cliente";
         list.push({
           kind: "stale_sync",
           key: `sync:${cid}`,
@@ -314,7 +306,9 @@ function StandupPage() {
                           Sync
                         </span>
                       )}
-                      <span className="font-medium leading-snug">{it.title}</span>
+                      <span className="font-medium leading-snug">
+                        {it.title}
+                      </span>
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
                       {it.subtitle}

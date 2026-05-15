@@ -43,7 +43,9 @@ export function DiagnosisAuthor() {
             <div className="mt-4 flex justify-center gap-6 sm:justify-start">
               {authorStats.map((stat) => (
                 <div key={stat.label} className="text-center sm:text-left">
-                  <p className="text-lg font-bold text-foreground">{stat.value}</p>
+                  <p className="text-lg font-bold text-foreground">
+                    {stat.value}
+                  </p>
                   <p className="text-xs text-muted-foreground">{stat.label}</p>
                 </div>
               ))}

@@ -20,7 +20,9 @@ export function DiagnosisHowItWorks() {
         <h2 className="mt-4 text-2xl font-semibold tracking-tight md:text-3xl">
           {howItWorksSection.title}
         </h2>
-        <p className="mt-2 text-muted-foreground">{howItWorksSection.subtitle}</p>
+        <p className="mt-2 text-muted-foreground">
+          {howItWorksSection.subtitle}
+        </p>
         <ol className="relative mt-10 space-y-8 border-l-2 border-primary/20 pl-8">
           {howItWorksSection.steps.map((step) => (
             <li key={step.step} className="relative">

@@ -5,7 +5,8 @@ import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
-  if (req.method !== "GET") return jsonResponse({ error: "Method not allowed" }, 405);
+  if (req.method !== "GET")
+    return jsonResponse({ error: "Method not allowed" }, 405);
 
   const url = new URL(req.url);
   const d = url.searchParams.get("d") ?? "";

@@ -37,8 +37,7 @@ export function DiagnosisCta({
       >
         {loading ? (
           <span className="inline-flex items-center gap-2">
-            <Loader2 className="h-5 w-5 animate-spin" />
-            A redirecionar…
+            <Loader2 className="h-5 w-5 animate-spin" />A redirecionar…
           </span>
         ) : (
           <>
@@ -54,10 +53,3 @@ export function DiagnosisCta({
     </div>
   );
 }
-
-
-
-
-
-
-

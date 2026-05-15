@@ -60,13 +60,7 @@ function AlertsListRowInner({
         title: a.title,
         recommendedAction: a.recommended_action,
       }),
-    [
-      a.type,
-      a.clients?.name,
-      a.description,
-      a.title,
-      a.recommended_action,
-    ],
+    [a.type, a.clients?.name, a.description, a.title, a.recommended_action],
   );
 
   const waDigits = String(a.clients?.contact_phone ?? "").replace(/\D/g, "");
@@ -213,14 +207,17 @@ function AlertsListRowInner({
                   Mensagem
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[min(100vw-2rem,22rem)] space-y-3" align="end">
+              <PopoverContent
+                className="w-[min(100vw-2rem,22rem)] space-y-3"
+                align="end"
+              >
                 <div>
                   <p className="text-xs font-medium text-foreground">
                     {messageDraft.scenarioLabel}
                   </p>
                   <p className="mt-1 text-[11px] text-muted-foreground">
-                    Texto gerado a partir do tipo de alerta e da descrição; adapte
-                    antes de enviar.
+                    Texto gerado a partir do tipo de alerta e da descrição;
+                    adapte antes de enviar.
                   </p>
                 </div>
                 <textarea
@@ -253,7 +250,13 @@ function AlertsListRowInner({
                       Sem telefone na ficha do cliente
                     </span>
                   )}
-                  <Button type="button" size="sm" variant="ghost" className="text-xs" asChild>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    className="text-xs"
+                    asChild
+                  >
                     <Link to="/whatsapp">Página WhatsApp</Link>
                   </Button>
                 </div>

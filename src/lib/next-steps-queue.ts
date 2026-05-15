@@ -100,8 +100,7 @@ export function buildNextStepsQueue(args: {
     kind: "alert",
     title: String(a.title ?? "Alerta"),
     subtitle: a.recommended_action ?? a.description ?? undefined,
-    effortMinutes:
-      EFFORT_BY_ALERT_PRIORITY[String(a.priority ?? "")] ?? 10,
+    effortMinutes: EFFORT_BY_ALERT_PRIORITY[String(a.priority ?? "")] ?? 10,
     tab: "alerts",
     priorityScore: scoreAlert(a),
   }));
@@ -205,8 +204,7 @@ export function buildPortfolioNextSteps(args: {
       clientName: String(a.clients?.name ?? "Cliente"),
       title: String(a.title ?? "Alerta"),
       subtitle: a.recommended_action ?? a.description ?? undefined,
-      effortMinutes:
-        EFFORT_BY_ALERT_PRIORITY[String(a.priority ?? "")] ?? 10,
+      effortMinutes: EFFORT_BY_ALERT_PRIORITY[String(a.priority ?? "")] ?? 10,
       priorityScore: scoreAlert(a),
       kind: "alert",
     });

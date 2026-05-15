@@ -55,8 +55,7 @@ Deno.serve(async (req) => {
     const tikTokKey =
       Deno.env.get("TIKTOK_CLIENT_KEY") ?? Deno.env.get("TIKTOK_APP_ID");
     const tikTokSecret =
-      Deno.env.get("TIKTOK_APP_SECRET") ??
-      Deno.env.get("TIKTOK_CLIENT_SECRET");
+      Deno.env.get("TIKTOK_APP_SECRET") ?? Deno.env.get("TIKTOK_CLIENT_SECRET");
 
     const body = {
       integration_oauth_state_secret_ok:

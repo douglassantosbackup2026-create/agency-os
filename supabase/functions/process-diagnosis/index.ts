@@ -29,7 +29,10 @@ async function fetchAccountInsights(
   u.searchParams.set("date_preset", "last_30d");
   u.searchParams.set("access_token", token);
   const r = await fetch(u.toString());
-  const j = (await r.json()) as { data?: Record<string, unknown>[]; error?: { message: string } };
+  const j = (await r.json()) as {
+    data?: Record<string, unknown>[];
+    error?: { message: string };
+  };
   if (j.error) throw new Error(j.error.message);
   return j.data?.[0] ?? {};
 }
@@ -43,7 +46,10 @@ async function fetchCampaigns(
   u.searchParams.set("limit", "40");
   u.searchParams.set("access_token", token);
   const r = await fetch(u.toString());
-  const j = (await r.json()) as { data?: Record<string, unknown>[]; error?: { message: string } };
+  const j = (await r.json()) as {
+    data?: Record<string, unknown>[];
+    error?: { message: string };
+  };
   if (j.error) throw new Error(j.error.message);
   return j.data ?? [];
 }
@@ -108,7 +114,8 @@ Usa linguagem de estimativa nos impactos financeiros. Nunca garantas ROAS.`;
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
-  if (req.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405);
+  if (req.method !== "POST")
+    return jsonResponse({ error: "Method not allowed" }, 405);
 
   const auth = await assertCronOrUser(req);
   if (auth) return auth;
@@ -130,15 +137,30 @@ Deno.serve(async (req) => {
 
     const { data: sec } = await sb
       .from("diagnosis_secrets")
-      .select("access_token")
+      .select("access_token, token_expires_at")
       .eq("diagnosis_id", id)
       .maybeSingle();
     const token = sec?.access_token as string | undefined;
     if (!token) {
-      await sb.from("diagnoses").update({
-        status: "failed",
-        failed_reason: "Token Meta ausente",
-      }).eq("id", id);
+      await sb
+        .from("diagnoses")
+        .update({
+          status: "failed",
+          failed_reason: "Token Meta ausente",
+        })
+        .eq("id", id);
+      continue;
+    }
+
+    const expiresAt = sec?.token_expires_at as string | null | undefined;
+    if (expiresAt && new Date(expiresAt).getTime() < Date.now()) {
+      await sb
+        .from("diagnoses")
+        .update({
+          status: "failed",
+          failed_reason: "Token Meta expirado. Reconecta a conta Meta.",
+        })
+        .eq("id", id);
       continue;
     }
 
@@ -173,34 +195,48 @@ Deno.serve(async (req) => {
       }
 
       if (!analysisExisting) {
-        const analysis = await runClaude(factsExisting as Record<string, unknown>);
+        const analysis = await runClaude(
+          factsExisting as Record<string, unknown>,
+        );
         if (!validateAnalysis(analysis)) {
           throw new Error("Resposta Claude inválida");
         }
-        await sb.from("diagnosis_reports").update({
-          analysis_json: analysis,
-          prompt_version: PROMPT_VERSION,
-          updated_at: new Date().toISOString(),
-        }).eq("diagnosis_id", id);
+        await sb
+          .from("diagnosis_reports")
+          .update({
+            analysis_json: analysis,
+            prompt_version: PROMPT_VERSION,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("diagnosis_id", id);
 
-        await sb.from("diagnoses").update({
-          status: "completed",
-          completed_at: new Date().toISOString(),
-        }).eq("id", id);
+        await sb
+          .from("diagnoses")
+          .update({
+            status: "completed",
+            completed_at: new Date().toISOString(),
+          })
+          .eq("id", id);
         processed++;
         continue;
       }
 
-      await sb.from("diagnoses").update({
-        status: "completed",
-        completed_at: new Date().toISOString(),
-      }).eq("id", id);
+      await sb
+        .from("diagnoses")
+        .update({
+          status: "completed",
+          completed_at: new Date().toISOString(),
+        })
+        .eq("id", id);
     } catch (e) {
       console.error(e);
-      await sb.from("diagnoses").update({
-        status: "failed",
-        failed_reason: String(e).slice(0, 500),
-      }).eq("id", id);
+      await sb
+        .from("diagnoses")
+        .update({
+          status: "failed",
+          failed_reason: String(e).slice(0, 500),
+        })
+        .eq("id", id);
     }
   }
 

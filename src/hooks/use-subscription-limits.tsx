@@ -32,7 +32,10 @@ export function useSubscriptionLimits() {
       ]);
 
       throwIfSupabaseError(sub.error, "subscription-limits.subscriptions");
-      throwIfSupabaseError(clientsCt.error, "subscription-limits.clients_count");
+      throwIfSupabaseError(
+        clientsCt.error,
+        "subscription-limits.clients_count",
+      );
       throwIfSupabaseError(alertsCt.error, "subscription-limits.alerts_count");
 
       const subscription = mergeSubscription(

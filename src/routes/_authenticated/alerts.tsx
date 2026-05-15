@@ -315,7 +315,8 @@ function Alerts() {
         toast.success("Ação criada na Central de Ações.", {
           action: {
             label: "Abrir central",
-            onClick: () => navigate({ to: "/actions" }),
+            onClick: () =>
+              navigate({ to: "/actions", search: { sla: undefined } }),
           },
         });
       }

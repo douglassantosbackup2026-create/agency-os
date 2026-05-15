@@ -20,9 +20,7 @@ export function getJsonNumber(
 }
 
 /** Métricas comuns em `ai_output_json` de relatórios. */
-export function getReportMetricsBlock(
-  root: Json | null | undefined,
-): {
+export function getReportMetricsBlock(root: Json | null | undefined): {
   spend: number;
   revenue: number;
   roas: number;
@@ -39,9 +37,7 @@ export function getReportMetricsBlock(
   };
 }
 
-export function getJsonBlocks(
-  v: Json | null | undefined,
-): Json[] | null {
+export function getJsonBlocks(v: Json | null | undefined): Json[] | null {
   if (!isJsonRecord(v)) return null;
   const b = v.blocks;
   if (!Array.isArray(b)) return null;
@@ -66,9 +62,7 @@ export function jsonDisplay(
   if (
     v !== null &&
     v !== undefined &&
-    (typeof v === "string" ||
-      typeof v === "number" ||
-      typeof v === "boolean")
+    (typeof v === "string" || typeof v === "number" || typeof v === "boolean")
   ) {
     return String(v);
   }

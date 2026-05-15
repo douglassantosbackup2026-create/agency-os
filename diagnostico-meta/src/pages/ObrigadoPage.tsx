@@ -7,10 +7,19 @@ type StatusPayload = {
   failed_reason?: string | null;
 };
 
+const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+  token: "Não foi possível obter o token de acesso da Meta. Tenta novamente.",
+  noadaccounts:
+    "A conta Meta ligada não tem contas de anúncios ativas. Verifica as permissões e tenta novamente.",
+  access_denied:
+    "Acesso negado. Autoriza o acesso de leitura (ads_read) para continuar.",
+};
+
 export function ObrigadoPage() {
-  const { d, s } = useSearch({ strict: false }) as {
+  const { d, s, oauth_error } = useSearch({ strict: false }) as {
     d?: string;
     s?: string;
+    oauth_error?: string;
   };
   const [status, setStatus] = useState<StatusPayload | null>(null);
   const [pollErr, setPollErr] = useState<string | null>(null);
@@ -70,8 +79,8 @@ export function ObrigadoPage() {
         <div className="card">
           <h1>Link incompleto</h1>
           <p className="muted">
-            Usa o link completo da página de obrigado (com parâmetros d e s)
-            que recebeste após o pagamento.
+            Usa o link completo da página de obrigado (com parâmetros d e s) que
+            recebeste após o pagamento.
           </p>
           <Link to="/" className="btn btn-outline">
             Voltar
@@ -99,9 +108,11 @@ export function ObrigadoPage() {
         </span>
         <span
           className={
-            st === "processing" ? "step current" : st === "completed"
-              ? "step done"
-              : "step"
+            st === "processing"
+              ? "step current"
+              : st === "completed"
+                ? "step done"
+                : "step"
           }
         >
           3. Diagnóstico
@@ -111,11 +122,13 @@ export function ObrigadoPage() {
       <div className="card">
         <h1 style={{ marginTop: 0 }}>Pagamento recebido</h1>
         <p className="muted">
-          <strong>Sem e-mail:</strong> guarda este link (cópia ou favoritos).
-          É a única forma de voltares aqui.
+          <strong>Sem e-mail:</strong> guarda este link (cópia ou favoritos). É
+          a única forma de voltares aqui.
         </p>
         <p>
-          <code style={{ wordBreak: "break-all", fontSize: "0.85rem" }}>{fullLink}</code>
+          <code style={{ wordBreak: "break-all", fontSize: "0.85rem" }}>
+            {fullLink}
+          </code>
         </p>
         <button
           type="button"
@@ -126,6 +139,22 @@ export function ObrigadoPage() {
           Copiar link
         </button>
       </div>
+
+      {oauth_error ? (
+        <div className="card" style={{ borderColor: "#b91c1c" }}>
+          <h2 style={{ color: "#b91c1c" }}>Erro ao conectar Meta</h2>
+          <p>{OAUTH_ERROR_MESSAGES[oauth_error] ?? `Erro: ${oauth_error}`}</p>
+          {d && s ? (
+            <a
+              className="btn btn-primary"
+              href={metaUrl}
+              style={{ marginTop: "0.75rem", display: "inline-block" }}
+            >
+              Tentar novamente
+            </a>
+          ) : null}
+        </div>
+      ) : null}
 
       {st === "awaiting_connection" ? (
         <div className="card">
@@ -154,8 +183,7 @@ export function ObrigadoPage() {
           <h2>A processar</h2>
           <p>
             A extrair dados e a gerar o diagnóstico (normalmente alguns
-            minutos). Podes fechar o separador — desde que guardes o link
-            acima.
+            minutos). Podes fechar o separador — desde que guardes o link acima.
           </p>
           {pollErr ? <p style={{ color: "#b91c1c" }}>{pollErr}</p> : null}
         </div>

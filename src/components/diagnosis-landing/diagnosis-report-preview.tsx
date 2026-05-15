@@ -15,9 +15,27 @@ type Props = {
 const demoScore = { value: 67, label: "Necessita Atenção" };
 
 const demoMetrics = [
-  { name: "ROAS", current: "2.8x", reference: "6.0x", delta: "↓53%", bad: true },
-  { name: "CPM", current: "R$67", reference: "R$32", delta: "↑109%", bad: true },
-  { name: "CTR", current: "0.7%", reference: "2.0%+", delta: "↓65%", bad: true },
+  {
+    name: "ROAS",
+    current: "2.8x",
+    reference: "6.0x",
+    delta: "↓53%",
+    bad: true,
+  },
+  {
+    name: "CPM",
+    current: "R$67",
+    reference: "R$32",
+    delta: "↑109%",
+    bad: true,
+  },
+  {
+    name: "CTR",
+    current: "0.7%",
+    reference: "2.0%+",
+    delta: "↓65%",
+    bad: true,
+  },
 ];
 
 const demoIssues = [
@@ -27,21 +45,30 @@ const demoIssues = [
 ];
 
 const demoBlurred = [
-  { section: "OPORTUNIDADES PRIORIZADAS", items: [
-    "Quick Win: Pausar conjunto 'Público Amplo BR' (ROAS 1.3x) → economia de R$4.200/mês",
-    "Quick Win: Renovar criativos — testar formato UGC nos top 3 conjuntos",
-    "Médio prazo: Reestruturar funil cold/warm/hot com exclusões corretas",
-  ]},
-  { section: "PLANO DE AÇÃO — 8 PASSOS", items: [
-    "1. Pausar imediatamente campanhas com frequência > 5.0",
-    "2. Criar novos públicos lookalike a partir dos compradores dos últimos 60 dias",
-    "3. Implementar exclusão de compradores em todos os conjuntos de prospecção",
-  ]},
-  { section: "PROJEÇÃO 30 DIAS", items: [
-    "ROAS potencial: 2.8x → 5.2x com as otimizações recomendadas",
-    "Economia mensal estimada: R$8.400 em budget desperdiçado",
-    "Aumento de conversões: +86% mantendo o mesmo investimento",
-  ]},
+  {
+    section: "OPORTUNIDADES PRIORIZADAS",
+    items: [
+      "Quick Win: Pausar conjunto 'Público Amplo BR' (ROAS 1.3x) → economia de R$4.200/mês",
+      "Quick Win: Renovar criativos — testar formato UGC nos top 3 conjuntos",
+      "Médio prazo: Reestruturar funil cold/warm/hot com exclusões corretas",
+    ],
+  },
+  {
+    section: "PLANO DE AÇÃO — 8 PASSOS",
+    items: [
+      "1. Pausar imediatamente campanhas com frequência > 5.0",
+      "2. Criar novos públicos lookalike a partir dos compradores dos últimos 60 dias",
+      "3. Implementar exclusão de compradores em todos os conjuntos de prospecção",
+    ],
+  },
+  {
+    section: "PROJEÇÃO 30 DIAS",
+    items: [
+      "ROAS potencial: 2.8x → 5.2x com as otimizações recomendadas",
+      "Economia mensal estimada: R$8.400 em budget desperdiçado",
+      "Aumento de conversões: +86% mantendo o mesmo investimento",
+    ],
+  },
 ];
 
 export function DiagnosisReportPreview({ onCheckout, loading }: Props) {
@@ -114,11 +141,17 @@ export function DiagnosisReportPreview({ onCheckout, loading }: Props) {
                   >
                     <span className="text-sm font-semibold">{m.name}</span>
                     <div className="flex items-center gap-4 text-sm">
-                      <span className="font-bold text-foreground">{m.current}</span>
-                      <span className="text-muted-foreground">vs ref. {m.reference}</span>
+                      <span className="font-bold text-foreground">
+                        {m.current}
+                      </span>
+                      <span className="text-muted-foreground">
+                        vs ref. {m.reference}
+                      </span>
                       <span
                         className={`flex items-center gap-1 font-semibold ${
-                          m.bad ? "text-red-600 dark:text-red-400" : "text-emerald-600"
+                          m.bad
+                            ? "text-red-600 dark:text-red-400"
+                            : "text-emerald-600"
                         }`}
                       >
                         {m.bad ? (
@@ -186,7 +219,8 @@ export function DiagnosisReportPreview({ onCheckout, loading }: Props) {
               {/* CTA over blur */}
               <div className="absolute inset-0 flex flex-col items-center justify-end gap-3 pb-6 px-4 text-center">
                 <p className="text-sm font-medium text-muted-foreground">
-                  + 6 módulos completos: criativos, públicos, plano de ação e projeção
+                  + 6 módulos completos: criativos, públicos, plano de ação e
+                  projeção
                 </p>
                 <DiagnosisCta
                   size="large"

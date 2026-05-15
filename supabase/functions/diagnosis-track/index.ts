@@ -5,7 +5,8 @@ import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
-  if (req.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405);
+  if (req.method !== "POST")
+    return jsonResponse({ error: "Method not allowed" }, 405);
 
   let body: { diagnosis_id?: string; secret_slug?: string; event?: string };
   try {
@@ -23,10 +24,11 @@ Deno.serve(async (req) => {
   const sb = diagnosisServiceClient();
   const now = new Date().toISOString();
   if (ev === "viewed") {
-    await sb.from("diagnoses").update({ viewed_at: now }).eq("id", d).is(
-      "viewed_at",
-      null,
-    );
+    await sb
+      .from("diagnoses")
+      .update({ viewed_at: now })
+      .eq("id", d)
+      .is("viewed_at", null);
   } else if (ev === "cta") {
     await sb.from("diagnoses").update({ cta_clicked_at: now }).eq("id", d);
   } else {

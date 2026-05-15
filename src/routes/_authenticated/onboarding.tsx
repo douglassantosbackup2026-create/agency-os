@@ -292,13 +292,15 @@ function Onboarding() {
           client_id: inserted.id,
           step_key: "diagnostic_run",
           title:
-            ONBOARDING_CHECKLIST_STEPS.find((s) => s.key === "diagnostic_run")?.title ??
-            "Diagnóstico inicial de saúde da carteira",
+            ONBOARDING_CHECKLIST_STEPS.find((s) => s.key === "diagnostic_run")
+              ?.title ?? "Diagnóstico inicial de saúde da carteira",
           status: "done" as const,
           completed_at: new Date().toISOString(),
           sort_order: Math.max(
             0,
-            ONBOARDING_CHECKLIST_STEPS.findIndex((s) => s.key === "diagnostic_run"),
+            ONBOARDING_CHECKLIST_STEPS.findIndex(
+              (s) => s.key === "diagnostic_run",
+            ),
           ),
         };
         await supabase.from("onboarding_checklist_items").upsert(payload, {
@@ -510,6 +512,7 @@ function Onboarding() {
             </Link>
             <Link
               to="/clients"
+              search={{ new: undefined }}
               className="inline-flex items-center gap-1.5 font-medium text-muted-foreground hover:text-foreground hover:underline"
             >
               Ver clientes <ExternalLink className="h-3 w-3 opacity-70" />
@@ -534,22 +537,37 @@ function Onboarding() {
           )}
           <ol className="list-decimal space-y-2 pl-5 text-xs">
             <li>
-              <Link className="font-medium text-primary hover:underline" to="/clients">
+              <Link
+                className="font-medium text-primary hover:underline"
+                to="/clients"
+                search={{ new: undefined }}
+              >
                 Abrir cockpit (lista de clientes)
               </Link>
             </li>
             <li>
-              <Link className="font-medium text-primary hover:underline" to="/alerts">
+              <Link
+                className="font-medium text-primary hover:underline"
+                to="/alerts"
+                search={{ priority: undefined }}
+              >
                 Abrir um alerta na Central de alertas
               </Link>
             </li>
             <li>
-              <Link className="font-medium text-primary hover:underline" to="/actions">
+              <Link
+                className="font-medium text-primary hover:underline"
+                to="/actions"
+                search={{ sla: undefined }}
+              >
                 Virar em ação ou rever a Central de Ações
               </Link>
             </li>
             <li>
-              <Link className="font-medium text-primary hover:underline" to="/activity">
+              <Link
+                className="font-medium text-primary hover:underline"
+                to="/activity"
+              >
                 Ver o feed de atividade
               </Link>
             </li>
@@ -629,7 +647,9 @@ function Onboarding() {
                             }
                           />
                           <span>
-                            <span className="text-foreground">{step.title}</span>
+                            <span className="text-foreground">
+                              {step.title}
+                            </span>
                             <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
                               {step.impact}
                             </span>

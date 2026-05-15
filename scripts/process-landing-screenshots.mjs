@@ -19,8 +19,13 @@ const UUID_MAP = [
 
 async function main() {
   const sourceDir = process.argv[2];
-  if (!sourceDir || !fs.statSync(sourceDir, { throwIfNoEntry: false })?.isDirectory()) {
-    console.error("Uso: node scripts/process-landing-screenshots.mjs <pasta-com-png>");
+  if (
+    !sourceDir ||
+    !fs.statSync(sourceDir, { throwIfNoEntry: false })?.isDirectory()
+  ) {
+    console.error(
+      "Uso: node scripts/process-landing-screenshots.mjs <pasta-com-png>",
+    );
     process.exit(1);
   }
 

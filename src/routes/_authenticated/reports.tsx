@@ -827,19 +827,10 @@ function Reports() {
                         Dados base
                       </div>
                       <div className="grid grid-cols-2 gap-3 p-4 text-xs sm:grid-cols-4">
-                        <Metric
-                          label="Investimento"
-                          value={brl(rd.spend)}
-                        />
+                        <Metric label="Investimento" value={brl(rd.spend)} />
                         <Metric label="Receita" value={brl(rd.revenue)} />
-                        <Metric
-                          label="ROAS"
-                          value={`${num(rd.roas, 2)}x`}
-                        />
-                        <Metric
-                          label="Conversões"
-                          value={String(rd.conv)}
-                        />
+                        <Metric label="ROAS" value={`${num(rd.roas, 2)}x`} />
+                        <Metric label="Conversões" value={String(rd.conv)} />
                         <Metric
                           label="Sessões (GA4)"
                           value={String(rd.ga4_sessions)}
@@ -852,7 +843,10 @@ function Reports() {
                           label="Ticket (GA4)"
                           value={brl(rd.ga4_avg_ticket)}
                         />
-                        <Metric label="Tracking" value={rd.ga4_tracking_status} />
+                        <Metric
+                          label="Tracking"
+                          value={rd.ga4_tracking_status}
+                        />
                       </div>
                     </Card>
                   );

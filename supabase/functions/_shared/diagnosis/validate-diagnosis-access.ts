@@ -4,7 +4,11 @@ export async function assertDiagnosisSecret(
   diagnosisId: string,
   secretSlug: string,
 ): Promise<{ ok: true } | { ok: false; status: number; message: string }> {
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(diagnosisId)) {
+  if (
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      diagnosisId,
+    )
+  ) {
     return { ok: false, status: 400, message: "id inválido" };
   }
   if (!/^[0-9a-f]{32}$/i.test(secretSlug)) {

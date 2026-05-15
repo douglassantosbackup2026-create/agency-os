@@ -22,7 +22,10 @@ Deno.serve(async (req) => {
   }
   const token = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
   if (!token) {
-    return jsonResponse({ error: "MERCADOPAGO_ACCESS_TOKEN não configurado" }, 500);
+    return jsonResponse(
+      { error: "MERCADOPAGO_ACCESS_TOKEN não configurado" },
+      500,
+    );
   }
   const site = siteUrl();
   if (!site) {
@@ -70,14 +73,17 @@ Deno.serve(async (req) => {
     auto_return: "approved",
   };
 
-  const mpRes = await fetch("https://api.mercadopago.com/checkout/preferences", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
+  const mpRes = await fetch(
+    "https://api.mercadopago.com/checkout/preferences",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(preference),
     },
-    body: JSON.stringify(preference),
-  });
+  );
 
   if (!mpRes.ok) {
     const t = await mpRes.text();

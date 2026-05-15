@@ -32,9 +32,9 @@ export function LandingPage() {
       <div className="card">
         <h1 style={{ marginTop: 0 }}>Diagnóstico Meta Ads</h1>
         <p className="muted">
-          Auditoria orientada a e-commerce: ligas a tua conta (leitura),
-          recebes score, problemas prioritários e plano de ação. Sem e-mail:
-          guarda o link da página seguinte.
+          Auditoria orientada a e-commerce: ligas a tua conta (leitura), recebes
+          score, problemas prioritários e plano de ação. Sem e-mail: guarda o
+          link da página seguinte.
         </p>
         <ul className="muted">
           <li>Pagamento seguro (Mercado Pago)</li>

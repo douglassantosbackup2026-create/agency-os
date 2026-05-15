@@ -30,13 +30,22 @@ async function checkBody(
     body = (await readJsonBody(req)) as Record<string, unknown>;
   } catch (e) {
     if (e instanceof BodyTooLargeError) {
-      return { response: new Response(JSON.stringify({ error: "payload demasiado grande" }), { status: 413 }) };
+      return {
+        response: new Response(
+          JSON.stringify({ error: "payload demasiado grande" }),
+          { status: 413 },
+        ),
+      };
     }
     body = {};
   }
   const client_id = String(body.client_id ?? "").trim();
   if (!client_id) {
-    return { response: new Response(JSON.stringify({ error: "client_id required" }), { status: 400 }) };
+    return {
+      response: new Response(JSON.stringify({ error: "client_id required" }), {
+        status: 400,
+      }),
+    };
   }
   return { client_id };
 }
@@ -63,7 +72,10 @@ describe("generate-report — contrato HTTP", () => {
   it("retorna 400 quando client_id está ausente no body", async () => {
     const req = new Request("http://edge/generate-report", {
       method: "POST",
-      headers: { Authorization: "Bearer token123", "Content-Type": "application/json" },
+      headers: {
+        Authorization: "Bearer token123",
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({}),
     });
     const result = await checkBody(req);
@@ -100,7 +112,10 @@ describe("generate-report — contrato HTTP", () => {
   it("passa validação com client_id válido", async () => {
     const req = new Request("http://edge/generate-report", {
       method: "POST",
-      headers: { Authorization: "Bearer token123", "Content-Type": "application/json" },
+      headers: {
+        Authorization: "Bearer token123",
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ client_id: "uuid-client-1" }),
     });
     const result = await checkBody(req);

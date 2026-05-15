@@ -85,15 +85,11 @@ function PlatformAdmin() {
       if (overviewRes.error) throw overviewRes.error;
       if (agenciesRes.error) throw agenciesRes.error;
 
-      const raw = (overviewRes.data ?? [])[0] as
-        | OverviewRow
-        | undefined;
+      const raw = (overviewRes.data ?? [])[0] as OverviewRow | undefined;
       const overview = raw
         ? {
             agencies_count: Number(raw.agencies_count),
-            profiles_with_agency_count: Number(
-              raw.profiles_with_agency_count,
-            ),
+            profiles_with_agency_count: Number(raw.profiles_with_agency_count),
             clients_count: Number(raw.clients_count),
           }
         : undefined;
@@ -114,8 +110,7 @@ function PlatformAdmin() {
     },
   });
 
-  if (isLoading)
-    return <PageSkeleton preset="compact" />;
+  if (isLoading) return <PageSkeleton preset="compact" />;
 
   if (error) {
     return (
@@ -149,7 +144,8 @@ function PlatformAdmin() {
         </div>
         <p className="max-w-2xl text-sm text-muted-foreground">
           Visão global da instância (todas as agências). Isto é independente de{" "}
-          <strong>Equipa e auditoria</strong> no menu, que gere só a tua agência.
+          <strong>Equipa e auditoria</strong> no menu, que gere só a tua
+          agência.
         </p>
       </motion.div>
 
@@ -226,7 +222,9 @@ function PlatformAdmin() {
           ) : data?.oauthStatus ? (
             <ul className="space-y-2 rounded-md border border-border bg-muted/20 p-3">
               <li className="flex items-center gap-2">
-                <StatusDot ok={data.oauthStatus.integration_oauth_state_secret_ok} />
+                <StatusDot
+                  ok={data.oauthStatus.integration_oauth_state_secret_ok}
+                />
                 <span>INTEGRATION_OAUTH_STATE_SECRET (min. 16 chars)</span>
               </li>
               <li className="flex items-center gap-2">
@@ -246,7 +244,9 @@ function PlatformAdmin() {
                 <span>GOOGLE_OAUTH_CLIENT_ID (Ads + GA4)</span>
               </li>
               <li className="flex items-center gap-2">
-                <StatusDot ok={data.oauthStatus.google_oauth_client_secret_ok} />
+                <StatusDot
+                  ok={data.oauthStatus.google_oauth_client_secret_ok}
+                />
                 <span>GOOGLE_OAUTH_CLIENT_SECRET</span>
               </li>
               <li className="flex items-center gap-2">
@@ -299,7 +299,9 @@ function PlatformAdmin() {
           <p className="flex items-center gap-2">
             <Building2 className="h-3.5 w-3.5" />
             Operador com sessão:{" "}
-            <span className="font-mono text-foreground">{user?.email ?? user?.id}</span>
+            <span className="font-mono text-foreground">
+              {user?.email ?? user?.id}
+            </span>
           </p>
         </div>
       </Card>

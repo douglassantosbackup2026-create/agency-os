@@ -10,26 +10,22 @@ export const MESSAGE_SCENARIO_TEMPLATES: MessageTemplateDef[] = [
   {
     id: "roas_drop",
     label: "Queda de ROAS",
-    body:
-      "Olá! Em {{periodo}} notámos uma queda de performance ({{metrica}}) na conta. Já estamos a rever criativos e segmentação; enviamos um plano de ação até {{prazo}}.",
+    body: "Olá! Em {{periodo}} notámos uma queda de performance ({{metrica}}) na conta. Já estamos a rever criativos e segmentação; enviamos um plano de ação até {{prazo}}.",
   },
   {
     id: "budget",
     label: "Orçamento / pacing",
-    body:
-      "Olá! Sobre o investimento em {{periodo}}: o pacing está {{metrica}} em relação ao definido. Sugerimos {{acao}} — confirmamos contigo?",
+    body: "Olá! Sobre o investimento em {{periodo}}: o pacing está {{metrica}} em relação ao definido. Sugerimos {{acao}} — confirmamos contigo?",
   },
   {
     id: "creative",
     label: "Pedido de criativo",
-    body:
-      "Olá! Para {{cliente}}, precisamos de novos criativos (formatos: vídeo 15s + estático 1:1) até {{prazo}} para evitar fadiga e escalar com segurança.",
+    body: "Olá! Para {{cliente}}, precisamos de novos criativos (formatos: vídeo 15s + estático 1:1) até {{prazo}} para evitar fadiga e escalar com segurança.",
   },
   {
     id: "checkin",
     label: "Check-in rápido",
-    body:
-      "Olá! Check-in sobre {{cliente}}: em {{periodo}} os principais números foram {{metrica}}. Há algum ponto que queiram priorizar esta semana?",
+    body: "Olá! Check-in sobre {{cliente}}: em {{periodo}} os principais números foram {{metrica}}. Há algum ponto que queiram priorizar esta semana?",
   },
 ];
 
@@ -54,7 +50,9 @@ export function applyMessageTemplate(
 }
 
 /** Liga tipos de alerta (evaluate-alerts / UI) ao cenário de template. */
-export function templateIdForAlertType(alertType: string): MessageTemplateDef["id"] {
+export function templateIdForAlertType(
+  alertType: string,
+): MessageTemplateDef["id"] {
   const m: Record<string, MessageTemplateDef["id"]> = {
     roas_drop: "roas_drop",
     budget_pacing: "budget",
@@ -77,13 +75,18 @@ export function draftMessageForAlert(args: {
   description?: string | null;
   title?: string | null;
   recommendedAction?: string | null;
-}): { scenarioLabel: string; body: string; templateId: MessageTemplateDef["id"] } {
+}): {
+  scenarioLabel: string;
+  body: string;
+  templateId: MessageTemplateDef["id"];
+} {
   const templateId = templateIdForAlertType(args.alertType);
   const def =
     MESSAGE_SCENARIO_TEMPLATES.find((t) => t.id === templateId) ??
     MESSAGE_SCENARIO_TEMPLATES.find((t) => t.id === "checkin")!;
-  const metricSnippet =
-    (args.description ?? args.title ?? "indicadores").trim().slice(0, 160);
+  const metricSnippet = (args.description ?? args.title ?? "indicadores")
+    .trim()
+    .slice(0, 160);
   const body = applyMessageTemplate(def.body, {
     cliente: args.clientName,
     periodo: "últimos 7 dias",

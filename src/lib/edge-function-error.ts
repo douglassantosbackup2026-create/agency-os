@@ -19,7 +19,8 @@ export async function edgeFunctionErrorMessage(
             message?: string;
           };
           if (typeof j?.error === "string" && j.error.trim()) return j.error;
-          if (typeof j?.message === "string" && j.message.trim()) return j.message;
+          if (typeof j?.message === "string" && j.message.trim())
+            return j.message;
         }
       } catch {
         /* body inválido ou já consumido */

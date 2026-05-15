@@ -36,10 +36,7 @@ import {
 } from "@/lib/audit-dashboard";
 import { ACTION_CENTER_OPEN_STATUSES } from "@/lib/action-center-status";
 import { ONBOARDING_STEP_KEYS } from "@/lib/onboarding-checklist";
-import {
-  buildPortfolioNextSteps,
-  formatEffort,
-} from "@/lib/next-steps-queue";
+import { buildPortfolioNextSteps, formatEffort } from "@/lib/next-steps-queue";
 import { invokeWithToast } from "@/lib/supabase-invoke";
 import { throwIfSupabaseError } from "@/lib/supabase-result";
 import { QueryErrorState } from "@/components/query-error-state";
@@ -619,7 +616,9 @@ function Dashboard() {
               type="button"
               variant="outline"
               className="h-11"
-              onClick={() => navigate({ to: "/clients" })}
+              onClick={() =>
+                navigate({ to: "/clients", search: { new: undefined } })
+              }
             >
               Criar cliente manualmente
             </Button>
@@ -677,6 +676,7 @@ function Dashboard() {
         <div className="grid grid-cols-1 gap-2 border-t border-primary/15 px-5 pb-5 pt-4 sm:grid-cols-3">
           <Link
             to="/alerts"
+            search={{ priority: undefined }}
             className="flex items-center justify-between gap-2 rounded-lg border border-border/80 bg-background/70 px-3 py-2.5 text-sm shadow-sm transition hover:border-primary/35 hover:bg-background"
           >
             <span className="flex min-w-0 items-center gap-2">
@@ -722,7 +722,8 @@ function Dashboard() {
         <div className="px-4 pb-4">
           {portfolioNextSteps.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Nada urgente na fila heurística — rever clientes ou gerar relatórios.
+              Nada urgente na fila heurística — rever clientes ou gerar
+              relatórios.
             </p>
           ) : (
             <ul className="divide-y divide-border rounded-lg border border-border">
@@ -736,8 +737,9 @@ function Dashboard() {
                       {row.title}
                     </div>
                     <div className="mt-0.5 text-xs text-muted-foreground">
-                      {row.clientName} · {row.kind === "action" ? "Ação" : "Alerta"}{" "}
-                      · {formatEffort(row.effortMinutes)}{" "}
+                      {row.clientName} ·{" "}
+                      {row.kind === "action" ? "Ação" : "Alerta"} ·{" "}
+                      {formatEffort(row.effortMinutes)}{" "}
                       <span className="italic">(estimativa)</span>
                     </div>
                     {row.subtitle ? (
@@ -746,7 +748,12 @@ function Dashboard() {
                       </div>
                     ) : null}
                   </div>
-                  <Button variant="outline" size="sm" className="shrink-0" asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    asChild
+                  >
                     <Link
                       to="/clients/$clientId"
                       params={{ clientId: row.clientId }}
@@ -880,6 +887,7 @@ function Dashboard() {
                 )}
                 <Link
                   to="/actions"
+                  search={{ sla: undefined }}
                   className="inline-block pt-1 text-sm font-medium text-primary hover:underline"
                 >
                   Abrir Central de Ações
@@ -935,6 +943,7 @@ function Dashboard() {
                 action={
                   <Link
                     to="/clients"
+                    search={{ new: undefined }}
                     className="text-sm text-primary hover:underline"
                   >
                     Ver clientes
@@ -1001,6 +1010,7 @@ function Dashboard() {
                 action={
                   <Link
                     to="/alerts"
+                    search={{ priority: undefined }}
                     className="text-sm text-primary hover:underline"
                   >
                     Ver todos
@@ -1022,6 +1032,7 @@ function Dashboard() {
                   <Link
                     key={a.id}
                     to="/alerts"
+                    search={{ priority: undefined }}
                     className="flex items-start gap-3 px-4 py-3 hover:bg-surface-2 transition"
                   >
                     <PriorityDot p={a.priority} />
@@ -1051,7 +1062,9 @@ function Dashboard() {
                     label="Nenhuma ação sugerida nos alertas abertos."
                     action={
                       <Button asChild variant="outline" size="sm">
-                        <Link to="/alerts">Abrir Central de alertas</Link>
+                        <Link to="/alerts" search={{ priority: undefined }}>
+                          Abrir Central de alertas
+                        </Link>
                       </Button>
                     }
                   />
@@ -1255,7 +1268,9 @@ function Dashboard() {
                     label="Sem atividade recente."
                     action={
                       <Button asChild variant="outline" size="sm">
-                        <Link to="/clients">Abrir clientes</Link>
+                        <Link to="/clients" search={{ new: undefined }}>
+                          Abrir clientes
+                        </Link>
                       </Button>
                     }
                   />

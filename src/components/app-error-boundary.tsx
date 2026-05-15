@@ -34,9 +34,7 @@ export class AppErrorBoundary extends Component<Props, State> {
               <Button
                 type="button"
                 className="h-11 px-6"
-                onClick={() =>
-                  this.setState({ hasError: false, message: "" })
-                }
+                onClick={() => this.setState({ hasError: false, message: "" })}
               >
                 Tentar novamente
               </Button>

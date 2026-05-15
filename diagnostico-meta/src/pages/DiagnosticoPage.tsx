@@ -6,7 +6,12 @@ type Analysis = {
   score: number;
   scoreLabel: string;
   summary: string;
-  metrics?: { name: string; current: string; reference: string; status: string }[];
+  metrics?: {
+    name: string;
+    current: string;
+    reference: string;
+    status: string;
+  }[];
   criticalIssues?: { title: string; description: string; priority: string }[];
   budgetLeaks?: { title: string; estimateNote: string; hint: string }[];
   opportunities?: {
@@ -63,7 +68,9 @@ export function DiagnosticoPage() {
 
   useEffect(() => {
     if (!s) {
-      setErr("Falta o parâmetro secreto (s) na URL. Usa o link completo guardado.");
+      setErr(
+        "Falta o parâmetro secreto (s) na URL. Usa o link completo guardado.",
+      );
       return;
     }
     let alive = true;
@@ -133,12 +140,17 @@ export function DiagnosticoPage() {
     );
   }
 
-  if (data.diagnosis.status === "processing" || data.diagnosis.status === "awaiting_connection") {
+  if (
+    data.diagnosis.status === "processing" ||
+    data.diagnosis.status === "awaiting_connection"
+  ) {
     return (
       <div className="container">
         <div className="card">
           <h1>Ainda a processar</h1>
-          <p className="muted">Volta em breve ou mantém a página de obrigado aberta.</p>
+          <p className="muted">
+            Volta em breve ou mantém a página de obrigado aberta.
+          </p>
           <Link
             to="/obrigado"
             search={{ d: diagnosisId, s }}
@@ -248,8 +260,12 @@ export function DiagnosticoPage() {
       {analysis.creativesSummary ? (
         <section className="card">
           <h2>Criativos</h2>
-          <p><strong>Melhor:</strong> {analysis.creativesSummary.best}</p>
-          <p><strong>Pior:</strong> {analysis.creativesSummary.worst}</p>
+          <p>
+            <strong>Melhor:</strong> {analysis.creativesSummary.best}
+          </p>
+          <p>
+            <strong>Pior:</strong> {analysis.creativesSummary.worst}
+          </p>
           <p>{analysis.creativesSummary.recommendation}</p>
         </section>
       ) : null}

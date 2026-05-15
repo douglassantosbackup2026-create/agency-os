@@ -9,7 +9,8 @@ import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
-  if (req.method !== "GET") return jsonResponse({ error: "Method not allowed" }, 405);
+  if (req.method !== "GET")
+    return jsonResponse({ error: "Method not allowed" }, 405);
 
   const url = new URL(req.url);
   const d = url.searchParams.get("d") ?? "";
@@ -37,12 +38,12 @@ Deno.serve(async (req) => {
     diagnosis: diag,
     report: rep
       ? {
-        analysis_json: rep.analysis_json,
-        prompt_version: rep.prompt_version,
-        facts_summary: summarizeFacts(factsJson),
-        management_cta_eligible: isManagementCtaEligible(factsJson),
-        spend_last_30d: spendLast30d,
-      }
+          analysis_json: rep.analysis_json,
+          prompt_version: rep.prompt_version,
+          facts_summary: summarizeFacts(factsJson),
+          management_cta_eligible: isManagementCtaEligible(factsJson),
+          spend_last_30d: spendLast30d,
+        }
       : null,
   });
 });

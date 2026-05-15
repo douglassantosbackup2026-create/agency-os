@@ -29,7 +29,10 @@ for (const line of fs.readFileSync(envPath, "utf8").split(/\r?\n/)) {
   env[k] = v;
 }
 
-const base = (env.VITE_SUPABASE_URL || env.SUPABASE_URL || "").replace(/\/$/, "");
+const base = (env.VITE_SUPABASE_URL || env.SUPABASE_URL || "").replace(
+  /\/$/,
+  "",
+);
 const key =
   env.VITE_SUPABASE_PUBLISHABLE_KEY || env.SUPABASE_PUBLISHABLE_KEY || "";
 

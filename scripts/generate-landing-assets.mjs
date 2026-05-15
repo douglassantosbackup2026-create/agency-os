@@ -63,10 +63,25 @@ function svgHero() {
 
 function svgAlerts() {
   const items = [
-    ["CPA subiu acima do alvo", "Casa Nova Imóveis", "Pausar adsets ineficientes", "#3b82f6"],
+    [
+      "CPA subiu acima do alvo",
+      "Casa Nova Imóveis",
+      "Pausar adsets ineficientes",
+      "#3b82f6",
+    ],
     ["Criativo fadigado", "Clínica Vita", "Subir 3 novas variações", "#3b82f6"],
-    ["Campanha parou de entregar", "Boutique Azul", "Verificar saldo e pixel", "#ef4444"],
-    ["ROAS caiu nas últimas 48h", "FitLife Pro", "Revisar campanhas −25%", "#eab308"],
+    [
+      "Campanha parou de entregar",
+      "Boutique Azul",
+      "Verificar saldo e pixel",
+      "#ef4444",
+    ],
+    [
+      "ROAS caiu nas últimas 48h",
+      "FitLife Pro",
+      "Revisar campanhas −25%",
+      "#eab308",
+    ],
   ];
   let y = 220;
   const blocks = items
@@ -220,9 +235,18 @@ async function main() {
 
   for (const { base, svg, maxW } of SPECS) {
     const buf = Buffer.from(svg());
-    const resized = sharp(buf).resize({ width: maxW, withoutEnlargement: true });
-    await resized.clone().webp({ quality: 88 }).toFile(path.join(OUT, `${base}.webp`));
-    await resized.clone().png({ compressionLevel: 9 }).toFile(path.join(OUT, `${base}.png`));
+    const resized = sharp(buf).resize({
+      width: maxW,
+      withoutEnlargement: true,
+    });
+    await resized
+      .clone()
+      .webp({ quality: 88 })
+      .toFile(path.join(OUT, `${base}.webp`));
+    await resized
+      .clone()
+      .png({ compressionLevel: 9 })
+      .toFile(path.join(OUT, `${base}.png`));
     const meta = await sharp(path.join(OUT, `${base}.webp`)).metadata();
     manifest[base] = {
       webp: `/landing/${base}.webp`,
@@ -233,7 +257,10 @@ async function main() {
     console.log(`${base}: ${meta.width}x${meta.height}`);
   }
 
-  fs.writeFileSync(path.join(OUT, "manifest.json"), JSON.stringify(manifest, null, 2));
+  fs.writeFileSync(
+    path.join(OUT, "manifest.json"),
+    JSON.stringify(manifest, null, 2),
+  );
   console.log("Written public/landing/");
 }
 

@@ -40,7 +40,9 @@ export function DiagnosisFinalCta({ onCheckout, loading, error }: Props) {
             <li key={s}>{s}</li>
           ))}
         </ol>
-        <p className="mt-6 font-semibold text-white">{finalCta.outcomesIntro}</p>
+        <p className="mt-6 font-semibold text-white">
+          {finalCta.outcomesIntro}
+        </p>
         <ul className="mx-auto mt-3 max-w-md space-y-2 text-left text-sm sm:inline-block">
           {finalCta.outcomes.map((o) => (
             <li key={o} className="flex gap-2 sm:justify-center">
@@ -62,9 +64,7 @@ export function DiagnosisFinalCta({ onCheckout, loading, error }: Props) {
             onClick={onCheckout}
           />
         </div>
-        {error ? (
-          <p className="mt-4 text-sm text-red-400">{error}</p>
-        ) : null}
+        {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
         <ul className="mt-6 flex flex-col gap-2 text-xs text-white/60 sm:text-sm">
           {finalCta.trustLines.map((line, i) => {
             const Icon = trustIcons[i] ?? CheckCircle2;

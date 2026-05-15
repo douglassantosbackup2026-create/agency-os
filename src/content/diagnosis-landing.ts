@@ -37,7 +37,7 @@ export const whatIsSection = {
   title: "O que é o Diagnóstico de Meta Ads?",
   introParagraphs: [
     "É uma auditoria técnica completa da sua conta de Meta Ads (Facebook + Instagram).",
-    "Não é consultoria genérica. Não é checklist básico. Não é \"dicas de marketing\".",
+    'Não é consultoria genérica. Não é checklist básico. Não é "dicas de marketing".',
     "É uma análise CIRÚRGICA dos SEUS dados reais:",
   ],
   dataPoints: [
@@ -55,7 +55,7 @@ export const whatIsSection = {
   ],
   summaryCalloutTitle: "EM RESUMO:",
   summaryCalloutBody:
-    "É como fazer um \"raio-X\" da sua conta de Meta Ads. Você vai ver cada problema, quanto cada um está custando, e o que fazer para corrigir. Tudo baseado nos SEUS números reais.",
+    'É como fazer um "raio-X" da sua conta de Meta Ads. Você vai ver cada problema, quanto cada um está custando, e o que fazer para corrigir. Tudo baseado nos SEUS números reais.',
 };
 
 export const forWhoSection = {
@@ -102,7 +102,7 @@ export const whatItDoesSection = {
       description:
         "Avaliação geral da sua conta baseada em 15+ critérios técnicos. Você descobre se sua conta está Crítica (0-30), Necessita Atenção (31-60), Razoável (61-80) ou Excelente (81-100).",
       example:
-        "Exemplo: \"67/100 - Necessita Atenção. Sua conta tem estrutura razoável mas está perdendo dinheiro com públicos saturados e criativos fracos.\"",
+        'Exemplo: "67/100 - Necessita Atenção. Sua conta tem estrutura razoável mas está perdendo dinheiro com públicos saturados e criativos fracos."',
     },
     {
       number: 2,
@@ -118,7 +118,7 @@ export const whatItDoesSection = {
       description:
         "Identificação exata de onde cada real está indo: campanhas que sangram, conjuntos com ROAS abaixo de 2x, onde cortar sem perder resultados.",
       example:
-        "Ex.: \"Conjunto Público Amplo Brasil gastou R$ 4.200 em 30 dias com ROAS 1.3x. Recomendação: PAUSAR e redirecionar para remarketing.\"",
+        'Ex.: "Conjunto Público Amplo Brasil gastou R$ 4.200 em 30 dias com ROAS 1.3x. Recomendação: PAUSAR e redirecionar para remarketing."',
     },
     {
       number: 4,
@@ -138,7 +138,7 @@ export const whatItDoesSection = {
       description:
         "Comparação dos seus números com o padrão do mercado: ROAS, CPM, CTR e CPA acima/abaixo do ideal.",
       example:
-        "Ex.: \"Seu ROAS de 2.8x está 53% abaixo do ideal para e-commerce de moda (6.0x).\"",
+        'Ex.: "Seu ROAS de 2.8x está 53% abaixo do ideal para e-commerce de moda (6.0x)."',
     },
     {
       number: 7,
@@ -158,7 +158,7 @@ export const whatItDoesSection = {
       description:
         "Projeção realista: ROAS atual → potencial, economia mensal em R$, aumento de conversões e nível de confiança.",
       example:
-        "Ex.: \"Com as otimizações recomendadas, ROAS pode subir de 2.8x para 5.2x em 30-45 dias, gerando R$ 8.400 a mais de lucro/mês.\"",
+        'Ex.: "Com as otimizações recomendadas, ROAS pode subir de 2.8x para 5.2x em 30-45 dias, gerando R$ 8.400 a mais de lucro/mês."',
     },
   ] satisfies WhatItDoesModule[],
   bonusNote:
@@ -187,7 +187,8 @@ export const howItWorksSection = {
     {
       step: 2,
       title: "CONECTA SUA CONTA DO META ADS",
-      description: "Leva 30 segundos. Totalmente seguro. Você autoriza acesso de LEITURA:",
+      description:
+        "Leva 30 segundos. Totalmente seguro. Você autoriza acesso de LEITURA:",
       bullets: [
         "Conseguimos VER os dados",
         "NÃO conseguimos editar nada",
@@ -240,11 +241,11 @@ export const authorSection = {
     "Especialista em e-commerces de alto investimento",
   ],
   paragraphs: [
-    "Não sou \"guru de Instagram\" prometendo milagres.",
+    'Não sou "guru de Instagram" prometendo milagres.',
     "Sou gestor de tráfego PROFISSIONAL com bagagem real: Ogilvy, IBM, R$ 30+ milhões em Meta e Google Ads nos últimos 5 anos.",
     "Hoje atendo e-commerces sérios que investem pesado em tráfego pago.",
     "Vou usar toda essa experiência para analisar sua conta de forma TÉCNICA e CIRÚRGICA.",
-    "Não é achismo. Não é \"feeling\". São dados, benchmarks e anos de prática.",
+    'Não é achismo. Não é "feeling". São dados, benchmarks e anos de prática.',
   ],
 };
 
@@ -303,8 +304,7 @@ export const guaranteeSection = {
   intro:
     "Se eu não encontrar PELO MENOS 3 PROBLEMAS GRAVES na sua conta que estejam custando dinheiro... eu devolvo seus R$ 37 na hora.",
   bullets: ["Sem perguntas.", "Sem burocracia.", "Sem enrolação."],
-  why:
-    "Por quê? Porque TODA conta que analiso tem problemas. Algumas têm 5. Outras têm 15. Mas sempre tem.",
+  why: "Por quê? Porque TODA conta que analiso tem problemas. Algumas têm 5. Outras têm 15. Mas sempre tem.",
   spoiler:
     "Se a sua for a exceção (spoiler: não vai ser), você recebe seu dinheiro de volta.",
   closing: "É risco ZERO para você.",
@@ -345,7 +345,7 @@ export const finalCta = {
   subtitle: "(antes de perder ainda mais)",
   paragraphs: [
     "Se você chegou até aqui, é porque você SABE que algo está errado nas suas campanhas.",
-    "Talvez seja o ROAS que não sobe. Talvez seja o CPM que não para de subir. Talvez seja aquela sensação de \"estou gastando mas não vale a pena\".",
+    'Talvez seja o ROAS que não sobe. Talvez seja o CPM que não para de subir. Talvez seja aquela sensação de "estou gastando mas não vale a pena".',
     "Você está certo em desconfiar.",
     `Por ${PRICE_LABEL}, você descobre onde está o problema, quanto está desperdiçando, o que fazer e quanto pode melhorar em 30 dias.`,
     "Em cerca de 5 minutos. Sem risco (garantia total). Sem compromisso (não precisa contratar nada).",
@@ -379,7 +379,8 @@ export const finalCta = {
 
 export const footerSection = {
   signature: "Douglas Santos",
-  tagline: "Especialista em Meta e Google Ads | Ex-Ogilvy | +R$ 30 milhões gerenciados",
+  tagline:
+    "Especialista em Meta e Google Ads | Ex-Ogilvy | +R$ 30 milhões gerenciados",
   copyright: "© 2026 — Todos os direitos reservados",
 };
 

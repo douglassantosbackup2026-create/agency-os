@@ -246,19 +246,19 @@ function NavLinks({
           if (item.to === "/admin") return showAdminLink;
           return true;
         }).map((item) => {
-            const active = path.startsWith(item.to);
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                onClick={() => onNavigate?.()}
-                className={`flex min-h-11 items-center gap-2.5 rounded-md px-2.5 py-2.5 text-sm transition md:py-2 ${active ? base.active : base.idle}`}
-              >
-                <item.icon className="h-4 w-4 shrink-0" />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
+          const active = path.startsWith(item.to);
+          return (
+            <Link
+              key={item.to}
+              to={item.to}
+              onClick={() => onNavigate?.()}
+              className={`flex min-h-11 items-center gap-2.5 rounded-md px-2.5 py-2.5 text-sm transition md:py-2 ${active ? base.active : base.idle}`}
+            >
+              <item.icon className="h-4 w-4 shrink-0" />
+              <span>{item.label}</span>
+            </Link>
+          );
+        })}
       </div>
     </>
   );
@@ -620,6 +620,7 @@ function AuthenticatedLayout() {
                 </Button>
                 <Link
                   to="/alerts"
+                  search={{ priority: undefined }}
                   className="relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-muted-foreground transition hover:bg-surface hover:text-foreground"
                 >
                   <Bell className="h-4 w-4" />

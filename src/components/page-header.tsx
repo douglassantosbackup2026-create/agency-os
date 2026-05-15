@@ -22,7 +22,9 @@ export function PageHeader({
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         {description != null ? (
-          <div className="mt-0.5 text-sm text-muted-foreground">{description}</div>
+          <div className="mt-0.5 text-sm text-muted-foreground">
+            {description}
+          </div>
         ) : null}
       </div>
       {children}

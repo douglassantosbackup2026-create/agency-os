@@ -20,10 +20,7 @@ import {
   recommendationCampaignKeys,
 } from "@/lib/audit-client-message";
 import type { Database, Json } from "@/integrations/supabase/types";
-import {
-  getJsonNestedRecord,
-  jsonDisplay,
-} from "@/lib/supabase-json";
+import { getJsonNestedRecord, jsonDisplay } from "@/lib/supabase-json";
 import {
   Dialog,
   DialogContent,
@@ -945,6 +942,7 @@ function ClientDetail() {
     <div className="space-y-5 p-6">
       <Link
         to="/clients"
+        search={{ new: undefined }}
         className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
       >
         <ArrowLeft className="h-3 w-3" /> Clientes
@@ -1184,7 +1182,8 @@ function ClientDetail() {
               <div className="space-y-3 p-4">
                 {nextStepsQueue.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
-                    Nada urgente na fila — rever métricas ou antecipar relatório.
+                    Nada urgente na fila — rever métricas ou antecipar
+                    relatório.
                   </p>
                 ) : (
                   nextStepsQueue.map((step) => (
@@ -1260,7 +1259,9 @@ function ClientDetail() {
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="font-medium leading-snug">{ev.title}</div>
+                        <div className="font-medium leading-snug">
+                          {ev.title}
+                        </div>
                         <div className="mt-0.5 flex flex-wrap gap-x-2 text-muted-foreground">
                           <span className="inline-flex items-center gap-1">
                             <Clock className="h-3 w-3" />
@@ -1290,8 +1291,8 @@ function ClientDetail() {
                   recente de investimento, a libertação{" "}
                   <span className="italic">aproximada</span> até ao fim desta
                   semana ({budgetSimHint.daysRemaining}{" "}
-                  {budgetSimHint.daysRemaining === 1 ? "dia" : "dias"}) seria
-                  da ordem de{" "}
+                  {budgetSimHint.daysRemaining === 1 ? "dia" : "dias"}) seria da
+                  ordem de{" "}
                   <span className="font-medium text-foreground">
                     {brl(budgetSimHint.approxSaved)}
                   </span>{" "}
@@ -1299,9 +1300,9 @@ function ClientDetail() {
                   dias).
                 </p>
                 <p className="rounded-md bg-muted/50 p-2 text-[11px]">
-                  Estimativa linear sobre média dos últimos 7 dias; não substitui
-                  decisão na rede nem inclui leilão, aprendizagem ou alterações
-                  de conta.
+                  Estimativa linear sobre média dos últimos 7 dias; não
+                  substitui decisão na rede nem inclui leilão, aprendizagem ou
+                  alterações de conta.
                 </p>
               </div>
             </Card>
@@ -1356,7 +1357,9 @@ function ClientDetail() {
                     label="Sem ações abertas para este cliente."
                     action={
                       <Button asChild variant="outline" size="sm">
-                        <Link to="/actions">Ir à Central de Ações</Link>
+                        <Link to="/actions" search={{ sla: undefined }}>
+                          Ir à Central de Ações
+                        </Link>
                       </Button>
                     }
                   />
@@ -1751,7 +1754,9 @@ function ClientDetail() {
               label="Nenhuma tarefa para este cliente."
               action={
                 <Button variant="outline" size="sm" asChild>
-                  <Link to="/actions">Central de Ações</Link>
+                  <Link to="/actions" search={{ sla: undefined }}>
+                    Central de Ações
+                  </Link>
                 </Button>
               }
             />
@@ -2052,18 +2057,28 @@ function ClientDetail() {
                                     if (v === "analyzed" || v === "dismissed") {
                                       void logCampaignAuditActivity(v, rec);
                                     } else if (v === "task_created") {
-                                      void createTaskFromAuditRecommendation(rec);
+                                      void createTaskFromAuditRecommendation(
+                                        rec,
+                                      );
                                     }
                                   }}
                                 >
                                   <SelectTrigger className="h-7 w-[130px] text-xs">
-                                    <SelectValue>{stLabel === "—" ? "Aberta" : stLabel}</SelectValue>
+                                    <SelectValue>
+                                      {stLabel === "—" ? "Aberta" : stLabel}
+                                    </SelectValue>
                                   </SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="open">Aberta</SelectItem>
-                                    <SelectItem value="analyzed">Analisado</SelectItem>
-                                    <SelectItem value="task_created">Criar tarefa</SelectItem>
-                                    <SelectItem value="dismissed">Ignorar</SelectItem>
+                                    <SelectItem value="analyzed">
+                                      Analisado
+                                    </SelectItem>
+                                    <SelectItem value="task_created">
+                                      Criar tarefa
+                                    </SelectItem>
+                                    <SelectItem value="dismissed">
+                                      Ignorar
+                                    </SelectItem>
                                   </SelectContent>
                                 </Select>
                               </td>
@@ -2345,7 +2360,9 @@ function ClientDetail() {
               label="Sem alertas."
               action={
                 <Button variant="outline" size="sm" asChild>
-                  <Link to="/alerts">Central de alertas</Link>
+                  <Link to="/alerts" search={{ priority: undefined }}>
+                    Central de alertas
+                  </Link>
                 </Button>
               }
             />
@@ -2473,8 +2490,8 @@ function ClientDetail() {
           <DialogHeader>
             <DialogTitle>Templates de mensagem</DialogTitle>
             <DialogDescription>
-              Placeholders: {"{{cliente}}"}, {"{{periodo}}"}, {"{{metrica}}"}. Copie
-              ou envie pelo WhatsApp se o telefone estiver na ficha.
+              Placeholders: {"{{cliente}}"}, {"{{periodo}}"}, {"{{metrica}}"}.
+              Copie ou envie pelo WhatsApp se o telefone estiver na ficha.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">

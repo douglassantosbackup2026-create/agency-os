@@ -69,13 +69,7 @@ function CardHeaderInner({
 export const CardHeader = memo(CardHeaderInner);
 CardHeader.displayName = "CardHeader";
 
-function EmptyInner({
-  label,
-  action,
-}: {
-  label: string;
-  action?: ReactNode;
-}) {
+function EmptyInner({ label, action }: { label: string; action?: ReactNode }) {
   return (
     <div className="px-4 py-8 text-center">
       <p className="text-sm text-muted-foreground">{label}</p>

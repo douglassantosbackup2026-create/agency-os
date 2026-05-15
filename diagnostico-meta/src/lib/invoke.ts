@@ -3,7 +3,9 @@ const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
 export function assertEnv(): void {
   if (!url?.trim() || !anon?.trim()) {
-    throw new Error("Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no .env");
+    throw new Error(
+      "Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY no .env",
+    );
   }
 }
 

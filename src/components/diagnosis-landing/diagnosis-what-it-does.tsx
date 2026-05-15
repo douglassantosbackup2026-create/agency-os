@@ -1,5 +1,8 @@
 import { LayoutDashboard } from "lucide-react";
-import { ANCHOR_O_QUE_FAZ, whatItDoesSection } from "@/content/diagnosis-landing";
+import {
+  ANCHOR_O_QUE_FAZ,
+  whatItDoesSection,
+} from "@/content/diagnosis-landing";
 import {
   LANDING_SECTION_SCROLL,
   landingEyebrowClass,
@@ -21,7 +24,9 @@ export function DiagnosisWhatItDoes() {
         <h2 className="mt-4 text-2xl font-semibold tracking-tight md:text-3xl">
           {whatItDoesSection.title}
         </h2>
-        <p className="mt-3 text-muted-foreground">{whatItDoesSection.subtitle}</p>
+        <p className="mt-3 text-muted-foreground">
+          {whatItDoesSection.subtitle}
+        </p>
         <ol className="mt-10 space-y-4">
           {whatItDoesSection.modules.map((mod) => (
             <li

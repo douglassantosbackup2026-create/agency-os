@@ -1,4 +1,8 @@
-import { handleCors, jsonResponse, corsHeaders } from "../_shared/diagnosis/cors.ts";
+import {
+  handleCors,
+  jsonResponse,
+  corsHeaders,
+} from "../_shared/diagnosis/cors.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 import { signOAuthState } from "../_shared/diagnosis/state-signing.ts";
 
@@ -10,7 +14,8 @@ function redirectUri(): string {
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
-  if (req.method !== "GET") return jsonResponse({ error: "Method not allowed" }, 405);
+  if (req.method !== "GET")
+    return jsonResponse({ error: "Method not allowed" }, 405);
 
   const url = new URL(req.url);
   const d = url.searchParams.get("d") ?? "";

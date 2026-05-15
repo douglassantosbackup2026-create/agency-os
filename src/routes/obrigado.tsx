@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { invokeDiagnosisFunction } from "@/lib/diagnosis-invoke";
 import "@/styles/diagnosis.css";
 
-type ObrigadoSearch = { d?: string; s?: string };
+type ObrigadoSearch = { d?: string; s?: string; oauth_error?: string };
 
 type StatusPayload = {
   status?: string;
@@ -14,12 +14,22 @@ export const Route = createFileRoute("/obrigado")({
   validateSearch: (search: Record<string, unknown>): ObrigadoSearch => ({
     d: typeof search.d === "string" ? search.d : undefined,
     s: typeof search.s === "string" ? search.s : undefined,
+    oauth_error:
+      typeof search.oauth_error === "string" ? search.oauth_error : undefined,
   }),
   component: ObrigadoPage,
 });
 
+const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+  token: "Não foi possível obter o token de acesso da Meta. Tenta novamente.",
+  noadaccounts:
+    "A conta Meta ligada não tem contas de anúncios ativas. Verifica as permissões e tenta novamente.",
+  access_denied:
+    "Acesso negado. Autoriza o acesso de leitura (ads_read) para continuar.",
+};
+
 function ObrigadoPage() {
-  const { d, s } = Route.useSearch();
+  const { d, s, oauth_error } = Route.useSearch();
   const [status, setStatus] = useState<StatusPayload | null>(null);
   const [pollErr, setPollErr] = useState<string | null>(null);
 
@@ -143,12 +153,28 @@ function ObrigadoPage() {
           </button>
         </div>
 
+        {oauth_error ? (
+          <div className="card" style={{ borderColor: "#b91c1c" }}>
+            <h2 style={{ color: "#b91c1c" }}>Erro ao conectar Meta</h2>
+            <p>{OAUTH_ERROR_MESSAGES[oauth_error] ?? `Erro: ${oauth_error}`}</p>
+            {d && s ? (
+              <a
+                className="btn btn-primary"
+                href={metaUrl}
+                style={{ marginTop: "0.75rem", display: "inline-block" }}
+              >
+                Tentar novamente
+              </a>
+            ) : null}
+          </div>
+        ) : null}
+
         {st === "awaiting_connection" ? (
           <div className="card">
             <h2>Conectar Meta Ads</h2>
             <p>
-              Acesso <strong>só de leitura</strong> (ads_read). Podes revogar nas
-              definições da Meta.
+              Acesso <strong>só de leitura</strong> (ads_read). Podes revogar
+              nas definições da Meta.
             </p>
             <a className="btn btn-primary" href={metaUrl}>
               Conectar Meta Ads

@@ -15,10 +15,7 @@ import {
   DiagnosisWhatIs,
   DiagnosisWhatItDoes,
 } from "@/components/diagnosis-landing";
-import {
-  diagnosisFaqJsonLd,
-  seoDefaults,
-} from "@/content/diagnosis-landing";
+import { diagnosisFaqJsonLd, seoDefaults } from "@/content/diagnosis-landing";
 import { useDiagnosisCheckout } from "@/hooks/use-diagnosis-checkout";
 
 export const Route = createFileRoute("/")({

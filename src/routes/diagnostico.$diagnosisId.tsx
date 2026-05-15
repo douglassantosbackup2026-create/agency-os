@@ -9,7 +9,12 @@ type Analysis = {
   score: number;
   scoreLabel: string;
   summary: string;
-  metrics?: { name: string; current: string; reference: string; status: string }[];
+  metrics?: {
+    name: string;
+    current: string;
+    reference: string;
+    status: string;
+  }[];
   criticalIssues?: { title: string; description: string; priority: string }[];
   budgetLeaks?: { title: string; estimateNote: string; hint: string }[];
   opportunities?: {
@@ -69,7 +74,9 @@ function DiagnosticoReportPage() {
 
   useEffect(() => {
     if (!s) {
-      setErr("Falta o parâmetro secreto (s) na URL. Usa o link completo guardado.");
+      setErr(
+        "Falta o parâmetro secreto (s) na URL. Usa o link completo guardado.",
+      );
       return;
     }
     let alive = true;
@@ -111,8 +118,8 @@ function DiagnosticoReportPage() {
           <div className="card">
             <h1>Link incompleto</h1>
             <p className="muted">
-              Abre o diagnóstico a partir do botão na página de obrigado (URL com
-              ?s=...).
+              Abre o diagnóstico a partir do botão na página de obrigado (URL
+              com ?s=...).
             </p>
             <Link to="/" className="btn btn-outline">
               Início
@@ -131,7 +138,7 @@ function DiagnosticoReportPage() {
             <p style={{ color: "#b91c1c" }}>{err}</p>
           </div>
         </div>
-        </div>
+      </div>
     );
   }
 
@@ -262,7 +269,8 @@ function DiagnosticoReportPage() {
             <ul>
               {analysis.opportunities.map((o) => (
                 <li key={o.title} style={{ marginBottom: "0.75rem" }}>
-                  <strong>{o.title}</strong> ({o.complexity}) — {o.potentialNote}
+                  <strong>{o.title}</strong> ({o.complexity}) —{" "}
+                  {o.potentialNote}
                 </li>
               ))}
             </ul>
@@ -332,8 +340,8 @@ function DiagnosticoReportPage() {
           <section className="card" style={{ border: "2px solid #2563eb" }}>
             <h2>Gestão de tráfego</h2>
             <p>
-              Queres que a nossa equipa execute este plano? Clica abaixo para ver a
-              proposta.
+              Queres que a nossa equipa execute este plano? Clica abaixo para
+              ver a proposta.
             </p>
             <a
               className="btn btn-primary"

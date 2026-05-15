@@ -194,9 +194,15 @@ export default function Demo() {
     setTab("diagnosis");
   }
 
-  const criticalCount = DEMO_CLIENTS.filter((c) => c.status === "Crítico").length;
-  const attentionCount = DEMO_CLIENTS.filter((c) => c.status === "Atenção").length;
-  const healthyCount = DEMO_CLIENTS.filter((c) => c.status === "Saudável").length;
+  const criticalCount = DEMO_CLIENTS.filter(
+    (c) => c.status === "Crítico",
+  ).length;
+  const attentionCount = DEMO_CLIENTS.filter(
+    (c) => c.status === "Atenção",
+  ).length;
+  const healthyCount = DEMO_CLIENTS.filter(
+    (c) => c.status === "Saudável",
+  ).length;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -482,7 +488,10 @@ export default function Demo() {
                         .split("\n")
                         .filter(Boolean)
                         .map((step, idx) => (
-                          <div key={idx} className="flex gap-2 text-muted-foreground">
+                          <div
+                            key={idx}
+                            className="flex gap-2 text-muted-foreground"
+                          >
                             <span className="shrink-0 font-semibold text-primary">
                               {idx + 1}.
                             </span>

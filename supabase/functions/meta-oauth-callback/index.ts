@@ -1,4 +1,8 @@
-import { handleCors, jsonResponse, corsHeaders } from "../_shared/diagnosis/cors.ts";
+import {
+  handleCors,
+  jsonResponse,
+  corsHeaders,
+} from "../_shared/diagnosis/cors.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 import { verifyOAuthState } from "../_shared/diagnosis/state-signing.ts";
 
@@ -59,7 +63,9 @@ async function fetchAdAccounts(
     console.error(await r.text());
     return [];
   }
-  const j = (await r.json()) as { data?: { id: string; account_id: string; name: string }[] };
+  const j = (await r.json()) as {
+    data?: { id: string; account_id: string; name: string }[];
+  };
   return j.data ?? [];
 }
 
@@ -82,7 +88,8 @@ async function triggerProcess(): Promise<void> {
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
-  if (req.method !== "GET") return jsonResponse({ error: "Method not allowed" }, 405);
+  if (req.method !== "GET")
+    return jsonResponse({ error: "Method not allowed" }, 405);
 
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
@@ -105,7 +112,8 @@ Deno.serve(async (req) => {
   }
 
   const stateSecret = Deno.env.get("OAUTH_STATE_SECRET");
-  if (!stateSecret) return jsonResponse({ error: "OAUTH_STATE_SECRET ausente" }, 500);
+  if (!stateSecret)
+    return jsonResponse({ error: "OAUTH_STATE_SECRET ausente" }, 500);
 
   const payload = await verifyOAuthState(stateRaw, stateSecret);
   if (!payload) return jsonResponse({ error: "state inválido" }, 400);
@@ -133,14 +141,15 @@ Deno.serve(async (req) => {
     return new Response(null, {
       status: 302,
       headers: {
-        Location:
-          `${site}/obrigado?d=${diagnosisId}&s=${secretSlug}&oauth_error=noadaccounts`,
+        Location: `${site}/obrigado?d=${diagnosisId}&s=${secretSlug}&oauth_error=noadaccounts`,
         ...corsHeaders,
       },
     });
   }
 
-  const actId = first.id.startsWith("act_") ? first.id : `act_${first.account_id}`;
+  const actId = first.id.startsWith("act_")
+    ? first.id
+    : `act_${first.account_id}`;
   const expiresAt = short.expires_in
     ? new Date(Date.now() + short.expires_in * 1000).toISOString()
     : null;

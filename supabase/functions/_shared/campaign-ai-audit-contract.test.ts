@@ -30,13 +30,22 @@ async function checkBody(
     body = (await readJsonBody(req)) as Record<string, unknown>;
   } catch (e) {
     if (e instanceof BodyTooLargeError) {
-      return { response: new Response(JSON.stringify({ error: "payload demasiado grande" }), { status: 413 }) };
+      return {
+        response: new Response(
+          JSON.stringify({ error: "payload demasiado grande" }),
+          { status: 413 },
+        ),
+      };
     }
     body = {};
   }
   const client_id = (body?.client_id as string | undefined) ?? "";
   if (!client_id) {
-    return { response: new Response(JSON.stringify({ error: "client_id required" }), { status: 400 }) };
+    return {
+      response: new Response(JSON.stringify({ error: "client_id required" }), {
+        status: 400,
+      }),
+    };
   }
   return { client_id };
 }
@@ -47,7 +56,9 @@ async function checkBody(
 
 describe("campaign-ai-audit — contrato HTTP", () => {
   it("retorna 401 sem Authorization header", () => {
-    const req = new Request("http://edge/campaign-ai-audit", { method: "POST" });
+    const req = new Request("http://edge/campaign-ai-audit", {
+      method: "POST",
+    });
     const res = checkAuth(req);
     expect(res?.status).toBe(401);
   });
@@ -63,7 +74,10 @@ describe("campaign-ai-audit — contrato HTTP", () => {
   it("retorna 400 quando client_id está ausente", async () => {
     const req = new Request("http://edge/campaign-ai-audit", {
       method: "POST",
-      headers: { Authorization: "Bearer t", "Content-Type": "application/json" },
+      headers: {
+        Authorization: "Bearer t",
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ period_days: 30 }),
     });
     const result = await checkBody(req);
@@ -100,7 +114,10 @@ describe("campaign-ai-audit — contrato HTTP", () => {
   it("passa validação com client_id válido", async () => {
     const req = new Request("http://edge/campaign-ai-audit", {
       method: "POST",
-      headers: { Authorization: "Bearer t", "Content-Type": "application/json" },
+      headers: {
+        Authorization: "Bearer t",
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ client_id: "abc-123", period_days: 30 }),
     });
     const result = await checkBody(req);
@@ -123,7 +140,11 @@ describe("campaign-ai-audit — contrato HTTP", () => {
   it("overall_status aceita valores canônicos", () => {
     const validStatuses = ["healthy", "attention", "critical"];
     for (const status of validStatuses) {
-      const raw = JSON.stringify({ executive_summary_markdown: "x", overall_status: status, recommendations: [] });
+      const raw = JSON.stringify({
+        executive_summary_markdown: "x",
+        overall_status: status,
+        recommendations: [],
+      });
       const parsed = parseAiJson(raw);
       expect(parsed.parseOk).toBe(true);
       expect(validStatuses).toContain(parsed.json.overall_status);

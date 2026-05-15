@@ -23,7 +23,10 @@ export function DiagnosisGuarantee() {
             <ul className="mt-4 space-y-2 font-medium">
               {guaranteeSection.bullets.map((b) => (
                 <li key={b} className="flex items-center gap-2">
-                  <Shield className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden />
+                  <Shield
+                    className="h-4 w-4 shrink-0 text-emerald-500"
+                    aria-hidden
+                  />
                   {b}
                 </li>
               ))}

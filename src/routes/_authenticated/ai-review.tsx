@@ -632,7 +632,9 @@ function AiReviewCenter() {
                           variant="secondary"
                           size="sm"
                           className="text-xs"
-                          onClick={() => createActionFromReport(item.raw as QueueReportRow)}
+                          onClick={() =>
+                            createActionFromReport(item.raw as QueueReportRow)
+                          }
                         >
                           Virar ação
                         </Button>
@@ -671,7 +673,9 @@ function AiReviewCenter() {
                           variant="secondary"
                           size="sm"
                           className="text-xs"
-                          onClick={() => createActionFromAlert(item.raw as QueueAlertRow)}
+                          onClick={() =>
+                            createActionFromAlert(item.raw as QueueAlertRow)
+                          }
                         >
                           Virar ação
                         </Button>
@@ -681,7 +685,9 @@ function AiReviewCenter() {
                           className="text-xs"
                           asChild
                         >
-                          <Link to="/alerts">Editar</Link>
+                          <Link to="/alerts" search={{ priority: undefined }}>
+                            Editar
+                          </Link>
                         </Button>
                       </>
                     )}
@@ -710,7 +716,9 @@ function AiReviewCenter() {
                           variant="secondary"
                           size="sm"
                           className="text-xs"
-                          onClick={() => createActionFromMeeting(r)}
+                          onClick={() =>
+                            createActionFromMeeting(item.raw as QueueMeetingRow)
+                          }
                         >
                           Virar ação
                         </Button>
@@ -756,7 +764,11 @@ function AiReviewCenter() {
                           variant="secondary"
                           size="sm"
                           className="text-xs"
-                          onClick={() => createActionFromCompetitor(r)}
+                          onClick={() =>
+                            createActionFromCompetitor(
+                              item.raw as QueueCompetitorRow,
+                            )
+                          }
                         >
                           Virar ação
                         </Button>
@@ -795,7 +807,9 @@ function AiReviewCenter() {
                           variant="secondary"
                           size="sm"
                           className="text-xs"
-                          onClick={() => createActionFromWhatsApp(r)}
+                          onClick={() =>
+                            createActionFromWhatsApp(item.raw as QueueWhatsRow)
+                          }
                         >
                           Virar ação
                         </Button>
