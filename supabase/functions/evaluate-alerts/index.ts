@@ -365,7 +365,7 @@ Deno.serve(async (req) => {
         });
       }
       const lastFunnel = (ga4Funnel ?? []).slice(-7);
-      const avgF = (k: string) => avgN(lastFunnel as any[], k);
+      const avgF = (k: string) => avgN(lastFunnel, k);
       if (
         avgF("add_to_cart") > 0 &&
         avgF("begin_checkout") < avgF("add_to_cart") * 0.5

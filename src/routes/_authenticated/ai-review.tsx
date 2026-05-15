@@ -82,6 +82,27 @@ type QueueCompetitorRow = {
 
 type ActionInsert = Database["public"]["Tables"]["action_center"]["Insert"];
 
+/** Tipo estrutural com todas as propriedades opcionais dos raw rows — elimina `as any` no render da fila. */
+type AnyQueueRaw = {
+  id?: string;
+  client_id?: string | null;
+  confianca?: string | null;
+  // report
+  executive_summary?: string | null;
+  // alert
+  title?: string | null;
+  description?: string | null;
+  // meeting
+  agenda?: string | null;
+  // whatsapp
+  recipient?: string | null;
+  message?: string | null;
+  // competitor
+  summary?: string | null;
+  insight?: string | null;
+  headline?: string | null;
+};
+
 function AiReviewCenter() {
   const { agency } = useAuth();
   const [kindFilter, setKindFilter] = useState<QueueKind | "all">("all");
@@ -521,7 +542,7 @@ function AiReviewCenter() {
         ) : (
           <div className="divide-y divide-border">
             {filtered.map((item) => {
-              const r = item.raw as any;
+              const r = item.raw as AnyQueueRaw;
               return (
                 <div
                   key={`${item.kind}-${item.id}`}
@@ -611,7 +632,7 @@ function AiReviewCenter() {
                           variant="secondary"
                           size="sm"
                           className="text-xs"
-                          onClick={() => createActionFromReport(r)}
+                          onClick={() => createActionFromReport(item.raw as QueueReportRow)}
                         >
                           Virar ação
                         </Button>
@@ -650,7 +671,7 @@ function AiReviewCenter() {
                           variant="secondary"
                           size="sm"
                           className="text-xs"
-                          onClick={() => createActionFromAlert(r)}
+                          onClick={() => createActionFromAlert(item.raw as QueueAlertRow)}
                         >
                           Virar ação
                         </Button>

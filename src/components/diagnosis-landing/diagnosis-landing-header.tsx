@@ -1,3 +1,4 @@
+import { BarChart2 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import {
   ANCHOR_COMO,
@@ -5,6 +6,7 @@ import {
   ANCHOR_O_QUE_E,
   ANCHOR_O_QUE_FAZ,
   ANCHOR_PARA_QUEM,
+  ANCHOR_PREVIEW,
   ANCHOR_RESULTADOS,
 } from "@/content/diagnosis-landing";
 import {
@@ -23,12 +25,12 @@ export function DiagnosisLandingHeader({ onCtaClick }: Props) {
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-3.5">
         <a
           href="#top"
-          className="flex min-w-0 items-center gap-2 rounded-md outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex min-w-0 items-center gap-2.5 rounded-md outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-primary font-bold text-primary-foreground">
-            R
+          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-sm">
+            <BarChart2 className="h-4 w-4" aria-hidden />
           </div>
-          <span className="truncate font-semibold tracking-tight text-sm sm:text-base">
+          <span className="truncate text-sm font-bold tracking-tight sm:text-base">
             Diagnóstico Meta Ads
           </span>
         </a>
@@ -45,6 +47,9 @@ export function DiagnosisLandingHeader({ onCtaClick }: Props) {
             </a>
             <a href={`#${ANCHOR_COMO}`} className={landingNavAnchorClass}>
               Como funciona
+            </a>
+            <a href={`#${ANCHOR_PREVIEW}`} className={landingNavAnchorClass}>
+              Relatório
             </a>
             <a href={`#${ANCHOR_RESULTADOS}`} className={landingNavAnchorClass}>
               Resultados

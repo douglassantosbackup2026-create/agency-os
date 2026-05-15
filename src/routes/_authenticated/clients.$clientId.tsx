@@ -2045,38 +2045,30 @@ function ClientDetail() {
                               <td className="whitespace-nowrap px-3 py-2 align-top text-xs">
                                 {String(rec.tracking_match ?? "—")}
                               </td>
-                              <td className="whitespace-nowrap px-3 py-2 align-top text-xs text-muted-foreground">
-                                {stLabel}
+                              <td className="whitespace-nowrap px-3 py-2 align-top text-xs">
+                                <Select
+                                  value={st ?? "open"}
+                                  onValueChange={(v) => {
+                                    if (v === "analyzed" || v === "dismissed") {
+                                      void logCampaignAuditActivity(v, rec);
+                                    } else if (v === "task_created") {
+                                      void createTaskFromAuditRecommendation(rec);
+                                    }
+                                  }}
+                                >
+                                  <SelectTrigger className="h-7 w-[130px] text-xs">
+                                    <SelectValue>{stLabel === "—" ? "Aberta" : stLabel}</SelectValue>
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="open">Aberta</SelectItem>
+                                    <SelectItem value="analyzed">Analisado</SelectItem>
+                                    <SelectItem value="task_created">Criar tarefa</SelectItem>
+                                    <SelectItem value="dismissed">Ignorar</SelectItem>
+                                  </SelectContent>
+                                </Select>
                               </td>
                               <td className="px-3 py-2 align-top text-right">
                                 <div className="flex flex-col items-end gap-1">
-                                  <button
-                                    type="button"
-                                    className="text-xs text-primary hover:underline"
-                                    onClick={() =>
-                                      createTaskFromAuditRecommendation(rec)
-                                    }
-                                  >
-                                    Criar tarefa
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="text-xs text-muted-foreground hover:underline"
-                                    onClick={() =>
-                                      logCampaignAuditActivity("analyzed", rec)
-                                    }
-                                  >
-                                    Marcado analisado
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="text-xs text-muted-foreground hover:underline"
-                                    onClick={() =>
-                                      logCampaignAuditActivity("dismissed", rec)
-                                    }
-                                  >
-                                    Ignorar
-                                  </button>
                                   <button
                                     type="button"
                                     className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline"

@@ -1,7 +1,8 @@
-import { ArrowRight, CheckCircle2, Lightbulb } from "lucide-react";
+import { ArrowRight, CheckCircle2, Lightbulb, Microscope } from "lucide-react";
 import { ANCHOR_O_QUE_E, whatIsSection } from "@/content/diagnosis-landing";
 import {
   LANDING_SECTION_SCROLL,
+  landingEyebrowClass,
   landingPrimaryCalloutClass,
 } from "@/lib/landing-ui";
 
@@ -12,10 +13,11 @@ export function DiagnosisWhatIs() {
       className={`py-16 md:py-20 ${LANDING_SECTION_SCROLL}`}
     >
       <div className="mx-auto max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-primary">
+        <span className={landingEyebrowClass}>
+          <Microscope className="h-3.5 w-3.5" aria-hidden />
           {whatIsSection.eyebrow}
-        </p>
-        <h2 className="mt-2 text-2xl font-semibold tracking-tight md:text-3xl">
+        </span>
+        <h2 className="mt-4 text-2xl font-semibold tracking-tight md:text-3xl">
           {whatIsSection.title}
         </h2>
         <div className="mt-6 space-y-4 leading-relaxed text-muted-foreground">
@@ -41,7 +43,7 @@ export function DiagnosisWhatIs() {
           {whatIsSection.results.map((r) => (
             <li key={r} className="flex gap-3 text-sm md:text-base">
               <CheckCircle2
-                className="h-5 w-5 shrink-0 text-primary"
+                className="h-5 w-5 shrink-0 text-emerald-500"
                 aria-hidden
               />
               {r}

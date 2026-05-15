@@ -1,4 +1,4 @@
-import { CheckCircle2, Sparkles } from "lucide-react";
+import { ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
 import { hero } from "@/content/diagnosis-landing";
 import { DiagnosisCta } from "./diagnosis-cta";
 
@@ -18,21 +18,26 @@ function HeroHeadline() {
   return (
     <>
       {full.slice(0, i)}
-      <span className="text-primary">{accent}</span>
+      <span className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+        {accent}
+      </span>
       {full.slice(i + accent.length)}
     </>
   );
 }
 
+const heroStats = [
+  { value: "R$30M+", label: "em tráfego gerenciado" },
+  { value: "~5 min", label: "para receber o diagnóstico" },
+  { value: "7 dias", label: "de garantia total" },
+];
+
 export function DiagnosisHero({ onCheckout, loading, error }: Props) {
   return (
-    <section
-      id="top"
-      className="pb-10 pt-10 md:pb-14 md:pt-14 lg:pt-16"
-    >
+    <section id="top" className="pb-10 pt-10 md:pb-14 md:pt-14 lg:pt-16">
       <div className="mx-auto max-w-3xl text-center">
-        <span className="inline-flex max-w-xl items-center gap-2 rounded-full border border-border bg-surface/95 px-3 py-1.5 text-xs leading-snug text-muted-foreground shadow-sm backdrop-blur-sm">
-          <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
+        <span className="inline-flex max-w-xl items-center gap-2 rounded-full border border-primary/20 bg-primary/[0.07] px-3.5 py-1.5 text-xs font-semibold leading-snug tracking-wide text-primary shadow-sm">
+          <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden />
           {hero.eyebrow}
         </span>
         <h1 className="mt-6 text-balance text-4xl font-semibold tracking-tight md:text-5xl lg:text-[3.15rem] lg:leading-[1.12]">
@@ -49,7 +54,24 @@ export function DiagnosisHero({ onCheckout, loading, error }: Props) {
             <p key={line}>{line}</p>
           ))}
         </div>
-        <div className="mt-9">
+
+        <div className="mx-auto mt-8 flex max-w-xs flex-col items-center gap-4 rounded-2xl border border-border/60 bg-muted/30 px-6 py-4 sm:max-w-none sm:flex-row sm:justify-center sm:gap-8 sm:rounded-xl">
+          {heroStats.map((stat, i) => (
+            <div key={stat.value} className="flex flex-col items-center">
+              <span className="text-2xl font-bold tracking-tight text-foreground">
+                {stat.value}
+              </span>
+              <span className="mt-0.5 text-xs text-muted-foreground">
+                {stat.label}
+              </span>
+              {i < heroStats.length - 1 && (
+                <div className="mt-4 hidden h-8 w-px bg-border/60 sm:block sm:translate-y-[-50%] sm:[position:absolute]" />
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-8">
           <DiagnosisCta
             size="large"
             label={hero.ctaPrimary}
@@ -61,13 +83,13 @@ export function DiagnosisHero({ onCheckout, loading, error }: Props) {
         {error ? (
           <p className="mt-4 text-sm text-destructive">{error}</p>
         ) : null}
-        <ul className="mx-auto mt-8 flex max-w-md flex-col gap-2 text-left text-sm leading-snug text-muted-foreground sm:max-w-none sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-6">
+        <ul className="mx-auto mt-7 flex flex-wrap justify-center gap-2">
           {hero.trustBadges.map((badge) => (
-            <li key={badge} className="flex items-center gap-2 sm:justify-center">
-              <CheckCircle2
-                className="h-4 w-4 shrink-0 text-primary"
-                aria-hidden
-              />
+            <li
+              key={badge}
+              className="flex items-center gap-1.5 rounded-full border border-border/70 bg-background/80 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur-sm"
+            >
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
               {badge}
             </li>
           ))}

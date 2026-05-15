@@ -21,7 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SlidersHorizontal } from "lucide-react";
+import { Download, SlidersHorizontal } from "lucide-react";
 import type { Database } from "@/integrations/supabase/types";
 import { ACTION_CENTER_OPEN_STATUSES_SET } from "@/lib/action-center-status";
 import { FILTER_SELECT_TRIGGER_CLASSES } from "@/lib/ui/filter-classes";
@@ -101,6 +101,29 @@ function sortByDue(rows: ActionCenterRow[], sortDue: SortDueType) {
     const db = b.due_date ?? far;
     return sortDue === "due_asc" ? da.localeCompare(db) : db.localeCompare(da);
   });
+}
+
+function exportActionsToCsv(rows: ActionCenterRow[]) {
+  const header = ["ID", "Cliente", "Título", "Origem", "Prioridade", "Estado", "Responsável", "Prazo", "Criado em"];
+  const body = rows.map((a) => [
+    a.id,
+    (a.clients as { name?: string } | null)?.name ?? "",
+    (a.title ?? "").replace(/,/g, ";"),
+    a.source_type ?? "",
+    a.priority ?? "",
+    a.status ?? "",
+    a.assigned_to ?? "",
+    a.due_date ?? "",
+    a.created_at ? new Date(a.created_at).toISOString().slice(0, 10) : "",
+  ]);
+  const csv = [header, ...body].map((r) => r.join(",")).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = `acoes-${new Date().toISOString().slice(0, 10)}.csv`;
+  anchor.click();
+  URL.revokeObjectURL(url);
 }
 
 function loadSavedFilters() {
@@ -407,6 +430,17 @@ function ActionsCenter() {
           </>
         }
       >
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => exportActionsToCsv(filtered)}
+          disabled={filtered.length === 0}
+        >
+          <Download className="h-3.5 w-3.5" />
+          Exportar CSV
+        </Button>
         <Link
           to="/clients"
           className="text-sm font-medium text-primary hover:underline"

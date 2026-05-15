@@ -4,6 +4,7 @@ export const ANCHOR_O_QUE_E = "o-que-e";
 export const ANCHOR_PARA_QUEM = "para-quem";
 export const ANCHOR_O_QUE_FAZ = "o-que-faz";
 export const ANCHOR_COMO = "como-funciona";
+export const ANCHOR_PREVIEW = "preview-relatorio";
 export const ANCHOR_AUTOR = "quem-faz";
 export const ANCHOR_RESULTADOS = "resultados";
 export const ANCHOR_GARANTIA = "garantia";

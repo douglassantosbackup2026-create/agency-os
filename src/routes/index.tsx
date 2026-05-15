@@ -9,6 +9,7 @@ import {
   DiagnosisHowItWorks,
   DiagnosisLandingHeader,
   DiagnosisQualification,
+  DiagnosisReportPreview,
   DiagnosisSocialProof,
   DiagnosisStickyCta,
   DiagnosisWhatIs,
@@ -52,8 +53,9 @@ function DiagnosisHomePage() {
         <DiagnosisLandingHeader onCtaClick={onCheckout} />
         <main className="relative pb-28 sm:pb-0">
           <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-            <div className="grid-bg absolute inset-0 opacity-45 [mask-image:radial-gradient(ellipse_at_top,black_38%,transparent_75%)] dark:opacity-35" />
-            <div className="absolute -top-40 left-1/2 h-[22rem] w-[min(100%,48rem)] -translate-x-1/2 rounded-full bg-primary/[0.06] blur-3xl dark:bg-primary/[0.1]" />
+            <div className="grid-bg absolute inset-0 opacity-50 [mask-image:radial-gradient(ellipse_at_top,black_38%,transparent_75%)] dark:opacity-35" />
+            <div className="absolute -top-40 left-1/2 h-[22rem] w-[min(100%,48rem)] -translate-x-1/2 rounded-full bg-primary/[0.07] blur-3xl dark:bg-primary/[0.12]" />
+            <div className="absolute left-[10%] top-[40%] h-[20rem] w-[32rem] rounded-full bg-primary/[0.04] blur-3xl dark:bg-primary/[0.06]" />
           </div>
           <div className="mx-auto max-w-7xl px-4 sm:px-6">
             <DiagnosisHero
@@ -65,6 +67,7 @@ function DiagnosisHomePage() {
             <DiagnosisQualification />
             <DiagnosisWhatItDoes />
             <DiagnosisHowItWorks />
+            <DiagnosisReportPreview onCheckout={onCheckout} loading={loading} />
             <DiagnosisAuthor />
             <DiagnosisSocialProof />
             <DiagnosisGuarantee />

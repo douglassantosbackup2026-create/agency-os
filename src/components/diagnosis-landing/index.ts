@@ -4,6 +4,7 @@ export { DiagnosisWhatIs } from "./diagnosis-what-is";
 export { DiagnosisQualification } from "./diagnosis-qualification";
 export { DiagnosisWhatItDoes } from "./diagnosis-what-it-does";
 export { DiagnosisHowItWorks } from "./diagnosis-how-it-works";
+export { DiagnosisReportPreview } from "./diagnosis-report-preview";
 export { DiagnosisAuthor } from "./diagnosis-author";
 export { DiagnosisSocialProof } from "./diagnosis-social-proof";
 export { DiagnosisGuarantee } from "./diagnosis-guarantee";

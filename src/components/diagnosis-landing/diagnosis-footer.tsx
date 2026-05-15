@@ -11,6 +11,7 @@ export function DiagnosisFooter() {
   return (
     <footer className="border-t border-border/60 py-12 md:py-16">
       <div className="mx-auto max-w-7xl px-4 text-center sm:px-6">
+        <div className="mb-8 h-px w-full bg-gradient-to-r from-transparent via-border/80 to-transparent" />
         <p className="font-bold">{footerSection.signature}</p>
         <p className="mt-1 text-sm text-muted-foreground">
           {footerSection.tagline}
@@ -19,7 +20,7 @@ export function DiagnosisFooter() {
           {email ? (
             <a
               href={`mailto:${email}`}
-              className="hover:text-foreground hover:underline"
+              className="transition-colors hover:text-foreground hover:underline"
             >
               {email}
             </a>
@@ -29,7 +30,7 @@ export function DiagnosisFooter() {
               href={whatsapp}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-foreground hover:underline"
+              className="transition-colors hover:text-foreground hover:underline"
             >
               WhatsApp
             </a>
