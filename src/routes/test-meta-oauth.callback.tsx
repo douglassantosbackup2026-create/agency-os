@@ -13,9 +13,7 @@ import {
 
 export const Route = createFileRoute("/test-meta-oauth/callback")({
   beforeLoad: () => {
-    if (!import.meta.env.DEV) {
-      throw redirect({ to: "/" });
-    }
+    // Harness é gated server-side via META_TEST_ENABLED secret.
   },
   validateSearch: (search: Record<string, unknown>) => ({
     access_token:
