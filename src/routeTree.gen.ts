@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TestMetaOauthRouteImport } from './routes/test-meta-oauth'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as RetentioRouteImport } from './routes/retentio'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
@@ -19,6 +20,7 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as DemoRouteImport } from './routes/demo'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TestMetaOauthCallbackRouteImport } from './routes/test-meta-oauth.callback'
 import { Route as PPortalSlugRouteImport } from './routes/p.$portalSlug'
 import { Route as DiagnosticoDiagnosisIdRouteImport } from './routes/diagnostico.$diagnosisId'
 import { Route as AuthenticatedWhatsappRouteImport } from './routes/_authenticated/whatsapp'
@@ -41,6 +43,11 @@ import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authent
 import { Route as AuthenticatedClientsClientIdRouteImport } from './routes/_authenticated/clients.$clientId'
 import { Route as AuthenticatedIntegrationsOauthCallbackRouteImport } from './routes/_authenticated/integrations.oauth.callback'
 
+const TestMetaOauthRoute = TestMetaOauthRouteImport.update({
+  id: '/test-meta-oauth',
+  path: '/test-meta-oauth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
@@ -89,6 +96,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const TestMetaOauthCallbackRoute = TestMetaOauthCallbackRouteImport.update({
+  id: '/callback',
+  path: '/callback',
+  getParentRoute: () => TestMetaOauthRoute,
 } as any)
 const PPortalSlugRoute = PPortalSlugRouteImport.update({
   id: '/p/$portalSlug',
@@ -212,6 +224,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/retentio': typeof RetentioRoute
   '/signup': typeof SignupRoute
+  '/test-meta-oauth': typeof TestMetaOauthRouteWithChildren
   '/actions': typeof AuthenticatedActionsRoute
   '/activity': typeof AuthenticatedActivityRoute
   '/admin': typeof AuthenticatedAdminRoute
@@ -230,6 +243,7 @@ export interface FileRoutesByFullPath {
   '/whatsapp': typeof AuthenticatedWhatsappRoute
   '/diagnostico/$diagnosisId': typeof DiagnosticoDiagnosisIdRoute
   '/p/$portalSlug': typeof PPortalSlugRoute
+  '/test-meta-oauth/callback': typeof TestMetaOauthCallbackRoute
   '/clients/$clientId': typeof AuthenticatedClientsClientIdRoute
   '/clients/': typeof AuthenticatedClientsIndexRoute
   '/integrations/oauth/callback': typeof AuthenticatedIntegrationsOauthCallbackRoute
@@ -244,6 +258,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/retentio': typeof RetentioRoute
   '/signup': typeof SignupRoute
+  '/test-meta-oauth': typeof TestMetaOauthRouteWithChildren
   '/actions': typeof AuthenticatedActionsRoute
   '/activity': typeof AuthenticatedActivityRoute
   '/admin': typeof AuthenticatedAdminRoute
@@ -262,6 +277,7 @@ export interface FileRoutesByTo {
   '/whatsapp': typeof AuthenticatedWhatsappRoute
   '/diagnostico/$diagnosisId': typeof DiagnosticoDiagnosisIdRoute
   '/p/$portalSlug': typeof PPortalSlugRoute
+  '/test-meta-oauth/callback': typeof TestMetaOauthCallbackRoute
   '/clients/$clientId': typeof AuthenticatedClientsClientIdRoute
   '/clients': typeof AuthenticatedClientsIndexRoute
   '/integrations/oauth/callback': typeof AuthenticatedIntegrationsOauthCallbackRoute
@@ -278,6 +294,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/retentio': typeof RetentioRoute
   '/signup': typeof SignupRoute
+  '/test-meta-oauth': typeof TestMetaOauthRouteWithChildren
   '/_authenticated/actions': typeof AuthenticatedActionsRoute
   '/_authenticated/activity': typeof AuthenticatedActivityRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
@@ -296,6 +313,7 @@ export interface FileRoutesById {
   '/_authenticated/whatsapp': typeof AuthenticatedWhatsappRoute
   '/diagnostico/$diagnosisId': typeof DiagnosticoDiagnosisIdRoute
   '/p/$portalSlug': typeof PPortalSlugRoute
+  '/test-meta-oauth/callback': typeof TestMetaOauthCallbackRoute
   '/_authenticated/clients/$clientId': typeof AuthenticatedClientsClientIdRoute
   '/_authenticated/clients/': typeof AuthenticatedClientsIndexRoute
   '/_authenticated/integrations/oauth/callback': typeof AuthenticatedIntegrationsOauthCallbackRoute
@@ -312,6 +330,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/retentio'
     | '/signup'
+    | '/test-meta-oauth'
     | '/actions'
     | '/activity'
     | '/admin'
@@ -330,6 +349,7 @@ export interface FileRouteTypes {
     | '/whatsapp'
     | '/diagnostico/$diagnosisId'
     | '/p/$portalSlug'
+    | '/test-meta-oauth/callback'
     | '/clients/$clientId'
     | '/clients/'
     | '/integrations/oauth/callback'
@@ -344,6 +364,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/retentio'
     | '/signup'
+    | '/test-meta-oauth'
     | '/actions'
     | '/activity'
     | '/admin'
@@ -362,6 +383,7 @@ export interface FileRouteTypes {
     | '/whatsapp'
     | '/diagnostico/$diagnosisId'
     | '/p/$portalSlug'
+    | '/test-meta-oauth/callback'
     | '/clients/$clientId'
     | '/clients'
     | '/integrations/oauth/callback'
@@ -377,6 +399,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/retentio'
     | '/signup'
+    | '/test-meta-oauth'
     | '/_authenticated/actions'
     | '/_authenticated/activity'
     | '/_authenticated/admin'
@@ -395,6 +418,7 @@ export interface FileRouteTypes {
     | '/_authenticated/whatsapp'
     | '/diagnostico/$diagnosisId'
     | '/p/$portalSlug'
+    | '/test-meta-oauth/callback'
     | '/_authenticated/clients/$clientId'
     | '/_authenticated/clients/'
     | '/_authenticated/integrations/oauth/callback'
@@ -411,12 +435,20 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   RetentioRoute: typeof RetentioRoute
   SignupRoute: typeof SignupRoute
+  TestMetaOauthRoute: typeof TestMetaOauthRouteWithChildren
   DiagnosticoDiagnosisIdRoute: typeof DiagnosticoDiagnosisIdRoute
   PPortalSlugRoute: typeof PPortalSlugRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/test-meta-oauth': {
+      id: '/test-meta-oauth'
+      path: '/test-meta-oauth'
+      fullPath: '/test-meta-oauth'
+      preLoaderRoute: typeof TestMetaOauthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/signup': {
       id: '/signup'
       path: '/signup'
@@ -486,6 +518,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/test-meta-oauth/callback': {
+      id: '/test-meta-oauth/callback'
+      path: '/callback'
+      fullPath: '/test-meta-oauth/callback'
+      preLoaderRoute: typeof TestMetaOauthCallbackRouteImport
+      parentRoute: typeof TestMetaOauthRoute
     }
     '/p/$portalSlug': {
       id: '/p/$portalSlug'
@@ -698,6 +737,18 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
   AuthenticatedRouteChildren,
 )
 
+interface TestMetaOauthRouteChildren {
+  TestMetaOauthCallbackRoute: typeof TestMetaOauthCallbackRoute
+}
+
+const TestMetaOauthRouteChildren: TestMetaOauthRouteChildren = {
+  TestMetaOauthCallbackRoute: TestMetaOauthCallbackRoute,
+}
+
+const TestMetaOauthRouteWithChildren = TestMetaOauthRoute._addFileChildren(
+  TestMetaOauthRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
@@ -709,9 +760,20 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   RetentioRoute: RetentioRoute,
   SignupRoute: SignupRoute,
+  TestMetaOauthRoute: TestMetaOauthRouteWithChildren,
   DiagnosticoDiagnosisIdRoute: DiagnosticoDiagnosisIdRoute,
   PPortalSlugRoute: PPortalSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

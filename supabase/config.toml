@@ -71,3 +71,7 @@ verify_jwt = false
 
 [functions.diagnosis-track]
 verify_jwt = false
+
+# Dev-only harness: /test-meta-oauth (requer META_TEST_ENABLED=true)
+[functions.meta-api-test]
+verify_jwt = false

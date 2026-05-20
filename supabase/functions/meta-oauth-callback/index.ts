@@ -5,6 +5,15 @@ import {
 } from "../_shared/diagnosis/cors.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 import { verifyOAuthState } from "../_shared/diagnosis/state-signing.ts";
+import {
+  exchangeCodeForToken,
+  exchangeForLongLivedToken,
+} from "../_shared/meta-graph-api.ts";
+import {
+  metaTestHarnessCallbackUrl,
+  metaTestHarnessPageUrl,
+  normalizePublicSiteUrl,
+} from "../_shared/public-site-url.ts";
 
 function siteUrl(): string {
   return (
@@ -17,39 +26,6 @@ function siteUrl(): string {
 function redirectUri(): string {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!.replace(/\/+$/, "");
   return `${supabaseUrl}/functions/v1/meta-oauth-callback`;
-}
-
-async function exchangeCode(code: string): Promise<{
-  access_token: string;
-  expires_in?: number;
-} | null> {
-  const appId = Deno.env.get("META_APP_ID")!;
-  const secret = Deno.env.get("META_APP_SECRET")!;
-  const u = new URL("https://graph.facebook.com/v21.0/oauth/access_token");
-  u.searchParams.set("client_id", appId);
-  u.searchParams.set("redirect_uri", redirectUri());
-  u.searchParams.set("client_secret", secret);
-  u.searchParams.set("code", code);
-  const r = await fetch(u.toString());
-  if (!r.ok) {
-    console.error(await r.text());
-    return null;
-  }
-  return (await r.json()) as { access_token: string; expires_in?: number };
-}
-
-async function longLivedToken(shortToken: string): Promise<string> {
-  const appId = Deno.env.get("META_APP_ID")!;
-  const secret = Deno.env.get("META_APP_SECRET")!;
-  const u = new URL("https://graph.facebook.com/v21.0/oauth/access_token");
-  u.searchParams.set("grant_type", "fb_exchange_token");
-  u.searchParams.set("client_id", appId);
-  u.searchParams.set("client_secret", secret);
-  u.searchParams.set("fb_exchange_token", shortToken);
-  const r = await fetch(u.toString());
-  if (!r.ok) return shortToken;
-  const j = (await r.json()) as { access_token?: string };
-  return j.access_token ?? shortToken;
 }
 
 async function fetchAdAccounts(
@@ -85,6 +61,42 @@ async function triggerProcess(): Promise<void> {
   }).catch(() => undefined);
 }
 
+type VerifiedState =
+  | { kind: "meta_test"; payload: Record<string, unknown> }
+  | { kind: "diagnosis"; payload: Record<string, unknown> };
+
+async function verifyOAuthStateAny(
+  stateRaw: string,
+): Promise<VerifiedState | null> {
+  const testSecret = Deno.env.get("META_TEST_OAUTH_STATE_SECRET")?.trim();
+  if (testSecret && testSecret.length >= 16) {
+    const testPayload = await verifyOAuthState(stateRaw, testSecret);
+    if (testPayload?.purpose === "meta_test") {
+      return { kind: "meta_test", payload: testPayload };
+    }
+  }
+
+  const diagSecret = Deno.env.get("OAUTH_STATE_SECRET")?.trim();
+  if (diagSecret && diagSecret.length >= 16) {
+    const diagPayload = await verifyOAuthState(stateRaw, diagSecret);
+    if (diagPayload) {
+      return { kind: "diagnosis", payload: diagPayload };
+    }
+  }
+
+  return null;
+}
+
+function metaTestReturnSite(payload: Record<string, unknown>): string {
+  const fromState = normalizePublicSiteUrl(
+    String(payload.return_site ?? ""),
+  );
+  if (fromState) return fromState;
+  const site = normalizePublicSiteUrl(siteUrl());
+  if (site) return site;
+  return "http://localhost:5173";
+}
+
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
@@ -96,35 +108,82 @@ Deno.serve(async (req) => {
   const stateRaw = url.searchParams.get("state");
   const err = url.searchParams.get("error");
   const site = siteUrl();
-  if (!site) return jsonResponse({ error: "PUBLIC_SITE_URL ausente" }, 500);
 
   if (err) {
-    return new Response(null, {
-      status: 302,
-      headers: {
-        Location: `${site}/obrigado?oauth_error=${encodeURIComponent(err)}`,
-        ...corsHeaders,
-      },
-    });
+    const errParam = encodeURIComponent(err);
+    if (site) {
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: `${site}/obrigado?oauth_error=${errParam}`,
+          ...corsHeaders,
+        },
+      });
+    }
+    return jsonResponse({ error: err }, 400);
   }
+
   if (!code || !stateRaw) {
     return jsonResponse({ error: "code/state ausentes" }, 400);
   }
 
-  const stateSecret = Deno.env.get("OAUTH_STATE_SECRET");
-  if (!stateSecret)
-    return jsonResponse({ error: "OAUTH_STATE_SECRET ausente" }, 500);
+  const verified = await verifyOAuthStateAny(stateRaw);
+  if (!verified) return jsonResponse({ error: "state inválido" }, 400);
 
-  const payload = await verifyOAuthState(stateRaw, stateSecret);
-  if (!payload) return jsonResponse({ error: "state inválido" }, 400);
-  const exp = typeof payload.exp === "number" ? payload.exp : 0;
+  const exp = typeof verified.payload.exp === "number" ? verified.payload.exp : 0;
   if (Date.now() > exp) return jsonResponse({ error: "state expirado" }, 400);
 
-  const diagnosisId = String(payload.diagnosisId ?? "");
-  const secretSlug = String(payload.secret_slug ?? "");
+  const redir = redirectUri();
 
-  const short = await exchangeCode(code);
-  if (!short?.access_token) {
+  if (verified.kind === "meta_test") {
+    const returnSite = metaTestReturnSite(verified.payload);
+
+    const short = await exchangeCodeForToken(code, redir);
+    if (!short.ok) {
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: metaTestHarnessPageUrl(returnSite, {
+            oauth_error: short.error,
+          }),
+          ...corsHeaders,
+        },
+      });
+    }
+
+    const long = await exchangeForLongLivedToken(short.access_token);
+    if (!long.ok) {
+      return new Response(null, {
+        status: 302,
+        headers: {
+          Location: metaTestHarnessPageUrl(returnSite, {
+            oauth_error: long.error,
+          }),
+          ...corsHeaders,
+        },
+      });
+    }
+
+    const expiresIn = long.expires_in ?? short.expires_in ?? 0;
+    const cb = new URL(metaTestHarnessCallbackUrl(returnSite));
+    cb.searchParams.set("access_token", long.access_token);
+    if (expiresIn > 0) {
+      cb.searchParams.set("expires_in", String(expiresIn));
+    }
+
+    return new Response(null, {
+      status: 302,
+      headers: { Location: cb.toString(), ...corsHeaders },
+    });
+  }
+
+  if (!site) return jsonResponse({ error: "PUBLIC_SITE_URL ausente" }, 500);
+
+  const diagnosisId = String(verified.payload.diagnosisId ?? "");
+  const secretSlug = String(verified.payload.secret_slug ?? "");
+
+  const short = await exchangeCodeForToken(code, redir);
+  if (!short.ok) {
     return new Response(null, {
       status: 302,
       headers: {
@@ -134,7 +193,18 @@ Deno.serve(async (req) => {
     });
   }
 
-  const userToken = await longLivedToken(short.access_token);
+  const long = await exchangeForLongLivedToken(short.access_token);
+  if (!long.ok) {
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: `${site}/obrigado?d=${diagnosisId}&s=${secretSlug}&oauth_error=token`,
+        ...corsHeaders,
+      },
+    });
+  }
+
+  const userToken = long.access_token;
   const accounts = await fetchAdAccounts(userToken);
   const first = accounts[0];
   if (!first) {

@@ -13,10 +13,11 @@ Documento vivo. Atualizar ao adicionar ou modificar funções.
 | **Diagnosis secret** | Header `x-diagnosis-id` com slug hex — vinculado ao diagnóstico do usuário, sem auth Supabase |
 | **Público c/ rate-limit** | Sem auth, protegido por IP rate-limit via `_shared/rate-limit.ts` |
 | **Webhook externo** | Assinatura HMAC validada com secret do provider (MercadoPago) |
+| **Dev harness** | Sem JWT; exige `META_TEST_ENABLED=true` + `redirect_uri` localhost — só ambiente de teste |
 
 ---
 
-## Tabela completa (23 funções)
+## Tabela completa (24 funções)
 
 | Função | Auth | Body / Params | Escopo | Status |
 |--------|------|---------------|--------|--------|
@@ -43,6 +44,7 @@ Documento vivo. Atualizar ao adicionar ou modificar funções.
 | diagnosis-track | Diagnosis secret | JSON body (`event`, `diagnosis_id`) | diagnosis | ✅ OK |
 | diagnosis-report | Diagnosis secret | query param `diagnosis_id` | diagnosis | ✅ OK |
 | process-diagnosis | Cron \| JWT | query/body `diagnosis_id` | diagnosis | ✅ OK |
+| meta-api-test | Dev harness | JSON body (`action`, …) | dev/test | ✅ OK |
 
 ---
 
@@ -71,6 +73,9 @@ Endpoints do portal de clientes externos. Sem autenticação Supabase; protegido
 
 ### Escopo `platform`
 Apenas admin de plataforma (`platform_admin` role). Atualmente só `oauth-env-status`.
+
+### Escopo `dev/test`
+Harness local `/test-meta-oauth`. Função `meta-api-test`: OAuth + proxy Graph API; **não** persiste tokens na base de dados. Desactivada por omissão (`META_TEST_ENABLED` ≠ `true`).
 
 ---
 
