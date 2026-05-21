@@ -168,6 +168,7 @@ export function loadMetaTestSecrets(): MetaTestSecretsConfig {
 }
 
 export function saveMetaTestSecrets(config: MetaTestSecretsConfig): void {
+  if (typeof window === "undefined") return;
   localStorage.setItem(
     META_TEST_STORAGE_KEYS.secretsConfig,
     JSON.stringify({
@@ -178,6 +179,7 @@ export function saveMetaTestSecrets(config: MetaTestSecretsConfig): void {
 }
 
 export function clearMetaTestSecrets(): void {
+  if (typeof window === "undefined") return;
   localStorage.removeItem(META_TEST_STORAGE_KEYS.secretsConfig);
 }
 
@@ -413,6 +415,7 @@ export function saveMetaTestToken(
   accessToken: string,
   expiresInSeconds?: number,
 ): void {
+  if (typeof window === "undefined") return;
   localStorage.setItem(META_TEST_STORAGE_KEYS.accessToken, accessToken);
   if (expiresInSeconds && expiresInSeconds > 0) {
     const expiresAt = Date.now() + expiresInSeconds * 1000;
@@ -427,6 +430,7 @@ export function saveMetaTestSelection(partial: {
   selectedCampaignId?: string | null;
   selectedAdSetId?: string | null;
 }): void {
+  if (typeof window === "undefined") return;
   if (partial.selectedAdAccountId !== undefined) {
     if (partial.selectedAdAccountId) {
       localStorage.setItem(
@@ -460,6 +464,7 @@ export function saveMetaTestSelection(partial: {
 }
 
 export function saveMetaTestJsonResult(type: string, data: unknown): void {
+  if (typeof window === "undefined") return;
   localStorage.setItem(
     META_TEST_STORAGE_KEYS.lastJsonResult,
     JSON.stringify(data, null, 2),
@@ -471,6 +476,7 @@ export function loadMetaTestJsonResult(): {
   type: string | null;
   json: string | null;
 } {
+  if (typeof window === "undefined") return { type: null, json: null };
   return {
     type: localStorage.getItem(META_TEST_STORAGE_KEYS.lastResultType),
     json: localStorage.getItem(META_TEST_STORAGE_KEYS.lastJsonResult),
@@ -478,6 +484,7 @@ export function loadMetaTestJsonResult(): {
 }
 
 export function clearMetaTestStorage(): void {
+  if (typeof window === "undefined") return;
   Object.values(META_TEST_STORAGE_KEYS).forEach((key) => {
     localStorage.removeItem(key);
   });
