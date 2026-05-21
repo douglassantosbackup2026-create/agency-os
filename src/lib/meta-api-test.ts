@@ -413,6 +413,7 @@ export function saveMetaTestToken(
   accessToken: string,
   expiresInSeconds?: number,
 ): void {
+  if (typeof window === "undefined") return;
   localStorage.setItem(META_TEST_STORAGE_KEYS.accessToken, accessToken);
   if (expiresInSeconds && expiresInSeconds > 0) {
     const expiresAt = Date.now() + expiresInSeconds * 1000;
