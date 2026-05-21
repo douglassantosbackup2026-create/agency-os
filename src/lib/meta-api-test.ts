@@ -168,6 +168,7 @@ export function loadMetaTestSecrets(): MetaTestSecretsConfig {
 }
 
 export function saveMetaTestSecrets(config: MetaTestSecretsConfig): void {
+  if (typeof window === "undefined") return;
   localStorage.setItem(
     META_TEST_STORAGE_KEYS.secretsConfig,
     JSON.stringify({
@@ -178,6 +179,7 @@ export function saveMetaTestSecrets(config: MetaTestSecretsConfig): void {
 }
 
 export function clearMetaTestSecrets(): void {
+  if (typeof window === "undefined") return;
   localStorage.removeItem(META_TEST_STORAGE_KEYS.secretsConfig);
 }
 
