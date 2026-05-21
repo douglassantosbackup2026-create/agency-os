@@ -430,6 +430,11 @@ export function saveMetaTestSelection(partial: {
   selectedCampaignId?: string | null;
   selectedAdSetId?: string | null;
 }): void {
+  if (typeof window === "undefined") return;
+  selectedAdAccountId?: string | null;
+  selectedCampaignId?: string | null;
+  selectedAdSetId?: string | null;
+}): void {
   if (partial.selectedAdAccountId !== undefined) {
     if (partial.selectedAdAccountId) {
       localStorage.setItem(
