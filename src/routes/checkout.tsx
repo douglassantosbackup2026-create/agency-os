@@ -197,6 +197,7 @@ type ProcessResp = {
   status?: string;
   status_detail?: string | null;
   redirect?: string | null;
+  auto_login_token?: string | null;
   pix?: {
     qr_code?: string | null;
     qr_code_base64?: string | null;
@@ -216,13 +217,22 @@ async function apiProcess(payload: Record<string, unknown>): Promise<ProcessResp
   return j;
 }
 
-async function apiStatus(d: string, s: string): Promise<string> {
+async function apiStatus(
+  d: string,
+  s: string,
+): Promise<{ status: string; auto_login_token: string | null }> {
   const res = await invokeDiagnosisFunction("diagnosis-payment-status", {
     method: "GET",
     query: { d, s },
   });
-  const j = (await res.json()) as { status?: string };
-  return j.status ?? "unknown";
+  const j = (await res.json()) as {
+    status?: string;
+    auto_login_token?: string | null;
+  };
+  return {
+    status: j.status ?? "unknown",
+    auto_login_token: j.auto_login_token ?? null,
+  };
 }
 
 // ============================================================
