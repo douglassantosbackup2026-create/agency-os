@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
     );
   }
 
-  const appId = Deno.env.get("META_APP_ID");
+  const appId = Deno.env.get("META_APP_ID")?.trim();
   if (!appId) return jsonResponse({ error: "META_APP_ID ausente" }, 500);
 
   const exp = Date.now() + 15 * 60 * 1000;
