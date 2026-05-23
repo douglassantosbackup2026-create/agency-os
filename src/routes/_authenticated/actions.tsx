@@ -29,6 +29,7 @@ import {
   ActionCenterListRow,
   type ActionCenterListRowModel as ActionCenterRow,
 } from "@/components/action-center-list-row";
+import { VirtualList } from "@/components/virtual-list";
 
 const ACTIONS_FILTERS_LS = "action-center-filters-v1";
 /** Referência estável para linhas não-expandidas — preserva memo() das rows. */
