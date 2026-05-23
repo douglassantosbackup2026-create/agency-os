@@ -1,8 +1,9 @@
+import { memo } from "react";
 import { AlertTriangle, CheckCircle2, Users, XCircle } from "lucide-react";
 import { ANCHOR_PARA_QUEM, forWhoSection } from "@/content/diagnosis-landing";
 import { LANDING_SECTION_SCROLL, landingEyebrowClass } from "@/lib/landing-ui";
 
-export function DiagnosisQualification() {
+function DiagnosisQualificationInner() {
   return (
     <section
       id={ANCHOR_PARA_QUEM}
@@ -66,3 +67,5 @@ export function DiagnosisQualification() {
     </section>
   );
 }
+
+export const DiagnosisQualification = memo(DiagnosisQualificationInner);

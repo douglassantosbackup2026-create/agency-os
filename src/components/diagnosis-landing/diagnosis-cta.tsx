@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Loader2 } from "lucide-react";
 import {
   landingPrimaryCtaClass,
@@ -15,7 +16,7 @@ type DiagnosisCtaProps = {
   size?: "default" | "large";
 };
 
-export function DiagnosisCta({
+function DiagnosisCtaInner({
   label,
   sublabel,
   loading,
@@ -53,3 +54,5 @@ export function DiagnosisCta({
     </div>
   );
 }
+
+export const DiagnosisCta = memo(DiagnosisCtaInner);

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Award, CheckCircle2 } from "lucide-react";
 import { ANCHOR_AUTOR, authorSection } from "@/content/diagnosis-landing";
 import {
@@ -12,7 +13,7 @@ const authorStats = [
   { value: "Ex-Ogilvy", label: "Background" },
 ];
 
-export function DiagnosisAuthor() {
+function DiagnosisAuthorInner() {
   return (
     <section
       id={ANCHOR_AUTOR}
@@ -72,3 +73,5 @@ export function DiagnosisAuthor() {
     </section>
   );
 }
+
+export const DiagnosisAuthor = memo(DiagnosisAuthorInner);

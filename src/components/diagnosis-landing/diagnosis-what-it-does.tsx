@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { LayoutDashboard } from "lucide-react";
 import {
   ANCHOR_O_QUE_FAZ,
@@ -10,7 +11,7 @@ import {
   landingSurfaceCardClass,
 } from "@/lib/landing-ui";
 
-export function DiagnosisWhatItDoes() {
+function DiagnosisWhatItDoesInner() {
   return (
     <section
       id={ANCHOR_O_QUE_FAZ}
@@ -61,3 +62,5 @@ export function DiagnosisWhatItDoes() {
     </section>
   );
 }
+
+export const DiagnosisWhatItDoes = memo(DiagnosisWhatItDoesInner);

@@ -1,8 +1,9 @@
+import { memo } from "react";
 import { Shield, ShieldCheck } from "lucide-react";
 import { ANCHOR_GARANTIA, guaranteeSection } from "@/content/diagnosis-landing";
 import { LANDING_SECTION_SCROLL } from "@/lib/landing-ui";
 
-export function DiagnosisGuarantee() {
+function DiagnosisGuaranteeInner() {
   return (
     <section
       id={ANCHOR_GARANTIA}
@@ -44,3 +45,5 @@ export function DiagnosisGuarantee() {
     </section>
   );
 }
+
+export const DiagnosisGuarantee = memo(DiagnosisGuaranteeInner);

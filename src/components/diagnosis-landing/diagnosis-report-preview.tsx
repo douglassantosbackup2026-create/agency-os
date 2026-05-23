@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { AlertTriangle, Eye, TrendingDown, TrendingUp } from "lucide-react";
 import { ANCHOR_PREVIEW, PRICE_LABEL } from "@/content/diagnosis-landing";
 import {
@@ -71,7 +72,7 @@ const demoBlurred = [
   },
 ];
 
-export function DiagnosisReportPreview({ onCheckout, loading }: Props) {
+function DiagnosisReportPreviewInner({ onCheckout, loading }: Props) {
   return (
     <section
       id={ANCHOR_PREVIEW}
@@ -237,3 +238,5 @@ export function DiagnosisReportPreview({ onCheckout, loading }: Props) {
     </section>
   );
 }
+
+export const DiagnosisReportPreview = memo(DiagnosisReportPreviewInner);

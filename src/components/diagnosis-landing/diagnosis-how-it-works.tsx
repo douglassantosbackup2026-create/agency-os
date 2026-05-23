@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { CheckCircle2, Workflow, XCircle } from "lucide-react";
 import { ANCHOR_COMO, howItWorksSection } from "@/content/diagnosis-landing";
 import {
@@ -6,7 +7,7 @@ import {
   landingPrimaryCalloutClass,
 } from "@/lib/landing-ui";
 
-export function DiagnosisHowItWorks() {
+function DiagnosisHowItWorksInner() {
   return (
     <section
       id={ANCHOR_COMO}
@@ -73,3 +74,5 @@ export function DiagnosisHowItWorks() {
     </section>
   );
 }
+
+export const DiagnosisHowItWorks = memo(DiagnosisHowItWorksInner);

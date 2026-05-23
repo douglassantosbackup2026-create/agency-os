@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Link } from "@tanstack/react-router";
 import {
   diagnosisContactEmail,
@@ -5,7 +6,7 @@ import {
   footerSection,
 } from "@/content/diagnosis-landing";
 
-export function DiagnosisFooter() {
+function DiagnosisFooterInner() {
   const email = diagnosisContactEmail();
   const whatsapp = diagnosisWhatsAppUrl();
 
@@ -59,3 +60,5 @@ export function DiagnosisFooter() {
     </footer>
   );
 }
+
+export const DiagnosisFooter = memo(DiagnosisFooterInner);
