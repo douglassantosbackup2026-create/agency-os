@@ -848,7 +848,7 @@ function CardSection({
           },
         });
         if (resp.status === "approved") {
-          onApproved(s.diagnosis_id, s.secret_slug);
+          onApproved(s.diagnosis_id, s.secret_slug, resp.auto_login_token ?? null);
         } else if (resp.status === "in_process" || resp.status === "pending") {
           setErr("Pagamento em análise. Você receberá um e-mail assim que for aprovado.");
         } else {
