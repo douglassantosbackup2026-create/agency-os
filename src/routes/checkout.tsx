@@ -640,7 +640,7 @@ function PixSection({
   started: StartResp | null;
   ensureStarted: () => Promise<StartResp | null>;
   starting: boolean;
-  onApproved: (d: string, s: string) => void;
+  onApproved: (d: string, s: string, t?: string | null) => void;
 }) {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -784,7 +784,7 @@ function CardSection({
   starting: boolean;
   mp: MpInstance | null;
   amount: number;
-  onApproved: (d: string, s: string) => void;
+  onApproved: (d: string, s: string, t?: string | null) => void;
 }) {
   const [number, setNumber] = useState("");
   const [holder, setHolder] = useState("");
