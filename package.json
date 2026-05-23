@@ -104,6 +104,7 @@
     "lighthouse": "^13.3.0",
     "prettier": "^3.7.3",
     "puppeteer": "^24.43.0",
+    "sharp": "^0.34.5",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.56.1",
     "vite": "^7.3.1",
