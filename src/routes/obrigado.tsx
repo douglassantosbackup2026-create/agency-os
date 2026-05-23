@@ -697,6 +697,27 @@ function ProcessingCard({ pollErr }: { pollErr: string | null }) {
 /* OAuth error                                                                */
 /* -------------------------------------------------------------------------- */
 
+function MetaConnectedCard({ adAccountId }: { adAccountId: string }) {
+  return (
+    <div className="mt-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-5 shadow-sm animate-fade-in">
+      <div className="flex items-start gap-3">
+        <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+        <div className="flex-1">
+          <h2 className="text-base font-semibold tracking-tight">
+            Meta Ads conectada com sucesso
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Conta de anúncios ligada:{" "}
+            <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
+              {adAccountId}
+            </code>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function OAuthErrorCard({
   errorKey,
   metaUrl,
