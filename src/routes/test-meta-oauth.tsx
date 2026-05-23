@@ -125,16 +125,19 @@ function MetaTestOAuthPage() {
   }, [session.accessToken, expired, accounts.length, loadAccounts]);
 
   const handleConnect = async () => {
-    const missing = validateMetaTestSecretsLocal(loadMetaTestSecrets());
-    if (missing.length > 0) {
-      const msg = `Configure os secrets primeiro: ${missing.join(", ")}`;
-      setError(msg);
-      toast.error(msg);
-      return;
-    }
     setLoading("connect");
     setError(null);
     try {
+      const url = await generateMetaOAuthURL();
+      console.log("[test-meta-oauth] redirecting to Meta OAuth", url);
+      window.location.href = url;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Falha ao iniciar OAuth";
+      setError(msg);
+      toast.error(msg);
+      setLoading(null);
+    }
+  };
       const url = await generateMetaOAuthURL();
       console.log("[test-meta-oauth] redirecting to Meta OAuth", url);
       window.location.href = url;
