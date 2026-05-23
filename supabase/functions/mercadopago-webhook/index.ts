@@ -208,5 +208,13 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "db update failed" }, 500);
   }
 
+  // Provision buyer account + magiclink token (best-effort, never blocks ack).
+  try {
+    const diag = await fetchBuyerDiagnosis(sb, extRef);
+    if (diag) await ensureBuyerAccountAndToken(sb, diag);
+  } catch (e) {
+    console.error("webhook: ensureBuyerAccountAndToken failed", e);
+  }
+
   return jsonResponse({ ok: true }, 200);
 });
