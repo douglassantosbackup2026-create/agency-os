@@ -777,22 +777,28 @@ function ActionsCenter() {
               />
               <span>Selecionar todas nesta vista ({filtered.length})</span>
             </div>
-            {filtered.map((a: ActionCenterRow) => (
-              <ActionCenterListRow
-                key={a.id}
-                action={a}
-                teammates={teammates}
-                currentUserId={user?.id}
-                selected={selectedIds.includes(a.id)}
-                expanded={expandedId === a.id}
-                overdue={isActionOverdue(a)}
-                eventRows={expandedId === a.id ? (eventRows ?? EMPTY_EVENT_ROWS) : EMPTY_EVENT_ROWS}
-                onToggleSelect={toggleSelect}
-                onToggleExpand={onToggleExpand}
-                onPatchStatus={onPatchStatus}
-                onAssignee={setAssignee}
-              />
-            ))}
+            <VirtualList
+              items={filtered}
+              estimateSize={110}
+              overscan={6}
+              maxHeight={Math.min(1400, typeof window !== "undefined" ? window.innerHeight - 240 : 800)}
+              getKey={(a) => a.id}
+              renderItem={(a) => (
+                <ActionCenterListRow
+                  action={a}
+                  teammates={teammates}
+                  currentUserId={user?.id}
+                  selected={selectedIds.includes(a.id)}
+                  expanded={expandedId === a.id}
+                  overdue={isActionOverdue(a)}
+                  eventRows={expandedId === a.id ? (eventRows ?? EMPTY_EVENT_ROWS) : EMPTY_EVENT_ROWS}
+                  onToggleSelect={toggleSelect}
+                  onToggleExpand={onToggleExpand}
+                  onPatchStatus={onPatchStatus}
+                  onAssignee={setAssignee}
+                />
+              )}
+            />
           </div>
         )}
       </Card>
