@@ -100,6 +100,19 @@ Deno.serve(async (req) => {
     });
   }
 
+  // Verifica assinatura do MP. Se MERCADOPAGO_WEBHOOK_SECRET estiver
+  // configurado, exigimos assinatura válida; caso contrário log de aviso.
+  const webhookSecret = Deno.env.get("MERCADOPAGO_WEBHOOK_SECRET");
+  if (webhookSecret) {
+    const ok = await verifyMpSignature(req, dataId, webhookSecret);
+    if (!ok) {
+      return jsonResponse({ error: "invalid signature" }, 401);
+    }
+  } else {
+    console.warn("mercadopago-webhook: MERCADOPAGO_WEBHOOK_SECRET não configurado — assinatura não verificada");
+  }
+
+
   const payment = await fetchPayment(dataId, token);
   if (!payment) {
     return jsonResponse({ error: "payment fetch failed" }, 502);
