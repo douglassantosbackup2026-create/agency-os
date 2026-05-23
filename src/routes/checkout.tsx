@@ -681,10 +681,13 @@ function PixSection({
     if (!pix || !started) return;
     pollRef.current = setInterval(async () => {
       try {
-        const status = await apiStatus(started.diagnosis_id, started.secret_slug);
+        const { status, auto_login_token } = await apiStatus(
+          started.diagnosis_id,
+          started.secret_slug,
+        );
         if (status !== "awaiting_payment") {
           if (pollRef.current) clearInterval(pollRef.current);
-          onApproved(started.diagnosis_id, started.secret_slug);
+          onApproved(started.diagnosis_id, started.secret_slug, auto_login_token);
         }
       } catch {
         /* ignore */
