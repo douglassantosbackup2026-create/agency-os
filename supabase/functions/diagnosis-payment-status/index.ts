@@ -1,8 +1,47 @@
 import { handleCors, jsonResponse } from "../_shared/diagnosis/cors.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
+import {
+  ensureBuyerAccountAndToken,
+  fetchBuyerDiagnosis,
+} from "../_shared/diagnosis/buyer-account.ts";
 
 const DIAGNOSIS_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function reconcileWithMp(
+  sb: ReturnType<typeof diagnosisServiceClient>,
+  diagnosisId: string,
+  mpPaymentId: string,
+): Promise<string | null> {
+  const token = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
+  if (!token) return null;
+  try {
+    const r = await fetch(
+      `https://api.mercadopago.com/v1/payments/${mpPaymentId}`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    if (!r.ok) return null;
+    const j = (await r.json()) as { status?: string };
+    if (j.status !== "approved") return null;
+
+    await sb
+      .from("diagnoses")
+      .update({ status: "awaiting_connection" })
+      .eq("id", diagnosisId)
+      .eq("status", "awaiting_payment");
+
+    try {
+      const diag = await fetchBuyerDiagnosis(sb, diagnosisId);
+      if (diag) await ensureBuyerAccountAndToken(sb, diag);
+    } catch (e) {
+      console.error("diagnosis-payment-status: ensureBuyerAccount failed", e);
+    }
+    return "awaiting_connection";
+  } catch (e) {
+    console.error("diagnosis-payment-status: MP reconcile failed", e);
+    return null;
+  }
+}
 
 Deno.serve(async (req) => {
   const cors = handleCors(req);
@@ -20,7 +59,7 @@ Deno.serve(async (req) => {
   const sb = diagnosisServiceClient();
   const { data } = await sb
     .from("diagnoses")
-    .select("status, secret_slug")
+    .select("status, secret_slug, mp_payment_id")
     .eq("id", d)
     .maybeSingle();
 
@@ -28,9 +67,15 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "não encontrado" }, 404);
   }
 
+  let status = data.status as string | null;
+  if (status === "awaiting_payment" && data.mp_payment_id) {
+    const reconciled = await reconcileWithMp(sb, d, String(data.mp_payment_id));
+    if (reconciled) status = reconciled;
+  }
+
   // If payment confirmed, surface the one-shot auto-login token (then clear it).
   let autoLoginToken: string | null = null;
-  if (data.status && data.status !== "awaiting_payment") {
+  if (status && status !== "awaiting_payment") {
     const { data: sec } = await sb
       .from("diagnosis_secrets")
       .select("auto_login_token, auto_login_expires_at")
@@ -49,5 +94,5 @@ Deno.serve(async (req) => {
     }
   }
 
-  return jsonResponse({ status: data.status, auto_login_token: autoLoginToken });
+  return jsonResponse({ status, auto_login_token: autoLoginToken });
 });
