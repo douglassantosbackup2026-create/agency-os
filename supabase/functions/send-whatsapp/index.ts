@@ -1,12 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { assertUserCanAccessClient } from "../_shared/membership.ts";
 import { BodyTooLargeError, readJsonBody } from "../_shared/edge-json-body.ts";
+import { appCors, appCorsPreflight } from "../_shared/cors-allowlist.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
 
 async function buildMergeVariables(
   admin: ReturnType<typeof createClient>,
