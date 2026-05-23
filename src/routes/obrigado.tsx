@@ -389,6 +389,8 @@ function SetPasswordCard({
     }
   };
 
+  if (auto.kind !== "ready") return null;
+
   return (
     <div className="card">
       <div className="flex items-start gap-2">
