@@ -1,5 +1,9 @@
 import { handleCors, jsonResponse } from "../_shared/diagnosis/cors.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
+import {
+  ensureBuyerAccountAndToken,
+  fetchBuyerDiagnosis,
+} from "../_shared/diagnosis/buyer-account.ts";
 
 async function fetchPayment(
   paymentId: string,
