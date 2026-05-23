@@ -16,11 +16,19 @@ import {
 } from "../_shared/public-site-url.ts";
 
 function siteUrl(): string {
-  return (
+  const raw = (
     Deno.env.get("PUBLIC_SITE_URL") ??
     Deno.env.get("SITE_URL") ??
     ""
-  ).replace(/\/+$/, "");
+  ).trim();
+  // Strip leading garbage like ":" or stray characters before the scheme
+  const cleaned = raw.replace(/^[^a-zA-Z]+/, "");
+  const withProto = /^https?:\/\//i.test(cleaned) ? cleaned : `https://${cleaned}`;
+  try {
+    return new URL(withProto).origin;
+  } catch {
+    return cleaned.replace(/\/+$/, "");
+  }
 }
 
 function redirectUri(): string {
