@@ -205,6 +205,7 @@ type ProcessResp = {
     expires_at?: string | null;
   };
   error?: string;
+  code?: string;
 };
 
 async function apiProcess(payload: Record<string, unknown>): Promise<ProcessResp> {
@@ -213,7 +214,14 @@ async function apiProcess(payload: Record<string, unknown>): Promise<ProcessResp
     body: JSON.stringify(payload),
   });
   const j = (await res.json()) as ProcessResp;
-  if (!res.ok) throw new Error(j.error ?? "Pagamento recusado");
+  if (!res.ok) {
+    if (j.code === "mp_credentials_environment_mismatch") {
+      throw new Error(
+        "As credenciais do Mercado Pago estão em modo produção. Para testar, use credenciais TEST- e comprador de teste; para uma venda real, use dados reais do comprador.",
+      );
+    }
+    throw new Error(j.error ?? "Pagamento recusado");
+  }
   return j;
 }
 
