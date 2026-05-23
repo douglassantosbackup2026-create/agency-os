@@ -165,13 +165,34 @@ Deno.serve(async (req) => {
   await sb.from("diagnoses").update(update).eq("id", diagnosisId);
 
   if (method === "card") {
+    let autoLoginToken: string | null = null;
+    if (status === "approved") {
+      // also flip status so /obrigado polling sees approved
+      await sb
+        .from("diagnoses")
+        .update({ status: "awaiting_connection" })
+        .eq("id", diagnosisId);
+      try {
+        const diag = await fetchBuyerDiagnosis(sb, diagnosisId);
+        if (diag) {
+          const r = await ensureBuyerAccountAndToken(sb, diag);
+          autoLoginToken = r.auto_login_token;
+        }
+      } catch (e) {
+        console.error("process-payment: buyer account failed", e);
+      }
+    }
+
+    const redirect =
+      status === "approved"
+        ? `/obrigado?d=${diagnosisId}&s=${secret}${autoLoginToken ? `&t=${encodeURIComponent(autoLoginToken)}` : ""}`
+        : null;
+
     return jsonResponse({
       status,
       status_detail: mpJson.status_detail ?? null,
-      redirect:
-        status === "approved"
-          ? `/obrigado?d=${diagnosisId}&s=${secret}`
-          : null,
+      redirect,
+      auto_login_token: autoLoginToken,
     });
   }
 
