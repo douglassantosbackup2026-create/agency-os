@@ -38,6 +38,7 @@ type ObrigadoSearch = {
 type StatusPayload = {
   status?: string;
   failed_reason?: string | null;
+  meta_ad_account_id?: string | null;
 };
 
 export const Route = createFileRoute("/obrigado")({
