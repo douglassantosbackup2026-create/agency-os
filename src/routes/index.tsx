@@ -46,7 +46,7 @@ function DiagnosisHomePage() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(diagnosisFaqJsonLd()),
+          __html: jsonLd,
         }}
       />
       <div className="min-h-screen bg-background text-foreground">
