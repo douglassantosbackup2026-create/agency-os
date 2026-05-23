@@ -32,14 +32,11 @@ import {
   getInsights,
   isMetaTestTokenExpired,
   loadMetaTestJsonResult,
-  loadMetaTestSecrets,
   loadMetaTestSession,
   saveMetaTestJsonResult,
   saveMetaTestSelection,
   secondsUntilExpiry,
-  validateMetaTestSecretsLocal,
 } from "@/lib/meta-api-test";
-import { MetaTestSecretsForm } from "@/components/meta-test-secrets-form";
 
 export const Route = createFileRoute("/test-meta-oauth")({
   beforeLoad: () => {
