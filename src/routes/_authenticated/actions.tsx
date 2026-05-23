@@ -785,7 +785,7 @@ function ActionsCenter() {
                 selected={selectedIds.includes(a.id)}
                 expanded={expandedId === a.id}
                 overdue={isActionOverdue(a)}
-                eventRows={expandedId === a.id ? (eventRows ?? []) : []}
+                eventRows={expandedId === a.id ? (eventRows ?? EMPTY_EVENT_ROWS) : EMPTY_EVENT_ROWS}
                 onToggleSelect={toggleSelect}
                 onToggleExpand={onToggleExpand}
                 onPatchStatus={onPatchStatus}
