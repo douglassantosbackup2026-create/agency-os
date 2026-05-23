@@ -16,11 +16,8 @@ function createSupabaseClient() {
   const SUPABASE_URL = envUrl || FALLBACK_SUPABASE_URL;
   const SUPABASE_PUBLISHABLE_KEY = envKey || FALLBACK_SUPABASE_PUBLISHABLE_KEY;
 
-  if (!envUrl || !envKey) {
-    console.warn(
-      "[Supabase] VITE_SUPABASE_URL/VITE_SUPABASE_PUBLISHABLE_KEY ausentes; a usar fallback público hardcoded.",
-    );
-  }
+  // Fallback é idêntico aos valores públicos; sem warn para não poluir console.
+
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {
