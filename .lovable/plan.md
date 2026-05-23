@@ -1,119 +1,110 @@
-# Auditoria de segurança — achados e correções
 
-Escopo: front-end TanStack Start + Supabase (RLS) + Edge Functions Deno. Não há `createServerFn`/server routes próprios — toda mutação passa por `supabase-js` (PostgREST) ou Edge Functions.
+# Análise do checkout de referência
 
----
+Os elementos que fazem esse checkout converter muito:
 
-## 1) SQL Injection — ✅ Baixo risco
+1. **Barra de urgência no topo** ("PROMOÇÃO EXPIRA EM 47:59…") — timer regressivo cria escassez real.
+2. **Branding + título do produto** logo abaixo, em uma faixa única e enxuta (sem header genérico de "Voltar").
+3. **Resumo do pedido em destaque** com produto, valor e **Total grande em cor de marca** — o usuário sempre vê o que está comprando e por quanto.
+4. **Card visual do produto** (mockup/ilustração) — humaniza o digital, reduz sensação de "estou pagando por nada".
+5. **Lista de entregáveis com checks** ("Você vai receber:") — empilha valor percebido antes do formulário.
+6. **Bloco de garantia + compra segura** dentro de um card destacado — quebra objeção de risco no momento da decisão.
+7. **Selos de confiança** ("Acesso imediato", "Compra segura", "Garantia 7 dias") em chips horizontais.
+8. **Formulário curto e progressivo**: Nome → E-mail → WhatsApp → CPF, um campo por linha, labels claras e microcopy explicando o porquê de cada campo sensível ("Use o mesmo e-mail…", "Obrigatório para emitir a cobrança…").
+9. **Order bumps opcionais** (cards com checkbox "Adicione …") com preço riscado — aumenta ticket médio sem fricção.
+10. **Seletor de pagamento como toggle grande** (Pix / Cartão) em vez de Tabs sutis.
+11. **CTA contextual e específico** ("Gerar Pix e liberar meu acesso" / "Pagar com cartão e liberar meu acesso") — não um genérico "Pagar".
+12. **Reasseguramento sob o CTA** ("Seu acesso será liberado após a confirmação do Pix").
+13. **Rodapé de selos** repetindo segurança/garantia/suporte.
+14. **Layout single-column, mobile-first**, sem distrações (sem nav, sem links externos).
 
-- Todas as leituras/escritas vão por `supabase.from(...).select/insert/update` ou `supabase.rpc("platform_overview_counts" | "platform_list_agencies_minimal")`. PostgREST sempre parametriza; RPCs chamam funções `SECURITY DEFINER` com `search_path = public` definido (visto em `<db-functions>`).
-- Nenhum `raw(`, `exec_sql`, ou template-string SQL no código.
-- Edge Functions usam `sb.from(...).eq(rawId)` com `rawId` validado por regex UUID antes do `.eq()` (ex.: `DIAGNOSIS_ID_RE` em `mercadopago-webhook`).
+# Plano de implementação
 
-**Ações:** nenhuma obrigatória. Manter o padrão "validar com Zod antes do `.eq()`" em qualquer nova Edge Function.
+Escopo: apenas frontend (`src/routes/checkout.tsx` + 1–2 componentes auxiliares + tokens). **Sem mudanças em backend, banco, ou Edge Functions.** Order bumps ficam apenas visuais nesta primeira iteração (placeholder, sem alterar amount no servidor) — quando você quiser ativá-los de verdade, fazemos uma segunda rodada que mexe em `start-diagnosis-payment` para somar ao total.
 
----
+## 1. Estrutura visual nova (substitui o layout atual)
 
-## 2) XSS — ⚠ Risco baixo, 1 ponto a endurecer
-
-Usos de `dangerouslySetInnerHTML` encontrados:
-
-| Arquivo | Conteúdo | Veredito |
-|---|---|---|
-| `src/routes/__root.tsx:169` | `THEME_INIT_SCRIPT` (string literal estática) | ✅ seguro |
-| `src/routes/index.tsx:48` | `JSON.stringify(diagnosisFaqJsonLd())` | ✅ seguro (JSON.stringify escapa `<`/`>`/`&` o suficiente para `<script type="application/ld+json">`, mas ver correção abaixo) |
-| `src/routes/retentio.tsx:183` | idem | ✅ idem |
-| `src/components/ui/chart.tsx:79` | CSS gerado a partir de config de tipos próprios (não user input) | ✅ seguro |
-
-**Correção recomendada (defesa em profundidade nos JSON-LD):** se um dia o FAQ vier de input dinâmico, `JSON.stringify` sozinho não impede `</script>` em strings. Padrão seguro:
-
-```ts
-const safeJsonLd = JSON.stringify(data).replace(/</g, "\\u003c");
+```text
+┌─ Barra de urgência (timer 30:00 regressivo, sessionStorage) ─┐
+├─ Brand bar (logo + nome do produto) ────────────────────────┤
+│                                                              │
+│  Resumo do pedido            R$ 37,00                        │
+│  Diagnóstico Meta Ads        Total destacado                 │
+│                                                              │
+│  [Card do produto com ícone/ilustração + nome + subtítulo]   │
+│                                                              │
+│  Diagnóstico Meta Ads                                        │
+│  Você vai receber:                                           │
+│  ✓ Auditoria completa da sua conta                           │
+│  ✓ Plano de ação priorizado                                  │
+│  ✓ … (lista vinda de constante)                              │
+│                                                              │
+│  ┌ Garantia 7 dias / Compra segura (card destacado) ┐        │
+│                                                              │
+│  [chips: Acesso imediato · Compra segura · Garantia 7 dias]  │
+│                                                              │
+│  Seus dados                                                  │
+│  (Nome, E-mail, WhatsApp — um por linha)                     │
+│                                                              │
+│  Ofertas especiais (opcional)  ← order bumps visuais         │
+│  [ ] Bump 1                                                  │
+│  [ ] Bump 2                                                  │
+│                                                              │
+│  CPF                                                         │
+│                                                              │
+│  Pagamento  [ Pix ] [ Cartão ]   ← toggle grande             │
+│  (form do método selecionado)                                │
+│                                                              │
+│  [ CTA: Gerar Pix e liberar meu acesso ]                     │
+│  Reasseguramento sob o CTA                                   │
+│                                                              │
+│  Footer: Pagamento seguro · Acesso imediato · Garantia · Suporte
+└──────────────────────────────────────────────────────────────┘
 ```
 
-Aplicar em `index.tsx:48` e `retentio.tsx:183`.
+Largura máx. ~480px (single column mobile-first) — não os 3xl atuais.
 
-**Outras superfícies:** confirmar que nenhum render de `description`/`title` de campanha (Meta API) é usado com `dangerouslySetInnerHTML` no futuro — hoje tudo é interpolação JSX, que React já escapa.
+## 2. Componentes a criar dentro de `src/routes/checkout.tsx`
 
----
+- `UrgencyBar` — timer 30 min usando `sessionStorage` (`checkout_deadline`) para persistir entre reloads; quando zera, esconde a barra (não bloqueia compra).
+- `OrderSummaryCard` — produto + total grande em cor primária.
+- `ProductHeroCard` — ícone Lucide grande + título + tagline.
+- `DeliverablesList` — array de strings → lista com `CircleCheck`.
+- `GuaranteeCard` — bloco com 2 linhas (Garantia 7 dias, Compra segura).
+- `TrustChips` — 3 chips horizontais.
+- `PaymentMethodToggle` — substitui Tabs por dois `<button>` grandes lado a lado com ícones, estilo segmented.
+- `OrderBumps` — 2 cards visuais com checkbox; estado local apenas (sem efeito no preço nesta versão; texto deixa claro que são "em breve" OU removemos se preferir).
 
-## 3) CSRF — ⚠ Atenção em webhooks
+Reaproveitar lógica existente (`useMercadoPago`, `apiStart`, `apiProcess`, `apiStatus`, `CardForm`, `PixForm`) — só muda envoltório visual e CTA copy.
 
-- App SPA + Supabase: tokens JWT vão por `Authorization: Bearer` (não cookie de sessão), então **CSRF clássico não se aplica** ao app autenticado.
-- **Edge Functions** com efeito colateral expostas publicamente:
-  - `mercadopago-webhook`: **NÃO verifica assinatura `x-signature`** do Mercado Pago. Re-busca o pagamento via API antes de marcar como pago — isso impede falsificação direta, mas qualquer um pode disparar carga de chamadas ao MP a partir do seu endpoint. **Correção:** validar header `x-signature` + `x-request-id` (HMAC SHA256 com `MERCADOPAGO_WEBHOOK_SECRET`) com `timingSafeEqual`.
-  - `meta-oauth-callback`: ✅ usa `verifyOAuthState` (HMAC assinado, secret `OAUTH_STATE_SECRET`/`META_TEST_OAUTH_STATE_SECRET` com mínimo 16 chars). Bom.
-  - Endpoints cron (`process-diagnosis`, `evaluate-alerts`, etc.): verificar se usam `cron-auth.ts` com `CRON_SECRET` em **todas** as funções de cron (auditar `_shared/cron-auth.ts` e confirmar uso em cada `Deno.serve`).
+## 3. Tokens de design (em `src/styles.css`)
 
----
+Sem inventar paleta nova; usar tokens já existentes (`--primary`, `--card`, `--muted`). Acrescentar apenas:
+- `--success` (para checks da lista) se não existir.
+- gradiente sutil `--gradient-urgency` para a barra do topo (usa `--destructive` / `--primary`).
 
-## 4) Validação de input (front + back)
+Tudo via tokens — zero cor hardcoded.
 
-- **Front:** `zod` está em uso (`react-hook-form` + `@hookform/resolvers/zod` no projeto). Confirmar cobertura nos formulários de onboarding/cliente.
-- **Back (Edge Functions):** ❌ **`rg "zod" supabase/functions` não retorna nada.** Validação é feita ad-hoc (`typeof body.type === "string"`, regex UUID). Funciona, mas é frágil e inconsistente.
+## 4. Copy de alta conversão
 
-**Correção:** adicionar `zod` (via `npm:zod` import no Deno) em cada Edge Function que aceita body, com schema explícito de min/max/regex como no template:
+- CTA Pix: **"Gerar Pix e liberar meu acesso"**
+- CTA Cartão: **"Pagar com cartão e liberar meu acesso"**
+- Subtítulo do form: "Use o mesmo e-mail que você quer usar para receber o diagnóstico."
+- Microcopy do CPF: "Obrigatório para emitir a cobrança no seu nome."
+- Reasseguramento Pix: "Seu acesso será liberado em segundos após a confirmação do Pix."
+- Reasseguramento cartão: "Acesso imediato após a aprovação."
 
-```ts
-import { z } from "npm:zod@3";
-const Body = z.object({
-  type: z.string().min(1).max(64),
-  data: z.object({ id: z.string().uuid() }),
-});
-const parsed = Body.safeParse(await req.json());
-if (!parsed.success) return jsonResponse({ error: "invalid" }, 400);
-```
+## 5. Acessibilidade / responsividade
 
-Prioridade: `mercadopago-webhook`, `process-diagnosis`, `invite-member`, `send-whatsapp`, `meta-api-test`, `portal-data`, `portal-creative-review` (qualquer função que aceite payload do navegador).
+- Toggle de pagamento como `role="radiogroup"`.
+- Timer com `aria-live="polite"` mas atualizando só a cada segundo.
+- Mobile-first; quebra para 1 col em <640px, mantém 1 col em desktop (max-w ~480).
 
----
+## 6. Fora do escopo desta iteração (faço depois se quiser)
 
-## 5) Headers de segurança — ❌ Ausentes
+- Order bumps somando no `amount_cents` do servidor (requer mudar `start-diagnosis-payment` e `process-diagnosis-payment`).
+- Cupom de desconto.
+- Parcelamento dinâmico do cartão (hoje é 1x fixo).
+- Prova social (depoimentos) — só se você tiver textos reais.
 
-- Sem `Content-Security-Policy`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Strict-Transport-Security` no `__root.tsx` nem em config de plataforma.
-- CORS das Edge Functions usa `Access-Control-Allow-Origin: *` — aceitável para webhooks de terceiros, mas **as funções chamadas pelo app deveriam restringir a `PUBLIC_SITE_URL`**.
-
-**Correções:**
-
-**a) Headers no HTML (via `<meta>` no `__root.tsx > <head>`):**
-```tsx
-<meta httpEquiv="Content-Security-Policy" content="
-  default-src 'self';
-  script-src 'self' 'unsafe-inline' https://sdk.mercadopago.com;
-  style-src 'self' 'unsafe-inline';
-  img-src 'self' data: https:;
-  connect-src 'self' https://*.supabase.co https://api.mercadopago.com https://graph.facebook.com;
-  frame-ancestors 'none';
-" />
-<meta httpEquiv="X-Content-Type-Options" content="nosniff" />
-<meta httpEquiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
-```
-> `X-Frame-Options` e `HSTS` só funcionam como header HTTP de verdade — não há `<meta>` equivalente. Configurar no projeto Lovable/CDN (publish settings) ou aceitar `frame-ancestors 'none'` do CSP como substituto de XFO.
-
-**b) Edge Functions chamadas pelo app:** trocar `Access-Control-Allow-Origin: *` por allowlist:
-```ts
-const ALLOWED = [Deno.env.get("PUBLIC_SITE_URL"), "https://opus-retention-os.lovable.app"];
-const origin = req.headers.get("origin");
-const allow = ALLOWED.includes(origin) ? origin! : ALLOWED[0]!;
-```
-
----
-
-## Resumo priorizado
-
-| # | Achado | Severidade | Esforço |
-|---|---|---|---|
-| 1 | Webhook MP sem verificação de assinatura HMAC | **Alta** | Baixo |
-| 2 | Headers de segurança ausentes (CSP/XCTO/Referrer) | **Alta** | Baixo |
-| 3 | Validação Zod ausente nas Edge Functions | Média | Médio |
-| 4 | CORS `*` em funções app-only | Média | Baixo |
-| 5 | JSON-LD: escapar `<` em `JSON.stringify` (defesa em profundidade) | Baixa | Trivial |
-| 6 | Auditar `cron-auth` em todas as funções de cron | Média | Baixo (revisão) |
-
-SQL Injection e CSRF clássico no app autenticado: **sem ação necessária**.
-
----
-
-## Próximo passo
-
-Posso implementar nesta ordem em build mode: (1)+(2)+(5) num único turno (mudanças pequenas em `__root.tsx`, `mercadopago-webhook/index.ts` e os dois JSON-LD), depois (3)+(4) numa rodada por função. Confirma se quer que eu prossiga com tudo ou só com a parte crítica (1+2).
+Confirma que avanço com esse plano? Quer que eu **remova os order bumps** já que ainda não estão funcionais, ou **mantenho como visual "em breve"**?
