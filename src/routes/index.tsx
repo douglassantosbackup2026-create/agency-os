@@ -17,6 +17,7 @@ import {
 } from "@/components/diagnosis-landing";
 import { diagnosisFaqJsonLd, seoDefaults } from "@/content/diagnosis-landing";
 import { useDiagnosisCheckout } from "@/hooks/use-diagnosis-checkout";
+import { useCallback, useMemo } from "react";
 
 export const Route = createFileRoute("/")({
   component: DiagnosisHomePage,
@@ -34,9 +35,11 @@ export const Route = createFileRoute("/")({
 function DiagnosisHomePage() {
   const { checkout, loading, error } = useDiagnosisCheckout();
 
-  const onCheckout = () => {
+  const onCheckout = useCallback(() => {
     void checkout();
-  };
+  }, [checkout]);
+
+  const jsonLd = useMemo(() => JSON.stringify(diagnosisFaqJsonLd()), []);
 
   return (
     <>
