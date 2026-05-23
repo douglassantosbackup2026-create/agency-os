@@ -20,6 +20,53 @@ const DIAGNOSIS_ID_RE =
 
 const MGMT_PREFIX = "mgmt:";
 
+// Verifica assinatura HMAC-SHA256 do Mercado Pago.
+// Doc: header `x-signature: ts=...,v1=...` + `x-request-id`.
+// Manifest assinado: `id:<data.id>;request-id:<x-request-id>;ts:<ts>;`
+async function verifyMpSignature(
+  req: Request,
+  dataId: string,
+  secret: string,
+): Promise<boolean> {
+  const sigHeader = req.headers.get("x-signature") ?? "";
+  const requestId = req.headers.get("x-request-id") ?? "";
+  if (!sigHeader || !requestId) return false;
+
+  const parts = Object.fromEntries(
+    sigHeader.split(",").map((p) => {
+      const [k, ...v] = p.trim().split("=");
+      return [k, v.join("=")];
+    }),
+  );
+  const ts = parts["ts"];
+  const v1 = parts["v1"];
+  if (!ts || !v1) return false;
+
+  const manifest = `id:${dataId};request-id:${requestId};ts:${ts};`;
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(manifest),
+  );
+  const expected = Array.from(new Uint8Array(sig))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+
+  if (expected.length !== v1.length) return false;
+  let diff = 0;
+  for (let i = 0; i < expected.length; i++) {
+    diff |= expected.charCodeAt(i) ^ v1.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
@@ -36,6 +83,7 @@ Deno.serve(async (req) => {
   } catch {
     return jsonResponse({ error: "JSON inválido" }, 400);
   }
+
 
   const topic = typeof body.type === "string" ? body.type : "";
   const dataId =
