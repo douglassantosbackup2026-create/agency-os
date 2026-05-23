@@ -138,16 +138,6 @@ function MetaTestOAuthPage() {
       setLoading(null);
     }
   };
-      const url = await generateMetaOAuthURL();
-      console.log("[test-meta-oauth] redirecting to Meta OAuth", url);
-      window.location.href = url;
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "Falha ao iniciar OAuth";
-      setError(msg);
-      toast.error(msg);
-      setLoading(null);
-    }
-  };
 
   const handleClear = () => {
     clearMetaTestStorage();
