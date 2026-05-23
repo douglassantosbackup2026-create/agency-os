@@ -86,8 +86,9 @@ async function sendEvolution(
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS")
-    return new Response(null, { headers: corsHeaders });
+  const pre = appCorsPreflight(req);
+  if (pre) return pre;
+  const corsHeaders = appCors(req);
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader)
