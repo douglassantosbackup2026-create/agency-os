@@ -32,14 +32,11 @@ import {
   getInsights,
   isMetaTestTokenExpired,
   loadMetaTestJsonResult,
-  loadMetaTestSecrets,
   loadMetaTestSession,
   saveMetaTestJsonResult,
   saveMetaTestSelection,
   secondsUntilExpiry,
-  validateMetaTestSecretsLocal,
 } from "@/lib/meta-api-test";
-import { MetaTestSecretsForm } from "@/components/meta-test-secrets-form";
 
 export const Route = createFileRoute("/test-meta-oauth")({
   beforeLoad: () => {
@@ -128,13 +125,6 @@ function MetaTestOAuthPage() {
   }, [session.accessToken, expired, accounts.length, loadAccounts]);
 
   const handleConnect = async () => {
-    const missing = validateMetaTestSecretsLocal(loadMetaTestSecrets());
-    if (missing.length > 0) {
-      const msg = `Configure os secrets primeiro: ${missing.join(", ")}`;
-      setError(msg);
-      toast.error(msg);
-      return;
-    }
     setLoading("connect");
     setError(null);
     try {
@@ -267,7 +257,7 @@ function MetaTestOAuthPage() {
           </Alert>
         )}
 
-        <MetaTestSecretsForm />
+
 
         <Card>
           <CardHeader>
