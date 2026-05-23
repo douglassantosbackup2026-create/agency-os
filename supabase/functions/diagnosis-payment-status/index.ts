@@ -28,5 +28,26 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "não encontrado" }, 404);
   }
 
-  return jsonResponse({ status: data.status });
+  // If payment confirmed, surface the one-shot auto-login token (then clear it).
+  let autoLoginToken: string | null = null;
+  if (data.status && data.status !== "awaiting_payment") {
+    const { data: sec } = await sb
+      .from("diagnosis_secrets")
+      .select("auto_login_token, auto_login_expires_at")
+      .eq("diagnosis_id", d)
+      .maybeSingle();
+    if (sec?.auto_login_token && sec.auto_login_expires_at) {
+      const exp = new Date(sec.auto_login_expires_at).getTime();
+      if (exp > Date.now()) {
+        autoLoginToken = sec.auto_login_token as string;
+        // single-use: clear so reload doesn't replay
+        await sb
+          .from("diagnosis_secrets")
+          .update({ auto_login_token: null, auto_login_expires_at: null })
+          .eq("diagnosis_id", d);
+      }
+    }
+  }
+
+  return jsonResponse({ status: data.status, auto_login_token: autoLoginToken });
 });

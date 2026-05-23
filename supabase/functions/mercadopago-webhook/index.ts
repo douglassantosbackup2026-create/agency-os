@@ -1,5 +1,9 @@
 import { handleCors, jsonResponse } from "../_shared/diagnosis/cors.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
+import {
+  ensureBuyerAccountAndToken,
+  fetchBuyerDiagnosis,
+} from "../_shared/diagnosis/buyer-account.ts";
 
 async function fetchPayment(
   paymentId: string,
@@ -202,6 +206,14 @@ Deno.serve(async (req) => {
   if (upErr) {
     console.error(upErr);
     return jsonResponse({ error: "db update failed" }, 500);
+  }
+
+  // Provision buyer account + magiclink token (best-effort, never blocks ack).
+  try {
+    const diag = await fetchBuyerDiagnosis(sb, extRef);
+    if (diag) await ensureBuyerAccountAndToken(sb, diag);
+  } catch (e) {
+    console.error("webhook: ensureBuyerAccountAndToken failed", e);
   }
 
   return jsonResponse({ ok: true }, 200);

@@ -1002,6 +1002,7 @@ export type Database = {
       diagnoses: {
         Row: {
           amount_cents: number
+          buyer_user_id: string | null
           completed_at: string | null
           created_at: string
           cta_clicked_at: string | null
@@ -1035,6 +1036,7 @@ export type Database = {
         }
         Insert: {
           amount_cents?: number
+          buyer_user_id?: string | null
           completed_at?: string | null
           created_at?: string
           cta_clicked_at?: string | null
@@ -1068,6 +1070,7 @@ export type Database = {
         }
         Update: {
           amount_cents?: number
+          buyer_user_id?: string | null
           completed_at?: string | null
           created_at?: string
           cta_clicked_at?: string | null
@@ -1136,18 +1139,24 @@ export type Database = {
       diagnosis_secrets: {
         Row: {
           access_token: string | null
+          auto_login_expires_at: string | null
+          auto_login_token: string | null
           diagnosis_id: string
           token_expires_at: string | null
           updated_at: string
         }
         Insert: {
           access_token?: string | null
+          auto_login_expires_at?: string | null
+          auto_login_token?: string | null
           diagnosis_id: string
           token_expires_at?: string | null
           updated_at?: string
         }
         Update: {
           access_token?: string | null
+          auto_login_expires_at?: string | null
+          auto_login_token?: string | null
           diagnosis_id?: string
           token_expires_at?: string | null
           updated_at?: string

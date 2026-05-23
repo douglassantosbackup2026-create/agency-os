@@ -197,6 +197,7 @@ type ProcessResp = {
   status?: string;
   status_detail?: string | null;
   redirect?: string | null;
+  auto_login_token?: string | null;
   pix?: {
     qr_code?: string | null;
     qr_code_base64?: string | null;
@@ -216,13 +217,22 @@ async function apiProcess(payload: Record<string, unknown>): Promise<ProcessResp
   return j;
 }
 
-async function apiStatus(d: string, s: string): Promise<string> {
+async function apiStatus(
+  d: string,
+  s: string,
+): Promise<{ status: string; auto_login_token: string | null }> {
   const res = await invokeDiagnosisFunction("diagnosis-payment-status", {
     method: "GET",
     query: { d, s },
   });
-  const j = (await res.json()) as { status?: string };
-  return j.status ?? "unknown";
+  const j = (await res.json()) as {
+    status?: string;
+    auto_login_token?: string | null;
+  };
+  return {
+    status: j.status ?? "unknown",
+    auto_login_token: j.auto_login_token ?? null,
+  };
 }
 
 // ============================================================
@@ -339,7 +349,11 @@ function CheckoutPage() {
   }, [payer, started]);
 
   const onApproved = useCallback(
-    (d: string, s: string) => navigate({ to: "/obrigado", search: { d, s } as never }),
+    (d: string, s: string, t?: string | null) =>
+      navigate({
+        to: "/obrigado",
+        search: { d, s, ...(t ? { t } : {}) } as never,
+      }),
     [navigate],
   );
 
@@ -626,7 +640,7 @@ function PixSection({
   started: StartResp | null;
   ensureStarted: () => Promise<StartResp | null>;
   starting: boolean;
-  onApproved: (d: string, s: string) => void;
+  onApproved: (d: string, s: string, t?: string | null) => void;
 }) {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -667,10 +681,13 @@ function PixSection({
     if (!pix || !started) return;
     pollRef.current = setInterval(async () => {
       try {
-        const status = await apiStatus(started.diagnosis_id, started.secret_slug);
+        const { status, auto_login_token } = await apiStatus(
+          started.diagnosis_id,
+          started.secret_slug,
+        );
         if (status !== "awaiting_payment") {
           if (pollRef.current) clearInterval(pollRef.current);
-          onApproved(started.diagnosis_id, started.secret_slug);
+          onApproved(started.diagnosis_id, started.secret_slug, auto_login_token);
         }
       } catch {
         /* ignore */
@@ -767,7 +784,7 @@ function CardSection({
   starting: boolean;
   mp: MpInstance | null;
   amount: number;
-  onApproved: (d: string, s: string) => void;
+  onApproved: (d: string, s: string, t?: string | null) => void;
 }) {
   const [number, setNumber] = useState("");
   const [holder, setHolder] = useState("");
@@ -831,7 +848,7 @@ function CardSection({
           },
         });
         if (resp.status === "approved") {
-          onApproved(s.diagnosis_id, s.secret_slug);
+          onApproved(s.diagnosis_id, s.secret_slug, resp.auto_login_token ?? null);
         } else if (resp.status === "in_process" || resp.status === "pending") {
           setErr("Pagamento em análise. Você receberá um e-mail assim que for aprovado.");
         } else {
