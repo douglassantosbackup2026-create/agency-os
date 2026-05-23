@@ -88,7 +88,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           {
             httpEquiv: "Content-Security-Policy",
             content:
-              "default-src 'self'; script-src 'self' 'unsafe-inline' https://sdk.mercadopago.com https://cdn.gpteng.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdn.gpteng.co data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://*.supabase.in https://api.mercadopago.com https://graph.facebook.com https://cdn.gpteng.co; base-uri 'self'; form-action 'self';",
+              "default-src 'self'; script-src 'self' 'unsafe-inline' https://sdk.mercadopago.com https://*.mlstatic.com https://cdn.gpteng.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdn.gpteng.co data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://*.supabase.in https://api.mercadopago.com https://api.mercadolibre.com https://*.mlstatic.com https://graph.facebook.com https://cdn.gpteng.co; frame-src https://*.mercadopago.com; base-uri 'self'; form-action 'self';",
           },
           { httpEquiv: "X-Content-Type-Options", content: "nosniff" },
           { name: "referrer", content: "strict-origin-when-cross-origin" },
