@@ -715,74 +715,80 @@ function Clients() {
               }
             />
           ) : (
-            filtered.map((c) => {
-              const h = data.latest.get(c.id);
-              const au = data.latestAuditByClient.get(c.id);
-              const auStatus = au
-                ? auditOverallStatus(au.result_json as Record<string, unknown>)
-                : null;
-              const auditBadgeTone =
-                auStatus === "critical"
-                  ? "bg-destructive/15 text-destructive"
-                  : auStatus === "risk"
-                    ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
-                    : auStatus === "attention"
-                      ? "bg-warning/15 text-warning"
-                      : "";
-              return (
-                <Link
-                  key={c.id}
-                  to="/clients/$clientId"
-                  params={{ clientId: c.id }}
-                  className="grid grid-cols-12 items-center border-b border-border px-4 py-3 text-sm last:border-0 hover:bg-surface-2 transition"
-                >
-                  <div className="col-span-4 flex items-center gap-2.5">
-                    <div className="grid h-8 w-8 place-items-center rounded-md bg-primary/15 text-xs font-semibold text-primary">
-                      {c.name.slice(0, 2).toUpperCase()}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <span className="truncate font-medium">{c.name}</span>
-                        {auStatus && auditBadgeTone ? (
-                          <span
-                            className={`shrink-0 rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wide ${auditBadgeTone}`}
-                          >
-                            IA {auStatus}
-                          </span>
-                        ) : null}
+            <VirtualList
+              items={filtered}
+              estimateSize={60}
+              overscan={8}
+              maxHeight={Math.min(1400, typeof window !== "undefined" ? window.innerHeight - 320 : 800)}
+              getKey={(c) => c.id}
+              renderItem={(c) => {
+                const h = data.latest.get(c.id);
+                const au = data.latestAuditByClient.get(c.id);
+                const auStatus = au
+                  ? auditOverallStatus(au.result_json as Record<string, unknown>)
+                  : null;
+                const auditBadgeTone =
+                  auStatus === "critical"
+                    ? "bg-destructive/15 text-destructive"
+                    : auStatus === "risk"
+                      ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                      : auStatus === "attention"
+                        ? "bg-warning/15 text-warning"
+                        : "";
+                return (
+                  <Link
+                    to="/clients/$clientId"
+                    params={{ clientId: c.id }}
+                    className="grid grid-cols-12 items-center border-b border-border px-4 py-3 text-sm last:border-0 hover:bg-surface-2 transition"
+                  >
+                    <div className="col-span-4 flex items-center gap-2.5">
+                      <div className="grid h-8 w-8 place-items-center rounded-md bg-primary/15 text-xs font-semibold text-primary">
+                        {c.name.slice(0, 2).toUpperCase()}
                       </div>
-                      {c.segment && (
-                        <div className="truncate text-xs text-muted-foreground">
-                          {c.segment}
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className="truncate font-medium">{c.name}</span>
+                          {auStatus && auditBadgeTone ? (
+                            <span
+                              className={`shrink-0 rounded px-2 py-0.5 text-xs font-semibold uppercase tracking-wide ${auditBadgeTone}`}
+                            >
+                              IA {auStatus}
+                            </span>
+                          ) : null}
                         </div>
+                        {c.segment && (
+                          <div className="truncate text-xs text-muted-foreground">
+                            {c.segment}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="col-span-2">
+                      <StatusPill status={c.status} />
+                    </div>
+                    <div className="col-span-2 font-mono tabular text-sm">
+                      {brl(c.mrr)}
+                    </div>
+                    <div className="col-span-2 font-mono tabular text-sm text-muted-foreground">
+                      {brl(c.monthly_budget)}
+                    </div>
+                    <div className="col-span-2 flex min-h-11 items-center justify-end gap-2">
+                      {h ? (
+                        <>
+                          <RiskDot risk={h.risk} />
+                          <span className="font-mono tabular text-sm">
+                            {h.score}
+                          </span>
+                          <ScoreBar score={h.score} />
+                        </>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
                       )}
                     </div>
-                  </div>
-                  <div className="col-span-2">
-                    <StatusPill status={c.status} />
-                  </div>
-                  <div className="col-span-2 font-mono tabular text-sm">
-                    {brl(c.mrr)}
-                  </div>
-                  <div className="col-span-2 font-mono tabular text-sm text-muted-foreground">
-                    {brl(c.monthly_budget)}
-                  </div>
-                  <div className="col-span-2 flex min-h-11 items-center justify-end gap-2">
-                    {h ? (
-                      <>
-                        <RiskDot risk={h.risk} />
-                        <span className="font-mono tabular text-sm">
-                          {h.score}
-                        </span>
-                        <ScoreBar score={h.score} />
-                      </>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </div>
-                </Link>
-              );
-            })
+                  </Link>
+                );
+              }}
+            />
           )}
         </div>
       </Card>
