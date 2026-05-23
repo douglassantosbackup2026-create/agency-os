@@ -10,9 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TestMetaOauthRouteImport } from './routes/test-meta-oauth'
+import { Route as TermosRouteImport } from './routes/termos'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as RetentioRouteImport } from './routes/retentio'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
+import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as ObrigadoRouteImport } from './routes/obrigado'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as GestaoObrigadoRouteImport } from './routes/gestao-obrigado'
@@ -48,6 +50,11 @@ const TestMetaOauthRoute = TestMetaOauthRouteImport.update({
   path: '/test-meta-oauth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TermosRoute = TermosRouteImport.update({
+  id: '/termos',
+  path: '/termos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
@@ -61,6 +68,11 @@ const RetentioRoute = RetentioRouteImport.update({
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
   id: '/reset-password',
   path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacidadeRoute = PrivacidadeRouteImport.update({
+  id: '/privacidade',
+  path: '/privacidade',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ObrigadoRoute = ObrigadoRouteImport.update({
@@ -221,9 +233,11 @@ export interface FileRoutesByFullPath {
   '/gestao-obrigado': typeof GestaoObrigadoRoute
   '/login': typeof LoginRoute
   '/obrigado': typeof ObrigadoRoute
+  '/privacidade': typeof PrivacidadeRoute
   '/reset-password': typeof ResetPasswordRoute
   '/retentio': typeof RetentioRoute
   '/signup': typeof SignupRoute
+  '/termos': typeof TermosRoute
   '/test-meta-oauth': typeof TestMetaOauthRouteWithChildren
   '/actions': typeof AuthenticatedActionsRoute
   '/activity': typeof AuthenticatedActivityRoute
@@ -255,9 +269,11 @@ export interface FileRoutesByTo {
   '/gestao-obrigado': typeof GestaoObrigadoRoute
   '/login': typeof LoginRoute
   '/obrigado': typeof ObrigadoRoute
+  '/privacidade': typeof PrivacidadeRoute
   '/reset-password': typeof ResetPasswordRoute
   '/retentio': typeof RetentioRoute
   '/signup': typeof SignupRoute
+  '/termos': typeof TermosRoute
   '/test-meta-oauth': typeof TestMetaOauthRouteWithChildren
   '/actions': typeof AuthenticatedActionsRoute
   '/activity': typeof AuthenticatedActivityRoute
@@ -291,9 +307,11 @@ export interface FileRoutesById {
   '/gestao-obrigado': typeof GestaoObrigadoRoute
   '/login': typeof LoginRoute
   '/obrigado': typeof ObrigadoRoute
+  '/privacidade': typeof PrivacidadeRoute
   '/reset-password': typeof ResetPasswordRoute
   '/retentio': typeof RetentioRoute
   '/signup': typeof SignupRoute
+  '/termos': typeof TermosRoute
   '/test-meta-oauth': typeof TestMetaOauthRouteWithChildren
   '/_authenticated/actions': typeof AuthenticatedActionsRoute
   '/_authenticated/activity': typeof AuthenticatedActivityRoute
@@ -327,9 +345,11 @@ export interface FileRouteTypes {
     | '/gestao-obrigado'
     | '/login'
     | '/obrigado'
+    | '/privacidade'
     | '/reset-password'
     | '/retentio'
     | '/signup'
+    | '/termos'
     | '/test-meta-oauth'
     | '/actions'
     | '/activity'
@@ -361,9 +381,11 @@ export interface FileRouteTypes {
     | '/gestao-obrigado'
     | '/login'
     | '/obrigado'
+    | '/privacidade'
     | '/reset-password'
     | '/retentio'
     | '/signup'
+    | '/termos'
     | '/test-meta-oauth'
     | '/actions'
     | '/activity'
@@ -396,9 +418,11 @@ export interface FileRouteTypes {
     | '/gestao-obrigado'
     | '/login'
     | '/obrigado'
+    | '/privacidade'
     | '/reset-password'
     | '/retentio'
     | '/signup'
+    | '/termos'
     | '/test-meta-oauth'
     | '/_authenticated/actions'
     | '/_authenticated/activity'
@@ -432,9 +456,11 @@ export interface RootRouteChildren {
   GestaoObrigadoRoute: typeof GestaoObrigadoRoute
   LoginRoute: typeof LoginRoute
   ObrigadoRoute: typeof ObrigadoRoute
+  PrivacidadeRoute: typeof PrivacidadeRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   RetentioRoute: typeof RetentioRoute
   SignupRoute: typeof SignupRoute
+  TermosRoute: typeof TermosRoute
   TestMetaOauthRoute: typeof TestMetaOauthRouteWithChildren
   DiagnosticoDiagnosisIdRoute: typeof DiagnosticoDiagnosisIdRoute
   PPortalSlugRoute: typeof PPortalSlugRoute
@@ -447,6 +473,13 @@ declare module '@tanstack/react-router' {
       path: '/test-meta-oauth'
       fullPath: '/test-meta-oauth'
       preLoaderRoute: typeof TestMetaOauthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/termos': {
+      id: '/termos'
+      path: '/termos'
+      fullPath: '/termos'
+      preLoaderRoute: typeof TermosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/signup': {
@@ -468,6 +501,13 @@ declare module '@tanstack/react-router' {
       path: '/reset-password'
       fullPath: '/reset-password'
       preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacidade': {
+      id: '/privacidade'
+      path: '/privacidade'
+      fullPath: '/privacidade'
+      preLoaderRoute: typeof PrivacidadeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/obrigado': {
@@ -757,9 +797,11 @@ const rootRouteChildren: RootRouteChildren = {
   GestaoObrigadoRoute: GestaoObrigadoRoute,
   LoginRoute: LoginRoute,
   ObrigadoRoute: ObrigadoRoute,
+  PrivacidadeRoute: PrivacidadeRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   RetentioRoute: RetentioRoute,
   SignupRoute: SignupRoute,
+  TermosRoute: TermosRoute,
   TestMetaOauthRoute: TestMetaOauthRouteWithChildren,
   DiagnosticoDiagnosisIdRoute: DiagnosticoDiagnosisIdRoute,
   PPortalSlugRoute: PPortalSlugRoute,
@@ -767,13 +809,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

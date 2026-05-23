@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import {
   diagnosisContactEmail,
   diagnosisWhatsAppUrl,
@@ -36,7 +37,22 @@ export function DiagnosisFooter() {
             </a>
           ) : null}
         </div>
-        <p className="mt-6 text-xs text-muted-foreground">
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
+          <Link
+            to="/privacidade"
+            className="transition-colors hover:text-foreground hover:underline"
+          >
+            Política de Privacidade
+          </Link>
+          <span aria-hidden="true">·</span>
+          <Link
+            to="/termos"
+            className="transition-colors hover:text-foreground hover:underline"
+          >
+            Termos de Serviço
+          </Link>
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
           {footerSection.copyright}
         </p>
       </div>
