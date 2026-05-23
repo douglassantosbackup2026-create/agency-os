@@ -349,7 +349,11 @@ function CheckoutPage() {
   }, [payer, started]);
 
   const onApproved = useCallback(
-    (d: string, s: string) => navigate({ to: "/obrigado", search: { d, s } as never }),
+    (d: string, s: string, t?: string | null) =>
+      navigate({
+        to: "/obrigado",
+        search: { d, s, ...(t ? { t } : {}) } as never,
+      }),
     [navigate],
   );
 
