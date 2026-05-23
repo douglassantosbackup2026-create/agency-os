@@ -37,6 +37,7 @@ import {
   AlertsListRow,
   type AlertRowModel,
 } from "@/components/alerts-list-row";
+import { VirtualList } from "@/components/virtual-list";
 import { useOperationClientScope } from "@/hooks/use-operation-client-scope";
 import { sortAlertsByOperationalPriority } from "@/lib/operational-priority";
 
