@@ -54,11 +54,13 @@ function ObrigadoPage() {
 
   const fullLink = useMemo(() => {
     if (!d || !s) return "";
-    const base =
+    const envBase =
       typeof import.meta.env.VITE_PUBLIC_SITE_URL === "string" &&
       import.meta.env.VITE_PUBLIC_SITE_URL.trim()
         ? import.meta.env.VITE_PUBLIC_SITE_URL.replace(/\/+$/, "")
-        : window.location.origin;
+        : "";
+    const base =
+      envBase || (typeof window !== "undefined" ? window.location.origin : "");
     return `${base}/obrigado?d=${encodeURIComponent(d)}&s=${encodeURIComponent(s)}`;
   }, [d, s]);
 
