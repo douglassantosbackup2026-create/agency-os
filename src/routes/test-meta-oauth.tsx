@@ -257,7 +257,7 @@ function MetaTestOAuthPage() {
           </Alert>
         )}
 
-        <MetaTestSecretsForm />
+
 
         <Card>
           <CardHeader>
