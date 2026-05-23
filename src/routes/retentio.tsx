@@ -81,6 +81,17 @@ export const Route = createFileRoute("/retentio")({
     const { data } = await supabase.auth.getSession();
     if (data.session) throw redirect({ to: "/dashboard" });
   },
+  head: () => ({
+    links: [
+      {
+        rel: "preload",
+        as: "image",
+        href: "/landing/hero-cockpit-clientes-1024.avif",
+        type: "image/avif",
+        fetchpriority: "high",
+      },
+    ],
+  }),
   component: Landing,
 });
 
