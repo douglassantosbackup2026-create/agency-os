@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { ArrowRight, CheckCircle2, Sparkles } from "lucide-react";
 import { hero } from "@/content/diagnosis-landing";
 import { DiagnosisCta } from "./diagnosis-cta";
@@ -32,7 +33,7 @@ const heroStats = [
   { value: "7 dias", label: "de garantia total" },
 ];
 
-export function DiagnosisHero({ onCheckout, loading, error }: Props) {
+function DiagnosisHeroInner({ onCheckout, loading, error }: Props) {
   return (
     <section id="top" className="pb-10 pt-10 md:pb-14 md:pt-14 lg:pt-16">
       <div className="mx-auto max-w-3xl text-center">
@@ -101,3 +102,5 @@ export function DiagnosisHero({ onCheckout, loading, error }: Props) {
     </section>
   );
 }
+
+export const DiagnosisHero = memo(DiagnosisHeroInner);

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { HelpCircle } from "lucide-react";
 import {
   Accordion,
@@ -12,7 +13,7 @@ import {
   landingSectionMutedClass,
 } from "@/lib/landing-ui";
 
-export function DiagnosisFaq() {
+function DiagnosisFaqInner() {
   return (
     <section
       id={ANCHOR_FAQ}
@@ -42,3 +43,5 @@ export function DiagnosisFaq() {
     </section>
   );
 }
+
+export const DiagnosisFaq = memo(DiagnosisFaqInner);

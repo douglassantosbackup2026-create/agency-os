@@ -81,6 +81,17 @@ export const Route = createFileRoute("/retentio")({
     const { data } = await supabase.auth.getSession();
     if (data.session) throw redirect({ to: "/dashboard" });
   },
+  head: () => ({
+    links: [
+      {
+        rel: "preload",
+        as: "image",
+        href: "/landing/hero-cockpit-clientes-1024.avif",
+        type: "image/avif",
+        fetchpriority: "high",
+      },
+    ],
+  }),
   component: Landing,
 });
 
@@ -132,9 +143,17 @@ function LandingRasterPicture({
   priority?: boolean;
   loading?: "eager" | "lazy";
 }) {
+  // Deriva paths AVIF e responsivos a partir do base name de /landing/*
+  // Variants geradas em scripts/gen-img-variants.mjs: <base>.avif, <base>-{640,1024}.{avif,webp}
+  const base = webp.replace(/\.webp$/, "");
+  const avif = `${base}.avif`;
+  const avifSrcSet = `${base}-640.avif 640w, ${base}-1024.avif 1024w, ${avif} ${width}w`;
+  const webpSrcSet = `${base}-640.webp 640w, ${base}-1024.webp 1024w, ${webp} ${width}w`;
+  const sizes = "(max-width: 640px) 100vw, (max-width: 1024px) 90vw, 1024px";
   return (
     <picture>
-      <source type="image/webp" srcSet={webp} />
+      <source type="image/avif" srcSet={avifSrcSet} sizes={sizes} />
+      <source type="image/webp" srcSet={webpSrcSet} sizes={sizes} />
       <img
         src={png}
         alt={alt}

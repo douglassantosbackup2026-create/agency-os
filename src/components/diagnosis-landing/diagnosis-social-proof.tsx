@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { Quote, TrendingUp } from "lucide-react";
 import {
   ANCHOR_RESULTADOS,
@@ -28,7 +29,7 @@ function MetricsCard({ metrics }: { metrics: SocialProofCase["metrics"] }) {
   );
 }
 
-export function DiagnosisSocialProof() {
+function DiagnosisSocialProofInner() {
   return (
     <section
       id={ANCHOR_RESULTADOS}
@@ -66,3 +67,5 @@ export function DiagnosisSocialProof() {
     </section>
   );
 }
+
+export const DiagnosisSocialProof = memo(DiagnosisSocialProofInner);

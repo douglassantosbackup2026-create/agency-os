@@ -29,8 +29,16 @@ import {
   ActionCenterListRow,
   type ActionCenterListRowModel as ActionCenterRow,
 } from "@/components/action-center-list-row";
+import { VirtualList } from "@/components/virtual-list";
 
 const ACTIONS_FILTERS_LS = "action-center-filters-v1";
+/** Referência estável para linhas não-expandidas — preserva memo() das rows. */
+const EMPTY_EVENT_ROWS: Array<{
+  id: string;
+  event_type: string;
+  payload: unknown;
+  created_at: string;
+}> = [];
 
 type SlaFilterType = "all" | "overdue" | "soon_3" | "soon_7" | "range";
 type SortDueType = "none" | "due_asc" | "due_desc";
@@ -769,22 +777,28 @@ function ActionsCenter() {
               />
               <span>Selecionar todas nesta vista ({filtered.length})</span>
             </div>
-            {filtered.map((a: ActionCenterRow) => (
-              <ActionCenterListRow
-                key={a.id}
-                action={a}
-                teammates={teammates}
-                currentUserId={user?.id}
-                selected={selectedIds.includes(a.id)}
-                expanded={expandedId === a.id}
-                overdue={isActionOverdue(a)}
-                eventRows={expandedId === a.id ? (eventRows ?? []) : []}
-                onToggleSelect={toggleSelect}
-                onToggleExpand={onToggleExpand}
-                onPatchStatus={onPatchStatus}
-                onAssignee={setAssignee}
-              />
-            ))}
+            <VirtualList
+              items={filtered}
+              estimateSize={110}
+              overscan={6}
+              maxHeight={Math.min(1400, typeof window !== "undefined" ? window.innerHeight - 240 : 800)}
+              getKey={(a) => a.id}
+              renderItem={(a) => (
+                <ActionCenterListRow
+                  action={a}
+                  teammates={teammates}
+                  currentUserId={user?.id}
+                  selected={selectedIds.includes(a.id)}
+                  expanded={expandedId === a.id}
+                  overdue={isActionOverdue(a)}
+                  eventRows={expandedId === a.id ? (eventRows ?? EMPTY_EVENT_ROWS) : EMPTY_EVENT_ROWS}
+                  onToggleSelect={toggleSelect}
+                  onToggleExpand={onToggleExpand}
+                  onPatchStatus={onPatchStatus}
+                  onAssignee={setAssignee}
+                />
+              )}
+            />
           </div>
         )}
       </Card>

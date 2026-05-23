@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { ArrowRight, CheckCircle2, Lightbulb, Microscope } from "lucide-react";
 import { ANCHOR_O_QUE_E, whatIsSection } from "@/content/diagnosis-landing";
 import {
@@ -6,7 +7,7 @@ import {
   landingPrimaryCalloutClass,
 } from "@/lib/landing-ui";
 
-export function DiagnosisWhatIs() {
+function DiagnosisWhatIsInner() {
   return (
     <section
       id={ANCHOR_O_QUE_E}
@@ -63,3 +64,5 @@ export function DiagnosisWhatIs() {
     </section>
   );
 }
+
+export const DiagnosisWhatIs = memo(DiagnosisWhatIsInner);

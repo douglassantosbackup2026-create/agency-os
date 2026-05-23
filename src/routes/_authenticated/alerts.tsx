@@ -37,6 +37,7 @@ import {
   AlertsListRow,
   type AlertRowModel,
 } from "@/components/alerts-list-row";
+import { VirtualList } from "@/components/virtual-list";
 import { useOperationClientScope } from "@/hooks/use-operation-client-scope";
 import { sortAlertsByOperationalPriority } from "@/lib/operational-priority";
 
@@ -569,11 +570,16 @@ function Alerts() {
             }
           />
         ) : groupBy === "none" ? (
-          <div className="divide-y divide-border">
-            {filteredSorted.map((a) => (
+          <VirtualList
+            className="divide-y divide-border"
+            items={filteredSorted as AlertRowModel[]}
+            estimateSize={130}
+            overscan={6}
+            maxHeight={Math.min(1400, typeof window !== "undefined" ? window.innerHeight - 240 : 800)}
+            getKey={(a) => a.id}
+            renderItem={(a) => (
               <AlertsListRow
-                key={a.id}
-                alert={a as AlertRowModel}
+                alert={a}
                 teammates={teammates}
                 waMuteUntil={waMuteUntil}
                 onAssigneeChange={setAssigneeAlert}
@@ -582,8 +588,8 @@ function Alerts() {
                 onMuteWhatsapp={muteWhatsapp24h}
                 onRequestAdminReview={requestAdminReview}
               />
-            ))}
-          </div>
+            )}
+          />
         ) : (
           <Accordion type="multiple" className="px-2">
             {groupedByClient.map(([clientName, items]) => (

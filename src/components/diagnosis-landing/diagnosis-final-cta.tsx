@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { CheckCircle2, Lock, MessageCircle, Shield, Zap } from "lucide-react";
 import { diagnosisWhatsAppUrl, finalCta } from "@/content/diagnosis-landing";
 import { LANDING_SECTION_SCROLL } from "@/lib/landing-ui";
@@ -11,7 +12,7 @@ type Props = {
 
 const trustIcons = [Lock, Zap, MessageCircle, Shield] as const;
 
-export function DiagnosisFinalCta({ onCheckout, loading, error }: Props) {
+function DiagnosisFinalCtaInner({ onCheckout, loading, error }: Props) {
   const whatsapp = diagnosisWhatsAppUrl();
 
   return (
@@ -93,3 +94,5 @@ export function DiagnosisFinalCta({ onCheckout, loading, error }: Props) {
     </section>
   );
 }
+
+export const DiagnosisFinalCta = memo(DiagnosisFinalCtaInner);
