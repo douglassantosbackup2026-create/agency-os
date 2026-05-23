@@ -261,6 +261,12 @@ function ObrigadoPage() {
           <ConnectMetaCard metaUrl={metaUrl} />
         ) : null}
 
+        {/* Meta connected confirmation (after successful OAuth) */}
+        {(st === "processing" || st === "completed") &&
+        status?.meta_ad_account_id ? (
+          <MetaConnectedCard adAccountId={status.meta_ad_account_id} />
+        ) : null}
+
         {st === "awaiting_payment" ? (
           <AwaitingPaymentCard
             waitedSec={waitedSec}
