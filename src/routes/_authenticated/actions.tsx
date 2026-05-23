@@ -31,6 +31,13 @@ import {
 } from "@/components/action-center-list-row";
 
 const ACTIONS_FILTERS_LS = "action-center-filters-v1";
+/** Referência estável para linhas não-expandidas — preserva memo() das rows. */
+const EMPTY_EVENT_ROWS: Array<{
+  id: string;
+  event_type: string;
+  payload: unknown;
+  created_at: string;
+}> = [];
 
 type SlaFilterType = "all" | "overdue" | "soon_3" | "soon_7" | "range";
 type SortDueType = "none" | "due_asc" | "due_desc";
