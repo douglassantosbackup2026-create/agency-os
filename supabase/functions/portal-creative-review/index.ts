@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { z } from "https://esm.sh/zod@3.23.8";
 import { BodyTooLargeError, readJsonBody } from "../_shared/edge-json-body.ts";
 import {
   portalClientIp,
@@ -7,20 +8,35 @@ import {
 
 const MAX_SLUG_LEN = 160;
 
+// Portal é endpoint público para clientes finais — mantém CORS aberto
+// (pode ser embutido em domínios diversos). Validação rigorosa de body.
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
 
+const ReviewBody = z.object({
+  slug: z
+    .string()
+    .trim()
+    .min(1)
+    .max(MAX_SLUG_LEN)
+    .regex(/^[a-z0-9_-]+$/i, "slug inválido"),
+  creative_id: z.string().trim().uuid(),
+  decision: z.enum(["approved", "rejected"]),
+  feedback: z.string().trim().max(2000).optional().nullable(),
+  reviewer_name: z.string().trim().min(1).max(120).optional(),
+});
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
   try {
-    let body: Record<string, unknown>;
+    let rawBody: Record<string, unknown>;
     try {
-      body = await readJsonBody(req);
+      rawBody = await readJsonBody(req);
     } catch (e) {
       if (e instanceof BodyTooLargeError) {
         return new Response(
@@ -31,24 +47,30 @@ Deno.serve(async (req) => {
           },
         );
       }
-      body = {};
+      rawBody = {};
     }
-    const slug = String(body?.slug ?? "")
-      .trim()
-      .slice(0, MAX_SLUG_LEN);
-    const creativeId = String(body?.creative_id ?? "").trim();
-    const decision = String(body?.decision ?? "").trim();
-    const feedback = body?.feedback ? String(body.feedback) : null;
-    const reviewerName = body?.reviewer_name
-      ? String(body.reviewer_name)
-      : "Cliente";
+    const parsed = ReviewBody.safeParse(rawBody);
+    if (!parsed.success) {
+      return new Response(
+        JSON.stringify({
+          error: "payload inválido",
+          details: parsed.error.flatten(),
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+    const {
+      slug,
+      creative_id: creativeId,
+      decision,
+      feedback = null,
+      reviewer_name: reviewerName = "Cliente",
+    } = parsed.data;
 
-    if (!slug || !creativeId || !["approved", "rejected"].includes(decision)) {
-      return new Response(JSON.stringify({ error: "payload inválido" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+
 
     const ip = portalClientIp(req);
     const rateKey = `${ip}:${slug}:${creativeId}`;

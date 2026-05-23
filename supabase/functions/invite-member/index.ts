@@ -1,17 +1,19 @@
 // Admin/owner invites a new member to the agency.
 // Creates the auth user (if needed) and assigns a role.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { z } from "https://esm.sh/zod@3.23.8";
 import { BodyTooLargeError, readJsonBody } from "../_shared/edge-json-body.ts";
+import { appCors, appCorsPreflight } from "../_shared/cors-allowlist.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+const InviteBody = z.object({
+  email: z.string().trim().email().max(254),
+  role: z.enum(["owner", "admin", "member"]).default("member"),
+});
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS")
-    return new Response(null, { headers: corsHeaders });
+  const pre = appCorsPreflight(req);
+  if (pre) return pre;
+  const corsHeaders = appCors(req);
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader)
@@ -20,9 +22,9 @@ Deno.serve(async (req) => {
         headers: corsHeaders,
       });
 
-    let body: Record<string, unknown>;
+    let rawBody: Record<string, unknown>;
     try {
-      body = await readJsonBody(req);
+      rawBody = await readJsonBody(req);
     } catch (e) {
       if (e instanceof BodyTooLargeError) {
         return new Response(
@@ -33,29 +35,23 @@ Deno.serve(async (req) => {
           },
         );
       }
-      body = {};
+      rawBody = {};
     }
-    const emailRaw = typeof body.email === "string" ? body.email.trim() : "";
-    const roleRaw = typeof body.role === "string" ? body.role.trim() : "member";
-    if (!emailRaw || emailRaw.length > 254) {
+    const parsed = InviteBody.safeParse(rawBody);
+    if (!parsed.success) {
       return new Response(
-        JSON.stringify({ error: "email required ou inválido" }),
+        JSON.stringify({
+          error: "payload inválido",
+          details: parsed.error.flatten(),
+        }),
         {
           status: 400,
-          headers: corsHeaders,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
         },
       );
     }
-    const APP_ROLES = ["owner", "admin", "member"] as const;
-    const role = (APP_ROLES as readonly string[]).includes(roleRaw)
-      ? roleRaw
-      : null;
-    if (!role) {
-      return new Response(JSON.stringify({ error: "role inválido" }), {
-        status: 400,
-        headers: corsHeaders,
-      });
-    }
+    const { email: emailRaw, role } = parsed.data;
+
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
