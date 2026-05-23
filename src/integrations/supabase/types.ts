@@ -1020,6 +1020,14 @@ export type Database = {
           meta_user_id: string | null
           mp_payment_id: string | null
           mp_preference_id: string | null
+          payer_cpf: string | null
+          payer_email: string | null
+          payer_name: string | null
+          payer_phone: string | null
+          payment_method: string | null
+          pix_expires_at: string | null
+          pix_qr_code: string | null
+          pix_qr_code_base64: string | null
           report_version: number
           secret_slug: string
           status: string
@@ -1045,6 +1053,14 @@ export type Database = {
           meta_user_id?: string | null
           mp_payment_id?: string | null
           mp_preference_id?: string | null
+          payer_cpf?: string | null
+          payer_email?: string | null
+          payer_name?: string | null
+          payer_phone?: string | null
+          payment_method?: string | null
+          pix_expires_at?: string | null
+          pix_qr_code?: string | null
+          pix_qr_code_base64?: string | null
           report_version?: number
           secret_slug?: string
           status: string
@@ -1070,6 +1086,14 @@ export type Database = {
           meta_user_id?: string | null
           mp_payment_id?: string | null
           mp_preference_id?: string | null
+          payer_cpf?: string | null
+          payer_email?: string | null
+          payer_name?: string | null
+          payer_phone?: string | null
+          payment_method?: string | null
+          pix_expires_at?: string | null
+          pix_qr_code?: string | null
+          pix_qr_code_base64?: string | null
           report_version?: number
           secret_slug?: string
           status?: string

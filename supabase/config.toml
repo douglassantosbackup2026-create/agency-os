@@ -48,6 +48,15 @@ verify_jwt = true
 [functions.create-diagnosis-checkout]
 verify_jwt = false
 
+[functions.start-diagnosis-payment]
+verify_jwt = false
+
+[functions.process-diagnosis-payment]
+verify_jwt = false
+
+[functions.diagnosis-payment-status]
+verify_jwt = false
+
 [functions.create-management-checkout]
 verify_jwt = false
 
