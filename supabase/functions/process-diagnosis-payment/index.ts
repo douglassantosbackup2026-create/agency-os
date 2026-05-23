@@ -23,6 +23,16 @@ interface MpPaymentResponse {
   message?: string;
 }
 
+const MP_CREDENTIAL_MISMATCH_ERROR =
+  "As credenciais do Mercado Pago estão em produção, mas os dados usados parecem de teste. Para testar, configure MERCADOPAGO_ACCESS_TOKEN e MERCADOPAGO_PUBLIC_KEY com credenciais TEST-. Para vender de verdade, use dados reais do comprador.";
+
+function isLiveCredentialMismatch(mpRes: Response, mpJson: MpPaymentResponse) {
+  return (
+    mpRes.status === 401 &&
+    String(mpJson.message ?? "").toLowerCase().includes("unauthorized use of live credentials")
+  );
+}
+
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
@@ -138,6 +148,15 @@ Deno.serve(async (req) => {
 
   if (!mpRes.ok) {
     console.error("MP payment error", mpRes.status, mpJson);
+    if (isLiveCredentialMismatch(mpRes, mpJson)) {
+      return jsonResponse(
+        {
+          error: MP_CREDENTIAL_MISMATCH_ERROR,
+          code: "mp_credentials_environment_mismatch",
+        },
+        400,
+      );
+    }
     return jsonResponse(
       {
         error: mpJson.message ?? "Pagamento recusado pelo Mercado Pago",
