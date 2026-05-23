@@ -35,6 +35,7 @@ import { ClientCockpitRow } from "@/components/client-cockpit-row";
 import { QueryErrorState } from "@/components/query-error-state";
 import { throwIfSupabaseError } from "@/lib/supabase-result";
 import { formatSyncAgeShort } from "@/lib/sync-freshness";
+import { VirtualList } from "@/components/virtual-list";
 
 /** Campos devolvidos pelo select do cockpit (subset da linha completa). */
 type ClientListHealthRow = Pick<
