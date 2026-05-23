@@ -687,7 +687,7 @@ function PixSection({
 
   useEffect(() => {
     if (!pix || !started) return;
-    pollRef.current = setInterval(async () => {
+    const checkStatus = async () => {
       try {
         const { status, auto_login_token } = await apiStatus(
           started.diagnosis_id,
@@ -700,11 +700,35 @@ function PixSection({
       } catch {
         /* ignore */
       }
-    }, 3000);
+    };
+    void checkStatus();
+    pollRef.current = setInterval(() => void checkStatus(), 3000);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
   }, [pix, started, onApproved]);
+
+  const confirmNow = useCallback(async () => {
+    if (!started) return;
+    setErr(null);
+    setLoading(true);
+    try {
+      const { status, auto_login_token } = await apiStatus(
+        started.diagnosis_id,
+        started.secret_slug,
+      );
+      if (status !== "awaiting_payment") {
+        if (pollRef.current) clearInterval(pollRef.current);
+        onApproved(started.diagnosis_id, started.secret_slug, auto_login_token);
+      } else {
+        setErr("Ainda não recebemos a confirmação do Mercado Pago. Aguarde alguns segundos e tente novamente.");
+      }
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Não foi possível consultar o pagamento agora.");
+    } finally {
+      setLoading(false);
+    }
+  }, [started, onApproved]);
 
   const copy = useCallback(async () => {
     if (!pix) return;
@@ -772,6 +796,21 @@ function PixSection({
         <Loader2 className="h-4 w-4 animate-spin text-primary" />
         Aguardando confirmação do pagamento…
       </div>
+      {err ? (
+        <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+          {err}
+        </div>
+      ) : null}
+      <Button
+        type="button"
+        variant="outline"
+        onClick={confirmNow}
+        disabled={loading}
+        className="h-11 w-full"
+      >
+        {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+        Já paguei, verificar agora
+      </Button>
     </div>
   );
 }
