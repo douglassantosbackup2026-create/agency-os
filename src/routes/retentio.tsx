@@ -181,7 +181,7 @@ function Landing() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{
-          __html: JSON.stringify(landingFaqJsonLd()),
+          __html: JSON.stringify(landingFaqJsonLd()).replace(/</g, "\\u003c"),
         }}
       />
       <div className="min-h-screen bg-background text-foreground">

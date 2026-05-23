@@ -86,6 +86,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           { charSet: "utf-8" },
           { name: "viewport", content: "width=device-width, initial-scale=1" },
           {
+            httpEquiv: "Content-Security-Policy",
+            content:
+              "default-src 'self'; script-src 'self' 'unsafe-inline' https://sdk.mercadopago.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://*.supabase.in https://api.mercadopago.com https://graph.facebook.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self';",
+          },
+          { httpEquiv: "X-Content-Type-Options", content: "nosniff" },
+          { name: "referrer", content: "strict-origin-when-cross-origin" },
+          {
             title: seoDefaults.title,
           },
           {
