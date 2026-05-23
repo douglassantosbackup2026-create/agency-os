@@ -39,7 +39,10 @@ function DiagnosisHomePage() {
     void checkout();
   }, [checkout]);
 
-  const jsonLd = useMemo(() => JSON.stringify(diagnosisFaqJsonLd()), []);
+  const jsonLd = useMemo(
+    () => JSON.stringify(diagnosisFaqJsonLd()).replace(/</g, "\\u003c"),
+    [],
+  );
 
   return (
     <>
