@@ -90,6 +90,12 @@ Deno.serve(async (req) => {
     if (reconciled) status = reconciled;
   }
 
+  // Auto-recovery: if stuck in processing and Meta is connected, nudge
+  // process-diagnosis (idempotent — checks facts/analysis state internally).
+  if (status === "processing" && data?.meta_ad_account_id) {
+    triggerProcessDiagnosis();
+  }
+
   return jsonResponse({
     status,
     failed_reason: data?.failed_reason ?? null,
