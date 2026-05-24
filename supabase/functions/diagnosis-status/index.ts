@@ -45,6 +45,23 @@ async function reconcileWithMp(
   }
 }
 
+function triggerProcessDiagnosis(): void {
+  const secret = Deno.env.get("CRON_SECRET");
+  if (!secret) return;
+  const base = Deno.env.get("SUPABASE_URL")!.replace(/\/+$/, "");
+  const anon = Deno.env.get("SUPABASE_ANON_KEY")!;
+  // fire-and-forget; do not await
+  fetch(`${base}/functions/v1/process-diagnosis`, {
+    method: "POST",
+    headers: {
+      apikey: anon,
+      Authorization: `Bearer ${secret}`,
+      "Content-Type": "application/json",
+    },
+    body: "{}",
+  }).catch(() => undefined);
+}
+
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
