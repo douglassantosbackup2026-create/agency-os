@@ -1,36 +1,35 @@
-## Diagnóstico
+## Diagnóstico do problema
 
-Há dois assuntos misturados nos logs:
+Verifiquei o estado real no banco para `d=7e8e3d16-…`:
 
-1. **401 no `manifest.webmanifest` e mensagens do `lovable.js`**
-   - Isso vem do domínio `lovableproject.com`, que é um ambiente de preview privado/autenticado.
-   - Não é a causa principal do fluxo travar e não deve ser corrigido no app.
-   - Para teste real com cliente/OAuth, use a URL publicada: `https://opus-retention-os.lovable.app/obrigado?...`
+- `diagnoses.status = processing` (há ~10+ min)
+- `diagnosis_reports.facts_json` ✅ existe (factos da Meta já foram extraídos)
+- `diagnosis_reports.analysis_json` ❌ vazio (análise Claude nunca correu)
+- `process-diagnosis` edge function: **0 invocações nos logs**
 
-2. **Erro real do app: `window is not defined` em `/src/routes/obrigado.tsx`**
-   - A rota `/obrigado` roda também no server-side render.
-   - O código usa `window.location.origin` dentro de `useMemo`, e `window` não existe no servidor.
-   - Isso quebra o SSR e força fallback para renderização no cliente, podendo atrapalhar o carregamento correto da página.
+### Causa raiz
+A `meta-oauth-callback` dispara `process-diagnosis` **uma única vez** (fire-and-forget) logo após a ligação Meta. Essa execução faz só a **primeira etapa** (extrai factos da Meta API) e termina com `continue` — a análise Claude fica para a "próxima" invocação. Mas não existe cron job a chamar essa função periodicamente, então a segunda etapa nunca acontece e o diagnóstico fica preso para sempre.
 
-## Plano de correção
+## Plano de correção (só backend, sem mexer no UI)
 
-1. Ajustar `src/routes/obrigado.tsx`
-   - Remover acesso direto a `window` durante renderização/SSR.
-   - Calcular o `fullLink` com `VITE_PUBLIC_SITE_URL` quando disponível.
-   - Só usar `window.location.origin` de forma segura, depois que o componente estiver no navegador, ou usar uma origem padrão segura.
+### 1. `supabase/functions/process-diagnosis/index.ts`
+Fazer cada iteração processar **ambas as etapas** numa única invocação:
+- Se não há `facts_json` → extrai factos da Meta.
+- A seguir, no **mesmo loop**, se não há `analysis_json` → chama Claude e marca `completed`.
 
-2. Revisar a segunda implementação da página em `diagnostico-meta/src/pages/ObrigadoPage.tsx`
-   - Ela tem o mesmo padrão de `window.location.origin` dentro de `useMemo`.
-   - Aplicar a mesma correção se essa app secundária também for usada/publicada.
+Remover o `continue` que cortava entre as duas etapas. Mantém o limite de 3 diagnósticos por chamada e o tratamento de erros existente.
 
-3. Validar
-   - Confirmar que não há mais referência a `window` durante SSR nessa rota.
-   - Verificar que a página `/obrigado?d=...&s=...` carrega sem o erro `window is not defined`.
+### 2. `supabase/functions/diagnosis-status/index.ts` — auto-trigger de recuperação
+Quando o cliente faz polling e encontra um diagnóstico em `processing` há mais de ~30s sem `completed_at`, disparar `process-diagnosis` em fire-and-forget (com `CRON_SECRET`), igual ao que `meta-oauth-callback` já faz. Isto:
+- Desbloqueia automaticamente o caso atual do utilizador (assim que ele recarregar a página o polling força o processamento).
+- Serve de rede de segurança caso a chamada inicial pós-OAuth falhe por timeout/rede.
 
-## Observação importante para teste
+Throttle: só dispara a cada N segundos (ex.: usar um campo simples como verificar se `updated_at` da última tentativa é antigo, ou simplesmente deixar disparar — o próprio `process-diagnosis` é idempotente porque verifica `status='processing'` e a existência de `facts_json`/`analysis_json`).
 
-Depois da correção, teste o fluxo pela URL publicada:
+### 3. Deploy + recuperação imediata
+- Deploy de `process-diagnosis` e `diagnosis-status`.
+- Chamada manual única a `process-diagnosis` via curl para concluir o diagnóstico `7e8e3d16-…` agora mesmo, sem o utilizador ter que esperar mais.
 
-`https://opus-retention-os.lovable.app/obrigado?d=7e8e3d16-306f-4960-ace3-56de6a3f0b6a&s=4a91a08eb955ec9004f67cbaa3d25aff`
-
-O domínio `lovableproject.com` pode continuar mostrando 401 no manifest por ser preview protegido; isso não indica falha do checkout/OAuth em produção.
+## Fora de escopo
+- Não vou mexer no UI de `/obrigado`.
+- Não vou criar um cron job persistente (a auto-recuperação via polling já garante robustez sem nova infra).
