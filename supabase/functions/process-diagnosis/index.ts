@@ -3,8 +3,31 @@ import { assertCronOrUser } from "../_shared/cron-auth.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 
 const PROMPT_VERSION = "diagnosis-ecommerce-v1";
+const AI_TIMEOUT_MS = 60_000;
 
-function extractJsonFromClaude(text: string): unknown {
+const SYSTEM_PROMPT = `És um auditor de Meta Ads para e-commerce em PT-BR. Responde APENAS com JSON válido (sem markdown), com a estrutura:
+{
+  "score": number (0-100),
+  "scoreLabel": string,
+  "summary": string,
+  "metrics": [{ "name": string, "current": string, "reference": string, "status": "ok"|"warn"|"bad" }],
+  "criticalIssues": [{ "title": string, "description": string, "priority": "high"|"medium"|"low" }],
+  "budgetLeaks": [{ "title": string, "estimateNote": string, "hint": string }],
+  "opportunities": [{ "title": string, "potentialNote": string, "complexity": "quick"|"medium"|"advanced" }],
+  "creativesSummary": { "best": string, "worst": string, "recommendation": string },
+  "audiencesSummary": { "segmentation": string, "notes": string[] },
+  "structureNotes": string[],
+  "actionPlan": [{ "step": number, "action": string, "impact": string, "eta": string }],
+  "improvementScenario": { "note": string, "confidence": "high"|"medium"|"low" },
+  "disclaimer": string
+}
+Usa linguagem de estimativa nos impactos financeiros. Nunca garantas ROAS.`;
+
+function buildUserPrompt(facts: Record<string, unknown>): string {
+  return `Dados normalizados (facts_json):\n${JSON.stringify(facts).slice(0, 120000)}`;
+}
+
+function extractJsonFromText(text: string): unknown {
   const trimmed = text.trim();
   const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const raw = fence ? fence[1].trim() : trimmed;
@@ -15,6 +38,20 @@ function validateAnalysis(obj: unknown): boolean {
   if (!obj || typeof obj !== "object") return false;
   const o = obj as Record<string, unknown>;
   return typeof o.score === "number" && typeof o.summary === "string";
+}
+
+async function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  ms = AI_TIMEOUT_MS,
+): Promise<Response> {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } finally {
+    clearTimeout(t);
+  }
 }
 
 async function fetchAccountInsights(
@@ -54,32 +91,14 @@ async function fetchCampaigns(
   return j.data ?? [];
 }
 
-async function runClaude(facts: Record<string, unknown>): Promise<unknown> {
+// ── AI Providers ─────────────────────────────────────────────────────────────
+
+async function callAnthropic(facts: Record<string, unknown>): Promise<unknown> {
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY ausente");
   const model = Deno.env.get("CLAUDE_MODEL") ?? "claude-sonnet-4-20250514";
 
-  const system = `És um auditor de Meta Ads para e-commerce em PT-BR. Responde APENAS com JSON válido (sem markdown), com a estrutura:
-{
-  "score": number (0-100),
-  "scoreLabel": string,
-  "summary": string,
-  "metrics": [{ "name": string, "current": string, "reference": string, "status": "ok"|"warn"|"bad" }],
-  "criticalIssues": [{ "title": string, "description": string, "priority": "high"|"medium"|"low" }],
-  "budgetLeaks": [{ "title": string, "estimateNote": string, "hint": string }],
-  "opportunities": [{ "title": string, "potentialNote": string, "complexity": "quick"|"medium"|"advanced" }],
-  "creativesSummary": { "best": string, "worst": string, "recommendation": string },
-  "audiencesSummary": { "segmentation": string, "notes": string[] },
-  "structureNotes": string[],
-  "actionPlan": [{ "step": number, "action": string, "impact": string, "eta": string }],
-  "improvementScenario": { "note": string, "confidence": "high"|"medium"|"low" },
-  "disclaimer": string
-}
-Usa linguagem de estimativa nos impactos financeiros. Nunca garantas ROAS.`;
-
-  const user = `Dados normalizados (facts_json):\n${JSON.stringify(facts).slice(0, 120000)}`;
-
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
+  const res = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -89,27 +108,127 @@ Usa linguagem de estimativa nos impactos financeiros. Nunca garantas ROAS.`;
     body: JSON.stringify({
       model,
       max_tokens: 8192,
-      system,
-      messages: [{ role: "user", content: user }],
+      system: SYSTEM_PROMPT,
+      messages: [{ role: "user", content: buildUserPrompt(facts) }],
     }),
   });
 
   if (!res.ok) {
     const t = await res.text();
-    throw new Error(`Claude HTTP ${res.status}: ${t.slice(0, 500)}`);
+    throw new Error(`Anthropic HTTP ${res.status}: ${t.slice(0, 300)}`);
   }
   const body = (await res.json()) as {
     content?: { type: string; text?: string }[];
   };
   const text = body.content?.find((c) => c.type === "text")?.text ?? "";
-  let parsed: unknown;
-  try {
-    parsed = extractJsonFromClaude(text);
-  } catch {
-    throw new Error("JSON inválido na resposta Claude");
-  }
-  return parsed;
+  return extractJsonFromText(text);
 }
+
+async function callOpenAI(facts: Record<string, unknown>): Promise<unknown> {
+  const apiKey = Deno.env.get("OPENAI_API_KEY");
+  if (!apiKey) throw new Error("OPENAI_API_KEY ausente");
+  const model = Deno.env.get("OPENAI_MODEL") ?? "gpt-5";
+
+  const res = await fetchWithTimeout(
+    "https://api.openai.com/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: buildUserPrompt(facts) },
+        ],
+        response_format: { type: "json_object" },
+      }),
+    },
+  );
+
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`OpenAI HTTP ${res.status}: ${t.slice(0, 300)}`);
+  }
+  const body = (await res.json()) as {
+    choices?: { message?: { content?: string } }[];
+  };
+  const text = body.choices?.[0]?.message?.content ?? "";
+  return extractJsonFromText(text);
+}
+
+async function callGemini(facts: Record<string, unknown>): Promise<unknown> {
+  const apiKey = Deno.env.get("GEMINI_API_KEY");
+  if (!apiKey) throw new Error("GEMINI_API_KEY ausente");
+  const model = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.5-pro";
+
+  const url =
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+  const res = await fetchWithTimeout(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents: [
+        { role: "user", parts: [{ text: buildUserPrompt(facts) }] },
+      ],
+      generationConfig: {
+        responseMimeType: "application/json",
+        maxOutputTokens: 8192,
+      },
+    }),
+  });
+
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error(`Gemini HTTP ${res.status}: ${t.slice(0, 300)}`);
+  }
+  const body = (await res.json()) as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+  };
+  const text = body.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+  return extractJsonFromText(text);
+}
+
+type ProviderName = "anthropic" | "openai" | "gemini";
+
+const PROVIDERS: { name: ProviderName; run: (f: Record<string, unknown>) => Promise<unknown> }[] = [
+  { name: "anthropic", run: callAnthropic },
+  { name: "openai", run: callOpenAI },
+  { name: "gemini", run: callGemini },
+];
+
+async function runWithFallback(
+  facts: Record<string, unknown>,
+): Promise<{ analysis: Record<string, unknown>; provider: ProviderName; attempts: unknown[] }> {
+  const attempts: unknown[] = [];
+  for (const p of PROVIDERS) {
+    const t0 = Date.now();
+    try {
+      const analysis = await p.run(facts);
+      const ms = Date.now() - t0;
+      if (!validateAnalysis(analysis)) {
+        attempts.push({ provider: p.name, ok: false, ms, error: "validation_failed" });
+        console.warn(`[process-diagnosis] ${p.name} validação falhou (${ms}ms)`);
+        continue;
+      }
+      attempts.push({ provider: p.name, ok: true, ms });
+      console.log(`[process-diagnosis] ${p.name} OK (${ms}ms)`);
+      return { analysis: analysis as Record<string, unknown>, provider: p.name, attempts };
+    } catch (e) {
+      const ms = Date.now() - t0;
+      const err = String(e).slice(0, 300);
+      attempts.push({ provider: p.name, ok: false, ms, error: err });
+      console.warn(`[process-diagnosis] ${p.name} falhou (${ms}ms): ${err}`);
+    }
+  }
+  throw new Error(`Todos os providers IA falharam: ${JSON.stringify(attempts)}`);
+}
+
+// ── Handler ──────────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
   const cors = handleCors(req);
@@ -144,10 +263,7 @@ Deno.serve(async (req) => {
     if (!token) {
       await sb
         .from("diagnoses")
-        .update({
-          status: "failed",
-          failed_reason: "Token Meta ausente",
-        })
+        .update({ status: "failed", failed_reason: "Token Meta ausente" })
         .eq("id", id);
       continue;
     }
@@ -194,28 +310,24 @@ Deno.serve(async (req) => {
       }
 
       if (!analysisExisting) {
-        const analysis = await runClaude(factsForAnalysis);
-        if (!validateAnalysis(analysis)) {
-          throw new Error("Resposta Claude inválida");
-        }
+        const { analysis, provider, attempts } = await runWithFallback(factsForAnalysis);
+        const analysisWithMeta = {
+          ...analysis,
+          __meta: {
+            provider,
+            attempts,
+            generated_at: new Date().toISOString(),
+            prompt_version: PROMPT_VERSION,
+          },
+        };
         await sb
           .from("diagnosis_reports")
           .update({
-            analysis_json: analysis,
+            analysis_json: analysisWithMeta,
             prompt_version: PROMPT_VERSION,
             updated_at: new Date().toISOString(),
           })
           .eq("diagnosis_id", id);
-
-        await sb
-          .from("diagnoses")
-          .update({
-            status: "completed",
-            completed_at: new Date().toISOString(),
-          })
-          .eq("id", id);
-        processed++;
-        continue;
       }
 
       await sb
@@ -225,6 +337,7 @@ Deno.serve(async (req) => {
           completed_at: new Date().toISOString(),
         })
         .eq("id", id);
+      processed++;
     } catch (e) {
       console.error(e);
       await sb
