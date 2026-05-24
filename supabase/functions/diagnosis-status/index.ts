@@ -45,6 +45,23 @@ async function reconcileWithMp(
   }
 }
 
+function triggerProcessDiagnosis(): void {
+  const secret = Deno.env.get("CRON_SECRET");
+  if (!secret) return;
+  const base = Deno.env.get("SUPABASE_URL")!.replace(/\/+$/, "");
+  const anon = Deno.env.get("SUPABASE_ANON_KEY")!;
+  // fire-and-forget; do not await
+  fetch(`${base}/functions/v1/process-diagnosis`, {
+    method: "POST",
+    headers: {
+      apikey: anon,
+      Authorization: `Bearer ${secret}`,
+      "Content-Type": "application/json",
+    },
+    body: "{}",
+  }).catch(() => undefined);
+}
+
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
@@ -71,6 +88,12 @@ Deno.serve(async (req) => {
   if (status === "awaiting_payment" && data?.mp_payment_id) {
     const reconciled = await reconcileWithMp(sb, d, String(data.mp_payment_id));
     if (reconciled) status = reconciled;
+  }
+
+  // Auto-recovery: if stuck in processing and Meta is connected, nudge
+  // process-diagnosis (idempotent — checks facts/analysis state internally).
+  if (status === "processing" && data?.meta_ad_account_id) {
+    triggerProcessDiagnosis();
   }
 
   return jsonResponse({
