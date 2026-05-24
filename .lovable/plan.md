@@ -1,35 +1,75 @@
-## Diagnóstico do problema
+# Fallback de IA no diagnóstico (Claude → GPT-5 → Gemini)
 
-Verifiquei o estado real no banco para `d=7e8e3d16-…`:
+Hoje a `process-diagnosis` chama só Anthropic. Se a chave fica sem créditos (foi o caso real), o diagnóstico fica em `failed` e não há recuperação automática. Vamos adicionar fallback em cadeia para 3 providers, com chaves diretas.
 
-- `diagnoses.status = processing` (há ~10+ min)
-- `diagnosis_reports.facts_json` ✅ existe (factos da Meta já foram extraídos)
-- `diagnosis_reports.analysis_json` ❌ vazio (análise Claude nunca correu)
-- `process-diagnosis` edge function: **0 invocações nos logs**
+## Providers e ordem
 
-### Causa raiz
-A `meta-oauth-callback` dispara `process-diagnosis` **uma única vez** (fire-and-forget) logo após a ligação Meta. Essa execução faz só a **primeira etapa** (extrai factos da Meta API) e termina com `continue` — a análise Claude fica para a "próxima" invocação. Mas não existe cron job a chamar essa função periodicamente, então a segunda etapa nunca acontece e o diagnóstico fica preso para sempre.
+1. **Anthropic Claude** (`ANTHROPIC_API_KEY`, já existe) — `claude-sonnet-4-20250514`
+2. **OpenAI GPT-5** (`OPENAI_API_KEY`, **nova secret**) — `gpt-5`
+3. **Google Gemini** (`GEMINI_API_KEY`, **nova secret**) — `gemini-2.5-pro`
 
-## Plano de correção (só backend, sem mexer no UI)
+A próxima é tentada apenas se a anterior falhar com um erro **recuperável**: HTTP 401/402/429/5xx, timeout, JSON inválido ou resposta que não passa em `validateAnalysis`. Erros de input (4xx que não sejam os acima) não disparam fallback — são bug nosso.
+
+## Mudanças
 
 ### 1. `supabase/functions/process-diagnosis/index.ts`
-Fazer cada iteração processar **ambas as etapas** numa única invocação:
-- Se não há `facts_json` → extrai factos da Meta.
-- A seguir, no **mesmo loop**, se não há `analysis_json` → chama Claude e marca `completed`.
 
-Remover o `continue` que cortava entre as duas etapas. Mantém o limite de 3 diagnósticos por chamada e o tratamento de erros existente.
+- Extrair o prompt `system` + `user` para constantes partilhadas (já existem, só reorganizar).
+- Criar `callAnthropic(facts)`, `callOpenAI(facts)`, `callGemini(facts)` — cada uma devolve `unknown` (JSON parseado) ou lança `Error` com a razão.
+  - Cada chamada com `AbortController` + timeout (~60s) para não pendurar a função.
+  - Parser tolerante (reusar `extractJsonFromClaude`, que já lida com fences ```json).
+- Substituir o atual `runClaude(facts)` por `runWithFallback(facts)`:
+  - Tenta os 3 em ordem; regista qual foi usado e a razão de falha dos anteriores.
+  - Se todos falharem, lança erro agregado.
+- Guardar metadados em `diagnosis_reports`:
+  - `ai_provider_used` (`anthropic` | `openai` | `gemini`) → adicionar como chave dentro de `analysis_json` (`__meta`) ou nova coluna (ver secção DB).
+  - Log estruturado por tentativa: `{ provider, ok, status, ms, error_trunc }`.
 
-### 2. `supabase/functions/diagnosis-status/index.ts` — auto-trigger de recuperação
-Quando o cliente faz polling e encontra um diagnóstico em `processing` há mais de ~30s sem `completed_at`, disparar `process-diagnosis` em fire-and-forget (com `CRON_SECRET`), igual ao que `meta-oauth-callback` já faz. Isto:
-- Desbloqueia automaticamente o caso atual do utilizador (assim que ele recarregar a página o polling força o processamento).
-- Serve de rede de segurança caso a chamada inicial pós-OAuth falhe por timeout/rede.
+### 2. Secrets (via tool `add_secret`)
 
-Throttle: só dispara a cada N segundos (ex.: usar um campo simples como verificar se `updated_at` da última tentativa é antigo, ou simplesmente deixar disparar — o próprio `process-diagnosis` é idempotente porque verifica `status='processing'` e a existência de `facts_json`/`analysis_json`).
+- `OPENAI_API_KEY` — pedir ao utilizador (link: https://platform.openai.com/api-keys).
+- `GEMINI_API_KEY` — pedir ao utilizador (link: https://aistudio.google.com/apikey).
 
-### 3. Deploy + recuperação imediata
-- Deploy de `process-diagnosis` e `diagnosis-status`.
-- Chamada manual única a `process-diagnosis` via curl para concluir o diagnóstico `7e8e3d16-…` agora mesmo, sem o utilizador ter que esperar mais.
+Não mexer em `ANTHROPIC_API_KEY` nem em `LOVABLE_API_KEY`.
 
-## Fora de escopo
-- Não vou mexer no UI de `/obrigado`.
-- Não vou criar um cron job persistente (a auto-recuperação via polling já garante robustez sem nova infra).
+### 3. Sem mudanças de schema obrigatórias
+
+O provider usado fica dentro de `analysis_json.__meta.provider`. Se quiseres consulta dedicada, posso adicionar coluna `diagnosis_reports.ai_provider text` numa migração separada — não é bloqueante.
+
+### 4. UI
+
+Nenhuma alteração na `/obrigado`. O comportamento de “processando → completo” não muda; só fica mais robusto. Opcional (não incluído): mostrar “Análise gerada por X” no relatório final em `/diagnostico/:id` — pergunto antes de adicionar.
+
+## Detalhes técnicos por provider
+
+```text
+Anthropic   POST https://api.anthropic.com/v1/messages
+            headers: x-api-key, anthropic-version: 2023-06-01
+            body:    { model, max_tokens, system, messages:[{role:user,content}] }
+            parse:   body.content[].text (type==="text")
+
+OpenAI      POST https://api.openai.com/v1/chat/completions
+            headers: Authorization: Bearer ...
+            body:    { model:"gpt-5", messages:[{role:system},{role:user}],
+                       response_format:{type:"json_object"} }
+            parse:   body.choices[0].message.content (já JSON string)
+
+Gemini      POST https://generativelanguage.googleapis.com/v1beta/
+                  models/gemini-2.5-pro:generateContent?key=...
+            body:    { systemInstruction:{parts:[{text:system}]},
+                       contents:[{role:"user",parts:[{text:user}]}],
+                       generationConfig:{responseMimeType:"application/json"} }
+            parse:   body.candidates[0].content.parts[0].text
+```
+
+Todos passam pelo mesmo `validateAnalysis` (exige `score:number` e `summary:string`).
+
+## Recuperação do diagnóstico já em `failed`
+
+Depois do deploy + secrets, faço um `UPDATE diagnoses SET status='processing', failed_reason=NULL WHERE id='7e8e3d16-...'` (via migração ou tool de DB) para que o polling em `/obrigado` o reprocesse automaticamente com o novo fallback.
+
+## Riscos
+
+- **Custo**: se Anthropic ficar sempre a falhar, todo o tráfego vai para OpenAI. Considera monitorar billing.
+- **Diferença de tom entre providers**: o prompt é o mesmo e a estrutura JSON é validada, mas o texto livre (`summary`, `actionPlan[].action`) pode variar. Aceitável para um fallback.
+- **Gemini 2.5 Pro JSON mode**: às vezes devolve com markdown apesar do `responseMimeType`. O parser tolera fences.
