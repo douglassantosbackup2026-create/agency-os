@@ -170,11 +170,11 @@ Deno.serve(async (req) => {
       .eq("diagnosis_id", id)
       .maybeSingle();
 
-    const factsExisting = rep?.facts_json;
+    let factsForAnalysis = rep?.facts_json as Record<string, unknown> | null;
     const analysisExisting = rep?.analysis_json;
 
     try {
-      if (!factsExisting) {
+      if (!factsForAnalysis) {
         const account_insights = await fetchAccountInsights(actId, token);
         const campaigns = await fetchCampaigns(actId, token);
         const facts = {
@@ -190,14 +190,11 @@ Deno.serve(async (req) => {
           prompt_version: PROMPT_VERSION,
           updated_at: new Date().toISOString(),
         });
-        processed++;
-        continue;
+        factsForAnalysis = facts as unknown as Record<string, unknown>;
       }
 
       if (!analysisExisting) {
-        const analysis = await runClaude(
-          factsExisting as Record<string, unknown>,
-        );
+        const analysis = await runClaude(factsForAnalysis);
         if (!validateAnalysis(analysis)) {
           throw new Error("Resposta Claude inválida");
         }
