@@ -1,75 +1,31 @@
-# Fallback de IA no diagnóstico (Claude → GPT-5 → Gemini)
+## Problema
+O build de produção não encontra `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` porque o `.env` está no `.gitignore`. Vários arquivos do projeto usam fallbacks hardcoded (já com os valores corretos do Supabase), mas bloqueiam esses fallbacks em `PROD`, o que gera o erro que você reportou.
 
-Hoje a `process-diagnosis` chama só Anthropic. Se a chave fica sem créditos (foi o caso real), o diagnóstico fica em `failed` e não há recuperação automática. Vamos adicionar fallback em cadeia para 3 providers, com chaves diretas.
+## Solução
+Remover a restrição "somente dev" dos fallbacks para que eles sejam usados em qualquer ambiente quando as variáveis de ambiente não estiverem disponíveis. Como `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` são públicos por design (chave anônima + URL do Supabase), não há risco de segurança.
 
-## Providers e ordem
+## Passos
 
-1. **Anthropic Claude** (`ANTHROPIC_API_KEY`, já existe) — `claude-sonnet-4-20250514`
-2. **OpenAI GPT-5** (`OPENAI_API_KEY`, **nova secret**) — `gpt-5`
-3. **Google Gemini** (`GEMINI_API_KEY`, **nova secret**) — `gemini-2.5-pro`
+1. **Criar módulo compartilhado de config Supabase** (`src/lib/supabase-config.ts`)
+   - Exportar as constantes de fallback (URL e publishable key)
+   - Exportar uma função `resolveSupabaseConfig()` que retorna `{ url, key }`
+   - A função deve usar `import.meta.env.*` quando disponível, senão os fallbacks — sem distinção de ambiente
 
-A próxima é tentada apenas se a anterior falhar com um erro **recuperável**: HTTP 401/402/429/5xx, timeout, JSON inválido ou resposta que não passa em `validateAnalysis`. Erros de input (4xx que não sejam os acima) não disparam fallback — são bug nosso.
+2. **Refatorar `src/integrations/supabase/client.ts`**
+   - Substituir a lógica interna por import do módulo compartilhado
+   - Remover os fallbacks duplicados inline
 
-## Mudanças
+3. **Refatorar `src/lib/diagnosis-invoke.ts`**
+   - Substituir `resolveSupabaseConfig()` e fallbacks por import do módulo compartilhado
 
-### 1. `supabase/functions/process-diagnosis/index.ts`
+4. **Refatorar `src/lib/meta-api-test.ts`**
+   - Substituir `resolveSupabaseUrl()` e `resolvePublishableKey()` por import do módulo compartilhado
 
-- Extrair o prompt `system` + `user` para constantes partilhadas (já existem, só reorganizar).
-- Criar `callAnthropic(facts)`, `callOpenAI(facts)`, `callGemini(facts)` — cada uma devolve `unknown` (JSON parseado) ou lança `Error` com a razão.
-  - Cada chamada com `AbortController` + timeout (~60s) para não pendurar a função.
-  - Parser tolerante (reusar `extractJsonFromClaude`, que já lida com fences ```json).
-- Substituir o atual `runClaude(facts)` por `runWithFallback(facts)`:
-  - Tenta os 3 em ordem; regista qual foi usado e a razão de falha dos anteriores.
-  - Se todos falharem, lança erro agregado.
-- Guardar metadados em `diagnosis_reports`:
-  - `ai_provider_used` (`anthropic` | `openai` | `gemini`) → adicionar como chave dentro de `analysis_json` (`__meta`) ou nova coluna (ver secção DB).
-  - Log estruturado por tentativa: `{ provider, ok, status, ms, error_trunc }`.
+5. **Atualizar `src/routes/p.$portalSlug.tsx`**
+   - Substituir `import.meta.env.VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` diretos pelo módulo compartilhado
 
-### 2. Secrets (via tool `add_secret`)
+6. **Atualizar `src/routes/obrigado.tsx`**
+   - Substituir `import.meta.env.VITE_SUPABASE_URL` direto pelo módulo compartilhado
 
-- `OPENAI_API_KEY` — pedir ao utilizador (link: https://platform.openai.com/api-keys).
-- `GEMINI_API_KEY` — pedir ao utilizador (link: https://aistudio.google.com/apikey).
-
-Não mexer em `ANTHROPIC_API_KEY` nem em `LOVABLE_API_KEY`.
-
-### 3. Sem mudanças de schema obrigatórias
-
-O provider usado fica dentro de `analysis_json.__meta.provider`. Se quiseres consulta dedicada, posso adicionar coluna `diagnosis_reports.ai_provider text` numa migração separada — não é bloqueante.
-
-### 4. UI
-
-Nenhuma alteração na `/obrigado`. O comportamento de “processando → completo” não muda; só fica mais robusto. Opcional (não incluído): mostrar “Análise gerada por X” no relatório final em `/diagnostico/:id` — pergunto antes de adicionar.
-
-## Detalhes técnicos por provider
-
-```text
-Anthropic   POST https://api.anthropic.com/v1/messages
-            headers: x-api-key, anthropic-version: 2023-06-01
-            body:    { model, max_tokens, system, messages:[{role:user,content}] }
-            parse:   body.content[].text (type==="text")
-
-OpenAI      POST https://api.openai.com/v1/chat/completions
-            headers: Authorization: Bearer ...
-            body:    { model:"gpt-5", messages:[{role:system},{role:user}],
-                       response_format:{type:"json_object"} }
-            parse:   body.choices[0].message.content (já JSON string)
-
-Gemini      POST https://generativelanguage.googleapis.com/v1beta/
-                  models/gemini-2.5-pro:generateContent?key=...
-            body:    { systemInstruction:{parts:[{text:system}]},
-                       contents:[{role:"user",parts:[{text:user}]}],
-                       generationConfig:{responseMimeType:"application/json"} }
-            parse:   body.candidates[0].content.parts[0].text
-```
-
-Todos passam pelo mesmo `validateAnalysis` (exige `score:number` e `summary:string`).
-
-## Recuperação do diagnóstico já em `failed`
-
-Depois do deploy + secrets, faço um `UPDATE diagnoses SET status='processing', failed_reason=NULL WHERE id='7e8e3d16-...'` (via migração ou tool de DB) para que o polling em `/obrigado` o reprocesse automaticamente com o novo fallback.
-
-## Riscos
-
-- **Custo**: se Anthropic ficar sempre a falhar, todo o tráfego vai para OpenAI. Considera monitorar billing.
-- **Diferença de tom entre providers**: o prompt é o mesmo e a estrutura JSON é validada, mas o texto livre (`summary`, `actionPlan[].action`) pode variar. Aceitável para um fallback.
-- **Gemini 2.5 Pro JSON mode**: às vezes devolve com markdown apesar do `responseMimeType`. O parser tolera fences.
+## Resultado esperado
+O erro `"VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY são obrigatórios em produção"` não ocorre mais. O app usa os fallbacks embutidos (já corretos) sempre que as env vars não estiverem presentes, independentemente do ambiente.
