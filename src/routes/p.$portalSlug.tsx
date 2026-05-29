@@ -25,9 +25,9 @@ function PortalPage() {
     setData(null);
     (async () => {
       try {
-        const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/portal-data?slug=${encodeURIComponent(portalSlug)}`;
+        const url = `${resolveSupabaseUrl()}/functions/v1/portal-data?slug=${encodeURIComponent(portalSlug)}`;
         const r = await fetch(url, {
-          headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+          headers: { apikey: resolveSupabasePublishableKey() },
         });
         let j: Record<string, unknown> = {};
         try {
