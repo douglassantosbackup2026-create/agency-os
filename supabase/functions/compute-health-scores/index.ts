@@ -6,6 +6,7 @@ import { resolveCronDualAuthAgencyScope } from "../_shared/cron-agency-scope.ts"
 import { edgeLogDone, edgeLog, truncateError } from "../_shared/edge-log.ts";
 import { prefetchAgencyCronData, clientHasMinMetricsData } from "../_shared/cron-agency-prefetch.ts";
 import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
+import { filterClientsByCronBatch } from "../_shared/cron-client-batch.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -320,8 +321,17 @@ Deno.serve(async (req) => {
 
     let q = admin.from("clients").select("id, agency_id, name");
     if (agencyFilter) q = q.eq("agency_id", agencyFilter);
-    const { data: clients, error: cErr } = await q;
+    let { data: clients, error: cErr } = await q;
     if (cErr) throw cErr;
+
+    if (agencyFilter) {
+      clients = await filterClientsByCronBatch(
+        admin,
+        agencyFilter,
+        "compute-health-scores",
+        (clients ?? []) as Array<{ id: string }>,
+      );
+    }
 
     const clientIds = (clients ?? []).map((c) => String(c.id));
     const latestAuditByClient = new Map<

@@ -22,9 +22,20 @@ jobs:
 
       - run: npx playwright install chromium --with-deps
 
+      - name: Resiliência — contratos (sempre)
+        run: npx playwright test e2e/resilience.spec.ts --grep "contratos"
+
       - name: Smoke (login + rotas)
         env:
           E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
           E2E_TEST_EMAIL: ${{ secrets.E2E_TEST_EMAIL }}
           E2E_TEST_PASSWORD: ${{ secrets.E2E_TEST_PASSWORD }}
         run: npm run test:e2e
+
+      - name: Resiliência — API (opcional; secrets E2E_*)
+        env:
+          E2E_RESILIENCE: ${{ secrets.E2E_RESILIENCE }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          E2E_TEST_ACCESS_TOKEN: ${{ secrets.E2E_TEST_ACCESS_TOKEN }}
+          E2E_TEST_CLIENT_ID: ${{ secrets.E2E_TEST_CLIENT_ID }}
+        run: npx playwright test e2e/resilience.spec.ts --grep "API"

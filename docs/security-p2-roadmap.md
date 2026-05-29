@@ -11,7 +11,7 @@ Itens planeados após P0/P1. Não bloqueiam deploy se P0 estiver completo.
 ## 2. Rate limiting distribuído
 
 - Tabela `api_rate_limits` + RPC `check_api_rate_limit` já criada na migration `20260529120100_api_rate_limits.sql`.
-- Próximo passo: substituir `Map` in-memory em `portal-rate-limit.ts` e `public-rate-limit.ts` por chamadas RPC na função `check_api_rate_limit`.
+- ~~Substituir `Map` in-memory em rate limits~~ — **feito** (fase 3): `portal-rate-limit.ts` e `public-rate-limit.ts` usam RPC `check_api_rate_limit`.
 - Cloudflare Rate Limiting / Turnstile em `/functions/v1/portal-*` e checkout.
 
 ## 3. Observabilidade

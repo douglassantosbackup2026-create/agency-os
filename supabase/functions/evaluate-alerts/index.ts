@@ -6,6 +6,7 @@ import { edgeLogDone, edgeLog, truncateError } from "../_shared/edge-log.ts";
 import { baseGovernance } from "../_shared/ai-v3.ts";
 import { prefetchAgencyCronData, clientHasMinMetricsData } from "../_shared/cron-agency-prefetch.ts";
 import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
+import { filterClientsByCronBatch } from "../_shared/cron-client-batch.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -117,8 +118,17 @@ Deno.serve(async (req) => {
       .from("clients")
       .select("id, agency_id, name, monthly_budget");
     if (agencyFilter) cq = cq.eq("agency_id", agencyFilter);
-    const { data: clients, error: cErr } = await cq;
+    let { data: clients, error: cErr } = await cq;
     if (cErr) throw cErr;
+
+    if (agencyFilter) {
+      clients = await filterClientsByCronBatch(
+        admin,
+        agencyFilter,
+        "evaluate-alerts",
+        (clients ?? []) as Array<{ id: string }>,
+      );
+    }
 
     const clientIds = (clients ?? []).map((c) => c.id).filter(Boolean);
     const muteWhatsappUntilByClient = new Map<string, string>();

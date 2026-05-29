@@ -1,0 +1,7 @@
+{
+  "$comment": "Copie valores para Cloudflare Dashboard ou wrangler secret put. Não commitar chaves reais.",
+  "vars": {
+    "VITE_SUPABASE_URL": "https://SEU_PROJETO.supabase.co",
+    "SUPABASE_URL": "https://SEU_PROJETO.supabase.co"
+  }
+}

@@ -118,59 +118,25 @@ function Dashboard() {
     },
   });
 
-  const alertsQuery = useQuery({
-    queryKey: ["dashboard-alerts", agency?.id],
-    enabled: !!agency,
-    queryFn: async () => {
-      const { data: rows, error } = await supabase
-        .from("alerts")
-        .select(
-          "id, title, priority, created_at, type, recommended_action, client_id, clients(name)",
-        )
-        .eq("agency_id", agency!.id)
-        .eq("status", "open")
-        .order("priority", { ascending: false })
-        .order("created_at", { ascending: false })
-        .limit(48);
-      throwIfSupabaseError(error, "alerts");
-      return rows ?? [];
-    },
-  });
-
-  const activitiesQuery = useQuery({
-    queryKey: ["dashboard-activities", agency?.id],
-    enabled: !!agency,
-    queryFn: async () => {
-      const { data: rows, error } = await supabase
-        .from("activities")
-        .select("id, title, description, created_at, type")
-        .eq("agency_id", agency!.id)
-        .order("created_at", { ascending: false })
-        .limit(10);
-      throwIfSupabaseError(error, "activities");
-      return rows ?? [];
-    },
-  });
-
   const mergedData = useMemo(() => {
     if (!coreData) return null;
     return {
       ...coreData,
-      alerts: alertsQuery.data ?? [],
-      activities: activitiesQuery.data ?? [],
+      alerts: coreData.openAlerts,
+      activities: coreData.activities,
     };
-  }, [coreData, alertsQuery.data, activitiesQuery.data]);
+  }, [coreData]);
 
   const debouncedInvalidateAlerts = useDebouncedCallback(() => {
     void queryClient.invalidateQueries({
-      queryKey: ["dashboard-alerts", agency?.id],
+      queryKey: dashboardQueryKey(agency?.id),
     });
     void queryClient.invalidateQueries({ queryKey: ["alerts", agency?.id] });
   }, 3000);
 
   const debouncedInvalidateActivities = useDebouncedCallback(() => {
     void queryClient.invalidateQueries({
-      queryKey: ["dashboard-activities", agency?.id],
+      queryKey: dashboardQueryKey(agency?.id),
     });
   }, 3000);
 
@@ -531,13 +497,7 @@ function Dashboard() {
     );
   }
 
-  if (
-    isLoading ||
-    alertsQuery.isLoading ||
-    activitiesQuery.isLoading ||
-    !mergedData ||
-    !dashboardDerived
-  ) {
+  if (isLoading || !mergedData || !dashboardDerived) {
     return <PageSkeleton />;
   }
   const data = mergedData!;

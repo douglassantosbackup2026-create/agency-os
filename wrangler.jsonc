@@ -4,4 +4,7 @@
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/server.ts",
+  // Variáveis obrigatórias em produção — ver docs/cloudflare-worker-env.md
+  // VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY
+  // Configure no Dashboard Cloudflare ou: npx wrangler secret put <NAME>
 }

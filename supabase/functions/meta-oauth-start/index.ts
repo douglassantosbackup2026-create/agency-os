@@ -5,6 +5,7 @@ import {
 } from "../_shared/diagnosis/cors.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 import { signOAuthState } from "../_shared/diagnosis/state-signing.ts";
+import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 
 function redirectUri(): string {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!.replace(/\/+$/, "");
@@ -14,6 +15,7 @@ function redirectUri(): string {
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
+  const traceId = traceIdFromRequest(req);
   if (req.method !== "GET")
     return jsonResponse({ error: "Method not allowed" }, 405);
 
@@ -63,6 +65,7 @@ Deno.serve(async (req) => {
   fb.searchParams.set("state", state);
   fb.searchParams.set("response_type", "code");
 
+  traceLog("meta_oauth_start.redirect", { diagnosis_id: d }, traceId);
   return new Response(null, {
     status: 302,
     headers: { Location: fb.toString(), ...corsHeaders },

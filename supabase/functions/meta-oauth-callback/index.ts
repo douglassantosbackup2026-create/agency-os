@@ -15,6 +15,7 @@ import {
   normalizePublicSiteUrl,
 } from "../_shared/public-site-url.ts";
 import { putMetaTestExchange } from "../_shared/meta-test-exchange.ts";
+import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 
 function siteUrl(): string {
   const raw = (
@@ -109,6 +110,7 @@ function metaTestReturnSite(payload: Record<string, unknown>): string {
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
+  const traceId = traceIdFromRequest(req);
   if (req.method !== "GET")
     return jsonResponse({ error: "Method not allowed" }, 405);
 
@@ -263,6 +265,7 @@ Deno.serve(async (req) => {
 
   await triggerProcess();
 
+  traceLog("meta_oauth_callback.ok", { diagnosis_id: diagnosisId }, traceId);
   return new Response(null, {
     status: 302,
     headers: {

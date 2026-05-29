@@ -25,7 +25,7 @@ Escopo P2.5 do plano de resiliência. Estado auditado em maio/2026.
 | `/retentio`, landing | Avaliar `s-maxage=3600` em assets estáticos via Cloudflare CDN |
 | `/_authenticated/*` | **Sem cache público** — dados por agência |
 
-**Acção futura:** headers em `src/server.ts` ou middleware TanStack por rota pública.
+**Headers CDN/cache:** implementados em [`src/server.ts`](../src/server.ts) para `/login`, `/signup`, `/retentio`.
 
 ### Loaders TanStack Start
 

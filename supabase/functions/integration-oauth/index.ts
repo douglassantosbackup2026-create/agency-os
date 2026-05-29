@@ -1,6 +1,7 @@
 // OAuth start URL + exchange code → integrations row (Meta, Google family, TikTok).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { BodyTooLargeError, readJsonBody } from "../_shared/edge-json-body.ts";
+import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -67,6 +68,7 @@ function redirectUri(): string {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
+  const traceId = traceIdFromRequest(req);
   try {
     const stateSecret = Deno.env.get("INTEGRATION_OAUTH_STATE_SECRET");
     if (!stateSecret || stateSecret.length < 16) {
@@ -212,6 +214,7 @@ Deno.serve(async (req) => {
           `&response_type=code&redirect_uri=${redir}&state=${encodeURIComponent(state)}`;
       }
 
+      traceLog("integration_oauth.start", { provider }, traceId);
       return new Response(JSON.stringify({ url }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -395,16 +398,23 @@ Deno.serve(async (req) => {
         if (error) throw error;
       }
 
+      traceLog("integration_oauth.exchange.ok", { provider: prov }, traceId);
       return new Response(JSON.stringify({ ok: true, provider: prov }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    traceLog("integration_oauth.unknown_action", {}, traceId);
     return new Response(JSON.stringify({ error: "unknown action" }), {
       status: 400,
       headers: corsHeaders,
     });
   } catch (e) {
+    traceLog(
+      "integration_oauth.error",
+      { error: (e as Error).message },
+      traceId,
+    );
     return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

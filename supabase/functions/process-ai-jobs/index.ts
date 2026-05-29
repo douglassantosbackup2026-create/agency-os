@@ -14,6 +14,11 @@ import {
   CampaignAuditRunnerError,
   executeCampaignAudit,
 } from "../_shared/campaign-audit-runner.ts";
+import {
+  checkMeetingReportRateLimits,
+  executeMeetingReportGeneration,
+  MeetingReportRunnerError,
+} from "../_shared/meeting-report-runner.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -207,6 +212,87 @@ Deno.serve(async (req) => {
         failed++;
         const errText =
           e instanceof CampaignAuditRunnerError
+            ? e.message
+            : String((e as Error).message ?? e);
+        await admin
+          .from("ai_jobs")
+          .update({
+            status: "failed",
+            finished_at: new Date().toISOString(),
+            last_error: errText.slice(0, 500),
+          })
+          .eq("id", jobId);
+      }
+      continue;
+    }
+
+    if (job.job_type === "meeting_report") {
+      const client_id = String(job.client_id ?? payload.client_id ?? "").trim();
+      const userId = String(payload.generated_by ?? "").trim();
+      const requestedMode = String(payload.mode ?? "").trim();
+      const pctMeta = Number(payload.pct_meta_atingida ?? 0);
+
+      if (!client_id || !userId) {
+        failed++;
+        await admin
+          .from("ai_jobs")
+          .update({
+            status: "failed",
+            finished_at: new Date().toISOString(),
+            last_error:
+              "meeting_report: client_id ou generated_by inválido",
+          })
+          .eq("id", jobId);
+        continue;
+      }
+
+      const { data: client } = await admin
+        .from("clients")
+        .select("id, agency_id, name, segment")
+        .eq("id", client_id)
+        .maybeSingle();
+
+      if (!client) {
+        failed++;
+        await admin
+          .from("ai_jobs")
+          .update({
+            status: "failed",
+            finished_at: new Date().toISOString(),
+            last_error: "cliente não encontrado",
+          })
+          .eq("id", jobId);
+        continue;
+      }
+
+      try {
+        await checkMeetingReportRateLimits(admin, client_id);
+        const row = await executeMeetingReportGeneration({
+          admin,
+          client: client as {
+            id: string;
+            agency_id: string;
+            name: string;
+            segment?: string | null;
+          },
+          clientId: client_id,
+          userId,
+          requestedMode,
+          pctMeta,
+        });
+        processed++;
+        await admin
+          .from("ai_jobs")
+          .update({
+            status: "done",
+            finished_at: new Date().toISOString(),
+            result_ref: row.id ?? null,
+          })
+          .eq("id", jobId);
+      } catch (e) {
+        failed++;
+        const errText =
+          e instanceof MeetingReportRunnerError
             ? e.message
             : String((e as Error).message ?? e);
         await admin

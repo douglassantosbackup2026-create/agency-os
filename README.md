@@ -27,6 +27,10 @@ Crie `.env` na raiz (ou configure no host de deploy):
 
 Modelo: copie [`.env.example`](.env.example) para `.env` e preencha as chaves (o ficheiro `.env` não deve ser commitado).
 
+### Cloudflare Worker (produção)
+
+Além das variáveis `VITE_*` no build, configure no Worker [`tanstack-start-app`](docs/cloudflare-worker-env.md): `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`. Sem isto, `/login` e o loader SSR do dashboard falham com 500.
+
 ## Comandos
 
 ```bash
@@ -36,6 +40,8 @@ npm run lint
 npm run test         # testes unitários (Vitest)
 npm run db:lint      # PostgreSQL advisors via Supabase CLI (projeto ligado)
 npm run build        # build de produção (requer env acima)
+npm run ops:resilience-health -- --url https://SEU_WORKER.workers.dev/login
+npm run perf:lighthouse   # TTFB/LCP autenticados (ver docs/ops-performance-validation.md)
 ```
 
 ## Produto Diagnóstico Meta

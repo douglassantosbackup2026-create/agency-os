@@ -20,6 +20,8 @@ export type DashboardCoreData = {
   campaignAuditsSnap: unknown[];
   checklistItems: unknown[];
   overdueActionsCount: number;
+  openAlerts: unknown[];
+  activities: unknown[];
 };
 
 export function parseDashboardBundle(detail: unknown): DashboardCoreData {
@@ -43,6 +45,8 @@ export function parseDashboardBundle(detail: unknown): DashboardCoreData {
     campaignAuditsSnap: (bundle.campaign_audits as unknown[]) ?? [],
     checklistItems: (bundle.checklist_items as unknown[]) ?? [],
     overdueActionsCount: Number(bundle.overdue_actions_count ?? 0),
+    openAlerts: (bundle.open_alerts as unknown[]) ?? [],
+    activities: (bundle.activities as unknown[]) ?? [],
   };
 }
 

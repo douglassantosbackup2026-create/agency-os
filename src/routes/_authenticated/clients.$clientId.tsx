@@ -165,6 +165,9 @@ function ClientDetail() {
   const [pendingAuditJobId, setPendingAuditJobId] = useState<string | null>(
     null,
   );
+  const [pendingMeetingJobId, setPendingMeetingJobId] = useState<string | null>(
+    null,
+  );
   const [clickContext, setClickContext] = useState<
     "reuniao" | "pos_ajuste" | "suspeita_problema" | "checkin_rotina"
   >("checkin_rotina");
@@ -368,6 +371,27 @@ function ClientDetail() {
         latestSync: syncRun.data ?? null,
         connectedIntegrationCount: integrationsCount.count ?? 0,
       };
+    },
+  });
+
+  useAiJobStatus(pendingMeetingJobId, {
+    onDone: () => {
+      toast.success("Pauta de reunião gerada.");
+      setPendingMeetingJobId(null);
+      setGeneratingMeeting(false);
+      void refetch();
+    },
+    onFailed: (lastError) => {
+      toast.error(lastError ?? "Falha ao gerar pauta.");
+      setPendingMeetingJobId(null);
+      setGeneratingMeeting(false);
+    },
+    onTimeout: () => {
+      toast.info(
+        "Pauta ainda em processamento. Atualize a página em alguns minutos.",
+      );
+      setPendingMeetingJobId(null);
+      setGeneratingMeeting(false);
     },
   });
 
@@ -823,15 +847,27 @@ function ClientDetail() {
         body: { client_id: clientId },
       },
     );
-    setGeneratingMeeting(false);
     if (error) {
+      setGeneratingMeeting(false);
       toast.error(error.message);
       return;
     }
-    if (res && typeof res === "object" && "error" in res && res.error) {
-      toast.error(String((res as { error: string }).error));
+    const payload = res as {
+      async?: boolean;
+      job_id?: string;
+      error?: string;
+    } | null;
+    if (payload?.error) {
+      setGeneratingMeeting(false);
+      toast.error(String(payload.error));
       return;
     }
+    if (payload?.async && payload.job_id) {
+      toast.info("Pauta enfileirada. Aguarde…");
+      setPendingMeetingJobId(payload.job_id);
+      return;
+    }
+    setGeneratingMeeting(false);
     toast.success("Pauta de reunião gerada.");
     refetch();
   }
