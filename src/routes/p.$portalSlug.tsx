@@ -3,6 +3,10 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { brl, num, pct } from "@/lib/format";
 import { Sparkles, TrendingUp, Wallet, Target, Heart } from "lucide-react";
 import { toast } from "sonner";
+import {
+  resolveSupabaseUrl,
+  resolveSupabasePublishableKey,
+} from "@/lib/supabase-config";
 
 export const Route = createFileRoute("/p/$portalSlug")({
   component: PortalPage,
