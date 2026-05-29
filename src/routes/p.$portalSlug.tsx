@@ -132,12 +132,12 @@ function PortalPage() {
       return;
     }
     setReviewingId(creativeId);
-    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/portal-creative-review`;
+    const url = `${resolveSupabaseUrl()}/functions/v1/portal-creative-review`;
     const r = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        apikey: resolveSupabasePublishableKey(),
       },
       body: JSON.stringify({
         slug: portalSlug,
