@@ -40,7 +40,12 @@ import {
 
 export const Route = createFileRoute("/test-meta-oauth")({
   beforeLoad: () => {
-    // Harness é gated server-side via META_TEST_ENABLED secret.
+    const allowHarness =
+      import.meta.env.DEV ||
+      import.meta.env.VITE_META_TEST_ENABLED === "true";
+    if (!allowHarness) {
+      throw redirect({ to: "/" });
+    }
   },
   validateSearch: (search: Record<string, unknown>) => ({
     oauth_error:

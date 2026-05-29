@@ -25,6 +25,15 @@ jobs:
       - name: Resiliência — contratos (sempre)
         run: npx playwright test e2e/resilience.spec.ts --grep "contratos"
 
+      - name: Diagnóstico — contratos (sempre)
+        run: npx playwright test e2e/diagnosis-funnel.spec.ts --grep "contratos"
+
+      - name: Diagnóstico — rotas públicas
+        env:
+          E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}
+          LIGHTHOUSE_BASE_URL: ${{ secrets.LIGHTHOUSE_BASE_URL }}
+        run: npx playwright test e2e/diagnosis-funnel.spec.ts --grep "rotas públicas"
+
       - name: Smoke (login + rotas)
         env:
           E2E_BASE_URL: ${{ secrets.E2E_BASE_URL }}

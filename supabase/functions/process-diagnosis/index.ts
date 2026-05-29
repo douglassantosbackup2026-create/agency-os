@@ -242,6 +242,14 @@ Deno.serve(async (req) => {
   const sb = diagnosisServiceClient();
   const auth = await assertCronOrUser(req, sb);
   if (auth) return auth;
+
+  const { data: cleaned } = await sb.rpc("cleanup_stale_diagnosis_processing", {
+    p_stale_minutes: 30,
+  });
+  if (cleaned && Number(cleaned) > 0) {
+    traceLog("process_diagnosis.stale_cleaned", { count: cleaned }, traceId);
+  }
+
   const { data: rows } = await sb
     .from("diagnoses")
     .select("id, meta_ad_account_id, status")

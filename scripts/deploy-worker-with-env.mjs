@@ -35,6 +35,11 @@ const required = [
   "SUPABASE_URL",
   "SUPABASE_PUBLISHABLE_KEY",
 ];
+
+const optionalSite =
+  merged.VITE_PUBLIC_SITE_URL?.trim() ||
+  merged.PUBLIC_SITE_URL?.trim() ||
+  "https://tanstack-start-app.douglaspinheirosantos94.workers.dev";
 for (const k of required) {
   if (!merged[k]?.trim()) {
     console.error(`Missing ${k} in ${envPath}`);
@@ -56,7 +61,11 @@ const build = spawnSync("npm", ["run", "build"], {
 });
 if (build.status !== 0) process.exit(build.status ?? 1);
 
-const varArgs = required.flatMap((k) => ["--var", `${k}:${merged[k]}`]);
+const varArgs = [
+  ...required.flatMap((k) => ["--var", `${k}:${merged[k]}`]),
+  "--var",
+  `VITE_PUBLIC_SITE_URL:${optionalSite}`,
+];
 console.log("Deploying Worker with runtime vars…");
 const deploy = spawnSync(
   "npx",

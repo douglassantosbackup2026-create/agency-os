@@ -12,3 +12,5 @@ Para activar testes de API em [`.github/workflows/e2e-smoke.yml`](../.github/wor
 Opcional Lighthouse: `LIGHTHOUSE_BASE_URL`, `PERF_TEST_EMAIL`, `PERF_TEST_PASSWORD` (workflow `pagespeed.yml`).
 
 Opcional db-lint estrito: `SUPABASE_ACCESS_TOKEN` + projeto ligado no workflow.
+
+Funil Diagnóstico Meta: [`github-secrets-e2e-diagnosis.md`](github-secrets-e2e-diagnosis.md).

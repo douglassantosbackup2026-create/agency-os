@@ -24,7 +24,20 @@ Execute **staging**, depois **produção**. Não commitar valores de secrets nes
 - Runbook resiliência: [`ops-resilience-runbook.md`](ops-resilience-runbook.md).
 - Consultas em [`security-rls-checklist.md`](security-rls-checklist.md).
 
-## 3. Smoke manual (5 min)
+## 2b. Funil Diagnóstico Meta (homepage `/`)
+
+| Item | Confirmar |
+|------|-----------|
+| `PUBLIC_SITE_URL` / `VITE_PUBLIC_SITE_URL` | Igual ao Worker em produção |
+| Secrets MP, Meta, OAuth, Claude, `CRON_SECRET` | Ver [`diagnosis-production-env.md`](diagnosis-production-env.md) |
+| `META_TEST_ENABLED` | Ausente ou `false` |
+| Cron `process-diagnosis-batch` | Activo (`ops:apply-crons` ou SQL bootstrap) |
+| Smoke 15 min | [`diagnostico-smoke-log.md`](diagnostico-smoke-log.md) |
+| E2E CI | `e2e/diagnosis-funnel.spec.ts` no workflow `e2e-smoke` |
+
+Runbook: [`diagnostico-meta-runbook.md`](diagnostico-meta-runbook.md).
+
+## 3. Smoke manual — SaaS agência (5 min)
 
 1. Login utilizador membro.
 2. Dashboard carrega sem erro vermelho persistente.

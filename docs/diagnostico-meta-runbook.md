@@ -1,45 +1,100 @@
-# Runbook — Diagnóstico Meta (produto `diagnostico-meta`)
+# Runbook — Diagnóstico Meta (funil no app principal)
 
-Este produto vive no mesmo repositório que o Retentio (`agency-os`) e usa o **mesmo projeto Supabase**: migrations em `supabase/migrations/` e funções em `supabase/functions/`.
+**Estado:** 2026-06 — fonte de verdade no **app principal** (`src/routes/`: `/`, `/checkout`, `/obrigado`, `/diagnostico/$id`, `/gestao-obrigado`). O pacote `diagnostico-meta/` está **deprecated** (não deployar em `:5180`).
 
-## Segundo checkout (gestão Meta / Google, R$ 1.997)
+Produção Worker: `https://tanstack-start-app.douglaspinheirosantos94.workers.dev`  
+Supabase: `uvuotaxikuxejfeitlaw`
 
-- Migração: colunas `management_*` em `public.diagnoses` (`management_status`: `none` \| `awaiting_payment` \| `paid`).
-- Função **create-management-checkout** (`verify_jwt = false`): recebe `diagnosis_id`, `secret_slug`, `business_name`, `website`, `instagram`; valida diagnóstico `completed`, elegibilidade de gasto (≥ R$ 5k) e cria preferência MP com `external_reference` `mgmt:{uuid}`.
-- **mercadopago-webhook**: se `external_reference` começa por `mgmt:`, actualiza só `management_mp_payment_id`, `management_status`, `management_paid_at`; não altera `mp_payment_id` nem `status` do funil do diagnóstico.
-- **diagnosis-status** e **diagnosis-report**: expõem `management_status` e campos associados ao cliente que tem `d` + `s`.
-- Páginas: `/diagnostico/$id` (form + pagamento), `/gestao-obrigado?d=&s=` (poll + WhatsApp).
+Ver também: [`diagnosis-production-env.md`](diagnosis-production-env.md), [`diagnostico-smoke-log.md`](diagnostico-smoke-log.md), [`diagnostico-performance.md`](diagnostico-performance.md), [`github-secrets-e2e-diagnosis.md`](github-secrets-e2e-diagnosis.md).
 
-## Secrets (Supabase Edge Functions)
+## Edge Functions (`verify_jwt = false`)
+
+Configuradas em `supabase/config.toml`: `create-diagnosis-checkout`, `start-diagnosis-payment`, `diagnosis-status`, `diagnosis-report`, `meta-oauth`, `meta-oauth-callback`, `process-diagnosis`, `create-management-checkout`, `mercadopago-webhook` (partilhado), `meta-api-test` (só com `META_TEST_ENABLED`).
+
+Cada endpoint público valida `secret_slug` / rate limit / `CRON_SECRET` (cron) conforme a função.
+
+## Secrets (Supabase)
 
 | Secret | Uso |
 |--------|-----|
-| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY` | Automático no Supabase |
-| `PUBLIC_SITE_URL` ou `SITE_URL` | Redirects OAuth e MP `back_urls` (URL pública da app **diagnostico-meta**, ex. `http://localhost:5180`) |
-| `MERCADOPAGO_ACCESS_TOKEN` | Preferences + verificação de pagamentos |
-| `DIAGNOSIS_PRICE_CENTS` | Opcional (default 3700) |
-| `MANAGEMENT_PRICE_CENTS` | Opcional para **create-management-checkout** (default **199700**) |
-| `MANAGEMENT_MP_ITEM_TITLE` | Opcional — título do item na preferência Mercado Pago da gestão |
-| `META_APP_ID`, `META_APP_SECRET` | OAuth |
-| `OAUTH_STATE_SECRET` | Min. 16 caracteres — assinatura do `state` |
-| `CRON_SECRET` | Obrigatório em produção para `process-diagnosis` (alinhado às outras crons do projeto) |
-| `ALLOW_INSECURE_CRON_ANON` | Apenas dev local (ver `cron-auth` partilhado) |
-| `ANTHROPIC_API_KEY`, `CLAUDE_MODEL` | Análise Claude |
+| `PUBLIC_SITE_URL` ou `SITE_URL` | **Obrigatório** — mesmo host que o Worker; MP `back_urls` e OAuth |
+| `MERCADOPAGO_ACCESS_TOKEN`, `MERCADOPAGO_WEBHOOK_SECRET` | Checkout + webhook (fail-closed sem secret) |
+| `META_APP_ID`, `META_APP_SECRET`, `OAUTH_STATE_SECRET` | OAuth (state ≥ 16 chars) |
+| `CRON_SECRET` | `process-diagnosis` + disparo pós-`meta-oauth-callback` |
+| `ANTHROPIC_API_KEY`, `CLAUDE_MODEL` | Análise IA |
+| `META_TEST_ENABLED` | **false** ou ausente em prod |
+| `DIAGNOSIS_PRICE_CENTS`, `MANAGEMENT_PRICE_CENTS` | Opcional |
+| `PROCESS_DIAGNOSIS_BATCH_SIZE` | Opcional (default **10**, máx. 25) |
+| `PUBLIC_RATE_LIMIT_MAX_PER_WINDOW`, `PUBLIC_RATE_LIMIT_WINDOW_MS` | Default 30 / 60s — checkout público |
 
-**Redirect URI na app Meta:**  
-`https://<PROJECT_REF>.supabase.co/functions/v1/meta-oauth-callback`
+Redirect URI Meta: `https://uvuotaxikuxejfeitlaw.supabase.co/functions/v1/meta-oauth-callback`
 
 ## Cron `process-diagnosis`
 
-Agendar `POST` para `.../functions/v1/process-diagnosis` com `Authorization: Bearer <CRON_SECRET>` e header `apikey: <ANON_KEY>`.
+- Job SQL: `process-diagnosis-batch` (ver [`ops-cron-deploy-checklist.md`](ops-cron-deploy-checklist.md)).
+- Aplicar: `npm run ops:apply-crons` (requer `SUPABASE_SERVICE_ROLE_KEY` ou bearer em `retentio_ops_config`).
+- Invocação manual: `POST .../functions/v1/process-diagnosis` com `Authorization: Bearer <CRON_SECRET>` e `apikey: <ANON_KEY>`.
 
-Após OAuth bem-sucedido, se `CRON_SECRET` estiver definido, `meta-oauth-callback` dispara uma invocação extra.
+No início de cada batch, a função chama `cleanup_stale_diagnosis_processing(30)` (migration `20260605120000`).
 
-## Fluxo sem e-mail
+## Queries operacionais
 
-O cliente deve guardar o URL `/obrigado?d=UUID&s=SECRET` na app **diagnostico-meta**. Após comprar **gestão** (R$ 1.997), o sucesso do Mercado Pago redirecciona para `/gestao-obrigado?d=…&s=…` (link equivalente ao copiado no browser).
+Diagnósticos presos em `processing` (> 30 min):
+
+```sql
+SELECT id, status, failed_reason, updated_at
+FROM public.diagnoses
+WHERE status = 'processing'
+  AND updated_at < now() - interval '30 minutes';
+```
+
+Snapshot agregado (service role):
+
+```sql
+SELECT public.get_diagnosis_ops_snapshot();
+```
+
+Limpeza manual:
+
+```sql
+SELECT public.cleanup_stale_diagnosis_processing(30);
+```
+
+## Rate limit (429)
+
+Endpoints: `create-diagnosis-checkout`, `start-diagnosis-payment` (`public-rate-limit.ts`).
+
+Teste em staging: >30 POST/min do mesmo IP → esperar **429**. Documentar limites via `PUBLIC_RATE_LIMIT_*`.
+
+## Segundo checkout (gestão)
+
+- `external_reference` `mgmt:{uuid}` no webhook MP (não altera `mp_payment_id` do diagnóstico).
+- Páginas: `/diagnostico/$id`, `/gestao-obrigado?d=&s=`.
+
+## RLS
+
+`diagnoses`, `diagnosis_secrets`, `diagnosis_reports`: política `block_all` — apenas **service role** nas Edge Functions.
+
+## Segurança
+
+| Item | Estado |
+|------|--------|
+| Webhook MP sem secret | 401/403 |
+| `META_TEST_ENABLED` em prod | Desligado; rota `/test-meta-oauth` redirecciona para `/` salvo `VITE_META_TEST_ENABLED` em dev |
+| Turnstile no checkout | **P2 opcional** — Cloudflare Turnstile em `create-diagnosis-checkout` |
+| Logs OAuth | Não logar `access_token` em callbacks |
+
+## Smoke e E2E
+
+- Manual: [`diagnostico-smoke-log.md`](diagnostico-smoke-log.md)
+- CI: `e2e/diagnosis-funnel.spec.ts` (contratos + rotas públicas)
+- Health: `npm run ops:diagnosis-health`
+
+## Falhas IA
+
+Timeout Claude 60s em `process-diagnosis`. Falha após providers → `status = failed` com `failed_reason`. Retry: novo diagnóstico ou operador reinvoca cron após corrigir token Meta.
 
 ## Suporte
 
-- `failed_reason` na tabela `diagnoses`.
-- Logs no Dashboard das Edge Functions.
+- `failed_reason` em `diagnoses`
+- Logs Edge Functions + `edge-trace` (`trace_id` nos headers de resposta)
