@@ -87,7 +87,7 @@ function Integrations() {
           api_key_encrypted: apiKey,
           account_id: accountId || null,
         })
-        .eq("id", existing.id);
+        .eq("id", existing.id!);
       if (error) return toast.error(error.message);
     } else {
       const { error } = await supabase.from("integrations").insert({
@@ -422,7 +422,7 @@ function Integrations() {
                         Sincronizar todos clientes
                       </button>
                       <button
-                        onClick={() => disconnect(conn!.id)}
+                        onClick={() => disconnect(conn!.id!)}
                         className="rounded-md px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10"
                       >
                         Desconectar

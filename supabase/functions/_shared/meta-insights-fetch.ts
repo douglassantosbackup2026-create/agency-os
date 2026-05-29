@@ -1,6 +1,7 @@
 /**
  * Meta Graph insights com paginação e retry/backoff.
  */
+declare const Deno: { env: { get(key: string): string | undefined } };
 
 export type MetaMetricRow = {
   agency_id: string;
