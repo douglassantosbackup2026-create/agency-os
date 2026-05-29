@@ -1,5 +1,31 @@
 export type Confidence = "alta" | "media" | "baixa";
 
+export const ALLOWED_CLICK_CONTEXTS = new Set([
+  "reuniao",
+  "pos_ajuste",
+  "suspeita_problema",
+  "checkin_rotina",
+]);
+
+export function normalizeClickContext(raw: unknown): string | null {
+  const v = String(raw ?? "checkin_rotina").trim();
+  if (!ALLOWED_CLICK_CONTEXTS.has(v)) return null;
+  return v;
+}
+
+/** Sanitiza texto livre antes de injetar em prompts LLM. */
+export function sanitizePromptField(
+  value: unknown,
+  maxLen = 500,
+): string {
+  const s = String(value ?? "")
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!s) return "sem observações";
+  return s.length > maxLen ? `${s.slice(0, maxLen)}…` : s;
+}
+
 export type PromptKey =
   | "01-analise-mensal-gestor"
   | "02-analise-mensal-cliente"

@@ -82,5 +82,6 @@ verify_jwt = false
 verify_jwt = false
 
 # Dev-only harness: /test-meta-oauth (requer META_TEST_ENABLED=true)
+# NÃO deployar em produção com META_TEST_ENABLED=true.
 [functions.meta-api-test]
 verify_jwt = false

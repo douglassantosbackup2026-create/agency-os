@@ -12,12 +12,18 @@ const FALLBACK_SUPABASE_PUBLISHABLE_KEY =
 function createSupabaseClient() {
   const envUrl = import.meta.env.VITE_SUPABASE_URL;
   const envKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const isProd = import.meta.env.PROD;
 
-  const SUPABASE_URL = envUrl || FALLBACK_SUPABASE_URL;
-  const SUPABASE_PUBLISHABLE_KEY = envKey || FALLBACK_SUPABASE_PUBLISHABLE_KEY;
+  const SUPABASE_URL =
+    envUrl || (!isProd ? FALLBACK_SUPABASE_URL : undefined);
+  const SUPABASE_PUBLISHABLE_KEY =
+    envKey || (!isProd ? FALLBACK_SUPABASE_PUBLISHABLE_KEY : undefined);
 
-  // Fallback é idêntico aos valores públicos; sem warn para não poluir console.
-
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+    throw new Error(
+      "VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY são obrigatórios em produção.",
+    );
+  }
 
   return createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {

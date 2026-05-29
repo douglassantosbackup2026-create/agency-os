@@ -17,6 +17,7 @@ import {
   verifyOAuthState,
 } from "../_shared/diagnosis/state-signing.ts";
 import { normalizePublicSiteUrl } from "../_shared/public-site-url.ts";
+import { takeMetaTestExchange } from "../_shared/meta-test-exchange.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -249,6 +250,17 @@ Deno.serve(async (req) => {
       return json({ error: urlResult.error }, 500);
     }
     return json({ oauth_url: urlResult, state });
+  }
+
+  if (action === "redeem_exchange") {
+    const code = str(body.exchange_code);
+    if (!code) return json({ error: "exchange_code é obrigatório" }, 400);
+    const entry = await takeMetaTestExchange(code);
+    if (!entry) return json({ error: "exchange_code inválido ou expirado" }, 400);
+    return json({
+      access_token: entry.access_token,
+      expires_in: entry.expires_in,
+    });
   }
 
   if (action === "exchange") {

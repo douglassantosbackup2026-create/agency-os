@@ -1563,6 +1563,53 @@ export type Database = {
           },
         ]
       }
+      integrations_public: {
+        Row: {
+          account_id: string | null
+          agency_id: string
+          config: Json | null
+          created_at: string
+          id: string
+          last_sync_at: string | null
+          provider: Database["public"]["Enums"]["integration_provider"]
+          status: Database["public"]["Enums"]["integration_status"]
+          token_expires_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_id?: string | null
+          agency_id: string
+          config?: Json | null
+          created_at?: string
+          id?: string
+          last_sync_at?: string | null
+          provider: Database["public"]["Enums"]["integration_provider"]
+          status?: Database["public"]["Enums"]["integration_status"]
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          agency_id?: string
+          config?: Json | null
+          created_at?: string
+          id?: string
+          last_sync_at?: string | null
+          provider?: Database["public"]["Enums"]["integration_provider"]
+          status?: Database["public"]["Enums"]["integration_status"]
+          token_expires_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integrations_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       integrations: {
         Row: {
           account_id: string | null

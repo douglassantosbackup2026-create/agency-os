@@ -43,11 +43,33 @@ Convites válidos devem passar pela Edge Function `invite-member` (service role)
 - Slug válido: dados aparecem (função `portal-data`).
 - Opcional: confirmar `429` após limite (`PORTAL_RATE_LIMIT_*`) com ferramenta de carga **apenas** em staging.
 
-## 4. Cron / funções privilegiadas
+## 4. Integrações: tokens invisíveis para `member`
+
+Com JWT de utilizador com role **member**:
+
+```javascript
+const { data, error } = await supabase.from('integrations').select('api_key_encrypted');
+// Esperado: erro RLS ou zero linhas
+```
+
+Leituras devem usar a view `integrations_public` (sem colunas de token):
+
+```javascript
+const { data } = await supabase.from('integrations_public').select('*');
+// Esperado: OK — metadados apenas
+```
+
+## 5. Cron / funções privilegiadas
 
 - Com `CRON_SECRET` definido no Dashboard, chamada sem Bearer secreto nem JWT válido deve responder **401**.
-- Sem `CRON_SECRET` em dev local: definir `ALLOW_INSECURE_CRON_ANON=true` ou configurar o secret.
+- JWT **member** a invocar `evaluate-alerts` ou `compute-health-scores` deve responder **403**.
+- Sem `CRON_SECRET` em dev local: definir `ALLOW_INSECURE_CRON_ANON=true` ou configurar o secret (nunca em produção).
 
-## 5. Automatização futura
+## 6. Mercado Pago (diagnóstico)
+
+- Sem `MERCADOPAGO_WEBHOOK_SECRET`, `mercadopago-webhook` deve responder **503** `webhook_not_configured`.
+- Webhook com assinatura inválida: **401**.
+
+## 7. Automatização futura
 
 Integrar estes passos em CI com dois JWTs de teste e falhar o pipeline se qualquer leitura/escrita cross-tenant passar.

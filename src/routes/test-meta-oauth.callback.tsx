@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   exchangeCodeForToken,
   exchangeForLongLivedToken,
+  redeemMetaTestExchange,
   metaOAuthRedirectUri,
   saveMetaTestToken,
 } from "@/lib/meta-api-test";
@@ -16,10 +17,10 @@ export const Route = createFileRoute("/test-meta-oauth/callback")({
     // Harness é gated server-side via META_TEST_ENABLED secret.
   },
   validateSearch: (search: Record<string, unknown>) => ({
-    access_token:
-      typeof search.access_token === "string" ? search.access_token : undefined,
-    expires_in:
-      typeof search.expires_in === "string" ? search.expires_in : undefined,
+    exchange_code:
+      typeof search.exchange_code === "string"
+        ? search.exchange_code
+        : undefined,
     code: typeof search.code === "string" ? search.code : undefined,
     state: typeof search.state === "string" ? search.state : undefined,
     error: typeof search.error === "string" ? search.error : undefined,
@@ -50,17 +51,19 @@ function MetaTestCallbackPage() {
         return;
       }
 
-      if (search.access_token) {
-        const expiresIn = search.expires_in
-          ? Number.parseInt(search.expires_in, 10)
-          : undefined;
-        saveMetaTestToken(
-          search.access_token,
-          Number.isFinite(expiresIn) ? expiresIn : undefined,
-        );
-        if (cancelled) return;
-        toast.success("Meta Ads conectado com sucesso.");
-        await navigate({ to: "/test-meta-oauth", replace: true });
+      if (search.exchange_code) {
+        try {
+          setMessage("A obter token de forma segura…");
+          const long = await redeemMetaTestExchange(search.exchange_code);
+          saveMetaTestToken(long.access_token, long.expires_in);
+          if (cancelled) return;
+          toast.success("Meta Ads conectado com sucesso.");
+          await navigate({ to: "/test-meta-oauth", replace: true });
+        } catch (e) {
+          if (cancelled) return;
+          toast.error(e instanceof Error ? e.message : "Falha no OAuth Meta");
+          await navigate({ to: "/test-meta-oauth", replace: true });
+        }
         return;
       }
 

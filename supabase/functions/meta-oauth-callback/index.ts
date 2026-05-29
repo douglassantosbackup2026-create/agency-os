@@ -14,6 +14,7 @@ import {
   metaTestHarnessPageUrl,
   normalizePublicSiteUrl,
 } from "../_shared/public-site-url.ts";
+import { putMetaTestExchange } from "../_shared/meta-test-exchange.ts";
 
 function siteUrl(): string {
   const raw = (
@@ -173,11 +174,12 @@ Deno.serve(async (req) => {
     }
 
     const expiresIn = long.expires_in ?? short.expires_in ?? 0;
+    const exchangeCode = await putMetaTestExchange(
+      long.access_token,
+      expiresIn > 0 ? expiresIn : 3600,
+    );
     const cb = new URL(metaTestHarnessCallbackUrl(returnSite));
-    cb.searchParams.set("access_token", long.access_token);
-    if (expiresIn > 0) {
-      cb.searchParams.set("expires_in", String(expiresIn));
-    }
+    cb.searchParams.set("exchange_code", exchangeCode);
 
     return new Response(null, {
       status: 302,

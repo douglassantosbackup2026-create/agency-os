@@ -5,6 +5,16 @@ import {
   portalClientIp,
   portalRateLimitExceeded,
 } from "../_shared/portal-rate-limit.ts";
+import {
+  buildPortalGa4Tracking,
+  buildPortalHealth,
+  buildPortalReportHistory,
+  buildPortalReportSafe,
+} from "../_shared/portal-payload.ts";
+import {
+  portalReviewSecret,
+  signPortalReviewToken,
+} from "../_shared/portal-review-token.ts";
 
 function corsFor(req: Request): Record<string, string> {
   const allowList = Deno.env
@@ -32,7 +42,7 @@ Deno.serve(async (req) => {
     const slug = slugRaw ? slugRaw.trim().slice(0, 160) : "";
     const slugMin = Math.max(
       1,
-      Math.min(64, Number(Deno.env.get("PORTAL_SLUG_MIN_LENGTH") ?? "4") || 4),
+      Math.min(64, Number(Deno.env.get("PORTAL_SLUG_MIN_LENGTH") ?? "8") || 8),
     );
     if (!slug) {
       return new Response(JSON.stringify({ error: "slug required" }), {
@@ -47,13 +57,21 @@ Deno.serve(async (req) => {
       });
     }
 
+    const ip = portalClientIp(req);
+    if (portalRateLimitExceeded(`${ip}:${slug}`)) {
+      return new Response(JSON.stringify({ error: "too_many_requests" }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
     const { data: client } = await admin
       .from("clients")
-      .select("id, name, segment, agency_id")
+      .select("id, name, segment, agency_id, portal_slug")
       .eq("portal_slug", slug)
       .maybeSingle();
     if (!client) {
@@ -96,7 +114,7 @@ Deno.serve(async (req) => {
       admin
         .from("reports")
         .select(
-          "client_friendly_summary, executive_summary, opportunities, next_steps, positives, problems, created_at, period_start, period_end",
+          "client_friendly_summary, executive_summary, created_at, period_start, period_end",
         )
         .eq("client_id", client.id)
         .order("created_at", { ascending: false })
@@ -140,40 +158,20 @@ Deno.serve(async (req) => {
         .limit(6),
     ]);
 
-    const reports_recent = reportsRecent ?? [];
-    const report = reports_recent[0] ?? null;
+    const reportsRaw = (reportsRecent ?? []) as Array<Record<string, unknown>>;
+    const report = buildPortalReportSafe(reportsRaw[0]);
+    const reports_history = buildPortalReportHistory(reportsRaw);
 
-    let health_portal: {
-      score: number | null;
-      risk: string | null;
-      recorded_at: string | null;
-      suggested_next_step: string | null;
-      penalties_preview: string[];
-    } | null = null;
-    if (health) {
-      const base = {
-        score: health.score ?? null,
-        risk: health.risk ?? null,
-        recorded_at: health.recorded_at ?? null,
-        suggested_next_step: null as string | null,
-        penalties_preview: [] as string[],
-      };
-      const expl = health.score_explanation;
-      if (expl && typeof expl === "object") {
-        const e = expl as Record<string, unknown>;
-        if (typeof e.suggested_next_step === "string") {
-          base.suggested_next_step = e.suggested_next_step;
-        }
-        const penalties = Array.isArray(e.penalties) ? e.penalties : [];
-        base.penalties_preview = penalties
-          .slice(0, 4)
-          .map((p: unknown) => {
-            const o = p as { reason?: string };
-            return typeof o?.reason === "string" ? o.reason : null;
-          })
-          .filter((x): x is string => Boolean(x));
-      }
-      health_portal = base;
+    let review_token: string | null = null;
+    const reviewSecret = portalReviewSecret();
+    if (reviewSecret && client.portal_slug) {
+      const exp = Date.now() + 7 * 24 * 60 * 60 * 1000;
+      review_token = await signPortalReviewToken(
+        client.id as string,
+        client.portal_slug as string,
+        exp,
+        reviewSecret,
+      );
     }
 
     return new Response(
@@ -183,12 +181,15 @@ Deno.serve(async (req) => {
         metrics: metrics ?? [],
         campaigns: campaigns ?? [],
         report,
-        reports_recent,
-        health: health_portal,
+        reports_history,
+        health: buildPortalHealth(health as Record<string, unknown> | null),
         pending_creatives: pendingCreatives ?? [],
         ga4_daily: ga4Daily ?? [],
-        ga4_tracking: ga4Tracking ?? null,
+        ga4_tracking: buildPortalGa4Tracking(
+          ga4Tracking as Record<string, unknown> | null,
+        ),
         actions: actions ?? [],
+        review_token,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

@@ -13,6 +13,7 @@ function PortalPage() {
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [reviewToken, setReviewToken] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -35,6 +36,9 @@ function PortalPage() {
           setError(r.status === 404 ? "not_found" : "unavailable");
           return;
         }
+        setReviewToken(
+          typeof j.review_token === "string" ? j.review_token : null,
+        );
         setData(j);
       } catch {
         if (!cancelled) setError("network");
@@ -119,6 +123,10 @@ function PortalPage() {
     creativeId: string,
     decision: "approved" | "rejected",
   ) {
+    if (!reviewToken) {
+      toast.error("Sessão do portal expirada. Recarregue a página.");
+      return;
+    }
     setReviewingId(creativeId);
     const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/portal-creative-review`;
     const r = await fetch(url, {
@@ -131,6 +139,7 @@ function PortalPage() {
         slug: portalSlug,
         creative_id: creativeId,
         decision,
+        review_token: reviewToken,
       }),
     });
     const j = await r.json().catch(() => ({}));
@@ -288,8 +297,10 @@ function PortalPage() {
             />
           </div>
           <div className="mt-3 text-xs text-muted-foreground">
-            Ticket médio: {brl(siteTicket)}{" "}
-            {data.ga4_tracking?.notes ? `· ${data.ga4_tracking.notes}` : ""}
+            Ticket médio: {brl(siteTicket)}
+            {data.ga4_tracking?.status
+              ? ` · Tracking: ${data.ga4_tracking.status}`
+              : ""}
           </div>
         </section>
 
@@ -306,19 +317,8 @@ function PortalPage() {
                   : null}
               </p>
               <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-foreground/90">
-                {data.report.client_friendly_summary ??
-                  data.report.executive_summary}
+                {data.report.client_friendly_summary ?? "Sem resumo disponível."}
               </p>
-              {data.report.next_steps && (
-                <div className="mt-4 border-t border-border pt-3">
-                  <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                    Próximos passos
-                  </div>
-                  <p className="whitespace-pre-line text-sm">
-                    {data.report.next_steps}
-                  </p>
-                </div>
-              )}
             </>
           ) : (
             <div className="rounded-md border border-dashed border-border bg-muted/30 px-4 py-6 text-center">
@@ -333,18 +333,17 @@ function PortalPage() {
           )}
         </section>
 
-        {(data.reports_recent ?? []).length > 1 && (
+        {(data.reports_history ?? []).length > 0 && (
           <section className="rounded-xl border border-border bg-card p-5">
             <h2 className="mb-3 text-sm font-semibold">Relatórios recentes</h2>
             <ul className="space-y-3">
-              {(data.reports_recent as Array<Record<string, unknown>>)
-                .slice(1, 5)
+              {(data.reports_history as Array<Record<string, unknown>>)
+                .slice(0, 4)
                 .map((r, idx) => {
-                  const sum =
-                    (r.client_friendly_summary as string | undefined) ??
-                    (r.executive_summary as string | undefined) ??
-                    "";
-                  const dt = String(r.created_at ?? "").slice(0, 10);
+                  const sum = (r.summary_preview as string | undefined) ?? "";
+                  const dt = String(
+                    r.period_end ?? r.created_at ?? "",
+                  ).slice(0, 10);
                   return (
                     <li
                       key={`${dt}-${idx}`}

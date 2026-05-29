@@ -113,6 +113,30 @@ Deno.serve(async (req) => {
         headers: corsHeaders,
       });
 
+    if (role === "owner" && caller.role !== "owner") {
+      return new Response(
+        JSON.stringify({ error: "Apenas owner pode convidar outro owner" }),
+        { status: 403, headers: corsHeaders },
+      );
+    }
+
+    const { data: targetProfile } = await admin
+      .from("profiles")
+      .select("agency_id")
+      .eq("id", target.id)
+      .maybeSingle();
+    if (
+      targetProfile?.agency_id &&
+      targetProfile.agency_id !== profile.agency_id
+    ) {
+      return new Response(
+        JSON.stringify({
+          error: "Utilizador já pertence a outra agência",
+        }),
+        { status: 409, headers: corsHeaders },
+      );
+    }
+
     // Make sure profile points to this agency (overwrite for invited members)
     await admin.from("profiles").upsert(
       {

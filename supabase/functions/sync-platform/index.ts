@@ -2,6 +2,10 @@
 // Sem credenciais continua simulado para esse cliente.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { assertUserCanAccessClient } from "../_shared/membership.ts";
+import {
+  syncCooldownBlocked,
+  syncHourlyCapExceeded,
+} from "../_shared/sync-rate-limit.ts";
 import { BodyTooLargeError, readJsonBody } from "../_shared/edge-json-body.ts";
 import { edgeLogDone, edgeLog, truncateError } from "../_shared/edge-log.ts";
 
@@ -1167,6 +1171,36 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: "Sem permissão para este cliente" }),
         {
           status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    if (await syncHourlyCapExceeded(admin, client.agency_id as string)) {
+      return new Response(
+        JSON.stringify({
+          error: "Limite horário de sincronizações da agência atingido.",
+        }),
+        {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    const cooldown = await syncCooldownBlocked(
+      admin,
+      client_id as string,
+      client.agency_id as string,
+      provider as string,
+    );
+    if (cooldown.blocked) {
+      return new Response(
+        JSON.stringify({
+          error: `Sync em cooldown. Tente novamente em ~${cooldown.waitMinutes ?? 15} min.`,
+        }),
+        {
+          status: 429,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         },
       );

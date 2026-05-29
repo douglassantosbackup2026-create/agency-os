@@ -1,8 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import {
   baseGovernance,
+  normalizeClickContext,
   normalizeConfidence,
   parseAiJson,
+  sanitizePromptField,
 } from "../_shared/ai-v3.ts";
 import { contentFromGatewayChatCompletion } from "../_shared/ai-response-parse.ts";
 import { BodyTooLargeError, readJsonBody } from "../_shared/edge-json-body.ts";
@@ -48,7 +50,16 @@ Deno.serve(async (req) => {
       | "monthly_manager"
       | "monthly_client"
       | "on_demand";
-    const clickContext = String(body?.click_context ?? "checkin_rotina");
+    const clickContext = normalizeClickContext(body?.click_context);
+    if (!clickContext) {
+      return new Response(
+        JSON.stringify({ error: "click_context inválido" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
     if (!client_id)
       return new Response(JSON.stringify({ error: "client_id required" }), {
         status: 400,
@@ -320,7 +331,7 @@ GA4 (site/funil - últimos 30 dias):
 - Ticket médio: R$ ${ga4Ticket.toFixed(2)}
 - Top canal por receita: ${topChannel ? `${topChannel[0]} (R$ ${topChannel[1].revenue.toFixed(2)})` : "não disponível"}
 - Funil recente (média 7d): view_item ${avgFunnel("view_item").toFixed(1)} | add_to_cart ${avgFunnel("add_to_cart").toFixed(1)} | begin_checkout ${avgFunnel("begin_checkout").toFixed(1)} | purchase ${avgFunnel("purchase").toFixed(1)}
-- Tracking Health: ${String(ga4Tracking?.status ?? "não disponível")} (${String(ga4Tracking?.notes ?? "sem observações")})
+- Tracking Health: ${String(ga4Tracking?.status ?? "não disponível")} (${sanitizePromptField(ga4Tracking?.notes)})
 Contexto do clique: ${clickContext}`;
 
     const lovableKey = Deno.env.get("LOVABLE_API_KEY");

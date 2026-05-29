@@ -62,7 +62,10 @@ function Integrations() {
     enabled: !!agency,
     queryFn: async () => {
       const [integ, clients] = await Promise.all([
-        supabase.from("integrations").select("*").eq("agency_id", agency!.id),
+        supabase
+          .from("integrations_public")
+          .select("*")
+          .eq("agency_id", agency!.id),
         supabase
           .from("clients")
           .select("id, name")

@@ -5,6 +5,10 @@ import {
   portalClientIp,
   portalRateLimitExceeded,
 } from "../_shared/portal-rate-limit.ts";
+import {
+  portalReviewSecret,
+  verifyPortalReviewToken,
+} from "../_shared/portal-review-token.ts";
 
 const MAX_SLUG_LEN = 160;
 
@@ -25,6 +29,7 @@ const ReviewBody = z.object({
     .regex(/^[a-z0-9_-]+$/i, "slug inválido"),
   creative_id: z.string().trim().uuid(),
   decision: z.enum(["approved", "rejected"]),
+  review_token: z.string().trim().min(16).max(512),
   feedback: z.string().trim().max(2000).optional().nullable(),
   reviewer_name: z.string().trim().min(1).max(120).optional(),
 });
@@ -66,6 +71,7 @@ Deno.serve(async (req) => {
       slug,
       creative_id: creativeId,
       decision,
+      review_token: reviewToken,
       feedback = null,
       reviewer_name: reviewerName = "Cliente",
     } = parsed.data;
@@ -86,14 +92,35 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    const reviewSecret = portalReviewSecret();
+    if (!reviewSecret) {
+      return new Response(JSON.stringify({ error: "portal_review_disabled" }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { data: client } = await admin
       .from("clients")
-      .select("id, agency_id")
+      .select("id, agency_id, portal_slug")
       .eq("portal_slug", slug)
       .maybeSingle();
     if (!client) {
       return new Response(JSON.stringify({ error: "portal não encontrado" }), {
         status: 404,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const tokenOk = await verifyPortalReviewToken(
+      reviewToken,
+      client.id as string,
+      client.portal_slug as string,
+      reviewSecret,
+    );
+    if (!tokenOk) {
+      return new Response(JSON.stringify({ error: "review_token inválido" }), {
+        status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

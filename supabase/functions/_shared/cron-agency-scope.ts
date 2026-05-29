@@ -98,24 +98,11 @@ export async function resolveCronDualAuthAgencyScope(
     return { ok: true, agencyFilter: profile.agency_id };
   }
 
-  if (req.method === "POST") {
-    try {
-      const b = await readJsonBody(req);
-      const aid = typeof b.agency_id === "string" ? b.agency_id.trim() : "";
-      return { ok: true, agencyFilter: aid || undefined };
-    } catch (e) {
-      if (e instanceof BodyTooLargeError) {
-        return {
-          ok: false,
-          response: new Response(
-            JSON.stringify({ error: "payload demasiado grande" }),
-            { status: 413, headers: jsonHeaders },
-          ),
-        };
-      }
-      return { ok: true };
-    }
-  }
-
-  return { ok: true };
+  return {
+    ok: false,
+    response: new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: jsonHeaders,
+    }),
+  };
 }

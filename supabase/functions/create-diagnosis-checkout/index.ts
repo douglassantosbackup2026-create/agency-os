@@ -1,5 +1,9 @@
 import { handleCors, jsonResponse } from "../_shared/diagnosis/cors.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
+import {
+  publicClientIp,
+  publicRateLimitExceeded,
+} from "../_shared/public-rate-limit.ts";
 
 function siteUrl(): string {
   return (
@@ -20,6 +24,12 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") {
     return jsonResponse({ error: "Method not allowed" }, 405);
   }
+
+  const ip = publicClientIp(req);
+  if (publicRateLimitExceeded(`checkout:${ip}`)) {
+    return jsonResponse({ error: "too_many_requests" }, 429);
+  }
+
   const token = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
   if (!token) {
     return jsonResponse(

@@ -2,7 +2,7 @@
 // Iterates all clients across all agencies, builds a summary using recent
 // metrics + the agency's matching template, and dispatches via Evolution API.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { assertCronOrUser } from "../_shared/cron-auth.ts";
+import { assertCronOrOwnerAdmin } from "../_shared/cron-auth.ts";
 import { edgeLogDone, edgeLog, truncateError } from "../_shared/edge-log.ts";
 
 const corsHeaders = {
@@ -46,7 +46,11 @@ async function sendEvolution(recipient: string, message: string) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
-  const denied = await assertCronOrUser(req);
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+  const denied = await assertCronOrOwnerAdmin(req, supabase);
   if (denied) return denied;
   try {
     const url = new URL(req.url);
@@ -54,11 +58,6 @@ Deno.serve(async (req) => {
       | "daily"
       | "weekly";
     const days = period === "weekly" ? 7 : 1;
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
 
     const since = new Date(Date.now() - days * 86400000)
       .toISOString()

@@ -18,4 +18,16 @@ describe("RLS security migration contract", () => {
     expect(sql).toMatch(/WITH CHECK \(false\)/);
     expect(sql).toMatch(/agencies_insert/i);
   });
+
+  it("integrations_token_rls adds public view and secret guard", () => {
+    const migDir = join(root, "supabase", "migrations");
+    const files = readdirSync(migDir).filter((f) =>
+      f.includes("integrations_token_rls"),
+    );
+    expect(files.length).toBe(1);
+    const sql = readFileSync(join(migDir, files[0]!), "utf8");
+    expect(sql).toMatch(/integrations_public/i);
+    expect(sql).toMatch(/integrations_guard_secrets/i);
+    expect(sql).toMatch(/is_owner_or_admin/i);
+  });
 });

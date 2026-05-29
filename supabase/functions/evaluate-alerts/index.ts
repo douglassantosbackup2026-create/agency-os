@@ -1,6 +1,6 @@
 // Cron-friendly: evaluates rules and inserts new alerts (deduped by type+client open).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { assertCronOrUser } from "../_shared/cron-auth.ts";
+import { assertCronOrOwnerAdmin } from "../_shared/cron-auth.ts";
 import { resolveCronDualAuthAgencyScope } from "../_shared/cron-agency-scope.ts";
 import { edgeLogDone, edgeLog, truncateError } from "../_shared/edge-log.ts";
 import { baseGovernance } from "../_shared/ai-v3.ts";
@@ -98,15 +98,14 @@ type M = {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
-  const denied = await assertCronOrUser(req);
-  if (denied) return denied;
-  const t0 = Date.now();
-  try {
-    const admin = createClient(
+  const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
-
+  const denied = await assertCronOrOwnerAdmin(req, admin);
+  if (denied) return denied;
+  const t0 = Date.now();
+  try {
     const scope = await resolveCronDualAuthAgencyScope(req, admin, corsHeaders);
     if (!scope.ok) return scope.response;
     const agencyFilter = scope.agencyFilter;

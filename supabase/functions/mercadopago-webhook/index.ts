@@ -4,6 +4,11 @@ import {
   ensureBuyerAccountAndToken,
   fetchBuyerDiagnosis,
 } from "../_shared/diagnosis/buyer-account.ts";
+import {
+  amountMatchesExpected,
+  managementPriceCentsFromEnv,
+  paymentAmountCents,
+} from "../_shared/mercadopago-webhook-helpers.ts";
 
 async function fetchPayment(
   paymentId: string,
@@ -104,16 +109,16 @@ Deno.serve(async (req) => {
     });
   }
 
-  // Verifica assinatura do MP. Se MERCADOPAGO_WEBHOOK_SECRET estiver
-  // configurado, exigimos assinatura válida; caso contrário log de aviso.
-  const webhookSecret = Deno.env.get("MERCADOPAGO_WEBHOOK_SECRET");
-  if (webhookSecret) {
-    const ok = await verifyMpSignature(req, dataId, webhookSecret);
-    if (!ok) {
-      return jsonResponse({ error: "invalid signature" }, 401);
-    }
-  } else {
-    console.warn("mercadopago-webhook: MERCADOPAGO_WEBHOOK_SECRET não configurado — assinatura não verificada");
+  const webhookSecret = Deno.env.get("MERCADOPAGO_WEBHOOK_SECRET")?.trim();
+  if (!webhookSecret) {
+    console.error(
+      "mercadopago-webhook: MERCADOPAGO_WEBHOOK_SECRET ausente — recusado (fail-closed)",
+    );
+    return jsonResponse({ error: "webhook_not_configured" }, 503);
+  }
+  const sigOk = await verifyMpSignature(req, dataId, webhookSecret);
+  if (!sigOk) {
+    return jsonResponse({ error: "invalid signature" }, 401);
   }
 
 
@@ -144,12 +149,30 @@ Deno.serve(async (req) => {
     }
     const { data: existing } = await sb
       .from("diagnoses")
-      .select("id, management_mp_payment_id")
+      .select("id, management_mp_payment_id, management_amount_cents")
       .eq("id", rawId)
       .maybeSingle();
 
     if (!existing) {
       return jsonResponse({ ok: true, note: "unknown diagnosis (mgmt)" }, 200);
+    }
+
+    const mgmtExpected =
+      Number(existing.management_amount_cents) > 0
+        ? Number(existing.management_amount_cents)
+        : managementPriceCentsFromEnv();
+    const mgmtPaid = paymentAmountCents(payment);
+    if (!amountMatchesExpected(mgmtPaid, mgmtExpected)) {
+      console.warn(
+        JSON.stringify({
+          evt: "mercadopago_webhook.amount_mismatch",
+          branch: "mgmt",
+          diagnosis_id: rawId,
+          paid_cents: mgmtPaid,
+          expected_cents: mgmtExpected,
+        }),
+      );
+      return jsonResponse({ error: "amount mismatch" }, 400);
     }
 
     if (existing.management_mp_payment_id === dataId) {
@@ -183,12 +206,27 @@ Deno.serve(async (req) => {
 
   const { data: existing } = await sb
     .from("diagnoses")
-    .select("id, status, mp_payment_id")
+    .select("id, status, mp_payment_id, amount_cents")
     .eq("id", extRef)
     .maybeSingle();
 
   if (!existing) {
     return jsonResponse({ ok: true, note: "unknown diagnosis" }, 200);
+  }
+
+  const diagExpected = Number(existing.amount_cents);
+  const diagPaid = paymentAmountCents(payment);
+  if (!amountMatchesExpected(diagPaid, diagExpected)) {
+    console.warn(
+      JSON.stringify({
+        evt: "mercadopago_webhook.amount_mismatch",
+        branch: "diagnosis",
+        diagnosis_id: extRef,
+        paid_cents: diagPaid,
+        expected_cents: diagExpected,
+      }),
+    );
+    return jsonResponse({ error: "amount mismatch" }, 400);
   }
 
   if (existing.mp_payment_id === dataId) {
