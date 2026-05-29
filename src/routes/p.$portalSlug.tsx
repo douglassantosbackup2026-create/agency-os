@@ -3,6 +3,10 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { brl, num, pct } from "@/lib/format";
 import { Sparkles, TrendingUp, Wallet, Target, Heart } from "lucide-react";
 import { toast } from "sonner";
+import {
+  resolveSupabaseUrl,
+  resolveSupabasePublishableKey,
+} from "@/lib/supabase-config";
 
 export const Route = createFileRoute("/p/$portalSlug")({
   component: PortalPage,
@@ -21,9 +25,9 @@ function PortalPage() {
     setData(null);
     (async () => {
       try {
-        const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/portal-data?slug=${encodeURIComponent(portalSlug)}`;
+        const url = `${resolveSupabaseUrl()}/functions/v1/portal-data?slug=${encodeURIComponent(portalSlug)}`;
         const r = await fetch(url, {
-          headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+          headers: { apikey: resolveSupabasePublishableKey() },
         });
         let j: Record<string, unknown> = {};
         try {
@@ -128,12 +132,12 @@ function PortalPage() {
       return;
     }
     setReviewingId(creativeId);
-    const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/portal-creative-review`;
+    const url = `${resolveSupabaseUrl()}/functions/v1/portal-creative-review`;
     const r = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        apikey: resolveSupabasePublishableKey(),
       },
       body: JSON.stringify({
         slug: portalSlug,

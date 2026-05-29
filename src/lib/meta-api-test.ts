@@ -9,34 +9,12 @@ import type {
   MetaTestSecretsConfig,
   MetaTestStartResponse,
 } from "@/types/meta";
+import {
+  resolveSupabaseUrl,
+  resolveSupabasePublishableKey,
+} from "@/lib/supabase-config";
 
-const FALLBACK_SUPABASE_URL = "https://uvuotaxikuxejfeitlaw.supabase.co";
-const FALLBACK_SUPABASE_PUBLISHABLE_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2dW90YXhpa3V4ZWpmZWl0bGF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNzk4MjcsImV4cCI6MjA5Mzg1NTgyN30.32xOultMJNFLQ98Nw3VxQR5t5wyEH1NxTyg6K_bMl_s";
-
-function resolveSupabaseUrl(): string {
-  const isProd = import.meta.env.PROD;
-  const env = import.meta.env.VITE_SUPABASE_URL?.replace(/\/+$/, "");
-  const url = env || (!isProd ? FALLBACK_SUPABASE_URL : "");
-  if (!url) {
-    throw new Error(
-      "VITE_SUPABASE_URL é obrigatório em produção.",
-    );
-  }
-  return url;
-}
-
-function resolvePublishableKey(): string {
-  const isProd = import.meta.env.PROD;
-  const env = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-  const key = env || (!isProd ? FALLBACK_SUPABASE_PUBLISHABLE_KEY : "");
-  if (!key) {
-    throw new Error(
-      "VITE_SUPABASE_PUBLISHABLE_KEY é obrigatório em produção.",
-    );
-  }
-  return key;
-}
+const resolvePublishableKey = resolveSupabasePublishableKey;
 
 const STORAGE_PREFIX = "meta_test_";
 
