@@ -2,6 +2,7 @@ import { handleCors, jsonResponse } from "../_shared/diagnosis/cors.ts";
 import { assertCronOrUser } from "../_shared/cron-auth.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 import { diagnosisAiBudgetExceeded } from "../_shared/ai-budget.ts";
+import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 
 const PROMPT_VERSION = "diagnosis-ecommerce-v1";
 const AI_TIMEOUT_MS = 60_000;
@@ -232,6 +233,7 @@ async function runWithFallback(
 // ── Handler ──────────────────────────────────────────────────────────────────
 
 Deno.serve(async (req) => {
+  const traceId = traceIdFromRequest(req);
   const cors = handleCors(req);
   if (cors) return cors;
   if (req.method !== "POST")
@@ -380,5 +382,6 @@ Deno.serve(async (req) => {
     }
   }
 
+  traceLog("process_diagnosis.done", { processed }, traceId);
   return jsonResponse({ processed });
 });

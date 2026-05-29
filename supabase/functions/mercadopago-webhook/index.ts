@@ -9,6 +9,7 @@ import {
   managementPriceCentsFromEnv,
   paymentAmountCents,
 } from "../_shared/mercadopago-webhook-helpers.ts";
+import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 
 async function fetchPayment(
   paymentId: string,
@@ -77,6 +78,7 @@ async function verifyMpSignature(
 }
 
 Deno.serve(async (req) => {
+  const traceId = traceIdFromRequest(req);
   const cors = handleCors(req);
   if (cors) return cors;
   if (req.method !== "POST") {
@@ -136,6 +138,7 @@ Deno.serve(async (req) => {
   if (claimErr) {
     const code = String((claimErr as { code?: string }).code ?? "");
     if (code === "23505") {
+      traceLog("mercadopago_webhook.idempotent", { data_id: dataId }, traceId);
       return jsonResponse({ ok: true, idempotent: true }, 200);
     }
     console.error("webhook_events insert", claimErr);
@@ -277,5 +280,6 @@ Deno.serve(async (req) => {
     console.error("webhook: ensureBuyerAccountAndToken failed", e);
   }
 
+  traceLog("mercadopago_webhook.ok", { data_id: dataId, ext_ref: extRef }, traceId);
   return jsonResponse({ ok: true }, 200);
 });

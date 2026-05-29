@@ -75,3 +75,28 @@ Remove `sync_runs` > 90d e `ai_usage_events` > 180d; limpa locks `running` stale
 
 - Refresh **global** (concurrent) via cron `refresh-client-metrics-28d-nightly` (03:15 UTC) e não após cada sync.
 - `refresh_client_metrics_28d(p_client_id)` ignora o parâmetro até evolução para tabela snap por cliente.
+
+## Validação de performance
+
+Gate manual pós-deploy:
+
+1. `npm run perf:lighthouse` — TTFB e LCP autenticados.
+2. Cloudflare Speed / WebPageTest em `/dashboard` (meta: TTFB p95 < 800 ms).
+
+Consultas de saúde operacional:
+
+```sql
+-- Locks sync órfãos (> 30 min running)
+SELECT COUNT(*) AS stale_running
+FROM sync_runs
+WHERE status = 'running'
+  AND created_at < now() - interval '30 minutes';
+
+-- Fila IA presa
+SELECT status, COUNT(*) FROM ai_jobs GROUP BY status;
+
+-- MV client_metrics_28d (último refresh)
+SELECT schemaname, matviewname, last_refresh
+FROM pg_matviews
+WHERE matviewname = 'client_metrics_28d';
+```

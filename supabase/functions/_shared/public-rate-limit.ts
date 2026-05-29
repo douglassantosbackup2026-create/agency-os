@@ -1,11 +1,9 @@
 /**
- * Rate limit in-memory por isolate (checkout público, etc.).
- * Env: PUBLIC_RATE_LIMIT_MAX_PER_WINDOW (default 30), PUBLIC_RATE_LIMIT_WINDOW_MS (default 60000).
+ * Rate limit distribuído para checkout/endpoints públicos.
  */
 
-type Bucket = { count: number; resetAt: number };
-
-const buckets = new Map<string, Bucket>();
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { distributedRateLimitExceeded } from "./distributed-rate-limit.ts";
 
 export function publicClientIp(req: Request): string {
   const cf = req.headers.get("cf-connecting-ip");
@@ -16,30 +14,20 @@ export function publicClientIp(req: Request): string {
   return "unknown";
 }
 
-export function publicRateLimitExceeded(rateKey: string): boolean {
+export async function publicRateLimitExceeded(
+  admin: SupabaseClient,
+  rateKey: string,
+): Promise<boolean> {
   const max = Math.max(
     1,
     Number(Deno.env.get("PUBLIC_RATE_LIMIT_MAX_PER_WINDOW") ?? "30") || 30,
   );
-  const windowMs = Math.max(
-    1000,
-    Math.min(
-      3600_000,
-      Number(Deno.env.get("PUBLIC_RATE_LIMIT_WINDOW_MS") ?? "60000") || 60000,
+  const windowSec = Math.max(
+    1,
+    Math.floor(
+      (Number(Deno.env.get("PUBLIC_RATE_LIMIT_WINDOW_MS") ?? "60000") ||
+        60000) / 1000,
     ),
   );
-  const now = Date.now();
-  let b = buckets.get(rateKey);
-  if (!b || now > b.resetAt) {
-    b = { count: 0, resetAt: now + windowMs };
-    buckets.set(rateKey, b);
-  }
-  b.count += 1;
-  if (b.count > max) return true;
-  if (buckets.size > 5000) {
-    for (const [k, v] of buckets) {
-      if (now > v.resetAt) buckets.delete(k);
-    }
-  }
-  return false;
+  return distributedRateLimitExceeded(admin, rateKey, max, windowSec);
 }

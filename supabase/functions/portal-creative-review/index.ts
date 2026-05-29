@@ -1,8 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { BodyTooLargeError, readJsonBody } from "../_shared/edge-json-body.ts";
-import { portalClientIp } from "../_shared/portal-rate-limit.ts";
-import { distributedRateLimitExceeded } from "../_shared/distributed-rate-limit.ts";
+import { portalClientIp, portalRateLimitExceeded } from "../_shared/portal-rate-limit.ts";
 import {
   portalReviewSecret,
   verifyPortalReviewToken,
@@ -82,25 +81,7 @@ Deno.serve(async (req) => {
     );
     const ip = portalClientIp(req);
     const rateKey = `portal-review:${ip}:${slug}:${creativeId}`;
-    const maxPortal = Math.max(
-      1,
-      Number(Deno.env.get("PORTAL_RATE_LIMIT_MAX_PER_WINDOW") ?? "120") || 120,
-    );
-    const windowSec = Math.max(
-      1,
-      Math.floor(
-        (Number(Deno.env.get("PORTAL_RATE_LIMIT_WINDOW_MS") ?? "60000") ||
-          60000) / 1000,
-      ),
-    );
-    if (
-      await distributedRateLimitExceeded(
-        admin,
-        rateKey,
-        maxPortal,
-        windowSec,
-      )
-    ) {
+    if (await portalRateLimitExceeded(admin, rateKey)) {
       return new Response(JSON.stringify({ error: "too_many_requests" }), {
         status: 429,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

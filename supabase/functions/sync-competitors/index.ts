@@ -5,6 +5,7 @@ import {
   assertUserMemberOfAgency,
 } from "../_shared/membership.ts";
 import { BodyTooLargeError, readJsonBody } from "../_shared/edge-json-body.ts";
+import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,6 +14,7 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
+  const traceId = traceIdFromRequest(req);
   if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
 
@@ -179,6 +181,7 @@ Deno.serve(async (req) => {
       if (!error) created++;
     }
 
+    traceLog("sync_competitors.ok", { created }, traceId);
     return new Response(JSON.stringify({ ok: true, created }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

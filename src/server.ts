@@ -101,6 +101,31 @@ export default {
           headers,
         });
       }
+      if (
+        normalized.status < 400 &&
+        (url.pathname === "/login" ||
+          url.pathname === "/signup" ||
+          url.pathname === "/retentio" ||
+          url.pathname.startsWith("/retentio/"))
+      ) {
+        const headers = new Headers(normalized.headers);
+        if (url.pathname === "/login" || url.pathname === "/signup") {
+          headers.set(
+            "Cache-Control",
+            "public, max-age=0, must-revalidate",
+          );
+        } else {
+          headers.set(
+            "Cache-Control",
+            "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400",
+          );
+        }
+        return new Response(normalized.body, {
+          status: normalized.status,
+          statusText: normalized.statusText,
+          headers,
+        });
+      }
       return normalized;
     } catch (error) {
       console.error(error);

@@ -30,6 +30,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useEffect, useMemo, useState } from "react";
+import { useAiJobStatus } from "@/hooks/use-ai-job-status";
 import ReactMarkdown from "react-markdown";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
@@ -161,6 +162,9 @@ function ClientDetail() {
   const [generatingMeeting, setGeneratingMeeting] = useState(false);
   const [analyzingNow, setAnalyzingNow] = useState(false);
   const [auditingCampaigns, setAuditingCampaigns] = useState(false);
+  const [pendingAuditJobId, setPendingAuditJobId] = useState<string | null>(
+    null,
+  );
   const [clickContext, setClickContext] = useState<
     "reuniao" | "pos_ajuste" | "suspeita_problema" | "checkin_rotina"
   >("checkin_rotina");
@@ -364,6 +368,28 @@ function ClientDetail() {
         latestSync: syncRun.data ?? null,
         connectedIntegrationCount: integrationsCount.count ?? 0,
       };
+    },
+  });
+
+  useAiJobStatus(pendingAuditJobId, {
+    onDone: () => {
+      toast.success("Auditoria de campanhas concluída.");
+      setPendingAuditJobId(null);
+      setAuditingCampaigns(false);
+      void refetch();
+    },
+    onFailed: (lastError) => {
+      toast.error(lastError ?? "Falha na auditoria.");
+      setPendingAuditJobId(null);
+      setAuditingCampaigns(false);
+    },
+    onTimeout: () => {
+      toast.info(
+        "Auditoria ainda em processamento. Atualize a página em alguns minutos.",
+      );
+      setPendingAuditJobId(null);
+      setAuditingCampaigns(false);
+      void refetch();
     },
   });
 
@@ -832,28 +858,7 @@ function ClientDetail() {
     }
     if (payload?.async && payload.job_id) {
       toast.info("Auditoria enfileirada. Aguarde…");
-      for (let i = 0; i < 40; i++) {
-        await new Promise((r) => setTimeout(r, 3000));
-        const { data: job } = await supabase
-          .from("ai_jobs")
-          .select("status, last_error")
-          .eq("id", payload.job_id)
-          .maybeSingle();
-        if (!job) break;
-        if (job.status === "done") {
-          toast.success("Auditoria de campanhas concluída.");
-          refetch();
-          return;
-        }
-        if (job.status === "failed") {
-          toast.error(job.last_error ?? "Falha na auditoria.");
-          return;
-        }
-      }
-      toast.info(
-        "Auditoria ainda em processamento. Atualize a página em alguns minutos.",
-      );
-      refetch();
+      setPendingAuditJobId(payload.job_id);
       return;
     }
     toast.success("Auditoria de campanhas concluída.");

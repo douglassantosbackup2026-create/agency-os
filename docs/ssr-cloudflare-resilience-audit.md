@@ -51,6 +51,8 @@ Escopo P2.5 do plano de resiliência. Estado auditado em maio/2026.
 
 ## Melhorias sugeridas (backlog)
 
-- Loader SSR server-side com `get_agency_dashboard_detail` (opcional; hoje 1 RPC no client).
+- Loader SSR server-side com `get_agency_dashboard_detail` — **implementado** ([`dashboard-server.ts`](../src/lib/dashboard-server.ts)).
+- Realtime `ai_jobs` + invalidação métricas pós-sync — **implementado** (migration `20260602120000`, [`use-ai-job-status.ts`](../src/hooks/use-ai-job-status.ts)).
 - `staleTime: 60_000` no dashboard — **implementado**.
-- Cache `/assets/*` via `src/server.ts` — **implementado**.
+- Cache `/assets/*` e rotas públicas via `src/server.ts` — **implementado**.
+- Validar TTFB p95 < 800 ms em `/dashboard` — ver [`ops-resilience-runbook.md`](ops-resilience-runbook.md#validação-de-performance).

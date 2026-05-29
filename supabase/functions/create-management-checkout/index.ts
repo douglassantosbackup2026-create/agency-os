@@ -2,8 +2,7 @@ import { handleCors, jsonResponse } from "../_shared/diagnosis/cors.ts";
 import { assertDiagnosisSecret } from "../_shared/diagnosis/validate-diagnosis-access.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 import { isManagementCtaEligible } from "../_shared/diagnosis/management-eligibility.ts";
-import { publicClientIp } from "../_shared/public-rate-limit.ts";
-import { distributedRateLimitExceeded } from "../_shared/distributed-rate-limit.ts";
+import { publicClientIp, publicRateLimitExceeded } from "../_shared/public-rate-limit.ts";
 
 function siteUrl(): string {
   return (
@@ -39,24 +38,8 @@ Deno.serve(async (req) => {
 
   const ip = publicClientIp(req);
   const sbRl = diagnosisServiceClient();
-  const maxPerWindow = Math.max(
-    1,
-    Number(Deno.env.get("PUBLIC_RATE_LIMIT_MAX_PER_WINDOW") ?? "30") || 30,
-  );
-  const windowSec = Math.max(
-    1,
-    Math.floor(
-      (Number(Deno.env.get("PUBLIC_RATE_LIMIT_WINDOW_MS") ?? "60000") ||
-        60000) / 1000,
-    ),
-  );
   if (
-    await distributedRateLimitExceeded(
-      sbRl,
-      `management-checkout:${ip}`,
-      maxPerWindow,
-      windowSec,
-    )
+    await publicRateLimitExceeded(sbRl, `management-checkout:${ip}`)
   ) {
     return jsonResponse({ error: "Muitas tentativas. Aguarde um momento." }, 429);
   }

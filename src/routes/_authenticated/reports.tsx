@@ -24,6 +24,7 @@ import {
   getReportMetricsBlock,
   getReportRawDataView,
 } from "@/lib/supabase-json";
+import { useAiJobStatus } from "@/hooks/use-ai-job-status";
 
 type ReportRow = Database["public"]["Tables"]["reports"]["Row"] & {
   clients?: {
@@ -65,6 +66,9 @@ function Reports() {
   const { agency } = useAuth();
   const [selected, setSelected] = useState<ReportRow | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [pendingReportJobId, setPendingReportJobId] = useState<string | null>(
+    null,
+  );
   const [copied, setCopied] = useState(false);
   const [filterClientId, setFilterClientId] = useState<string>("all");
   const [createdFrom, setCreatedFrom] = useState("");
@@ -98,6 +102,25 @@ function Reports() {
         reports: (reports.data ?? []) as ReportRow[],
         clients: clients.data ?? [],
       };
+    },
+  });
+
+  useAiJobStatus(pendingReportJobId, {
+    onDone: () => {
+      toast.success("Relatório gerado.");
+      setPendingReportJobId(null);
+      void refetch();
+    },
+    onFailed: (lastError) => {
+      toast.error(lastError ?? "Falha ao gerar relatório.");
+      setPendingReportJobId(null);
+    },
+    onTimeout: () => {
+      toast.info(
+        "Relatório ainda em processamento. Atualize a lista em alguns minutos.",
+      );
+      setPendingReportJobId(null);
+      void refetch();
     },
   });
 
@@ -274,31 +297,6 @@ function Reports() {
     return map;
   }, [data?.reports]);
 
-  async function pollReportJob(jobId: string, attempts = 40) {
-    for (let i = 0; i < attempts; i++) {
-      await new Promise((r) => setTimeout(r, 3000));
-      const { data: job } = await supabase
-        .from("ai_jobs")
-        .select("status, result_ref, last_error")
-        .eq("id", jobId)
-        .maybeSingle();
-      if (!job) break;
-      if (job.status === "done") {
-        toast.success("Relatório gerado.");
-        refetch();
-        return;
-      }
-      if (job.status === "failed") {
-        toast.error(job.last_error ?? "Falha ao gerar relatório.");
-        return;
-      }
-    }
-    toast.info(
-      "Relatório ainda em processamento. Atualize a lista em alguns minutos.",
-    );
-    refetch();
-  }
-
   async function generateFor(
     clientId: string,
     mode: "monthly_manager" | "monthly_client" = "monthly_manager",
@@ -320,7 +318,7 @@ function Reports() {
     } | null;
     if (payload?.async && payload.job_id) {
       toast.info("Relatório enfileirado. Aguarde…");
-      void pollReportJob(payload.job_id);
+      setPendingReportJobId(payload.job_id);
       return;
     }
     toast.success("Relatório gerado.");

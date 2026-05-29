@@ -4,6 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { brl, num, pct, timeAgo } from "@/lib/format";
 import {
+  DASHBOARD_STALE_MS,
+  dashboardQueryKey,
+  parseDashboardBundle,
+} from "@/lib/dashboard-data";
+import { fetchDashboardCore } from "@/lib/dashboard-server";
+import {
   Activity,
   AlertTriangle,
   ArrowDownRight,
@@ -56,7 +62,21 @@ import {
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
-  staleTime: 60_000,
+  staleTime: DASHBOARD_STALE_MS,
+  loader: async ({ context }) => {
+    try {
+      const result = await fetchDashboardCore();
+      if (result?.agencyId && result.core) {
+        context.queryClient.setQueryData(
+          dashboardQueryKey(result.agencyId),
+          result.core,
+        );
+      }
+      return result;
+    } catch {
+      return null;
+    }
+  },
 });
 
 function DashboardCollapsibleBlock({
@@ -79,48 +99,22 @@ function DashboardCollapsibleBlock({
   );
 }
 
-type OpsSnapshot = {
-  open_alerts_count?: number;
-  clients_active?: number;
-  pending_ai_jobs?: number;
-  metrics_clients_28d?: number;
-};
-
 function Dashboard() {
   const { agency } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const { data: coreData, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ["dashboard", agency?.id],
+    queryKey: dashboardQueryKey(agency?.id),
     enabled: !!agency,
-    staleTime: 60_000,
+    staleTime: DASHBOARD_STALE_MS,
     queryFn: async () => {
       const { data: detail, error: detailErr } = await supabase.rpc(
         "get_agency_dashboard_detail",
         { p_agency_id: agency!.id },
       );
       throwIfSupabaseError(detailErr, "get_agency_dashboard_detail");
-      const bundle = (detail ?? {}) as Record<string, unknown>;
-      return {
-        opsSnapshot: (bundle.ops_snapshot ?? null) as OpsSnapshot | null,
-        auditMv: (bundle.audit_mv as unknown[]) ?? [],
-        clients: (bundle.clients as unknown[]) ?? [],
-        metrics: (bundle.metrics as unknown[]) ?? [],
-        health: (bundle.health as unknown[]) ?? [],
-        campaignMetrics: (bundle.campaign_metrics as unknown[]) ?? [],
-        ga4Daily: (bundle.ga4_daily as unknown[]) ?? [],
-        ga4Tracking: (bundle.ga4_tracking as unknown[]) ?? [],
-        actionCenter: (bundle.action_center as unknown[]) ?? [],
-        reportsReview: (bundle.reports_review as unknown[]) ?? [],
-        agencyBriefing: (bundle.agency_briefing as {
-          buckets?: unknown;
-          computed_at?: string;
-        } | null) ?? null,
-        campaignAuditsSnap: (bundle.campaign_audits as unknown[]) ?? [],
-        checklistItems: (bundle.checklist_items as unknown[]) ?? [],
-        overdueActionsCount: Number(bundle.overdue_actions_count ?? 0),
-      };
+      return parseDashboardBundle(detail);
     },
   });
 
@@ -180,6 +174,12 @@ function Dashboard() {
     });
   }, 3000);
 
+  const debouncedInvalidateCore = useDebouncedCallback(() => {
+    void queryClient.invalidateQueries({
+      queryKey: dashboardQueryKey(agency?.id),
+    });
+  }, 3000);
+
   // realtime feed
   useEffect(() => {
     if (!agency) return;
@@ -205,6 +205,26 @@ function Dashboard() {
         },
         () => debouncedInvalidateActivities(),
       )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "metrics_daily",
+          filter: `agency_id=eq.${agency.id}`,
+        },
+        () => debouncedInvalidateCore(),
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "health_scores",
+          filter: `agency_id=eq.${agency.id}`,
+        },
+        () => debouncedInvalidateCore(),
+      )
       .subscribe((status) => {
         if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
           toast.warning(
@@ -216,7 +236,7 @@ function Dashboard() {
     return () => {
       supabase.removeChannel(ch);
     };
-  }, [agency, debouncedInvalidateAlerts, debouncedInvalidateActivities]);
+  }, [agency, debouncedInvalidateAlerts, debouncedInvalidateActivities, debouncedInvalidateCore]);
 
   const dashboardDerived = useMemo(() => {
     if (!mergedData) return null;

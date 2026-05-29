@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { assertUserCanAccessClient } from "../_shared/membership.ts";
 import { BodyTooLargeError, readJsonBody } from "../_shared/edge-json-body.ts";
 import { appCors, appCorsPreflight } from "../_shared/cors-allowlist.ts";
+import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 
 
 async function buildMergeVariables(
@@ -86,6 +87,7 @@ async function sendEvolution(
 }
 
 Deno.serve(async (req) => {
+  const traceId = traceIdFromRequest(req);
   const pre = appCorsPreflight(req);
   if (pre) return pre;
   const corsHeaders = appCors(req);
@@ -380,6 +382,7 @@ Deno.serve(async (req) => {
       .select()
       .maybeSingle();
 
+    traceLog("send_whatsapp.ok", { status }, traceId);
     return new Response(JSON.stringify({ ok: status === "sent", log }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
