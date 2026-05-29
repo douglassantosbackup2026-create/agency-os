@@ -7,48 +7,49 @@ export type OpsSnapshot = {
 
 export type DashboardCoreData = {
   opsSnapshot: OpsSnapshot | null;
-  auditMv: unknown[];
-  clients: unknown[];
-  metrics: unknown[];
-  health: unknown[];
-  campaignMetrics: unknown[];
-  ga4Daily: unknown[];
-  ga4Tracking: unknown[];
-  actionCenter: unknown[];
-  reportsReview: unknown[];
-  agencyBriefing: { buckets?: unknown; computed_at?: string } | null;
-  campaignAuditsSnap: unknown[];
-  checklistItems: unknown[];
+  auditMv: any[];
+  clients: any[];
+  metrics: any[];
+  health: any[];
+  campaignMetrics: any[];
+  ga4Daily: any[];
+  ga4Tracking: any[];
+  actionCenter: any[];
+  reportsReview: any[];
+  agencyBriefing: { buckets?: any; computed_at?: string } | null;
+  campaignAuditsSnap: any[];
+  checklistItems: any[];
   overdueActionsCount: number;
-  openAlerts: unknown[];
-  activities: unknown[];
+  openAlerts: any[];
+  activities: any[];
 };
 
 export function parseDashboardBundle(detail: unknown): DashboardCoreData {
-  const bundle = (detail ?? {}) as Record<string, unknown>;
+  const bundle = (detail ?? {}) as Record<string, any>;
   return {
     opsSnapshot: (bundle.ops_snapshot ?? null) as OpsSnapshot | null,
-    auditMv: (bundle.audit_mv as unknown[]) ?? [],
-    clients: (bundle.clients as unknown[]) ?? [],
-    metrics: (bundle.metrics as unknown[]) ?? [],
-    health: (bundle.health as unknown[]) ?? [],
-    campaignMetrics: (bundle.campaign_metrics as unknown[]) ?? [],
-    ga4Daily: (bundle.ga4_daily as unknown[]) ?? [],
-    ga4Tracking: (bundle.ga4_tracking as unknown[]) ?? [],
-    actionCenter: (bundle.action_center as unknown[]) ?? [],
-    reportsReview: (bundle.reports_review as unknown[]) ?? [],
+    auditMv: (bundle.audit_mv as any[]) ?? [],
+    clients: (bundle.clients as any[]) ?? [],
+    metrics: (bundle.metrics as any[]) ?? [],
+    health: (bundle.health as any[]) ?? [],
+    campaignMetrics: (bundle.campaign_metrics as any[]) ?? [],
+    ga4Daily: (bundle.ga4_daily as any[]) ?? [],
+    ga4Tracking: (bundle.ga4_tracking as any[]) ?? [],
+    actionCenter: (bundle.action_center as any[]) ?? [],
+    reportsReview: (bundle.reports_review as any[]) ?? [],
     agencyBriefing:
       (bundle.agency_briefing as {
-        buckets?: unknown;
+        buckets?: any;
         computed_at?: string;
       } | null) ?? null,
-    campaignAuditsSnap: (bundle.campaign_audits as unknown[]) ?? [],
-    checklistItems: (bundle.checklist_items as unknown[]) ?? [],
+    campaignAuditsSnap: (bundle.campaign_audits as any[]) ?? [],
+    checklistItems: (bundle.checklist_items as any[]) ?? [],
     overdueActionsCount: Number(bundle.overdue_actions_count ?? 0),
-    openAlerts: (bundle.open_alerts as unknown[]) ?? [],
-    activities: (bundle.activities as unknown[]) ?? [],
+    openAlerts: (bundle.open_alerts as any[]) ?? [],
+    activities: (bundle.activities as any[]) ?? [],
   };
 }
+
 
 export const DASHBOARD_STALE_MS = 60_000;
 
