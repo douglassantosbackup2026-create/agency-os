@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { invokeDiagnosisFunction } from "@/lib/diagnosis-invoke";
+import { resolveSupabaseUrl } from "@/lib/supabase-config";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -180,7 +181,7 @@ function ObrigadoPage() {
   }, [d, s]);
 
   const oauthBase = () => {
-    const u = import.meta.env.VITE_SUPABASE_URL?.replace(/\/+$/, "");
+    const u = resolveSupabaseUrl();
     return u ? `${u}/functions/v1/meta-oauth-start` : "";
   };
 
