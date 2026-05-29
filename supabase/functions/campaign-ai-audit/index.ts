@@ -6,6 +6,7 @@ import {
   type PromptKey,
 } from "../_shared/ai-v3.ts";
 import { assertUserCanAccessClient } from "../_shared/membership.ts";
+import { isCronAuthenticated } from "../_shared/cron-agency-scope.ts";
 import {
   addDaysYMD,
   campaignAuditAggRankScore,
@@ -30,7 +31,7 @@ import { aiBudgetExceeded } from "../_shared/ai-budget.ts";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
+    "authorization, x-client-info, apikey, content-type, x-cron-secret, x-ai-job-id",
 };
 
 const PROMPT_KEY = "07-auditoria-campanhas" as PromptKey;
@@ -157,9 +158,15 @@ Deno.serve(async (req) => {
 
   const t0 = Date.now();
   const traceId = traceIdFromRequest(req);
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const admin = createClient(supabaseUrl, serviceKey);
+  const jobIdHeader = req.headers.get("x-ai-job-id")?.trim() ?? "";
+  const isJobRunner =
+    !!jobIdHeader && (await isCronAuthenticated(req, admin));
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    if (!authHeader && !isJobRunner) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -181,6 +188,22 @@ Deno.serve(async (req) => {
       }
       body = {};
     }
+
+    if (isJobRunner) {
+      const { data: jobRow } = await admin
+        .from("ai_jobs")
+        .select("id, status, payload")
+        .eq("id", jobIdHeader)
+        .maybeSingle();
+      if (!jobRow || jobRow.status !== "processing") {
+        return new Response(JSON.stringify({ error: "Job inválido" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      body = { ...(jobRow.payload as Record<string, unknown>), ...body };
+    }
+
     const client_id = body?.client_id as string | undefined;
     const period_days = clampCampaignAuditPeriodDays(body?.period_days);
 
@@ -191,23 +214,31 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const userClient = createClient(
-      supabaseUrl,
-      Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ??
-        Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
-    const { data: userRes } = await userClient.auth.getUser();
-    if (!userRes.user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    let userId: string;
+    if (isJobRunner) {
+      userId = String((body as Record<string, unknown>).created_by ?? "");
+      if (!userId) {
+        return new Response(JSON.stringify({ error: "Job sem created_by" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } else {
+      const userClient = createClient(
+        supabaseUrl,
+        Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ??
+          Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader! } } },
+      );
+      const { data: userRes } = await userClient.auth.getUser();
+      if (!userRes.user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      userId = userRes.user.id;
     }
-
-    const admin = createClient(supabaseUrl, serviceKey);
 
     const { data: client, error: clientErr } = await admin
       .from("clients")
@@ -221,15 +252,69 @@ Deno.serve(async (req) => {
       });
     }
 
-    const allowed = await assertUserCanAccessClient(admin, userRes.user.id, {
-      id: client.id as string,
-      agency_id: client.agency_id as string,
-    });
-    if (!allowed) {
+    if (!isJobRunner) {
+      const allowed = await assertUserCanAccessClient(admin, userId, {
+        id: client.id as string,
+        agency_id: client.agency_id as string,
+      });
+      if (!allowed) {
+        return new Response(
+          JSON.stringify({ error: "Sem permissão para este cliente" }),
+          {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+    }
+
+    if (
+      !isJobRunner &&
+      Deno.env.get("CAMPAIGN_AUDIT_SYNC_MODE") !== "true"
+    ) {
+      if (await aiBudgetExceeded(admin, client.agency_id as string, 20000)) {
+        return new Response(
+          JSON.stringify({
+            error:
+              "Orçamento diário de IA da agência atingido. Tente amanhã ou faça upgrade do plano.",
+          }),
+          {
+            status: 429,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+      const { data: job, error: jobErr } = await admin
+        .from("ai_jobs")
+        .insert({
+          agency_id: client.agency_id,
+          client_id,
+          job_type: "campaign_audit",
+          status: "pending",
+          payload: {
+            client_id,
+            period_days,
+            created_by: userId,
+          },
+          attempts: 0,
+        })
+        .select("id, status")
+        .single();
+      if (jobErr) {
+        return new Response(JSON.stringify({ error: jobErr.message }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       return new Response(
-        JSON.stringify({ error: "Sem permissão para este cliente" }),
+        JSON.stringify({
+          ok: true,
+          job_id: job.id,
+          status: job.status,
+          async: true,
+        }),
         {
-          status: 403,
+          status: 202,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         },
       );
@@ -778,7 +863,7 @@ Devolve JSON com esta forma (chaves fixas):
       .insert({
         agency_id: client.agency_id,
         client_id,
-        created_by: userRes.user.id,
+        created_by: userId,
         period_start,
         period_end,
         ga4_tracking_health: ga4_tracking_health_ui,

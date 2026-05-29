@@ -2193,16 +2193,19 @@ export type Database = {
       retentio_ops_config: {
         Row: {
           cron_bearer: string
+          dispatch_state: Json
           id: number
           updated_at: string
         }
         Insert: {
           cron_bearer: string
+          dispatch_state?: Json
           id?: number
           updated_at?: string
         }
         Update: {
           cron_bearer?: string
+          dispatch_state?: Json
           id?: number
           updated_at?: string
         }
@@ -2716,12 +2719,28 @@ export type Database = {
       cleanup_stale_sync_runs: { Args: never; Returns: number }
       count_open_alerts: { Args: { _agency: string }; Returns: number }
       current_user_agency: { Args: never; Returns: string }
+      delete_orphan_metrics_daily_for_sync: {
+        Args: {
+          p_campaign_ids: string[]
+          p_client_id: string
+          p_dates: string[]
+        }
+        Returns: number
+      }
       get_agency_cron_prefetch: {
         Args: { p_agency_id: string; p_client_ids: string[]; p_since: string }
         Returns: Json
       }
+      get_agency_dashboard_detail: {
+        Args: { p_agency_id: string }
+        Returns: Json
+      }
       get_agency_dashboard_snapshot: {
         Args: { p_agency_id: string }
+        Returns: Json
+      }
+      get_cron_dispatch_agency_batch: {
+        Args: { p_job_key: string; p_limit?: number }
         Returns: Json
       }
       get_latest_campaign_audits_for_clients: {
@@ -2761,6 +2780,7 @@ export type Database = {
           profiles_with_agency_count: number
         }[]
       }
+      refresh_campaign_audit_summary_mv: { Args: never; Returns: undefined }
       refresh_client_metrics_28d: {
         Args: { p_client_id?: string }
         Returns: undefined

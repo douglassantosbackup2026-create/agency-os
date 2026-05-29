@@ -1,5 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { isCronAuthenticated } from "../_shared/cron-agency-scope.ts";
+import {
+  isCronAuthenticated,
+  resolveCronBearerForDispatch,
+} from "../_shared/cron-agency-scope.ts";
 import { edgeLog, edgeLogDone } from "../_shared/edge-log.ts";
 import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 import { normalizeClickContext } from "../_shared/ai-v3.ts";
@@ -137,6 +140,76 @@ Deno.serve(async (req) => {
             status: "failed",
             finished_at: new Date().toISOString(),
             last_error: errText.slice(0, 500),
+          })
+          .eq("id", jobId);
+      }
+      continue;
+    }
+
+    if (job.job_type === "campaign_audit") {
+      const client_id = String(job.client_id ?? payload.client_id ?? "").trim();
+      const period_days = Number(payload.period_days ?? 30) || 30;
+      const cronSecret = await resolveCronBearerForDispatch(admin);
+      if (!cronSecret || !client_id) {
+        failed++;
+        await admin
+          .from("ai_jobs")
+          .update({
+            status: "failed",
+            finished_at: new Date().toISOString(),
+            last_error: "campaign_audit: bearer ou client_id inválido",
+          })
+          .eq("id", jobId);
+        continue;
+      }
+      const baseUrl = Deno.env.get("SUPABASE_URL")!.replace(/\/$/, "");
+      try {
+        const r = await fetch(`${baseUrl}/functions/v1/campaign-ai-audit`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${cronSecret}`,
+            "x-ai-job-id": jobId,
+          },
+          body: JSON.stringify({ client_id, period_days }),
+        });
+        const text = await r.text();
+        if (!r.ok) {
+          failed++;
+          await admin
+            .from("ai_jobs")
+            .update({
+              status: "failed",
+              finished_at: new Date().toISOString(),
+              last_error: text.slice(0, 500),
+            })
+            .eq("id", jobId);
+          continue;
+        }
+        let auditId: string | null = null;
+        try {
+          const parsed = JSON.parse(text) as { audit?: { id?: string } };
+          auditId = parsed.audit?.id ?? null;
+        } catch {
+          /* ignore */
+        }
+        processed++;
+        await admin
+          .from("ai_jobs")
+          .update({
+            status: "done",
+            finished_at: new Date().toISOString(),
+            result_ref: auditId,
+          })
+          .eq("id", jobId);
+      } catch (e) {
+        failed++;
+        await admin
+          .from("ai_jobs")
+          .update({
+            status: "failed",
+            finished_at: new Date().toISOString(),
+            last_error: String((e as Error).message ?? e).slice(0, 500),
           })
           .eq("id", jobId);
       }

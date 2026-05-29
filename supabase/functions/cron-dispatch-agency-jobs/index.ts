@@ -7,6 +7,7 @@ import {
   resolveCronBearerForDispatch,
 } from "../_shared/cron-agency-scope.ts";
 import { edgeLog, edgeLogDone } from "../_shared/edge-log.ts";
+import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,6 +52,7 @@ Deno.serve(async (req) => {
     });
   }
 
+  const traceId = traceIdFromRequest(req);
   const t0 = Date.now();
   const cronSecret = await resolveCronBearerForDispatch(admin);
   if (!cronSecret) {
@@ -79,20 +81,35 @@ Deno.serve(async (req) => {
     1,
     Math.min(20, Number(Deno.env.get("CRON_AGENCY_BATCH_SIZE") ?? "5") || 5),
   );
+  const agencyLimit = Math.max(
+    1,
+    Math.min(
+      200,
+      Number(Deno.env.get("CRON_DISPATCH_AGENCIES_LIMIT") ?? "50") || 50,
+    ),
+  );
 
-  let agencyQuery = admin.from("agencies").select("id");
-  if (typeof body.agency_id === "string" && body.agency_id.trim()) {
-    agencyQuery = agencyQuery.eq("id", body.agency_id.trim());
-  }
-  const { data: agencies, error } = await agencyQuery;
-  if (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  let ids: string[] = [];
+  const singleAgency = typeof body.agency_id === "string" &&
+    body.agency_id.trim();
+  if (singleAgency) {
+    ids = [body.agency_id.trim()];
+  } else {
+    const jobKey = jobs.join("+") || "default";
+    const { data: batch, error: batchErr } = await admin.rpc(
+      "get_cron_dispatch_agency_batch",
+      { p_job_key: jobKey, p_limit: agencyLimit },
+    );
+    if (batchErr) {
+      return new Response(JSON.stringify({ error: batchErr.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const parsed = (batch ?? {}) as { agency_ids?: unknown[] };
+    ids = (parsed.agency_ids ?? []).map((id) => String(id)).filter(Boolean);
   }
 
-  const ids = (agencies ?? []).map((a) => String(a.id)).filter(Boolean);
   let dispatched = 0;
   let failed = 0;
 
@@ -128,11 +145,17 @@ Deno.serve(async (req) => {
     );
   }
 
+  traceLog(
+    "cron_dispatch.done",
+    { agencies: ids.length, jobs, dispatched, failed },
+    traceId,
+  );
   edgeLogDone("cron_dispatch.done", t0, {
     agencies: ids.length,
     jobs,
     dispatched,
     failed,
+    trace_id: traceId,
   });
 
   return new Response(

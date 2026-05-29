@@ -35,7 +35,6 @@ import {
   auditBulletsFromResult,
   auditOverallStatus,
 } from "@/lib/audit-dashboard";
-import { ACTION_CENTER_OPEN_STATUSES } from "@/lib/action-center-status";
 import { ONBOARDING_STEP_KEYS } from "@/lib/onboarding-checklist";
 import { buildPortfolioNextSteps, formatEffort } from "@/lib/next-steps-queue";
 import { invokeWithToast } from "@/lib/supabase-invoke";
@@ -57,6 +56,7 @@ import {
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
+  staleTime: 60_000,
 });
 
 function DashboardCollapsibleBlock({
@@ -94,159 +94,32 @@ function Dashboard() {
   const { data: coreData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["dashboard", agency?.id],
     enabled: !!agency,
+    staleTime: 60_000,
     queryFn: async () => {
-      const { data: opsSnapshot } = await supabase.rpc(
-        "get_agency_dashboard_snapshot",
+      const { data: detail, error: detailErr } = await supabase.rpc(
+        "get_agency_dashboard_detail",
         { p_agency_id: agency!.id },
       );
-      const todayIso = new Date().toISOString().slice(0, 10);
-      const since = new Date(Date.now() - 30 * 86400000)
-        .toISOString()
-        .slice(0, 10);
-      const since60 = new Date(Date.now() - 60 * 86400000)
-        .toISOString()
-        .slice(0, 10);
-      const since14 = new Date(Date.now() - 14 * 86400000)
-        .toISOString()
-        .slice(0, 10);
-      const { data: auditMv } = await supabase
-        .from("campaign_audit_summary_by_client_mv")
-        .select("client_id, critical_count, last_audit_at, client_name")
-        .eq("agency_id", agency!.id)
-        .order("last_audit_at", { ascending: false });
-      const focusClientIds = (auditMv ?? [])
-        .filter((r) => Number(r.critical_count ?? 0) > 0)
-        .slice(0, 12)
-        .map((r) => r.client_id as string);
-
-      const [
-        clients,
-        metrics,
-        health,
-        campaignMetrics,
-        ga4Daily,
-        ga4Tracking,
-        actionCenter,
-        reportsReview,
-        agencyBriefing,
-        campaignAuditsSnap,
-        checklistItems,
-        overdueActions,
-      ] = await Promise.all([
-        supabase
-          .from("clients")
-          .select("id, name, status, mrr, monthly_budget, started_at")
-          .eq("agency_id", agency!.id),
-        supabase
-          .from("metrics_daily")
-          .select("date, spend, revenue, roas")
-          .eq("agency_id", agency!.id)
-          .is("campaign_id", null)
-          .gte("date", since60),
-        supabase
-          .from("health_scores")
-          .select("client_id, score, risk, recorded_at")
-          .eq("agency_id", agency!.id)
-          .order("recorded_at", { ascending: false }),
-        supabase
-          .from("metrics_daily")
-          .select("campaign_id, date, roas, campaigns(name)")
-          .eq("agency_id", agency!.id)
-          .gte("date", since14)
-          .not("campaign_id", "is", null),
-        supabase
-          .from("ga4_daily")
-          .select(
-            "date, sessions, conversions, revenue, conversion_rate, avg_ticket",
-          )
-          .eq("agency_id", agency!.id)
-          .gte("date", since60),
-        supabase
-          .from("ga4_tracking_health_daily")
-          .select("status")
-          .eq("agency_id", agency!.id)
-          .gte("date", since14),
-        supabase
-          .from("action_center")
-          .select(
-            "id, title, priority, due_date, status, client_id, clients(name)",
-          )
-          .eq("agency_id", agency!.id)
-          .in("status", [...ACTION_CENTER_OPEN_STATUSES])
-          .order("priority", { ascending: false })
-          .order("created_at", { ascending: false })
-          .limit(48),
-        supabase
-          .from("reports")
-          .select(
-            "id, created_at, confianca, requer_revisao_humana, clients(name)",
-          )
-          .eq("agency_id", agency!.id)
-          .eq("requer_revisao_humana", true)
-          .order("created_at", { ascending: false })
-          .limit(8),
-        supabase
-          .from("agency_briefings")
-          .select("buckets, computed_at")
-          .eq("agency_id", agency!.id)
-          .maybeSingle(),
-        focusClientIds.length > 0
-          ? supabase
-              .from("campaign_ai_audits")
-              .select(
-                "id, client_id, created_at, ga4_tracking_health, executive_summary_markdown, result_json",
-              )
-              .eq("agency_id", agency!.id)
-              .in("client_id", focusClientIds)
-              .order("created_at", { ascending: false })
-              .limit(72)
-          : supabase
-              .from("campaign_ai_audits")
-              .select(
-                "id, client_id, created_at, ga4_tracking_health, executive_summary_markdown, result_json",
-              )
-              .eq("agency_id", agency!.id)
-              .order("created_at", { ascending: false })
-              .limit(32),
-        supabase
-          .from("onboarding_checklist_items")
-          .select("client_id, step_key, status")
-          .eq("agency_id", agency!.id),
-        supabase
-          .from("action_center")
-          .select("id", { count: "exact", head: true })
-          .eq("agency_id", agency!.id)
-          .in("status", [...ACTION_CENTER_OPEN_STATUSES])
-          .not("due_date", "is", null)
-          .lt("due_date", todayIso),
-      ]);
-      throwIfSupabaseError(clients.error, "clients");
-      throwIfSupabaseError(metrics.error, "metrics_daily");
-      throwIfSupabaseError(health.error, "health_scores");
-      throwIfSupabaseError(campaignMetrics.error, "campaign_metrics_daily");
-      throwIfSupabaseError(ga4Daily.error, "ga4_daily");
-      throwIfSupabaseError(ga4Tracking.error, "ga4_tracking_health_daily");
-      throwIfSupabaseError(actionCenter.error, "action_center");
-      throwIfSupabaseError(reportsReview.error, "reports");
-      throwIfSupabaseError(agencyBriefing.error, "agency_briefings");
-      throwIfSupabaseError(campaignAuditsSnap.error, "campaign_ai_audits");
-      throwIfSupabaseError(checklistItems.error, "onboarding_checklist_items");
-      if (overdueActions.error) throw new Error(overdueActions.error.message);
+      throwIfSupabaseError(detailErr, "get_agency_dashboard_detail");
+      const bundle = (detail ?? {}) as Record<string, unknown>;
       return {
-        opsSnapshot: (opsSnapshot ?? null) as OpsSnapshot | null,
-        auditMv: auditMv ?? [],
-        clients: clients.data ?? [],
-        metrics: metrics.data ?? [],
-        health: health.data ?? [],
-        campaignMetrics: campaignMetrics.data ?? [],
-        ga4Daily: ga4Daily.data ?? [],
-        ga4Tracking: ga4Tracking.data ?? [],
-        actionCenter: actionCenter.data ?? [],
-        reportsReview: reportsReview.data ?? [],
-        agencyBriefing: agencyBriefing.data ?? null,
-        campaignAuditsSnap: campaignAuditsSnap.data ?? [],
-        checklistItems: checklistItems.data ?? [],
-        overdueActionsCount: overdueActions.count ?? 0,
+        opsSnapshot: (bundle.ops_snapshot ?? null) as OpsSnapshot | null,
+        auditMv: (bundle.audit_mv as unknown[]) ?? [],
+        clients: (bundle.clients as unknown[]) ?? [],
+        metrics: (bundle.metrics as unknown[]) ?? [],
+        health: (bundle.health as unknown[]) ?? [],
+        campaignMetrics: (bundle.campaign_metrics as unknown[]) ?? [],
+        ga4Daily: (bundle.ga4_daily as unknown[]) ?? [],
+        ga4Tracking: (bundle.ga4_tracking as unknown[]) ?? [],
+        actionCenter: (bundle.action_center as unknown[]) ?? [],
+        reportsReview: (bundle.reports_review as unknown[]) ?? [],
+        agencyBriefing: (bundle.agency_briefing as {
+          buckets?: unknown;
+          computed_at?: string;
+        } | null) ?? null,
+        campaignAuditsSnap: (bundle.campaign_audits as unknown[]) ?? [],
+        checklistItems: (bundle.checklist_items as unknown[]) ?? [],
+        overdueActionsCount: Number(bundle.overdue_actions_count ?? 0),
       };
     },
   });

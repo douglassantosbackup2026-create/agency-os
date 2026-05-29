@@ -5,6 +5,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { assertCronOrOwnerAdmin } from "../_shared/cron-auth.ts";
 import { resolveCronDualAuthAgencyScope } from "../_shared/cron-agency-scope.ts";
 import { edgeLogDone, edgeLog, truncateError } from "../_shared/edge-log.ts";
+import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -54,6 +55,7 @@ Deno.serve(async (req) => {
   const denied = await assertCronOrOwnerAdmin(req, supabase);
   if (denied) return denied;
   const t0 = Date.now();
+  const traceId = traceIdFromRequest(req);
   try {
     const scope = await resolveCronDualAuthAgencyScope(req, supabase, corsHeaders);
     if (!scope.ok) return scope.response;
@@ -157,12 +159,14 @@ Deno.serve(async (req) => {
     }
     }
 
+    traceLog("whatsapp_summary.ok", { period, sent, failed, skipped }, traceId);
     edgeLogDone("whatsapp_summary.ok", t0, {
       period,
       sent,
       failed,
       skipped,
       total: clients?.length ?? 0,
+      trace_id: traceId,
     });
     return new Response(
       JSON.stringify({

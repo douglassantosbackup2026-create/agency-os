@@ -821,8 +821,39 @@ function ClientDetail() {
       toast.error(error.message);
       return;
     }
-    if (res && typeof res === "object" && "error" in res && res.error) {
-      toast.error(String((res as { error: string }).error));
+    const payload = res as {
+      async?: boolean;
+      job_id?: string;
+      error?: string;
+    } | null;
+    if (payload?.error) {
+      toast.error(String(payload.error));
+      return;
+    }
+    if (payload?.async && payload.job_id) {
+      toast.info("Auditoria enfileirada. Aguarde…");
+      for (let i = 0; i < 40; i++) {
+        await new Promise((r) => setTimeout(r, 3000));
+        const { data: job } = await supabase
+          .from("ai_jobs")
+          .select("status, last_error")
+          .eq("id", payload.job_id)
+          .maybeSingle();
+        if (!job) break;
+        if (job.status === "done") {
+          toast.success("Auditoria de campanhas concluída.");
+          refetch();
+          return;
+        }
+        if (job.status === "failed") {
+          toast.error(job.last_error ?? "Falha na auditoria.");
+          return;
+        }
+      }
+      toast.info(
+        "Auditoria ainda em processamento. Atualize a página em alguns minutos.",
+      );
+      refetch();
       return;
     }
     toast.success("Auditoria de campanhas concluída.");

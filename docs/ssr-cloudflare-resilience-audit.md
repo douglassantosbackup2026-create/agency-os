@@ -51,6 +51,6 @@ Escopo P2.5 do plano de resiliência. Estado auditado em maio/2026.
 
 ## Melhorias sugeridas (backlog)
 
-- Loader server-side único para KPIs do dashboard (`get_agency_dashboard_snapshot`) em rota `/dashboard` only.
-- `staleTimes` TanStack Router alinhados com debounce Realtime (3s).
-- Page Rules / Cache Rules Cloudflare para `/assets/*` long-lived.
+- Loader SSR server-side com `get_agency_dashboard_detail` (opcional; hoje 1 RPC no client).
+- `staleTime: 60_000` no dashboard — **implementado**.
+- Cache `/assets/*` via `src/server.ts` — **implementado**.

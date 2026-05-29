@@ -1359,6 +1359,27 @@ Deno.serve(async (req) => {
     if (upsertRes.error) {
       throw new Error(`metrics_daily upsert: ${upsertRes.error}`);
     }
+    if (rows.length > 0 && mode !== "simulated") {
+      const dates = [...new Set(rows.map((r) => r.date))];
+      const campaignIds = [
+        ...new Set(
+          rows
+            .map((r) => r.campaign_id)
+            .filter((id): id is string => !!id),
+        ),
+      ];
+      const { error: orphanErr } = await admin.rpc(
+        "delete_orphan_metrics_daily_for_sync",
+        {
+          p_client_id: client_id,
+          p_dates: dates,
+          p_campaign_ids: campaignIds,
+        },
+      );
+      if (orphanErr) {
+        console.warn("orphan metrics delete", orphanErr.message);
+      }
+    }
     if (mode === "ga4_api" && ga4Artifacts) {
       const datesDaily = [
         ...new Set(ga4Artifacts.ga4Daily.map((r) => String(r.date))),

@@ -1,5 +1,7 @@
 import { handleCors, jsonResponse } from "../_shared/diagnosis/cors.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
+import { publicClientIp } from "../_shared/public-rate-limit.ts";
+import { distributedRateLimitExceeded } from "../_shared/distributed-rate-limit.ts";
 
 function priceCents(): number {
   return parseInt(Deno.env.get("DIAGNOSIS_PRICE_CENTS") ?? "3700", 10);
@@ -25,6 +27,30 @@ Deno.serve(async (req) => {
   if (cors) return cors;
   if (req.method !== "POST")
     return jsonResponse({ error: "Method not allowed" }, 405);
+
+  const ip = publicClientIp(req);
+  const sbRl = diagnosisServiceClient();
+  const maxPerWindow = Math.max(
+    1,
+    Number(Deno.env.get("PUBLIC_RATE_LIMIT_MAX_PER_WINDOW") ?? "30") || 30,
+  );
+  const windowSec = Math.max(
+    1,
+    Math.floor(
+      (Number(Deno.env.get("PUBLIC_RATE_LIMIT_WINDOW_MS") ?? "60000") ||
+        60000) / 1000,
+    ),
+  );
+  if (
+    await distributedRateLimitExceeded(
+      sbRl,
+      `diagnosis-start:${ip}`,
+      maxPerWindow,
+      windowSec,
+    )
+  ) {
+    return jsonResponse({ error: "Muitas tentativas. Aguarde um momento." }, 429);
+  }
 
   const publicKey = Deno.env.get("MERCADOPAGO_PUBLIC_KEY");
   if (!publicKey) {
