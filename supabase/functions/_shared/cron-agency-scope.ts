@@ -3,23 +3,35 @@ import {
   type SupabaseClient,
 } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { BodyTooLargeError, readJsonBody } from "./edge-json-body.ts";
+import {
+  extractCronSecrets,
+  isCronRequest,
+} from "./cron-bearer-verify.ts";
 
-export function isCronAuthenticated(req: Request): boolean {
+/** Verificação rápida só via CRON_SECRET env (legado). */
+export function isCronAuthenticatedEnv(req: Request): boolean {
   const secret = Deno.env.get("CRON_SECRET");
   if (!secret) return false;
-  const authHeader = req.headers.get("authorization") ?? "";
-  const bearer = authHeader.startsWith("Bearer ")
-    ? authHeader.slice(7).trim()
-    : "";
-  const headerSecret = req.headers.get("x-cron-secret");
+  const { bearer, headerSecret } = extractCronSecrets(req);
   return bearer === secret || headerSecret === secret;
+}
+
+/** Cron via env CRON_SECRET ou bearer em retentio_ops_config. */
+export async function isCronAuthenticated(
+  req: Request,
+  admin?: SupabaseClient,
+): Promise<boolean> {
+  if (isCronAuthenticatedEnv(req)) return true;
+  if (!admin) return false;
+  return isCronRequest(req, admin);
 }
 
 /** Utilizador JWT (não cron). */
 export async function getJwtUserIdFromRequest(
   req: Request,
+  admin?: SupabaseClient,
 ): Promise<string | null> {
-  if (isCronAuthenticated(req)) return null;
+  if (await isCronAuthenticated(req, admin)) return null;
   const authHeader = req.headers.get("authorization") ?? "";
   const bearer = authHeader.startsWith("Bearer ")
     ? authHeader.slice(7).trim()
@@ -57,7 +69,7 @@ export async function resolveCronDualAuthAgencyScope(
     "Content-Type": "application/json",
   };
 
-  if (isCronAuthenticated(req)) {
+  if (await isCronAuthenticated(req, admin)) {
     if (req.method === "POST") {
       try {
         const b = await readJsonBody(req);
@@ -79,7 +91,7 @@ export async function resolveCronDualAuthAgencyScope(
     return { ok: true };
   }
 
-  const uid = await getJwtUserIdFromRequest(req);
+  const uid = await getJwtUserIdFromRequest(req, admin);
   if (uid) {
     const { data: profile } = await admin
       .from("profiles")
@@ -105,4 +117,19 @@ export async function resolveCronDualAuthAgencyScope(
       headers: jsonHeaders,
     }),
   };
+}
+
+/** Bearer efectivo para invocar funções cron filhas (env ou DB). */
+export async function resolveCronBearerForDispatch(
+  admin: SupabaseClient,
+): Promise<string | null> {
+  const env = Deno.env.get("CRON_SECRET")?.trim();
+  if (env && env.length >= 8) return env;
+  const { data, error } = await admin.rpc("get_retentio_cron_bearer");
+  if (error) {
+    console.warn("[cron-scope] get_retentio_cron_bearer:", error.message);
+    return null;
+  }
+  const bearer = typeof data === "string" ? data.trim() : "";
+  return bearer.length >= 8 ? bearer : null;
 }

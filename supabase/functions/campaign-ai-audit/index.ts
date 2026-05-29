@@ -23,6 +23,7 @@ import {
   textFromAnthropicMessagesPayload,
 } from "../_shared/ai-response-parse.ts";
 import { edgeLog, edgeLogDone, truncateError } from "../_shared/edge-log.ts";
+import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 import { fetchWithTimeout } from "../_shared/fetch-with-timeout.ts";
 import { aiBudgetExceeded } from "../_shared/ai-budget.ts";
 
@@ -155,6 +156,7 @@ Deno.serve(async (req) => {
   }
 
   const t0 = Date.now();
+  const traceId = traceIdFromRequest(req);
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -809,7 +811,9 @@ Devolve JSON com esta forma (chaves fixas):
       client_id,
       agency_id: client.agency_id,
       period_days,
+      trace_id: traceId,
     });
+    traceLog("campaign_ai_audit.ok", { client_id, period_days }, traceId);
     return new Response(JSON.stringify({ ok: true, audit }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

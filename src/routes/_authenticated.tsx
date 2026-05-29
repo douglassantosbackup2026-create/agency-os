@@ -6,9 +6,10 @@ import {
   useRouterState,
 } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useDebouncedCallback } from "@/hooks/use-debounced-callback";
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
@@ -265,6 +266,7 @@ function NavLinks({
 }
 
 function AuthenticatedLayout() {
+  const queryClient = useQueryClient();
   const {
     user,
     agency,
@@ -368,6 +370,16 @@ function AuthenticatedLayout() {
     };
   }, [user?.id, agency?.id]);
 
+  const debouncedInvalidateAlertsNav = useDebouncedCallback(() => {
+    void queryClient.invalidateQueries({
+      queryKey: ["layout-nav-meta", agency?.id],
+    });
+    void queryClient.invalidateQueries({ queryKey: ["alerts", agency?.id] });
+    void queryClient.invalidateQueries({
+      queryKey: ["dashboard-alerts", agency?.id],
+    });
+  }, 3000);
+
   useEffect(() => {
     if (!agency?.id) return;
     const ch = supabase
@@ -383,6 +395,7 @@ function AuthenticatedLayout() {
         (payload) => {
           const row = payload.new as { title?: string };
           toast.info(row.title ?? "Novo alerta", { duration: 6000 });
+          debouncedInvalidateAlertsNav();
         },
       )
       .subscribe((status) => {
@@ -396,7 +409,7 @@ function AuthenticatedLayout() {
     return () => {
       supabase.removeChannel(ch);
     };
-  }, [agency?.id]);
+  }, [agency?.id, debouncedInvalidateAlertsNav]);
 
   const displayRole = roleLabel_pt(memberRole ?? undefined);
   const agencyTitle = agency?.name ?? "Retentio";

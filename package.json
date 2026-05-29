@@ -15,6 +15,7 @@
     "format": "prettier --write .",
     "test": "vitest",
     "test:e2e": "playwright test",
+    "ops:apply-crons": "node scripts/apply-cron-jobs.mjs",
     "db:lint": "npx supabase db lint",
     "perf:lighthouse": "node scripts/lighthouse-authenticated.mjs",
     "landing:assets": "node scripts/generate-landing-assets.mjs",

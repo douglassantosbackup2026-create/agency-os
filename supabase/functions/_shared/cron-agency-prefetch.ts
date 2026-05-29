@@ -1,5 +1,5 @@
 /**
- * Pré-carga em batch por agência (evita N+1 nos crons evaluate-alerts / compute-health-scores).
+ * Pré-carga em batch por agência (1 RPC — critério P2 ≤3 queries principais).
  */
 
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
@@ -47,15 +47,56 @@ export type AgencyCronPrefetch = {
   lastActivityAtByClient: Map<string, string>;
 };
 
-function groupByClientId<T extends { client_id?: string }>(
-  rows: T[],
-): Map<string, T[]> {
-  const m = new Map<string, T[]>();
+function groupMetricsByClient(
+  rows: Array<Record<string, unknown>>,
+): Map<string, MetricDailyRow[]> {
+  const m = new Map<string, MetricDailyRow[]>();
   for (const row of rows) {
     const cid = String(row.client_id ?? "");
     if (!cid) continue;
     const arr = m.get(cid) ?? [];
-    arr.push(row);
+    arr.push({
+      date: String(row.date),
+      spend: row.spend as number | null,
+      revenue: row.revenue as number | null,
+      roas: row.roas as number | null,
+      cpa: row.cpa as number | null,
+      ctr: row.ctr as number | null,
+      conversions: row.conversions as number | null,
+    });
+    m.set(cid, arr);
+  }
+  return m;
+}
+
+function groupGa4DailyByClient(
+  rows: Array<Record<string, unknown>>,
+): Map<string, Ga4DailyRow[]> {
+  const m = new Map<string, Ga4DailyRow[]>();
+  for (const row of rows) {
+    const cid = String(row.client_id ?? "");
+    if (!cid) continue;
+    const arr = m.get(cid) ?? [];
+    arr.push({
+      date: String(row.date),
+      sessions: row.sessions as number | null,
+      conversions: row.conversions as number | null,
+      revenue: row.revenue as number | null,
+    });
+    m.set(cid, arr);
+  }
+  return m;
+}
+
+function groupGa4FunnelByClient(
+  rows: Array<Record<string, unknown>>,
+): Map<string, Ga4FunnelRow[]> {
+  const m = new Map<string, Ga4FunnelRow[]>();
+  for (const row of rows) {
+    const cid = String(row.client_id ?? "");
+    if (!cid) continue;
+    const arr = m.get(cid) ?? [];
+    arr.push(row as Ga4FunnelRow);
     m.set(cid, arr);
   }
   return m;
@@ -80,138 +121,37 @@ export async function prefetchAgencyCronData(
 
   if (!clientIds.length) return empty;
 
-  const [
-    metricsRes,
-    ga4DailyRes,
-    ga4FunnelRes,
-    alertsRes,
-    notesRes,
-    trackingRes,
-    mvRes,
-    activitiesRes,
-  ] = await Promise.all([
-    admin
-      .from("metrics_daily")
-      .select(
-        "client_id, date, spend, revenue, roas, cpa, ctr, conversions",
-      )
-      .in("client_id", clientIds)
-      .is("campaign_id", null)
-      .gte("date", since)
-      .order("date"),
-    admin
-      .from("ga4_daily")
-      .select("client_id, date, sessions, conversions, revenue")
-      .in("client_id", clientIds)
-      .gte("date", since)
-      .order("date"),
-    admin
-      .from("ga4_funnel_daily")
-      .select(
-        "client_id, date, add_to_cart, begin_checkout, purchase, add_to_cart_rate, checkout_rate, purchase_rate",
-      )
-      .in("client_id", clientIds)
-      .gte("date", since)
-      .order("date"),
-    admin
-      .from("alerts")
-      .select("client_id, type")
-      .in("client_id", clientIds)
-      .eq("status", "open"),
-    admin
-      .from("notes")
-      .select("client_id, created_at")
-      .in("client_id", clientIds)
-      .order("created_at", { ascending: false }),
-    admin
-      .from("ga4_tracking_health_daily")
-      .select("client_id, date, status, notes, tracking_drop_detected")
-      .in("client_id", clientIds)
-      .order("date", { ascending: false }),
-    agencyId
-      ? admin
-        .from("client_metrics_28d")
-        .select("client_id, days_with_data, spend_28d, roas_28d")
-        .eq("agency_id", agencyId)
-      : admin
-        .from("client_metrics_28d")
-        .select("client_id, days_with_data, spend_28d, roas_28d")
-        .in("client_id", clientIds),
-    admin
-      .from("activities")
-      .select("client_id, created_at")
-      .in("client_id", clientIds)
-      .order("created_at", { ascending: false }),
-  ]);
+  const { data, error } = await admin.rpc("get_agency_cron_prefetch", {
+    p_agency_id: agencyId ?? null,
+    p_client_ids: clientIds,
+    p_since: since,
+  });
+  if (error) throw error;
 
-  if (metricsRes.error) throw metricsRes.error;
-  if (ga4DailyRes.error) throw ga4DailyRes.error;
-  if (ga4FunnelRes.error) throw ga4FunnelRes.error;
-  if (alertsRes.error) throw alertsRes.error;
-  if (notesRes.error) throw notesRes.error;
-  if (trackingRes.error) throw trackingRes.error;
-  if (mvRes.error) throw mvRes.error;
-  if (activitiesRes.error) throw activitiesRes.error;
-
-  const metricsRaw = (metricsRes.data ?? []).map((r) => ({
-    client_id: String(r.client_id),
-    date: String(r.date),
-    spend: r.spend,
-    revenue: r.revenue,
-    roas: r.roas,
-    cpa: r.cpa,
-    ctr: r.ctr,
-    conversions: r.conversions,
-  }));
-
-  const metricsByClient = new Map<string, MetricDailyRow[]>();
-  for (const row of metricsRaw) {
-    const arr = metricsByClient.get(row.client_id) ?? [];
-    arr.push({
-      date: row.date,
-      spend: row.spend,
-      revenue: row.revenue,
-      roas: row.roas,
-      cpa: row.cpa,
-      ctr: row.ctr,
-      conversions: row.conversions,
-    });
-    metricsByClient.set(row.client_id, arr);
-  }
-
-  const ga4DailyByClient = new Map<string, Ga4DailyRow[]>();
-  for (const row of ga4DailyRes.data ?? []) {
-    const cid = String(row.client_id);
-    const arr = ga4DailyByClient.get(cid) ?? [];
-    arr.push({
-      date: String(row.date),
-      sessions: row.sessions,
-      conversions: row.conversions,
-      revenue: row.revenue,
-    });
-    ga4DailyByClient.set(cid, arr);
-  }
-
-  const ga4FunnelByClient = new Map<string, Ga4FunnelRow[]>();
-  for (const row of ga4FunnelRes.data ?? []) {
-    const cid = String(row.client_id);
-    const arr = ga4FunnelByClient.get(cid) ?? [];
-    arr.push(row as Ga4FunnelRow);
-    ga4FunnelByClient.set(cid, arr);
-  }
+  const bundle = (data ?? {}) as Record<string, unknown>;
+  const metricsByClient = groupMetricsByClient(
+    (bundle.metrics_daily as Array<Record<string, unknown>>) ?? [],
+  );
+  const ga4DailyByClient = groupGa4DailyByClient(
+    (bundle.ga4_daily as Array<Record<string, unknown>>) ?? [],
+  );
+  const ga4FunnelByClient = groupGa4FunnelByClient(
+    (bundle.ga4_funnel as Array<Record<string, unknown>>) ?? [],
+  );
 
   const openAlertTypesByClient = new Map<string, Set<string>>();
-  for (const row of alertsRes.data ?? []) {
-    const cid = String(row.client_id);
+  for (const row of (bundle.open_alerts as Array<Record<string, unknown>>) ??
+    []) {
+    const cid = String(row.client_id ?? "");
     const set = openAlertTypesByClient.get(cid) ?? new Set<string>();
     if (row.type) set.add(String(row.type));
     openAlertTypesByClient.set(cid, set);
   }
 
   const lastNoteAtByClient = new Map<string, string>();
-  for (const row of notesRes.data ?? []) {
-    const cid = String(row.client_id);
-    if (!lastNoteAtByClient.has(cid) && row.created_at) {
+  for (const row of (bundle.notes as Array<Record<string, unknown>>) ?? []) {
+    const cid = String(row.client_id ?? "");
+    if (cid && row.created_at) {
       lastNoteAtByClient.set(cid, String(row.created_at));
     }
   }
@@ -220,9 +160,10 @@ export async function prefetchAgencyCronData(
     string,
     { status: string; notes?: string | null }
   >();
-  for (const row of trackingRes.data ?? []) {
-    const cid = String(row.client_id);
-    if (!trackingByClient.has(cid)) {
+  for (const row of (bundle.tracking as Array<Record<string, unknown>>) ??
+    []) {
+    const cid = String(row.client_id ?? "");
+    if (cid) {
       trackingByClient.set(cid, {
         status: String(row.status ?? ""),
         notes: row.notes as string | null,
@@ -234,7 +175,8 @@ export async function prefetchAgencyCronData(
     string,
     { days_with_data: number; spend_28d: number; roas_28d: number }
   >();
-  for (const row of mvRes.data ?? []) {
+  for (const row of (bundle.metrics_28d as Array<Record<string, unknown>>) ??
+    []) {
     metrics28dByClient.set(String(row.client_id), {
       days_with_data: Number(row.days_with_data ?? 0),
       spend_28d: Number(row.spend_28d ?? 0),
@@ -243,9 +185,10 @@ export async function prefetchAgencyCronData(
   }
 
   const lastActivityAtByClient = new Map<string, string>();
-  for (const row of activitiesRes.data ?? []) {
-    const cid = String(row.client_id);
-    if (!lastActivityAtByClient.has(cid) && row.created_at) {
+  for (const row of (bundle.activities as Array<Record<string, unknown>>) ??
+    []) {
+    const cid = String(row.client_id ?? "");
+    if (cid && row.created_at) {
       lastActivityAtByClient.set(cid, String(row.created_at));
     }
   }
@@ -260,4 +203,15 @@ export async function prefetchAgencyCronData(
     metrics28dByClient,
     lastActivityAtByClient,
   };
+}
+
+/** Gate MV: cliente sem dados suficientes nos últimos 28d. */
+export function clientHasMinMetricsData(
+  prefetch: AgencyCronPrefetch,
+  clientId: string,
+  minDays = 7,
+): boolean {
+  const mv = prefetch.metrics28dByClient.get(clientId);
+  if (mv) return mv.days_with_data >= minDays;
+  return (prefetch.metricsByClient.get(clientId)?.length ?? 0) >= minDays;
 }

@@ -19,7 +19,13 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
-  if (!isCronAuthenticated(req)) {
+
+  const admin = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+
+  if (!(await isCronAuthenticated(req, admin))) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -28,10 +34,6 @@ Deno.serve(async (req) => {
 
   const traceId = traceIdFromRequest(req);
   const t0 = Date.now();
-  const admin = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
   let body: Record<string, unknown> = {};
   try {
     body = (await req.json()) as Record<string, unknown>;

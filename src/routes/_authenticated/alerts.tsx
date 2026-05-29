@@ -105,8 +105,11 @@ function Alerts() {
     },
   });
 
-  const debouncedRefetch = useDebouncedCallback(() => {
-    void refetch();
+  const debouncedInvalidateAlerts = useDebouncedCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["alerts", agency?.id] });
+    void queryClient.invalidateQueries({
+      queryKey: ["dashboard-alerts", agency?.id],
+    });
   }, 3000);
 
   const alerts = data?.alerts ?? EMPTY_ALERTS_LIST;
@@ -199,13 +202,13 @@ function Alerts() {
           table: "alerts",
           filter: `agency_id=eq.${agency.id}`,
         },
-        () => debouncedRefetch(),
+        () => debouncedInvalidateAlerts(),
       )
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
     };
-  }, [agency, debouncedRefetch]);
+  }, [agency, debouncedInvalidateAlerts]);
 
   useEffect(() => {
     if (!agency || !desktopNotifications) return;

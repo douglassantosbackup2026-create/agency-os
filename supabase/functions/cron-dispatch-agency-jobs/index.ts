@@ -2,7 +2,10 @@
  * Dispara evaluate-alerts e compute-health-scores por agência (evita timeout global).
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { isCronAuthenticated } from "../_shared/cron-agency-scope.ts";
+import {
+  isCronAuthenticated,
+  resolveCronBearerForDispatch,
+} from "../_shared/cron-agency-scope.ts";
 import { edgeLog, edgeLogDone } from "../_shared/edge-log.ts";
 
 const corsHeaders = {
@@ -35,7 +38,13 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
-  if (!isCronAuthenticated(req)) {
+  const baseUrl = Deno.env.get("SUPABASE_URL")!.replace(/\/$/, "");
+  const admin = createClient(
+    baseUrl,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+
+  if (!(await isCronAuthenticated(req, admin))) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
       status: 401,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -43,12 +52,16 @@ Deno.serve(async (req) => {
   }
 
   const t0 = Date.now();
-  const cronSecret = Deno.env.get("CRON_SECRET")!;
-  const baseUrl = Deno.env.get("SUPABASE_URL")!.replace(/\/$/, "");
-  const admin = createClient(
-    baseUrl,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-  );
+  const cronSecret = await resolveCronBearerForDispatch(admin);
+  if (!cronSecret) {
+    return new Response(
+      JSON.stringify({ error: "Cron bearer não configurado" }),
+      {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
+  }
 
   let body: Record<string, unknown> = {};
   try {

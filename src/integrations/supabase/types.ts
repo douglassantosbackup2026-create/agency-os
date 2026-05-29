@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -241,47 +241,6 @@ export type Database = {
           },
         ]
       }
-      ai_usage_events: {
-        Row: {
-          agency_id: string
-          completion_tokens: number
-          created_at: string
-          day: string
-          estimated_cost_usd: number
-          function_name: string
-          id: string
-          prompt_tokens: number
-        }
-        Insert: {
-          agency_id: string
-          completion_tokens?: number
-          created_at?: string
-          day?: string
-          estimated_cost_usd?: number
-          function_name: string
-          id?: string
-          prompt_tokens?: number
-        }
-        Update: {
-          agency_id?: string
-          completion_tokens?: number
-          created_at?: string
-          day?: string
-          estimated_cost_usd?: number
-          function_name?: string
-          id?: string
-          prompt_tokens?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ai_usage_events_agency_id_fkey"
-            columns: ["agency_id"]
-            isOneToOne: false
-            referencedRelation: "agencies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       ai_jobs: {
         Row: {
           agency_id: string
@@ -338,6 +297,47 @@ export type Database = {
             columns: ["client_id"]
             isOneToOne: false
             referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_usage_events: {
+        Row: {
+          agency_id: string
+          completion_tokens: number
+          created_at: string
+          day: string
+          estimated_cost_usd: number
+          function_name: string
+          id: string
+          prompt_tokens: number
+        }
+        Insert: {
+          agency_id: string
+          completion_tokens?: number
+          created_at?: string
+          day?: string
+          estimated_cost_usd?: number
+          function_name: string
+          id?: string
+          prompt_tokens?: number
+        }
+        Update: {
+          agency_id?: string
+          completion_tokens?: number
+          created_at?: string
+          day?: string
+          estimated_cost_usd?: number
+          function_name?: string
+          id?: string
+          prompt_tokens?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_usage_events_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
             referencedColumns: ["id"]
           },
         ]
@@ -450,6 +450,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      api_rate_limits: {
+        Row: {
+          bucket_key: string
+          request_count: number
+          updated_at: string
+          window_start: string
+        }
+        Insert: {
+          bucket_key: string
+          request_count?: number
+          updated_at?: string
+          window_start: string
+        }
+        Update: {
+          bucket_key?: string
+          request_count?: number
+          updated_at?: string
+          window_start?: string
+        }
+        Relationships: []
       }
       campaign_ai_audit_recommendation_status: {
         Row: {
@@ -1623,53 +1644,6 @@ export type Database = {
           },
         ]
       }
-      integrations_public: {
-        Row: {
-          account_id: string | null
-          agency_id: string
-          config: Json | null
-          created_at: string
-          id: string
-          last_sync_at: string | null
-          provider: Database["public"]["Enums"]["integration_provider"]
-          status: Database["public"]["Enums"]["integration_status"]
-          token_expires_at: string | null
-          updated_at: string
-        }
-        Insert: {
-          account_id?: string | null
-          agency_id: string
-          config?: Json | null
-          created_at?: string
-          id?: string
-          last_sync_at?: string | null
-          provider: Database["public"]["Enums"]["integration_provider"]
-          status?: Database["public"]["Enums"]["integration_status"]
-          token_expires_at?: string | null
-          updated_at?: string
-        }
-        Update: {
-          account_id?: string | null
-          agency_id?: string
-          config?: Json | null
-          created_at?: string
-          id?: string
-          last_sync_at?: string | null
-          provider?: Database["public"]["Enums"]["integration_provider"]
-          status?: Database["public"]["Enums"]["integration_status"]
-          token_expires_at?: string | null
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "integrations_agency_id_fkey"
-            columns: ["agency_id"]
-            isOneToOne: false
-            referencedRelation: "agencies"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       integrations: {
         Row: {
           account_id: string | null
@@ -1969,6 +1943,30 @@ export type Database = {
           },
         ]
       }
+      oauth_exchange_codes: {
+        Row: {
+          access_token: string
+          code: string
+          expires_at: string
+          expires_in: number | null
+          purpose: string
+        }
+        Insert: {
+          access_token: string
+          code: string
+          expires_at: string
+          expires_in?: number | null
+          purpose?: string
+        }
+        Update: {
+          access_token?: string
+          code?: string
+          expires_at?: string
+          expires_in?: number | null
+          purpose?: string
+        }
+        Relationships: []
+      }
       onboarding_checklist_items: {
         Row: {
           agency_id: string
@@ -2192,6 +2190,24 @@ export type Database = {
           },
         ]
       }
+      retentio_ops_config: {
+        Row: {
+          cron_bearer: string
+          id: number
+          updated_at: string
+        }
+        Insert: {
+          cron_bearer: string
+          id?: number
+          updated_at?: string
+        }
+        Update: {
+          cron_bearer?: string
+          id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       standup_snoozes: {
         Row: {
           agency_id: string
@@ -2236,6 +2252,8 @@ export type Database = {
           created_at: string
           current_period_end: string | null
           id: string
+          max_ai_jobs_per_day: number
+          max_ai_tokens_per_day: number
           max_alerts: number
           max_clients: number
           plan: string
@@ -2247,6 +2265,8 @@ export type Database = {
           created_at?: string
           current_period_end?: string | null
           id?: string
+          max_ai_jobs_per_day?: number
+          max_ai_tokens_per_day?: number
           max_alerts?: number
           max_clients?: number
           plan?: string
@@ -2258,6 +2278,8 @@ export type Database = {
           created_at?: string
           current_period_end?: string | null
           id?: string
+          max_ai_jobs_per_day?: number
+          max_ai_tokens_per_day?: number
           max_alerts?: number
           max_clients?: number
           plan?: string
@@ -2403,6 +2425,27 @@ export type Database = {
           },
         ]
       }
+      webhook_events: {
+        Row: {
+          branch: string | null
+          idempotency_key: string
+          payload_hash: string | null
+          processed_at: string
+        }
+        Insert: {
+          branch?: string | null
+          idempotency_key: string
+          payload_hash?: string | null
+          processed_at?: string
+        }
+        Update: {
+          branch?: string | null
+          idempotency_key?: string
+          payload_hash?: string | null
+          processed_at?: string
+        }
+        Relationships: []
+      }
       whatsapp_logs: {
         Row: {
           agency_id: string
@@ -2527,11 +2570,169 @@ export type Database = {
           },
         ]
       }
+      campaign_audit_summary_by_client_mv: {
+        Row: {
+          agency_id: string | null
+          avg_score: number | null
+          client_id: string | null
+          client_name: string | null
+          critical_count: number | null
+          dismissed_count: number | null
+          last_audit_at: string | null
+          tasks_created: number | null
+          total_audits: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_ai_audits_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_ai_audits_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_metrics_28d: {
+        Row: {
+          agency_id: string | null
+          client_id: string | null
+          conversions_28d: number | null
+          days_with_data: number | null
+          last_metric_date: string | null
+          revenue_28d: number | null
+          roas_28d: number | null
+          spend_28d: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metrics_daily_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "metrics_daily_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      integrations_public: {
+        Row: {
+          account_id: string | null
+          agency_id: string | null
+          config: Json | null
+          created_at: string | null
+          id: string | null
+          last_sync_at: string | null
+          provider: Database["public"]["Enums"]["integration_provider"] | null
+          status: Database["public"]["Enums"]["integration_status"] | null
+          token_expires_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          agency_id?: string | null
+          config?: Json | null
+          created_at?: string | null
+          id?: string | null
+          last_sync_at?: string | null
+          provider?: Database["public"]["Enums"]["integration_provider"] | null
+          status?: Database["public"]["Enums"]["integration_status"] | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          agency_id?: string | null
+          config?: Json | null
+          created_at?: string | null
+          id?: string | null
+          last_sync_at?: string | null
+          provider?: Database["public"]["Enums"]["integration_provider"] | null
+          status?: Database["public"]["Enums"]["integration_status"] | null
+          token_expires_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "integrations_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       auth_is_platform_admin: { Args: never; Returns: boolean }
+      bootstrap_retentio_cron_jobs: { Args: never; Returns: Json }
+      check_ai_budget: {
+        Args: { p_agency_id: string; p_estimated_tokens?: number }
+        Returns: boolean
+      }
+      check_api_rate_limit: {
+        Args: { p_bucket: string; p_max: number; p_window_seconds: number }
+        Returns: boolean
+      }
+      check_diagnosis_ai_budget: {
+        Args: { p_estimated_tokens?: number }
+        Returns: boolean
+      }
+      claim_ai_jobs: {
+        Args: { p_limit?: number }
+        Returns: {
+          agency_id: string
+          attempts: number
+          client_id: string | null
+          created_at: string
+          finished_at: string | null
+          id: string
+          job_type: Database["public"]["Enums"]["ai_job_type"]
+          last_error: string | null
+          payload: Json
+          result_ref: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["ai_job_status"]
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "ai_jobs"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      cleanup_stale_sync_runs: { Args: never; Returns: number }
       count_open_alerts: { Args: { _agency: string }; Returns: number }
       current_user_agency: { Args: never; Returns: string }
+      get_agency_cron_prefetch: {
+        Args: { p_agency_id: string; p_client_ids: string[]; p_since: string }
+        Returns: Json
+      }
+      get_agency_dashboard_snapshot: {
+        Args: { p_agency_id: string }
+        Returns: Json
+      }
+      get_latest_campaign_audits_for_clients: {
+        Args: { p_client_ids: string[] }
+        Returns: {
+          client_id: string
+          created_at: string
+          result_json: Json
+        }[]
+      }
+      get_retentio_cron_bearer: { Args: never; Returns: string }
       has_role: {
         Args: {
           _agency_id: string
@@ -2560,6 +2761,16 @@ export type Database = {
           profiles_with_agency_count: number
         }[]
       }
+      refresh_client_metrics_28d: {
+        Args: { p_client_id?: string }
+        Returns: undefined
+      }
+      retention_cleanup_ops: { Args: never; Returns: Json }
+      setup_retentio_cron_jobs: {
+        Args: { p_cron_bearer: string }
+        Returns: Json
+      }
+      upsert_metrics_daily_batch: { Args: { p_rows: Json }; Returns: undefined }
     }
     Enums: {
       ai_job_status: "pending" | "processing" | "done" | "failed"

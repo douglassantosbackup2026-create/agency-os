@@ -7,6 +7,7 @@
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { isCronRequest } from "./cron-bearer-verify.ts";
 
 export function cronUnauthorized(): Response {
   return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -18,7 +19,10 @@ export function cronUnauthorized(): Response {
   });
 }
 
-export async function assertCronOrUser(req: Request): Promise<Response | null> {
+export async function assertCronOrUser(
+  req: Request,
+  admin?: SupabaseClient,
+): Promise<Response | null> {
   const secret = Deno.env.get("CRON_SECRET");
   const allowInsecureAnon = Deno.env.get("ALLOW_INSECURE_CRON_ANON") === "true";
   const authHeader = req.headers.get("authorization") ?? "";
@@ -28,6 +32,7 @@ export async function assertCronOrUser(req: Request): Promise<Response | null> {
   const headerSecret = req.headers.get("x-cron-secret");
 
   if (secret && (bearer === secret || headerSecret === secret)) return null;
+  if (admin && (await isCronRequest(req, admin))) return null;
 
   if (
     authHeader.startsWith("Bearer ") &&
@@ -78,6 +83,7 @@ export async function assertCronOrOwnerAdmin(
   const headerSecret = req.headers.get("x-cron-secret");
 
   if (secret && (bearer === secret || headerSecret === secret)) return null;
+  if (await isCronRequest(req, admin)) return null;
 
   if (
     authHeader.startsWith("Bearer ") &&
@@ -129,5 +135,5 @@ export async function assertCronOrOwnerAdmin(
     }
   }
 
-  return assertCronOrUser(req);
+  return assertCronOrUser(req, admin);
 }

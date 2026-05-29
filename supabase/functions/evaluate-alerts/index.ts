@@ -4,7 +4,7 @@ import { assertCronOrOwnerAdmin } from "../_shared/cron-auth.ts";
 import { resolveCronDualAuthAgencyScope } from "../_shared/cron-agency-scope.ts";
 import { edgeLogDone, edgeLog, truncateError } from "../_shared/edge-log.ts";
 import { baseGovernance } from "../_shared/ai-v3.ts";
-import { prefetchAgencyCronData } from "../_shared/cron-agency-prefetch.ts";
+import { prefetchAgencyCronData, clientHasMinMetricsData } from "../_shared/cron-agency-prefetch.ts";
 import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 
 const corsHeaders = {
@@ -156,7 +156,7 @@ Deno.serve(async (req) => {
         !!muteUntil && new Date(muteUntil).getTime() > Date.now();
 
       const m = (prefetch.metricsByClient.get(cid) ?? []) as M[];
-      if (m.length < 7) continue;
+      if (!clientHasMinMetricsData(prefetch, cid, 7)) continue;
       const openTypes =
         prefetch.openAlertTypesByClient.get(cid) ?? new Set<string>();
       const lastNoteAt = prefetch.lastNoteAtByClient.get(cid);
@@ -494,7 +494,7 @@ Deno.serve(async (req) => {
         created,
         agency_id: agencyFilter ?? null,
         clients_processed: (clients ?? []).length,
-        prefetch_queries: 8,
+        prefetch_queries: 1,
       },
       traceId,
     );

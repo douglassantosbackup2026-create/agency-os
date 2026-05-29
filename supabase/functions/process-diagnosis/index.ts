@@ -237,10 +237,9 @@ Deno.serve(async (req) => {
   if (req.method !== "POST")
     return jsonResponse({ error: "Method not allowed" }, 405);
 
-  const auth = await assertCronOrUser(req);
-  if (auth) return auth;
-
   const sb = diagnosisServiceClient();
+  const auth = await assertCronOrUser(req, sb);
+  if (auth) return auth;
   const { data: rows } = await sb
     .from("diagnoses")
     .select("id, meta_ad_account_id, status")

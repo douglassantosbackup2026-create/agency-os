@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { normalizeClickContext } from "../_shared/ai-v3.ts";
 import { BodyTooLargeError, readJsonBody } from "../_shared/edge-json-body.ts";
 import { edgeLogDone, truncateError, edgeLog } from "../_shared/edge-log.ts";
+import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 import { assertUserCanAccessClient } from "../_shared/membership.ts";
 import { isCronAuthenticated } from "../_shared/cron-agency-scope.ts";
 import { aiBudgetExceeded } from "../_shared/ai-budget.ts";
@@ -22,10 +23,16 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
 
   const t0 = Date.now();
+  const traceId = traceIdFromRequest(req);
+  const admin = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
   try {
     const authHeader = req.headers.get("Authorization");
     const jobIdHeader = req.headers.get("x-ai-job-id")?.trim() ?? "";
-    const isJobRunner = !!jobIdHeader && isCronAuthenticated(req);
+    const isJobRunner =
+      !!jobIdHeader && (await isCronAuthenticated(req, admin));
 
     if (!authHeader && !isJobRunner)
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -281,7 +288,9 @@ Deno.serve(async (req) => {
         client_id,
         agency_id: client.agency_id,
         mode,
+        trace_id: traceId,
       });
+      traceLog("generate_report.ok", { client_id, mode }, traceId);
       return new Response(JSON.stringify({ ok: true, report }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

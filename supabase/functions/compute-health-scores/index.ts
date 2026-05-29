@@ -4,7 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { assertCronOrOwnerAdmin } from "../_shared/cron-auth.ts";
 import { resolveCronDualAuthAgencyScope } from "../_shared/cron-agency-scope.ts";
 import { edgeLogDone, edgeLog, truncateError } from "../_shared/edge-log.ts";
-import { prefetchAgencyCronData } from "../_shared/cron-agency-prefetch.ts";
+import { prefetchAgencyCronData, clientHasMinMetricsData } from "../_shared/cron-agency-prefetch.ts";
 import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 
 const corsHeaders = {
@@ -361,6 +361,8 @@ Deno.serve(async (req) => {
 
     for (const c of clients ?? []) {
       const cid = String(c.id);
+      if (!clientHasMinMetricsData(prefetch, cid, 7)) continue;
+
       const metrics = prefetch.metricsByClient.get(cid) ?? [];
       const lastActAt = prefetch.lastActivityAtByClient.get(cid);
       const lastNoteAt = prefetch.lastNoteAtByClient.get(cid);
@@ -480,10 +482,12 @@ Deno.serve(async (req) => {
     traceLog("compute_health_scores.ok", {
       processed,
       agency_id: agencyFilter ?? null,
+      prefetch_queries: 1,
     }, traceId);
     edgeLogDone("compute_health_scores.ok", t0, {
       processed,
       agency_id: agencyFilter ?? null,
+      prefetch_queries: 1,
       trace_id: traceId,
     });
     return new Response(JSON.stringify({ ok: true, processed }), {
