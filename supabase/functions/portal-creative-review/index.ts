@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { z } from "https://esm.sh/zod@3.23.8";
+import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
 import { BodyTooLargeError, readJsonBody } from "../_shared/edge-json-body.ts";
 import { portalClientIp, portalRateLimitExceeded } from "../_shared/portal-rate-limit.ts";
 import {
@@ -35,6 +36,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+  const trace = beginEdgeTrace(req, "portal_creative_review");
   try {
     let rawBody: Record<string, unknown>;
     try {
@@ -152,10 +154,12 @@ Deno.serve(async (req) => {
     });
     if (revErr) throw revErr;
 
+    trace.done({ decision });
     return new Response(JSON.stringify({ ok: true, decision }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    trace.fail(e);
     console.error("[portal-creative-review]", e);
     return new Response(JSON.stringify({ error: "internal_error" }), {
       status: 500,

@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { BodyTooLargeError, readJsonBody } from "../_shared/edge-json-body.ts";
 import { appCors, appCorsPreflight } from "../_shared/cors-allowlist.ts";
+import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
 
 const InviteBody = z.object({
   email: z.string().trim().email().max(254),
@@ -14,6 +15,7 @@ Deno.serve(async (req) => {
   const pre = appCorsPreflight(req);
   if (pre) return pre;
   const corsHeaders = appCors(req);
+  const trace = beginEdgeTrace(req, "invite_member");
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader)
@@ -157,10 +159,12 @@ Deno.serve(async (req) => {
       { onConflict: "user_id,agency_id,role", ignoreDuplicates: true },
     );
 
+    trace.done({});
     return new Response(JSON.stringify({ ok: true }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    trace.fail(e);
     return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

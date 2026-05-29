@@ -9,7 +9,7 @@
 | `META_INSIGHTS_MAX_PAGES` | 20 | Paginação Meta insights |
 | `META_FETCH_MAX_RETRIES` | 3 | Retries Meta 429/5xx |
 | `CRON_AGENCY_BATCH_SIZE` | 5 | Fan-out dispatcher por agência |
-| `CRON_CLIENT_BATCH_SIZE` | 0 | Clientes por tick intra-agência (`evaluate-alerts`, `compute-health-scores`); 0 = todos |
+| `CRON_CLIENT_BATCH_SIZE` | 0 | Clientes por tick intra-agência (`evaluate-alerts`, `compute-health-scores`); **recomendado 25** se `agencies_over_100_clients` no snapshot. Definir: `npm run ops:set-cron-batch` (requer `supabase login`) |
 | `MEETING_REPORT_SYNC_MODE` | false | `true` = pauta de reunião síncrona (dev) |
 | `PROCESS_DIAGNOSIS_BATCH_SIZE` | 10 | Diagnósticos por invocação |
 | `REPORT_SYNC_MODE` | false | `true` = relatório síncrono (dev) |

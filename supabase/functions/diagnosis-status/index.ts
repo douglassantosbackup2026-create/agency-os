@@ -5,6 +5,7 @@ import {
   ensureBuyerAccountAndToken,
   fetchBuyerDiagnosis,
 } from "../_shared/diagnosis/buyer-account.ts";
+import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
 
 // Fallback reconciliation in case the MP webhook never arrives (network,
 // signature mismatch, dev environment, etc.). When the diagnosis still
@@ -65,6 +66,7 @@ function triggerProcessDiagnosis(): void {
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
+  const trace = beginEdgeTrace(req, "diagnosis_status");
   if (req.method !== "GET")
     return jsonResponse({ error: "Method not allowed" }, 405);
 
@@ -96,6 +98,7 @@ Deno.serve(async (req) => {
     triggerProcessDiagnosis();
   }
 
+  trace.done({ status });
   return jsonResponse({
     status,
     failed_reason: data?.failed_reason ?? null,

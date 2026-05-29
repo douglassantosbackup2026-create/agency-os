@@ -1,5 +1,6 @@
 import { handleCors, jsonResponse } from "../_shared/diagnosis/cors.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
+import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
 import {
   ensureBuyerAccountAndToken,
   fetchBuyerDiagnosis,
@@ -46,6 +47,7 @@ async function reconcileWithMp(
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
+  const trace = beginEdgeTrace(req, "diagnosis_payment_status");
   if (req.method !== "GET")
     return jsonResponse({ error: "Method not allowed" }, 405);
 
@@ -94,5 +96,6 @@ Deno.serve(async (req) => {
     }
   }
 
+  trace.done({ status });
   return jsonResponse({ status, auto_login_token: autoLoginToken });
 });

@@ -6,9 +6,9 @@ Registo manual pós-deploy. Actualizar após cada release relevante.
 
 | Métrica | Meta | Última medição | Data | Notas |
 |---------|------|---------------|------|-------|
-| TTFB p95 `/dashboard` (autenticado) | &lt; 800 ms | _registar após deploy_ | | `npm run perf:lighthouse` + `npm run ops:resilience-health` |
-| MV `client_metrics_28d` refresh | &lt; 5 min após cron 03:15 UTC | _pendente_ | | Query abaixo |
-| Locks `sync_runs` `running` &gt; 30 min | &lt; 0,1% do total 24h | _pendente_ | | Query abaixo |
+| TTFB p95 `/dashboard` (autenticado) | &lt; 800 ms | _pendente Lighthouse_ | 2026-05-29 | `/login` público: **404 ms** (health check pós-deploy Worker) |
+| MV `client_metrics_28d` refresh | &lt; 5 min após cron 03:15 UTC | null (aguarda 1.º cron pós-migration) | 2026-05-29 | `get_resilience_ops_snapshot()` — gravado em `dispatch_state` após refresh |
+| Locks `sync_runs` `running` &gt; 30 min | &lt; 0,1% do total 24h | **0%** (0/0 runs 24h) | 2026-05-29 | `stale_sync_running: 0`, `sync_runs_24h: 0` |
 
 ## Comandos
 
@@ -36,6 +36,22 @@ node scripts/resilience-health-check.mjs --url https://SEU_WORKER.workers.dev/da
 ```
 
 Requer cookie de sessão para dashboard autenticado; use Lighthouse para medição completa.
+
+## Snapshot 2026-05-29 (produção)
+
+```json
+{
+  "checked_at": "2026-05-29T19:06:24Z",
+  "stale_sync_running": 0,
+  "sync_runs_24h": 0,
+  "stale_running_pct": 0,
+  "ai_jobs_pending": 0,
+  "agencies_over_100_clients": [],
+  "mv_client_metrics_28d_last_refresh": null
+}
+```
+
+Worker: `https://tanstack-start-app.douglaspinheirosantos94.workers.dev/login` → HTTP **200**, TTFB ~404 ms.
 
 ## Histórico
 

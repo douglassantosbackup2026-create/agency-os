@@ -18,6 +18,7 @@ import {
 } from "../_shared/diagnosis/state-signing.ts";
 import { normalizePublicSiteUrl } from "../_shared/public-site-url.ts";
 import { takeMetaTestExchange } from "../_shared/meta-test-exchange.ts";
+import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -202,6 +203,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
+  const trace = beginEdgeTrace(req, "meta_api_test");
 
   if (req.method !== "POST") {
     return json({ error: "Method not allowed" }, 405);

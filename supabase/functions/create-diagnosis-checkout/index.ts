@@ -1,6 +1,7 @@
 import { handleCors, jsonResponse } from "../_shared/diagnosis/cors.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 import { publicClientIp, publicRateLimitExceeded } from "../_shared/public-rate-limit.ts";
+import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
 
 function siteUrl(): string {
   return (
@@ -18,6 +19,7 @@ function priceReais(): number {
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
+  const trace = beginEdgeTrace(req, "create_diagnosis_checkout");
   if (req.method !== "POST") {
     return jsonResponse({ error: "Method not allowed" }, 405);
   }
@@ -110,6 +112,7 @@ Deno.serve(async (req) => {
     .update({ mp_preference_id: mpJson.id ?? null })
     .eq("id", diagnosisId);
 
+  trace.done({ diagnosis_id: diagnosisId });
   return jsonResponse({
     init_point: mpJson.init_point,
     diagnosis_id: diagnosisId,

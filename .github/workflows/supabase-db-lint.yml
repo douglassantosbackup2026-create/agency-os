@@ -16,6 +16,12 @@ jobs:
         with:
           version: latest
 
-      - name: supabase db lint
-        continue-on-error: true
+      - name: supabase db lint (requer SUPABASE_ACCESS_TOKEN)
+        if: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: supabase db lint
+
+      - name: supabase db lint (skipped)
+        if: ${{ secrets.SUPABASE_ACCESS_TOKEN == '' }}
+        run: echo "Defina SUPABASE_ACCESS_TOKEN para lint estrito em CI."

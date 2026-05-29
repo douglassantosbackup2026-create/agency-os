@@ -1,5 +1,6 @@
 // Estado das env vars OAuth globais (sem expor valores). Só platform admin.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -14,6 +15,7 @@ function envOk(v: string | undefined, minLen = 1): boolean {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
+  const trace = beginEdgeTrace(req, "oauth_env_status");
   try {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
@@ -73,10 +75,12 @@ Deno.serve(async (req) => {
       tiktok_secret_ok: envOk(tikTokSecret),
     };
 
+    trace.done({});
     return new Response(JSON.stringify(body), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    trace.fail(e);
     return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

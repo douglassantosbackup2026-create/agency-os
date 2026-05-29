@@ -4,6 +4,7 @@ import {
   ensureBuyerAccountAndToken,
   fetchBuyerDiagnosis,
 } from "../_shared/diagnosis/buyer-account.ts";
+import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
 
 const DIAGNOSIS_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -36,6 +37,7 @@ function isLiveCredentialMismatch(mpRes: Response, mpJson: MpPaymentResponse) {
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
+  const trace = beginEdgeTrace(req, "process_diagnosis_payment");
   if (req.method !== "POST")
     return jsonResponse({ error: "Method not allowed" }, 405);
 
@@ -207,6 +209,7 @@ Deno.serve(async (req) => {
         ? `/obrigado?d=${diagnosisId}&s=${secret}${autoLoginToken ? `&t=${encodeURIComponent(autoLoginToken)}` : ""}`
         : null;
 
+    trace.done({ status, diagnosis_id: diagnosisId });
     return jsonResponse({
       status,
       status_detail: mpJson.status_detail ?? null,
@@ -216,6 +219,7 @@ Deno.serve(async (req) => {
   }
 
   const td = mpJson.point_of_interaction?.transaction_data;
+  trace.done({ status: "pending", diagnosis_id: diagnosisId });
   return jsonResponse({
     status: "pending",
     pix: {

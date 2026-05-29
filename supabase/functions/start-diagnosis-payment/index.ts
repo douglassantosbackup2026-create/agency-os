@@ -1,6 +1,7 @@
 import { handleCors, jsonResponse } from "../_shared/diagnosis/cors.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 import { publicClientIp, publicRateLimitExceeded } from "../_shared/public-rate-limit.ts";
+import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
 
 function priceCents(): number {
   return parseInt(Deno.env.get("DIAGNOSIS_PRICE_CENTS") ?? "3700", 10);
@@ -24,6 +25,7 @@ function validateCpf(cpf: string): boolean {
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
+  const trace = beginEdgeTrace(req, "start_diagnosis_payment");
   if (req.method !== "POST")
     return jsonResponse({ error: "Method not allowed" }, 405);
 
@@ -85,6 +87,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Falha ao criar diagnóstico" }, 500);
   }
 
+  trace.done({ diagnosis_id: row.id });
   return jsonResponse({
     diagnosis_id: row.id,
     secret_slug: row.secret_slug,

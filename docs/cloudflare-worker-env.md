@@ -49,6 +49,9 @@ Use **secrets** para chaves JWT; não commitar anon keys em repositório públic
 ## Verificação pós-deploy
 
 ```bash
-curl.exe -s -o NUL -w "%{http_code}" https://SEU_WORKER.workers.dev/login
-# Esperado: 200 (não 500)
+npm run ops:deploy-worker
+npm run ops:resilience-health -- --url https://tanstack-start-app.douglaspinheirosantos94.workers.dev/login
+# Esperado: status 200 (não 500)
 ```
+
+Deploy automatizado lê [`.env`](.env) ou [`.env.example`](.env.example) e passa `--var` ao `wrangler deploy`.

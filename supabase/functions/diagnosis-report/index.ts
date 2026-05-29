@@ -5,10 +5,12 @@ import {
 } from "../_shared/diagnosis/management-eligibility.ts";
 import { assertDiagnosisSecret } from "../_shared/diagnosis/validate-diagnosis-access.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
+import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
 
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
+  const trace = beginEdgeTrace(req, "diagnosis_report");
   if (req.method !== "GET")
     return jsonResponse({ error: "Method not allowed" }, 405);
 
@@ -36,6 +38,7 @@ Deno.serve(async (req) => {
   const factsJson = rep?.facts_json;
   const spendLast30d = parseSpendFromFacts(factsJson);
 
+  trace.done({ diagnosis_id: d });
   return jsonResponse({
     diagnosis: diag,
     report: rep

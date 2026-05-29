@@ -80,4 +80,68 @@ test.describe("resiliência — API (opcional)", () => {
       expect(json.job_id).toBeTruthy();
     }
   });
+
+  test("poll ai_jobs até estado terminal", async ({ request }) => {
+    test.skip(
+      process.env.E2E_RESILIENCE !== "1",
+      "Defina E2E_RESILIENCE=1 para testes de API.",
+    );
+    const base = process.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
+    const token = process.env.E2E_TEST_ACCESS_TOKEN?.trim();
+    const clientId = process.env.E2E_TEST_CLIENT_ID?.trim();
+    test.skip(!base || !token || !clientId, "VITE_SUPABASE_URL, E2E_TEST_ACCESS_TOKEN, E2E_TEST_CLIENT_ID");
+
+    const enqueue = await request.post(
+      `${base}/functions/v1/generate-meeting-report`,
+      { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }, data: { client_id: clientId } },
+    );
+    if (enqueue.status() !== 202) {
+      test.skip(true, "Fila async indisponível (sync ou rate limit).");
+    }
+    const { job_id: jobId } = (await enqueue.json()) as { job_id?: string };
+    test.skip(!jobId, "Sem job_id");
+
+    const deadline = Date.now() + 120_000;
+    let lastStatus = "pending";
+    while (Date.now() < deadline) {
+      const res = await request.get(
+        `${base}/rest/v1/ai_jobs?id=eq.${jobId}&select=status,last_error`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            apikey: process.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? "",
+          },
+        },
+      );
+      if (res.ok()) {
+        const rows = (await res.json()) as Array<{ status?: string; last_error?: string }>;
+        lastStatus = rows[0]?.status ?? lastStatus;
+        const done = aiJobPollDone(lastStatus);
+        if (done === "done" || done === "failed") {
+          expect(["done", "failed"]).toContain(lastStatus);
+          return;
+        }
+      }
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+    expect.soft(lastStatus, "timeout aguardando ai_jobs").not.toBe("pending");
+  });
+
+  test("mercadopago-webhook rejeita POST sem assinatura em prod", async ({
+    request,
+  }) => {
+    test.skip(
+      process.env.E2E_RESILIENCE !== "1",
+      "Defina E2E_RESILIENCE=1 para testes de API.",
+    );
+    const base = process.env.VITE_SUPABASE_URL?.replace(/\/$/, "");
+    const anon = process.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
+    test.skip(!base || !anon, "VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY");
+
+    const res = await request.post(`${base}/functions/v1/mercadopago-webhook`, {
+      headers: { "Content-Type": "application/json", apikey: anon },
+      data: { type: "payment", data: { id: "0" } },
+    });
+    expect([401, 403, 422]).toContain(res.status());
+  });
 });

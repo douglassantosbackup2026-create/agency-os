@@ -20,6 +20,8 @@
     "db:lint": "npx supabase db lint",
     "perf:lighthouse": "node scripts/lighthouse-authenticated.mjs",
     "ops:resilience-health": "node scripts/resilience-health-check.mjs",
+    "ops:deploy-worker": "node scripts/deploy-worker-with-env.mjs",
+    "ops:set-cron-batch": "node scripts/ops-set-cron-client-batch.mjs",
     "landing:assets": "node scripts/generate-landing-assets.mjs",
     "landing:from-png": "node scripts/process-landing-screenshots.mjs ./landing-raw-png",
     "diag:dev": "npm --prefix diagnostico-meta run dev",

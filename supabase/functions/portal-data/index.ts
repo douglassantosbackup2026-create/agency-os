@@ -12,6 +12,7 @@ import {
   portalReviewSecret,
   signPortalReviewToken,
 } from "../_shared/portal-review-token.ts";
+import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
 
 function corsFor(req: Request): Record<string, string> {
   const allowList = Deno.env
@@ -33,6 +34,7 @@ Deno.serve(async (req) => {
   const corsHeaders = corsFor(req);
   if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
+  const trace = beginEdgeTrace(req, "portal_data");
   try {
     const url = new URL(req.url);
     const slugRaw = url.searchParams.get("slug");
@@ -195,7 +197,9 @@ Deno.serve(async (req) => {
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
+    trace.done({ slug });
   } catch (e) {
+    trace.fail(e);
     console.error("[portal-data]", e);
     return new Response(JSON.stringify({ error: "internal_error" }), {
       status: 500,

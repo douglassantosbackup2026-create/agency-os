@@ -1,5 +1,6 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -78,6 +79,7 @@ function randInt(a: number, b: number) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
+  const trace = beginEdgeTrace(req, "seed_demo_data");
 
   try {
     const authHeader = req.headers.get("Authorization");
@@ -292,10 +294,12 @@ Deno.serve(async (req) => {
     await admin.from("alerts").insert(alertRows);
     await admin.from("activities").insert(activityRows);
 
+    trace.done({ clients: clients.length });
     return new Response(JSON.stringify({ ok: true, clients: clients.length }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
+    trace.fail(e);
     console.error(e);
     return new Response(JSON.stringify({ error: (e as Error).message }), {
       status: 500,

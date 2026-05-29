@@ -3,6 +3,7 @@ import { assertDiagnosisSecret } from "../_shared/diagnosis/validate-diagnosis-a
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 import { isManagementCtaEligible } from "../_shared/diagnosis/management-eligibility.ts";
 import { publicClientIp, publicRateLimitExceeded } from "../_shared/public-rate-limit.ts";
+import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
 
 function siteUrl(): string {
   return (
@@ -32,6 +33,7 @@ function managementItemTitle(): string {
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
+  const trace = beginEdgeTrace(req, "create_management_checkout");
   if (req.method !== "POST") {
     return jsonResponse({ error: "Method not allowed" }, 405);
   }
@@ -179,6 +181,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Falha ao guardar dados" }, 500);
   }
 
+  trace.done({ diagnosis_id: diagnosisId });
   return jsonResponse({
     init_point: mpJson.init_point,
     diagnosis_id: diagnosisId,

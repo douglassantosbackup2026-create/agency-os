@@ -1,10 +1,12 @@
 import { handleCors, jsonResponse } from "../_shared/diagnosis/cors.ts";
 import { assertDiagnosisSecret } from "../_shared/diagnosis/validate-diagnosis-access.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
+import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
 
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
+  const trace = beginEdgeTrace(req, "diagnosis_track");
   if (req.method !== "POST")
     return jsonResponse({ error: "Method not allowed" }, 405);
 
@@ -35,5 +37,6 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "event inválido" }, 400);
   }
 
+  trace.done({ event: ev });
   return jsonResponse({ ok: true });
 });
