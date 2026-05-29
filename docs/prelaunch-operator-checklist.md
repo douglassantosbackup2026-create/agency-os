@@ -6,7 +6,7 @@ Execute **staging**, depois **produção**. Não commitar valores de secrets nes
 
 | Secret | Onde confirmar | Notas |
 |--------|----------------|--------|
-| `CRON_SECRET` | Edge Functions → Secrets | Obrigatório para crons e `cron-dispatch-agency-jobs`, `process-ai-jobs`, `process-diagnosis`. Ver [`cron-jobs.deploy-trafego.sql`](../supabase/cron-jobs.deploy-trafego.sql). |
+| `CRON_SECRET` | Edge Functions → Secrets | Opcional se usou `bootstrap_retentio_cron_jobs` (bearer em `retentio_ops_config`). Para alinhar env: `SELECT get_retentio_cron_bearer();` no SQL Editor ou `npm run ops:sync-cron-secret` (requer `SUPABASE_ACCESS_TOKEN`). |
 | `REPORT_SYNC_MODE` | Opcional | `true` apenas em dev (relatórios síncronos). Produção: omitir (fila `ai_jobs`). |
 | `CRON_AGENCY_BATCH_SIZE` | Opcional | Default 5 — fan-out por agência. |
 | `ALLOW_INSECURE_CRON_ANON` | **Não** definir em produção | Só desenvolvimento local. |
