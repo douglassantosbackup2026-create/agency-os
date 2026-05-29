@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -1113,6 +1113,7 @@ export type Database = {
           report_version: number
           secret_slug: string
           status: string
+          updated_at: string
           viewed_at: string | null
         }
         Insert: {
@@ -1147,6 +1148,7 @@ export type Database = {
           report_version?: number
           secret_slug?: string
           status: string
+          updated_at?: string
           viewed_at?: string | null
         }
         Update: {
@@ -1181,6 +1183,7 @@ export type Database = {
           report_version?: number
           secret_slug?: string
           status?: string
+          updated_at?: string
           viewed_at?: string | null
         }
         Relationships: []
@@ -2716,6 +2719,10 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      cleanup_stale_diagnosis_processing: {
+        Args: { p_stale_minutes?: number }
+        Returns: number
+      }
       cleanup_stale_sync_runs: { Args: never; Returns: number }
       count_open_alerts: { Args: { _agency: string }; Returns: number }
       current_user_agency: { Args: never; Returns: string }
@@ -2726,6 +2733,10 @@ export type Database = {
           p_dates: string[]
         }
         Returns: number
+      }
+      get_agency_client_batch: {
+        Args: { p_agency_id: string; p_job_key: string; p_limit?: number }
+        Returns: Json
       }
       get_agency_cron_prefetch: {
         Args: { p_agency_id: string; p_client_ids: string[]; p_since: string }
@@ -2743,6 +2754,7 @@ export type Database = {
         Args: { p_job_key: string; p_limit?: number }
         Returns: Json
       }
+      get_diagnosis_ops_snapshot: { Args: never; Returns: Json }
       get_latest_campaign_audits_for_clients: {
         Args: { p_client_ids: string[] }
         Returns: {
@@ -2751,6 +2763,7 @@ export type Database = {
           result_json: Json
         }[]
       }
+      get_resilience_ops_snapshot: { Args: never; Returns: Json }
       get_retentio_cron_bearer: { Args: never; Returns: string }
       has_role: {
         Args: {
@@ -2794,7 +2807,7 @@ export type Database = {
     }
     Enums: {
       ai_job_status: "pending" | "processing" | "done" | "failed"
-      ai_job_type: "report" | "campaign_audit" | "diagnosis"
+      ai_job_type: "report" | "campaign_audit" | "diagnosis" | "meeting_report"
       alert_priority: "low" | "medium" | "high" | "critical"
       alert_status: "open" | "in_progress" | "resolved" | "dismissed"
       app_role: "owner" | "admin" | "member"
@@ -2939,7 +2952,7 @@ export const Constants = {
   public: {
     Enums: {
       ai_job_status: ["pending", "processing", "done", "failed"],
-      ai_job_type: ["report", "campaign_audit", "diagnosis"],
+      ai_job_type: ["report", "campaign_audit", "diagnosis", "meeting_report"],
       alert_priority: ["low", "medium", "high", "critical"],
       alert_status: ["open", "in_progress", "resolved", "dismissed"],
       app_role: ["owner", "admin", "member"],
