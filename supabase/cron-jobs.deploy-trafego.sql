@@ -1,35 +1,48 @@
--- Projeto ligado (Trafego): só substituir **todas** as ocorrências de __CRON_SECRET_HERE__
--- pelo valor igual ao secret CRON_SECRET nas Edge Functions (Dashboard → Secrets).
--- Executar no SQL Editor do Supabase para este projeto.
---
--- Estado atual (após migrations): cron.job pode estar vazio até correr este script.
+-- Projeto ligado (Trafego): substituir __CRON_SECRET_HERE__ pelo CRON_SECRET das Edge Functions.
+-- 1) Correr primeiro: supabase/cron-jobs.unschedule-legacy.sql
+-- 2) Depois este ficheiro (dispatcher por agência).
 
 SELECT cron.schedule(
-  'compute-health-scores-daily',
+  'cron-dispatch-health-daily',
   '0 4 * * *',
   $$
   SELECT net.http_post(
-    url := 'https://uvuotaxikuxejfeitlaw.supabase.co/functions/v1/compute-health-scores',
+    url := 'https://uvuotaxikuxejfeitlaw.supabase.co/functions/v1/cron-dispatch-agency-jobs',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
       'Authorization', 'Bearer __CRON_SECRET_HERE__'
     ),
-    body := '{}'::jsonb
+    body := '{"jobs":"compute-health-scores"}'::jsonb
   );
   $$
 );
 
 SELECT cron.schedule(
-  'evaluate-alerts-hourly',
+  'cron-dispatch-alerts-hourly',
   '0 * * * *',
   $$
   SELECT net.http_post(
-    url := 'https://uvuotaxikuxejfeitlaw.supabase.co/functions/v1/evaluate-alerts',
+    url := 'https://uvuotaxikuxejfeitlaw.supabase.co/functions/v1/cron-dispatch-agency-jobs',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
       'Authorization', 'Bearer __CRON_SECRET_HERE__'
     ),
-    body := '{}'::jsonb
+    body := '{"jobs":"evaluate-alerts"}'::jsonb
+  );
+  $$
+);
+
+SELECT cron.schedule(
+  'cron-dispatch-ai-jobs',
+  '*/2 * * * *',
+  $$
+  SELECT net.http_post(
+    url := 'https://uvuotaxikuxejfeitlaw.supabase.co/functions/v1/cron-dispatch-agency-jobs',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer __CRON_SECRET_HERE__'
+    ),
+    body := '{"jobs":"process-ai-jobs"}'::jsonb
   );
   $$
 );
@@ -55,6 +68,37 @@ SELECT cron.schedule(
   $$
   SELECT net.http_post(
     url := 'https://uvuotaxikuxejfeitlaw.supabase.co/functions/v1/whatsapp-summary?period=weekly',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer __CRON_SECRET_HERE__'
+    ),
+    body := '{}'::jsonb
+  );
+  $$
+);
+
+SELECT cron.schedule(
+  'refresh-client-metrics-28d-nightly',
+  '15 3 * * *',
+  $$
+  SELECT public.refresh_client_metrics_28d(NULL);
+  $$
+);
+
+SELECT cron.schedule(
+  'retention-cleanup-weekly',
+  '0 3 * * 0',
+  $$
+  SELECT public.retention_cleanup_ops();
+  $$
+);
+
+SELECT cron.schedule(
+  'process-diagnosis-batch',
+  '*/5 * * * *',
+  $$
+  SELECT net.http_post(
+    url := 'https://uvuotaxikuxejfeitlaw.supabase.co/functions/v1/process-diagnosis',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
       'Authorization', 'Bearer __CRON_SECRET_HERE__'

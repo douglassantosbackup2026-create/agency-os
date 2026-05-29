@@ -6,7 +6,9 @@ Execute **staging**, depois **produção**. Não commitar valores de secrets nes
 
 | Secret | Onde confirmar | Notas |
 |--------|----------------|--------|
-| `CRON_SECRET` | Edge Functions → Secrets | Obrigatório para `compute-health-scores`, `evaluate-alerts`, `whatsapp-summary`. Jobs `pg_cron`/`pg_net` devem enviar `Authorization: Bearer <CRON_SECRET>`. |
+| `CRON_SECRET` | Edge Functions → Secrets | Obrigatório para crons e `cron-dispatch-agency-jobs`, `process-ai-jobs`, `process-diagnosis`. Ver [`cron-jobs.deploy-trafego.sql`](../supabase/cron-jobs.deploy-trafego.sql). |
+| `REPORT_SYNC_MODE` | Opcional | `true` apenas em dev (relatórios síncronos). Produção: omitir (fila `ai_jobs`). |
+| `CRON_AGENCY_BATCH_SIZE` | Opcional | Default 5 — fan-out por agência. |
 | `ALLOW_INSECURE_CRON_ANON` | **Não** definir em produção | Só desenvolvimento local. |
 | `PORTAL_ALLOWED_ORIGINS` | Secrets compartilhados ou por função | Domínios do frontend que chamam `portal-data` (lista CSV). Evitar `*` em produção. |
 | `PORTAL_REVIEW_TOKEN_SECRET` | Edge Functions → Secrets | Mín. 16 caracteres; obrigatório para `portal-creative-review`. |
@@ -16,7 +18,8 @@ Execute **staging**, depois **produção**. Não commitar valores de secrets nes
 
 ## 2. Base de dados
 
-- `npx supabase db push` (ou histórico Dashboard) inclui `20260517140000_fix_rls_critical_policies.sql` e `20260529120000_integrations_token_rls.sql`.
+- `npx supabase db push` inclui migrations de resiliência: `20260530120000_sync_resilience.sql`, `20260530130000_resilience_p1_p2.sql`.
+- Runbook resiliência: [`ops-resilience-runbook.md`](ops-resilience-runbook.md).
 - Consultas em [`security-rls-checklist.md`](security-rls-checklist.md).
 
 ## 3. Smoke manual (5 min)

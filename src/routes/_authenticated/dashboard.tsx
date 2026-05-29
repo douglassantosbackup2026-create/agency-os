@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { brl, num, pct, timeAgo } from "@/lib/format";
@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, type ReactNode } from "react";
+import { useDebouncedCallback } from "@/hooks/use-debounced-callback";
 import { useNavigate } from "@tanstack/react-router";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -78,14 +79,26 @@ function DashboardCollapsibleBlock({
   );
 }
 
+type OpsSnapshot = {
+  open_alerts_count?: number;
+  clients_active?: number;
+  pending_ai_jobs?: number;
+  metrics_clients_28d?: number;
+};
+
 function Dashboard() {
   const { agency } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const { data, isLoading, isError, error, refetch } = useQuery({
+  const { data: coreData, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["dashboard", agency?.id],
     enabled: !!agency,
     queryFn: async () => {
+      const { data: opsSnapshot } = await supabase.rpc(
+        "get_agency_dashboard_snapshot",
+        { p_agency_id: agency!.id },
+      );
       const todayIso = new Date().toISOString().slice(0, 10);
       const since = new Date(Date.now() - 30 * 86400000)
         .toISOString()
@@ -96,11 +109,19 @@ function Dashboard() {
       const since14 = new Date(Date.now() - 14 * 86400000)
         .toISOString()
         .slice(0, 10);
+      const { data: auditMv } = await supabase
+        .from("campaign_audit_summary_by_client_mv")
+        .select("client_id, critical_count, last_audit_at, client_name")
+        .eq("agency_id", agency!.id)
+        .order("last_audit_at", { ascending: false });
+      const focusClientIds = (auditMv ?? [])
+        .filter((r) => Number(r.critical_count ?? 0) > 0)
+        .slice(0, 12)
+        .map((r) => r.client_id as string);
+
       const [
         clients,
         metrics,
-        alerts,
-        activities,
         health,
         campaignMetrics,
         ga4Daily,
@@ -122,22 +143,6 @@ function Dashboard() {
           .eq("agency_id", agency!.id)
           .is("campaign_id", null)
           .gte("date", since60),
-        supabase
-          .from("alerts")
-          .select(
-            "id, title, priority, created_at, type, recommended_action, client_id, clients(name)",
-          )
-          .eq("agency_id", agency!.id)
-          .eq("status", "open")
-          .order("priority", { ascending: false })
-          .order("created_at", { ascending: false })
-          .limit(48),
-        supabase
-          .from("activities")
-          .select("id, title, description, created_at, type")
-          .eq("agency_id", agency!.id)
-          .order("created_at", { ascending: false })
-          .limit(10),
         supabase
           .from("health_scores")
           .select("client_id, score, risk, recorded_at")
@@ -185,14 +190,24 @@ function Dashboard() {
           .select("buckets, computed_at")
           .eq("agency_id", agency!.id)
           .maybeSingle(),
-        supabase
-          .from("campaign_ai_audits")
-          .select(
-            "id, client_id, created_at, ga4_tracking_health, executive_summary_markdown, result_json",
-          )
-          .eq("agency_id", agency!.id)
-          .order("created_at", { ascending: false })
-          .limit(180),
+        focusClientIds.length > 0
+          ? supabase
+              .from("campaign_ai_audits")
+              .select(
+                "id, client_id, created_at, ga4_tracking_health, executive_summary_markdown, result_json",
+              )
+              .eq("agency_id", agency!.id)
+              .in("client_id", focusClientIds)
+              .order("created_at", { ascending: false })
+              .limit(72)
+          : supabase
+              .from("campaign_ai_audits")
+              .select(
+                "id, client_id, created_at, ga4_tracking_health, executive_summary_markdown, result_json",
+              )
+              .eq("agency_id", agency!.id)
+              .order("created_at", { ascending: false })
+              .limit(32),
         supabase
           .from("onboarding_checklist_items")
           .select("client_id, step_key, status")
@@ -207,8 +222,6 @@ function Dashboard() {
       ]);
       throwIfSupabaseError(clients.error, "clients");
       throwIfSupabaseError(metrics.error, "metrics_daily");
-      throwIfSupabaseError(alerts.error, "alerts");
-      throwIfSupabaseError(activities.error, "activities");
       throwIfSupabaseError(health.error, "health_scores");
       throwIfSupabaseError(campaignMetrics.error, "campaign_metrics_daily");
       throwIfSupabaseError(ga4Daily.error, "ga4_daily");
@@ -220,10 +233,10 @@ function Dashboard() {
       throwIfSupabaseError(checklistItems.error, "onboarding_checklist_items");
       if (overdueActions.error) throw new Error(overdueActions.error.message);
       return {
+        opsSnapshot: (opsSnapshot ?? null) as OpsSnapshot | null,
+        auditMv: auditMv ?? [],
         clients: clients.data ?? [],
         metrics: metrics.data ?? [],
-        alerts: alerts.data ?? [],
-        activities: activities.data ?? [],
         health: health.data ?? [],
         campaignMetrics: campaignMetrics.data ?? [],
         ga4Daily: ga4Daily.data ?? [],
@@ -238,6 +251,62 @@ function Dashboard() {
     },
   });
 
+  const alertsQuery = useQuery({
+    queryKey: ["dashboard-alerts", agency?.id],
+    enabled: !!agency,
+    queryFn: async () => {
+      const { data: rows, error } = await supabase
+        .from("alerts")
+        .select(
+          "id, title, priority, created_at, type, recommended_action, client_id, clients(name)",
+        )
+        .eq("agency_id", agency!.id)
+        .eq("status", "open")
+        .order("priority", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(48);
+      throwIfSupabaseError(error, "alerts");
+      return rows ?? [];
+    },
+  });
+
+  const activitiesQuery = useQuery({
+    queryKey: ["dashboard-activities", agency?.id],
+    enabled: !!agency,
+    queryFn: async () => {
+      const { data: rows, error } = await supabase
+        .from("activities")
+        .select("id, title, description, created_at, type")
+        .eq("agency_id", agency!.id)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      throwIfSupabaseError(error, "activities");
+      return rows ?? [];
+    },
+  });
+
+  const mergedData = useMemo(() => {
+    if (!coreData) return null;
+    return {
+      ...coreData,
+      alerts: alertsQuery.data ?? [],
+      activities: activitiesQuery.data ?? [],
+    };
+  }, [coreData, alertsQuery.data, activitiesQuery.data]);
+
+  const debouncedInvalidateAlerts = useDebouncedCallback(() => {
+    void queryClient.invalidateQueries({
+      queryKey: ["dashboard-alerts", agency?.id],
+    });
+    void queryClient.invalidateQueries({ queryKey: ["alerts", agency?.id] });
+  }, 3000);
+
+  const debouncedInvalidateActivities = useDebouncedCallback(() => {
+    void queryClient.invalidateQueries({
+      queryKey: ["dashboard-activities", agency?.id],
+    });
+  }, 3000);
+
   // realtime feed
   useEffect(() => {
     if (!agency) return;
@@ -251,7 +320,7 @@ function Dashboard() {
           table: "alerts",
           filter: `agency_id=eq.${agency.id}`,
         },
-        () => refetch(),
+        () => debouncedInvalidateAlerts(),
       )
       .on(
         "postgres_changes",
@@ -261,7 +330,7 @@ function Dashboard() {
           table: "activities",
           filter: `agency_id=eq.${agency.id}`,
         },
-        () => refetch(),
+        () => debouncedInvalidateActivities(),
       )
       .subscribe((status) => {
         if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
@@ -274,10 +343,11 @@ function Dashboard() {
     return () => {
       supabase.removeChannel(ch);
     };
-  }, [agency, refetch]);
+  }, [agency, debouncedInvalidateAlerts, debouncedInvalidateActivities]);
 
   const dashboardDerived = useMemo(() => {
-    if (!data) return null;
+    if (!mergedData) return null;
+    const data = mergedData;
     const now = Date.now();
     const metrics30 = data.metrics.filter(
       (m) => new Date(m.date).getTime() >= now - 30 * 86400000,
@@ -302,9 +372,13 @@ function Dashboard() {
       prevRevenue > 0 ? ((revenue - prevRevenue) / prevRevenue) * 100 : 0;
     const spendDeltaPct =
       prevSpend > 0 ? ((spend - prevSpend) / prevSpend) * 100 : 0;
-    const activeClients = data.clients.filter(
-      (c) => c.status === "active",
-    ).length;
+    const snap = data.opsSnapshot;
+    const activeClients =
+      snap?.clients_active ??
+      data.clients.filter((c) => c.status === "active").length;
+    const openAlertsCount =
+      snap?.open_alerts_count ?? data.alerts.length;
+    const pendingAiJobs = snap?.pending_ai_jobs ?? 0;
     const churnedClients = data.clients.filter(
       (c) => c.status === "churned",
     ).length;
@@ -327,6 +401,7 @@ function Dashboard() {
     const criticals = data.alerts.filter(
       (a) => a.priority === "critical" || a.priority === "high",
     ).length;
+    const openAlertsForChip = openAlertsCount;
     const campaignMomentum = computeCampaignMomentum(
       data.campaignMetrics as CampaignMetricRow[],
     );
@@ -529,8 +604,10 @@ function Dashboard() {
       pendingChecklistSteps,
       overdueActionsCount: data.overdueActionsCount,
       portfolioNextSteps,
+      openAlertsForChip,
+      pendingAiJobs,
     };
-  }, [data]);
+  }, [mergedData]);
 
   const refreshOperationalBriefing = useCallback(async () => {
     if (!agency?.id) return;
@@ -561,7 +638,16 @@ function Dashboard() {
     );
   }
 
-  if (isLoading || !data || !dashboardDerived) return <PageSkeleton />;
+  if (
+    isLoading ||
+    alertsQuery.isLoading ||
+    activitiesQuery.isLoading ||
+    !mergedData ||
+    !dashboardDerived
+  ) {
+    return <PageSkeleton />;
+  }
+  const data = mergedData!;
 
   const {
     spend,
@@ -593,6 +679,8 @@ function Dashboard() {
     pendingChecklistSteps,
     overdueActionsCount,
     portfolioNextSteps,
+    openAlertsForChip,
+    pendingAiJobs,
   } = dashboardDerived;
 
   // empty state
@@ -673,7 +761,7 @@ function Dashboard() {
             </Link>
           </Button>
         </div>
-        <div className="grid grid-cols-1 gap-2 border-t border-primary/15 px-5 pb-5 pt-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-2 border-t border-primary/15 px-5 pb-5 pt-4 sm:grid-cols-2 lg:grid-cols-3">
           <Link
             to="/alerts"
             search={{ priority: undefined }}
@@ -689,6 +777,33 @@ function Dashboard() {
               {criticals}
             </span>
           </Link>
+          <Link
+            to="/alerts"
+            search={{ priority: undefined }}
+            className="flex items-center justify-between gap-2 rounded-lg border border-border/80 bg-background/70 px-3 py-2.5 text-sm shadow-sm transition hover:border-primary/35 hover:bg-background"
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <Bell className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="truncate font-medium">Alertas abertos</span>
+            </span>
+            <span className="tabular-nums font-semibold text-foreground">
+              {openAlertsForChip}
+            </span>
+          </Link>
+          {pendingAiJobs > 0 ? (
+            <Link
+              to="/reports"
+              className="flex items-center justify-between gap-2 rounded-lg border border-border/80 bg-background/70 px-3 py-2.5 text-sm shadow-sm transition hover:border-primary/35 hover:bg-background"
+            >
+              <span className="flex min-w-0 items-center gap-2">
+                <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" />
+                <span className="truncate font-medium">Relatórios IA na fila</span>
+              </span>
+              <span className="tabular-nums font-semibold text-foreground">
+                {pendingAiJobs}
+              </span>
+            </Link>
+          ) : null}
           <Link
             to="/actions"
             search={{ sla: "overdue" }}

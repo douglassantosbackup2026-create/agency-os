@@ -4,6 +4,8 @@ import { assertCronOrOwnerAdmin } from "../_shared/cron-auth.ts";
 import { resolveCronDualAuthAgencyScope } from "../_shared/cron-agency-scope.ts";
 import { edgeLogDone, edgeLog, truncateError } from "../_shared/edge-log.ts";
 import { baseGovernance } from "../_shared/ai-v3.ts";
+import { prefetchAgencyCronData } from "../_shared/cron-agency-prefetch.ts";
+import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -105,6 +107,7 @@ Deno.serve(async (req) => {
   const denied = await assertCronOrOwnerAdmin(req, admin);
   if (denied) return denied;
   const t0 = Date.now();
+  const traceId = traceIdFromRequest(req);
   try {
     const scope = await resolveCronDualAuthAgencyScope(req, admin, corsHeaders);
     if (!scope.ok) return scope.response;
@@ -136,63 +139,30 @@ Deno.serve(async (req) => {
     const since = new Date(Date.now() - 28 * 86400000)
       .toISOString()
       .slice(0, 10);
+
+    const prefetch = await prefetchAgencyCronData(
+      admin,
+      clientIds.map(String),
+      agencyFilter,
+      since,
+    );
+
     let created = 0;
 
     for (const c of clients ?? []) {
-      const muteUntil = muteWhatsappUntilByClient.get(String(c.id)) ?? "";
+      const cid = String(c.id);
+      const muteUntil = muteWhatsappUntilByClient.get(cid) ?? "";
       const whatsappMuted =
         !!muteUntil && new Date(muteUntil).getTime() > Date.now();
 
-      const [
-        { data: metrics },
-        { data: openAlerts },
-        { data: lastNote },
-        { data: ga4Daily },
-        { data: ga4Funnel },
-        { data: trackingHealth },
-      ] = await Promise.all([
-        admin
-          .from("metrics_daily")
-          .select("date,spend,revenue,roas,cpa,ctr,conversions")
-          .eq("client_id", c.id)
-          .is("campaign_id", null)
-          .gte("date", since)
-          .order("date"),
-        admin
-          .from("alerts")
-          .select("type")
-          .eq("client_id", c.id)
-          .eq("status", "open"),
-        admin
-          .from("notes")
-          .select("created_at")
-          .eq("client_id", c.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        admin
-          .from("ga4_daily")
-          .select("date, sessions, conversions, revenue")
-          .eq("client_id", c.id)
-          .gte("date", since)
-          .order("date"),
-        admin
-          .from("ga4_funnel_daily")
-          .select("date, add_to_cart, begin_checkout, purchase")
-          .eq("client_id", c.id)
-          .gte("date", since)
-          .order("date"),
-        admin
-          .from("ga4_tracking_health_daily")
-          .select("status, notes")
-          .eq("client_id", c.id)
-          .order("date", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-      ]);
-      const m = (metrics ?? []) as M[];
+      const m = (prefetch.metricsByClient.get(cid) ?? []) as M[];
       if (m.length < 7) continue;
-      const openTypes = new Set((openAlerts ?? []).map((a) => a.type));
+      const openTypes =
+        prefetch.openAlertTypesByClient.get(cid) ?? new Set<string>();
+      const lastNoteAt = prefetch.lastNoteAtByClient.get(cid);
+      const ga4Daily = prefetch.ga4DailyByClient.get(cid) ?? [];
+      const ga4Funnel = prefetch.ga4FunnelByClient.get(cid) ?? [];
+      const trackingHealth = prefetch.trackingByClient.get(cid);
 
       const half = Math.floor(m.length / 2);
       const avg = (arr: M[], k: keyof M) =>
@@ -213,7 +183,7 @@ Deno.serve(async (req) => {
       const last3 = m.slice(-3);
       const last3Spend = sum(last3, "spend");
       const noActivity = !last3.length || last3Spend === 0;
-      const g = ga4Daily ?? [];
+      const g = ga4Daily;
       const gm = Math.floor(g.length / 2);
       const gPrior = g.slice(0, gm);
       const gRecent = g.slice(gm);
@@ -303,8 +273,8 @@ Deno.serve(async (req) => {
           time_to_act: "hoje",
         });
       }
-      const noteAgo = lastNote
-        ? (Date.now() - new Date(lastNote.created_at).getTime()) / 86400000
+      const noteAgo = lastNoteAt
+        ? (Date.now() - new Date(lastNoteAt).getTime()) / 86400000
         : 999;
       if (noteAgo > 14) {
         queue.push({
@@ -518,9 +488,20 @@ Deno.serve(async (req) => {
       }
     }
 
+    traceLog(
+      "evaluate_alerts.ok",
+      {
+        created,
+        agency_id: agencyFilter ?? null,
+        clients_processed: (clients ?? []).length,
+        prefetch_queries: 8,
+      },
+      traceId,
+    );
     edgeLogDone("evaluate_alerts.ok", t0, {
       created,
       agency_id: agencyFilter ?? null,
+      clients_processed: (clients ?? []).length,
     });
     return new Response(JSON.stringify({ ok: true, created }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

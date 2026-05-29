@@ -3,6 +3,7 @@
 // metrics + the agency's matching template, and dispatches via Evolution API.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { assertCronOrOwnerAdmin } from "../_shared/cron-auth.ts";
+import { resolveCronDualAuthAgencyScope } from "../_shared/cron-agency-scope.ts";
 import { edgeLogDone, edgeLog, truncateError } from "../_shared/edge-log.ts";
 
 const corsHeaders = {
@@ -52,7 +53,11 @@ Deno.serve(async (req) => {
   );
   const denied = await assertCronOrOwnerAdmin(req, supabase);
   if (denied) return denied;
+  const t0 = Date.now();
   try {
+    const scope = await resolveCronDualAuthAgencyScope(req, supabase, corsHeaders);
+    if (!scope.ok) return scope.response;
+
     const url = new URL(req.url);
     const period = (url.searchParams.get("period") ?? "daily") as
       | "daily"
@@ -63,17 +68,31 @@ Deno.serve(async (req) => {
       .toISOString()
       .slice(0, 10);
 
-    const { data: clients } = await supabase
+    let cq = supabase
       .from("clients")
       .select("id, name, contact_phone, agency_id")
       .eq("status", "active")
       .not("contact_phone", "is", null);
+    if (scope.agencyFilter) cq = cq.eq("agency_id", scope.agencyFilter);
+    const { data: clients } = await cq;
+
+    const batchSize = Math.max(
+      1,
+      Number(Deno.env.get("WHATSAPP_SUMMARY_BATCH_SIZE") ?? "25") || 25,
+    );
+    const throttleMs = Math.max(
+      0,
+      Number(Deno.env.get("WHATSAPP_EVOLUTION_THROTTLE_MS") ?? "300") || 300,
+    );
 
     let sent = 0,
       skipped = 0,
       failed = 0;
 
-    for (const c of clients ?? []) {
+    const list = clients ?? [];
+    for (let i = 0; i < list.length; i += batchSize) {
+      const chunk = list.slice(i, i + batchSize);
+      for (const c of chunk) {
       if (!c.contact_phone) {
         skipped++;
         continue;
@@ -134,6 +153,8 @@ Deno.serve(async (req) => {
       });
       if (result.status === "sent") sent++;
       else failed++;
+      if (throttleMs > 0) await new Promise((r) => setTimeout(r, throttleMs));
+    }
     }
 
     edgeLogDone("whatsapp_summary.ok", t0, {

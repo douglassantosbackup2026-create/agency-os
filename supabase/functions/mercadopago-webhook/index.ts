@@ -121,6 +121,29 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "invalid signature" }, 401);
   }
 
+  const sbEarly = diagnosisServiceClient();
+  const idempotencyKey = `mp:payment:${dataId}`;
+  const { data: claimed, error: claimErr } = await sbEarly
+    .from("webhook_events")
+    .insert({
+      idempotency_key: idempotencyKey,
+      branch: "payment",
+      payload_hash: dataId,
+    })
+    .select("idempotency_key")
+    .maybeSingle();
+
+  if (claimErr) {
+    const code = String((claimErr as { code?: string }).code ?? "");
+    if (code === "23505") {
+      return jsonResponse({ ok: true, idempotent: true }, 200);
+    }
+    console.error("webhook_events insert", claimErr);
+    return jsonResponse({ error: "idempotency_failed" }, 500);
+  }
+  if (!claimed) {
+    return jsonResponse({ ok: true, idempotent: true }, 200);
+  }
 
   const payment = await fetchPayment(dataId, token);
   if (!payment) {

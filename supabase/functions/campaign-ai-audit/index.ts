@@ -23,6 +23,8 @@ import {
   textFromAnthropicMessagesPayload,
 } from "../_shared/ai-response-parse.ts";
 import { edgeLog, edgeLogDone, truncateError } from "../_shared/edge-log.ts";
+import { fetchWithTimeout } from "../_shared/fetch-with-timeout.ts";
+import { aiBudgetExceeded } from "../_shared/ai-budget.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -74,7 +76,7 @@ async function callCampaignAuditModel(
     Deno.env.get("CAMPAIGN_AUDIT_MODEL") ?? "claude-3-5-haiku-20241022";
 
   if (anthropicKey) {
-    const r = await fetch("https://api.anthropic.com/v1/messages", {
+    const r = await fetchWithTimeout("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -114,7 +116,7 @@ async function callCampaignAuditModel(
   const gatewayModel =
     Deno.env.get("CAMPAIGN_AUDIT_GATEWAY_MODEL") ??
     "anthropic/claude-3-5-haiku-20241022";
-  const r = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const r = await fetchWithTimeout("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -226,6 +228,19 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: "Sem permissão para este cliente" }),
         {
           status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    if (await aiBudgetExceeded(admin, client.agency_id as string, 20000)) {
+      return new Response(
+        JSON.stringify({
+          error:
+            "Orçamento diário de IA da agência atingido. Tente amanhã ou faça upgrade do plano.",
+        }),
+        {
+          status: 429,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         },
       );

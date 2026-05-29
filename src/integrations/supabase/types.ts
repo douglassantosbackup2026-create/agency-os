@@ -282,6 +282,66 @@ export type Database = {
           },
         ]
       }
+      ai_jobs: {
+        Row: {
+          agency_id: string
+          attempts: number
+          client_id: string | null
+          created_at: string
+          finished_at: string | null
+          id: string
+          job_type: Database["public"]["Enums"]["ai_job_type"]
+          last_error: string | null
+          payload: Json
+          result_ref: string | null
+          started_at: string | null
+          status: Database["public"]["Enums"]["ai_job_status"]
+        }
+        Insert: {
+          agency_id: string
+          attempts?: number
+          client_id?: string | null
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          job_type: Database["public"]["Enums"]["ai_job_type"]
+          last_error?: string | null
+          payload?: Json
+          result_ref?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["ai_job_status"]
+        }
+        Update: {
+          agency_id?: string
+          attempts?: number
+          client_id?: string | null
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          job_type?: Database["public"]["Enums"]["ai_job_type"]
+          last_error?: string | null
+          payload?: Json
+          result_ref?: string | null
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["ai_job_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_jobs_agency_id_fkey"
+            columns: ["agency_id"]
+            isOneToOne: false
+            referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_jobs_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alerts: {
         Row: {
           agency_id: string
@@ -2502,6 +2562,8 @@ export type Database = {
       }
     }
     Enums: {
+      ai_job_status: "pending" | "processing" | "done" | "failed"
+      ai_job_type: "report" | "campaign_audit" | "diagnosis"
       alert_priority: "low" | "medium" | "high" | "critical"
       alert_status: "open" | "in_progress" | "resolved" | "dismissed"
       app_role: "owner" | "admin" | "member"
@@ -2645,6 +2707,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      ai_job_status: ["pending", "processing", "done", "failed"],
+      ai_job_type: ["report", "campaign_audit", "diagnosis"],
       alert_priority: ["low", "medium", "high", "critical"],
       alert_status: ["open", "in_progress", "resolved", "dismissed"],
       app_role: ["owner", "admin", "member"],

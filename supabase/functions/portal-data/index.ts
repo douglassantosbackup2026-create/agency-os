@@ -1,10 +1,8 @@
 // Public endpoint — returns sanitized client portal data given a portal_slug.
 // No auth required; uses service role on the server side.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import {
-  portalClientIp,
-  portalRateLimitExceeded,
-} from "../_shared/portal-rate-limit.ts";
+import { portalClientIp } from "../_shared/portal-rate-limit.ts";
+import { distributedRateLimitExceeded } from "../_shared/distributed-rate-limit.ts";
 import {
   buildPortalGa4Tracking,
   buildPortalHealth,
@@ -58,17 +56,35 @@ Deno.serve(async (req) => {
     }
 
     const ip = portalClientIp(req);
-    if (portalRateLimitExceeded(`${ip}:${slug}`)) {
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+    const maxPortal = Math.max(
+      1,
+      Number(Deno.env.get("PORTAL_RATE_LIMIT_MAX_PER_WINDOW") ?? "120") || 120,
+    );
+    const windowSec = Math.max(
+      1,
+      Math.floor(
+        (Number(Deno.env.get("PORTAL_RATE_LIMIT_WINDOW_MS") ?? "60000") ||
+          60000) / 1000,
+      ),
+    );
+    if (
+      await distributedRateLimitExceeded(
+        admin,
+        `portal:${ip}:${slug}`,
+        maxPortal,
+        windowSec,
+      )
+    ) {
       return new Response(JSON.stringify({ error: "too_many_requests" }), {
         status: 429,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const admin = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
     const { data: client } = await admin
       .from("clients")
       .select("id, name, segment, agency_id, portal_slug")

@@ -4,6 +4,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { assertCronOrOwnerAdmin } from "../_shared/cron-auth.ts";
 import { resolveCronDualAuthAgencyScope } from "../_shared/cron-agency-scope.ts";
 import { edgeLogDone, edgeLog, truncateError } from "../_shared/edge-log.ts";
+import { prefetchAgencyCronData } from "../_shared/cron-agency-prefetch.ts";
+import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -309,6 +311,7 @@ Deno.serve(async (req) => {
   const denied = await assertCronOrOwnerAdmin(req, admin);
   if (denied) return denied;
   const t0 = Date.now();
+  const traceId = traceIdFromRequest(req);
   try {
 
     const scope = await resolveCronDualAuthAgencyScope(req, admin, corsHeaders);
@@ -326,79 +329,46 @@ Deno.serve(async (req) => {
       { created_at: string; result_json: unknown }
     >();
     if (clientIds.length) {
-      const { data: auditRows } = await admin
-        .from("campaign_ai_audits")
-        .select("client_id, created_at, result_json")
-        .in("client_id", clientIds)
-        .order("created_at", { ascending: false });
+      const { data: auditRows, error: auditErr } = await admin.rpc(
+        "get_latest_campaign_audits_for_clients",
+        { p_client_ids: clientIds },
+      );
+      if (auditErr) throw auditErr;
       for (const row of auditRows ?? []) {
         const cid = String(row.client_id);
-        if (!latestAuditByClient.has(cid)) {
-          latestAuditByClient.set(cid, {
-            created_at: String(row.created_at),
-            result_json: row.result_json,
-          });
-        }
+        latestAuditByClient.set(cid, {
+          created_at: String(row.created_at),
+          result_json: row.result_json,
+        });
       }
     }
 
     const since = new Date(Date.now() - 28 * 86400000)
       .toISOString()
       .slice(0, 10);
+
+    const prefetch = await prefetchAgencyCronData(
+      admin,
+      clientIds,
+      agencyFilter,
+      since,
+    );
+
     let processed = 0;
     const inserts: Record<string, unknown>[] = [];
     const briefRows: BriefRow[] = [];
+    const now = Date.now();
 
     for (const c of clients ?? []) {
-      const [
-        { data: metrics },
-        { data: lastAct },
-        { data: lastNote },
-        { data: ga4Daily },
-        { data: ga4Funnel },
-        { data: tracking },
-      ] = await Promise.all([
-        admin
-          .from("metrics_daily")
-          .select("date,spend,revenue,roas,cpa,ctr,conversions")
-          .eq("client_id", c.id)
-          .is("campaign_id", null)
-          .gte("date", since),
-        admin
-          .from("activities")
-          .select("created_at")
-          .eq("client_id", c.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        admin
-          .from("notes")
-          .select("created_at")
-          .eq("client_id", c.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        admin
-          .from("ga4_daily")
-          .select("date, sessions, conversions, revenue")
-          .eq("client_id", c.id)
-          .gte("date", since)
-          .order("date"),
-        admin
-          .from("ga4_funnel_daily")
-          .select("date, add_to_cart_rate, checkout_rate, purchase_rate")
-          .eq("client_id", c.id)
-          .gte("date", since)
-          .order("date"),
-        admin
-          .from("ga4_tracking_health_daily")
-          .select("status, tracking_drop_detected")
-          .eq("client_id", c.id)
-          .order("date", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-      ]);
-      const g = ga4Daily ?? [];
+      const cid = String(c.id);
+      const metrics = prefetch.metricsByClient.get(cid) ?? [];
+      const lastActAt = prefetch.lastActivityAtByClient.get(cid);
+      const lastNoteAt = prefetch.lastNoteAtByClient.get(cid);
+      const ga4Daily = prefetch.ga4DailyByClient.get(cid) ?? [];
+      const ga4Funnel = prefetch.ga4FunnelByClient.get(cid) ?? [];
+      const tracking = prefetch.trackingByClient.get(cid);
+
+      const g = ga4Daily;
       const mid = Math.floor(g.length / 2);
       const gPrior = g.slice(0, mid);
       const gRecent = g.slice(mid);
@@ -429,14 +399,13 @@ Deno.serve(async (req) => {
         );
       const trackingStatus =
         (tracking?.status as "healthy" | "warning" | "critical") ?? "healthy";
-      const now = Date.now();
-      const lastActAgo = lastAct
-        ? (now - new Date(lastAct.created_at).getTime()) / 86400000
+      const lastActAgo = lastActAt
+        ? (now - new Date(lastActAt).getTime()) / 86400000
         : 14;
-      const lastNoteAgo = lastNote
-        ? (now - new Date(lastNote.created_at).getTime()) / 86400000
+      const lastNoteAgo = lastNoteAt
+        ? (now - new Date(lastNoteAt).getTime()) / 86400000
         : 30;
-      const raw = computeFor((metrics ?? []) as M[], lastActAgo, lastNoteAgo, {
+      const raw = computeFor(metrics as M[], lastActAgo, lastNoteAgo, {
         conversionDeltaPct,
         revenueDeltaPct,
         sessionsUpResultsDown,
@@ -508,9 +477,14 @@ Deno.serve(async (req) => {
       if (bErr) console.error("agency_briefings upsert", bErr);
     }
 
+    traceLog("compute_health_scores.ok", {
+      processed,
+      agency_id: agencyFilter ?? null,
+    }, traceId);
     edgeLogDone("compute_health_scores.ok", t0, {
       processed,
       agency_id: agencyFilter ?? null,
+      trace_id: traceId,
     });
     return new Response(JSON.stringify({ ok: true, processed }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

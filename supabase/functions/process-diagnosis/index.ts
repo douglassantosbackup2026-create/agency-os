@@ -1,6 +1,7 @@
 import { handleCors, jsonResponse } from "../_shared/diagnosis/cors.ts";
 import { assertCronOrUser } from "../_shared/cron-auth.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
+import { diagnosisAiBudgetExceeded } from "../_shared/ai-budget.ts";
 
 const PROMPT_VERSION = "diagnosis-ecommerce-v1";
 const AI_TIMEOUT_MS = 60_000;
@@ -244,7 +245,15 @@ Deno.serve(async (req) => {
     .from("diagnoses")
     .select("id, meta_ad_account_id, status")
     .eq("status", "processing")
-    .limit(3);
+    .limit(
+      Math.max(
+        1,
+        Math.min(
+          25,
+          Number(Deno.env.get("PROCESS_DIAGNOSIS_BATCH_SIZE") ?? "10") || 10,
+        ),
+      ),
+    );
 
   if (!rows?.length) return jsonResponse({ processed: 0 });
 
@@ -310,7 +319,29 @@ Deno.serve(async (req) => {
       }
 
       if (!analysisExisting) {
+        if (await diagnosisAiBudgetExceeded(sb, 15000)) {
+          await sb
+            .from("diagnoses")
+            .update({
+              status: "failed",
+              failed_reason:
+                "Orçamento diário de IA do diagnóstico atingido. Tente amanhã.",
+            })
+            .eq("id", id);
+          continue;
+        }
         const { analysis, provider, attempts } = await runWithFallback(factsForAnalysis);
+        const usageAgency = Deno.env.get("DIAGNOSIS_AI_AGENCY_ID")?.trim();
+        if (usageAgency) {
+          await sb.from("ai_usage_events").insert({
+            agency_id: usageAgency,
+            day: new Date().toISOString().slice(0, 10),
+            function_name: "process-diagnosis",
+            prompt_tokens: 12000,
+            completion_tokens: 3000,
+            estimated_cost_usd: 0.00525,
+          });
+        }
         const analysisWithMeta = {
           ...analysis,
           __meta: {

@@ -274,16 +274,55 @@ function Reports() {
     return map;
   }, [data?.reports]);
 
+  async function pollReportJob(jobId: string, attempts = 40) {
+    for (let i = 0; i < attempts; i++) {
+      await new Promise((r) => setTimeout(r, 3000));
+      const { data: job } = await supabase
+        .from("ai_jobs")
+        .select("status, result_ref, last_error")
+        .eq("id", jobId)
+        .maybeSingle();
+      if (!job) break;
+      if (job.status === "done") {
+        toast.success("Relatório gerado.");
+        refetch();
+        return;
+      }
+      if (job.status === "failed") {
+        toast.error(job.last_error ?? "Falha ao gerar relatório.");
+        return;
+      }
+    }
+    toast.info(
+      "Relatório ainda em processamento. Atualize a lista em alguns minutos.",
+    );
+    refetch();
+  }
+
   async function generateFor(
     clientId: string,
     mode: "monthly_manager" | "monthly_client" = "monthly_manager",
   ) {
     setGenerating(true);
-    const { error } = await supabase.functions.invoke("generate-report", {
-      body: { client_id: clientId, mode },
+    const { data, error } = await supabase.functions.invoke("generate-report", {
+      body: {
+        client_id: clientId,
+        mode,
+        click_context: "checkin_rotina",
+      },
     });
     setGenerating(false);
     if (error) return toast.error(error.message);
+    const payload = data as {
+      async?: boolean;
+      job_id?: string;
+      report?: unknown;
+    } | null;
+    if (payload?.async && payload.job_id) {
+      toast.info("Relatório enfileirado. Aguarde…");
+      void pollReportJob(payload.job_id);
+      return;
+    }
     toast.success("Relatório gerado.");
     refetch();
   }

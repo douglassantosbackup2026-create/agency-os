@@ -14,6 +14,7 @@ import { AgencyClientSelect } from "@/components/agency-client-select";
 import { PageHeader } from "@/components/page-header";
 import { useAgencyClientsOptions } from "@/hooks/use-agency-clients-options";
 import { useAgencyTeammates } from "@/hooks/use-agency-teammates";
+import { useDebouncedCallback } from "@/hooks/use-debounced-callback";
 import {
   Accordion,
   AccordionContent,
@@ -103,6 +104,10 @@ function Alerts() {
       };
     },
   });
+
+  const debouncedRefetch = useDebouncedCallback(() => {
+    void refetch();
+  }, 3000);
 
   const alerts = data?.alerts ?? EMPTY_ALERTS_LIST;
   const waMuteUntil = useMemo(() => {
@@ -194,13 +199,13 @@ function Alerts() {
           table: "alerts",
           filter: `agency_id=eq.${agency.id}`,
         },
-        () => refetch(),
+        () => debouncedRefetch(),
       )
       .subscribe();
     return () => {
       supabase.removeChannel(ch);
     };
-  }, [agency, refetch]);
+  }, [agency, debouncedRefetch]);
 
   useEffect(() => {
     if (!agency || !desktopNotifications) return;

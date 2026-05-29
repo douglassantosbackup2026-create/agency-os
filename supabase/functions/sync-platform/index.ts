@@ -6,6 +6,18 @@ import {
   syncCooldownBlocked,
   syncHourlyCapExceeded,
 } from "../_shared/sync-rate-limit.ts";
+import {
+  acquireSyncLock,
+  finishSyncLock,
+  upsertMetricsDaily,
+  type SyncRunLock,
+} from "../_shared/sync-lock.ts";
+import {
+  fetchMetaAccountInsights,
+  fetchMetaCampaignInsights,
+  rollingDateRange,
+} from "../_shared/meta-insights-fetch.ts";
+import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 import { BodyTooLargeError, readJsonBody } from "../_shared/edge-json-body.ts";
 import { edgeLogDone, edgeLog, truncateError } from "../_shared/edge-log.ts";
 
@@ -53,232 +65,6 @@ function parseIntegrationSyncConfig(raw: unknown): SyncConfigParsed {
 
 function formatDateYMD(d: Date): string {
   return d.toISOString().slice(0, 10);
-}
-
-/** Inclusive date range ending today (UTC calendar dates). */
-function rollingDateRange(days: number): { start: string; end: string } {
-  const end = new Date();
-  const start = new Date();
-  start.setUTCDate(start.getUTCDate() - (days - 1));
-  return { start: formatDateYMD(start), end: formatDateYMD(end) };
-}
-
-function deriveFromActions(day: Record<string, unknown>): {
-  spend: number;
-  impressions: number;
-  clicks: number;
-  revenue: number;
-  conversions: number;
-  ctr: number;
-} {
-  const spend = Number(day.spend ?? 0);
-  const impressions = Number(day.impressions ?? 0);
-  const clicks = Number(day.clicks ?? 0);
-  let revenue = 0;
-  const actions = (day.actions ?? []) as Array<{
-    action_type?: string;
-    value?: string;
-  }>;
-  for (const a of actions) {
-    const t = a.action_type ?? "";
-    if (
-      t.includes("purchase") ||
-      t.includes("omni_purchase") ||
-      t === "offsite_conversion.fb_pixel_purchase"
-    ) {
-      revenue += Number(a.value ?? 0);
-    }
-  }
-  if (revenue === 0 && spend > 0) revenue = spend * 2;
-  let conversions = 0;
-  for (const a of actions) {
-    const t = a.action_type ?? "";
-    if (t.includes("purchase") || t === "lead" || t.includes("conversion")) {
-      conversions += Number(a.value ?? 0);
-    }
-  }
-  if (conversions < 1) conversions = Math.max(1, Math.round(spend / 40));
-  const ctr =
-    impressions > 0 ? (clicks / impressions) * 100 : Number(day.ctr ?? 0);
-  return { spend, impressions, clicks, revenue, conversions, ctr };
-}
-
-/** Conta (resumo diário, campaign_id null) — fallback Meta. */
-async function fetchMetaAccountInsights(
-  accountId: string,
-  accessToken: string,
-  agency_id: string,
-  client_id: string,
-  syncDays: number,
-): Promise<{ rows: MetricRowInsert[] } | { error: string }> {
-  const act = accountId.startsWith("act_") ? accountId : `act_${accountId}`;
-  const base = `https://graph.facebook.com/v21.0/${act}/insights`;
-  const u = new URL(base);
-  u.searchParams.set("access_token", accessToken);
-  u.searchParams.set(
-    "fields",
-    "spend,impressions,clicks,actions,ctr,date_start,date_stop",
-  );
-  u.searchParams.set("time_increment", "1");
-  const { start: since, end: until } = rollingDateRange(syncDays);
-  u.searchParams.set("time_range", JSON.stringify({ since, until }));
-  u.searchParams.set("level", "account");
-
-  const r = await fetch(u.toString());
-  const j = await r.json();
-  if (!r.ok) {
-    const msg =
-      j?.error?.message ?? j?.error ?? JSON.stringify(j).slice(0, 300);
-    return { error: `Meta API: ${msg}` };
-  }
-
-  const data = (j.data ?? []) as Record<string, unknown>[];
-  const rows: MetricRowInsert[] = [];
-
-  for (const day of data) {
-    const dateStr = String(day.date_start ?? "").slice(0, 10);
-    if (!dateStr) continue;
-    const d = deriveFromActions(day);
-    const roas = d.spend > 0 ? d.revenue / d.spend : 0;
-    const cpa = d.spend / Math.max(1, d.conversions);
-    rows.push({
-      agency_id,
-      client_id,
-      campaign_id: null,
-      date: dateStr,
-      spend: d.spend,
-      revenue: d.revenue,
-      conversions: d.conversions,
-      impressions: Math.round(d.impressions),
-      clicks: Math.round(d.clicks),
-      roas: Number(roas.toFixed(4)),
-      cpa: Number(cpa.toFixed(2)),
-      ctr: Number(d.ctr.toFixed(3)),
-    });
-  }
-
-  if (rows.length === 0) {
-    return {
-      error: "Meta API retornou zero linhas de insights para o período.",
-    };
-  }
-  return { rows };
-}
-
-/** Campanhas + linhas diárias por campanha + totais diários (campaign_id null). */
-async function fetchMetaCampaignInsights(
-  accountId: string,
-  accessToken: string,
-  agency_id: string,
-  client_id: string,
-  syncDays: number,
-): Promise<{ rows: MetricRowInsert[] } | { error: string }> {
-  const act = accountId.startsWith("act_") ? accountId : `act_${accountId}`;
-  const base = `https://graph.facebook.com/v21.0/${act}/insights`;
-  const u = new URL(base);
-  u.searchParams.set("access_token", accessToken);
-  u.searchParams.set(
-    "fields",
-    "campaign_name,campaign_id,spend,impressions,clicks,actions,ctr,date_start,date_stop",
-  );
-  u.searchParams.set("time_increment", "1");
-  const { start: since, end: until } = rollingDateRange(syncDays);
-  u.searchParams.set("time_range", JSON.stringify({ since, until }));
-  u.searchParams.set("level", "campaign");
-
-  const r = await fetch(u.toString());
-  const j = await r.json();
-  if (!r.ok) {
-    const msg =
-      j?.error?.message ?? j?.error ?? JSON.stringify(j).slice(0, 300);
-    return { error: `Meta API (campanhas): ${msg}` };
-  }
-
-  type Raw = Record<string, unknown> & {
-    campaign_id?: string;
-    campaign_name?: string;
-  };
-  const data = (j.data ?? []) as Raw[];
-  type GranRow = MetricRowInsert & {
-    meta_ext: string;
-    campaign_name: string;
-  };
-  const granular: GranRow[] = [];
-  const dates = new Set<string>();
-
-  for (const day of data) {
-    const dateStr = String(day.date_start ?? "").slice(0, 10);
-    const ext = String(day.campaign_id ?? "");
-    if (!dateStr || !ext) continue;
-    dates.add(dateStr);
-    const name = String(day.campaign_name ?? "Campanha Meta");
-    const d = deriveFromActions(day);
-    const roas = d.spend > 0 ? d.revenue / d.spend : 0;
-    const cpa = d.spend / Math.max(1, d.conversions);
-    granular.push({
-      agency_id,
-      client_id,
-      campaign_id: null,
-      date: dateStr,
-      meta_ext: ext,
-      campaign_name: name,
-      spend: d.spend,
-      revenue: d.revenue,
-      conversions: Math.round(d.conversions),
-      impressions: Math.round(d.impressions),
-      clicks: Math.round(d.clicks),
-      roas: Number(roas.toFixed(4)),
-      cpa: Number(cpa.toFixed(2)),
-      ctr: Number(d.ctr.toFixed(3)),
-    });
-  }
-
-  if (granular.length === 0) {
-    return { error: "Meta não devolveu insights por campanha para o período." };
-  }
-
-  const rollupMap = new Map<string, MetricRowInsert>();
-  for (const g of granular) {
-    const cur =
-      rollupMap.get(g.date) ??
-      ({
-        agency_id,
-        client_id,
-        campaign_id: null,
-        date: g.date,
-        spend: 0,
-        revenue: 0,
-        conversions: 0,
-        impressions: 0,
-        clicks: 0,
-        roas: 0,
-        cpa: 0,
-        ctr: 0,
-      } as MetricRowInsert);
-    cur.spend += g.spend;
-    cur.revenue += g.revenue;
-    cur.conversions += g.conversions;
-    cur.impressions += g.impressions;
-    cur.clicks += g.clicks;
-    rollupMap.set(g.date, cur);
-  }
-
-  const rollup: MetricRowInsert[] = [...rollupMap.values()].map((row) => {
-    const roas = row.spend > 0 ? row.revenue / row.spend : 0;
-    const cpa = row.spend / Math.max(1, row.conversions);
-    const ctr =
-      row.impressions > 0 ? (row.clicks / row.impressions) * 100 : row.ctr;
-    return {
-      ...row,
-      roas: Number(roas.toFixed(4)),
-      cpa: Number(cpa.toFixed(2)),
-      ctr: Number(ctr.toFixed(3)),
-      campaign_id: null,
-    };
-  });
-
-  const finalRows = [...rollup] as MetricRowInsert[];
-  return { rows: finalRows.concat(granular) };
 }
 
 async function upsertMetaCampaign(
@@ -1095,14 +881,10 @@ function simulatedRows(
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
-  /** Context for sync_runs on failure (agency_id is NOT NULL in DB). */
-  let syncRunContext: {
-    agency_id: string;
-    client_id: string;
-    provider: string;
-  } | null = null;
+  let syncLock: SyncRunLock | null = null;
+  const t0 = Date.now();
+  const traceId = traceIdFromRequest(req);
   try {
-    const t0 = Date.now();
     const authHeader = req.headers.get("Authorization");
     if (!authHeader)
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
@@ -1206,20 +988,55 @@ Deno.serve(async (req) => {
       );
     }
 
-    syncRunContext = {
-      agency_id: client.agency_id as string,
-      client_id: client_id as string,
-      provider: provider as string,
+    const lockResult = await acquireSyncLock(
+      admin,
+      client.agency_id as string,
+      client_id as string,
+      provider as string,
+    );
+    if (!lockResult.ok) {
+      if (lockResult.reason === "in_progress") {
+        return new Response(
+          JSON.stringify({ error: "Sincronização já em andamento para este cliente." }),
+          {
+            status: 409,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          },
+        );
+      }
+      return new Response(
+        JSON.stringify({ error: lockResult.message ?? "Falha ao iniciar sync" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+    syncLock = lockResult.lock;
+    let lockClosed = false;
+    const closeLock = async (
+      status: "ok" | "error" | "warning",
+      msg?: string | null,
+    ) => {
+      if (!syncLock || lockClosed) return;
+      await finishSyncLock(admin, syncLock, {
+        status,
+        error_message: msg ?? null,
+      });
+      lockClosed = true;
+      syncLock = null;
     };
 
-    console.info(
-      JSON.stringify({
-        evt: "sync_platform.start",
+    try {
+    traceLog(
+      "sync_platform.start",
+      {
         client_id,
         agency_id: client.agency_id,
         provider,
         user_id: u.user.id,
-      }),
+      },
+      traceId,
     );
 
     const { data: integ } = await admin
@@ -1313,14 +1130,8 @@ Deno.serve(async (req) => {
             mode = "meta_api_account";
           } else {
             const extMap = new Map<string, string>();
-            for (const r of camp.rows) {
-              const g = r as MetricRowInsert & {
-                meta_ext?: string;
-                campaign_name?: string;
-              };
-              if (g.meta_ext && g.campaign_name) {
-                extMap.set(g.meta_ext, g.campaign_name);
-              }
+            for (const g of camp.granular) {
+              extMap.set(g.meta_ext, g.campaign_name);
             }
             for (const [ext, nm] of extMap) {
               const uuid = await upsertMetaCampaign(
@@ -1544,29 +1355,10 @@ Deno.serve(async (req) => {
       ctr: r.ctr,
     }));
 
-    const dates = [...new Set(rows.map((r) => r.date))];
-    const wideSync =
-      mode === "meta_api_campaigns" ||
-      mode === "meta_api_account" ||
-      mode === "ga4_api" ||
-      mode === "google_ads_api" ||
-      mode === "tiktok_api";
-    if (wideSync) {
-      await admin
-        .from("metrics_daily")
-        .delete()
-        .eq("client_id", client_id)
-        .in("date", dates);
-    } else {
-      await admin
-        .from("metrics_daily")
-        .delete()
-        .eq("client_id", client_id)
-        .is("campaign_id", null)
-        .in("date", dates);
+    const upsertRes = await upsertMetricsDaily(admin, rows);
+    if (upsertRes.error) {
+      throw new Error(`metrics_daily upsert: ${upsertRes.error}`);
     }
-
-    await admin.from("metrics_daily").insert(rows);
     if (mode === "ga4_api" && ga4Artifacts) {
       const datesDaily = [
         ...new Set(ga4Artifacts.ga4Daily.map((r) => String(r.date))),
@@ -1635,14 +1427,7 @@ Deno.serve(async (req) => {
       .from("integrations")
       .update({ last_sync_at: new Date().toISOString() })
       .eq("id", integ.id);
-    await admin.from("sync_runs").insert({
-      agency_id: client.agency_id,
-      client_id,
-      provider,
-      status: "ok",
-      duration_ms: Date.now() - t0,
-      error_message: null,
-    });
+    await closeLock("ok");
 
     const title =
       mode === "meta_api_campaigns"
@@ -1674,25 +1459,25 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ ok: true, rows: rows.length, mode }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+    } finally {
+      await closeLock("error", "Sync não concluído");
+    }
   } catch (e) {
     edgeLog("sync_platform.error", {
       latency_ms: Math.max(0, Date.now() - t0),
       error_trunc: truncateError((e as Error).message),
     });
     try {
-      if (syncRunContext) {
+      if (syncLock) {
         const admin = createClient(
           Deno.env.get("SUPABASE_URL")!,
           Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
         );
-        await admin.from("sync_runs").insert({
-          agency_id: syncRunContext.agency_id,
-          client_id: syncRunContext.client_id,
-          provider: syncRunContext.provider,
+        await finishSyncLock(admin, syncLock, {
           status: "error",
-          duration_ms: null,
           error_message: (e as Error).message,
         });
+        syncLock = null;
       }
     } catch {
       // noop
