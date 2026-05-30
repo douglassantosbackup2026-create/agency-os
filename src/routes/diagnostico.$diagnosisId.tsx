@@ -175,7 +175,7 @@ function DiagnosticoReportPage() {
     return (
       <div className="diagnosis-funnel">
         <div className="container">
-          <p className="muted">A carregar…</p>
+          <p className="muted">Carregando…</p>
         </div>
       </div>
     );
