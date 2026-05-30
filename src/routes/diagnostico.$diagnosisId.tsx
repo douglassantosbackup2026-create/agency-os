@@ -368,7 +368,7 @@ function DiagnosticoReportPage() {
               </div>
             ))}
             <div className="pain-line">
-              Soma o que está acima — é o custo mensal de não corrigir.
+              Some o que está aí em cima — é o custo mensal de não corrigir.
             </div>
           </section>
         ) : null}
