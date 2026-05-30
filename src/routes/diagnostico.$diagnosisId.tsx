@@ -494,10 +494,11 @@ function DiagnosticoReportPage() {
             ) : null}
             {managementPaid ? (
               <>
-                <h2>Estamos prontos a começar</h2>
+                <h2>Estamos prontos pra começar</h2>
                 <p>
-                  Pagamento registado — obrigado. Fala connosco no WhatsApp com
-                  o link abaixo (incluímos os dados da loja que indicaste).
+                  Pagamento registrado — obrigado! Fala com a gente no
+                  WhatsApp pelo link abaixo (já incluímos os dados da loja
+                  que você indicou).
                 </p>
                 {whatsappGestaoLink ? (
                   <a
