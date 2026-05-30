@@ -223,7 +223,7 @@ function ObrigadoPage() {
       ? 3
       : st === "processing"
         ? 2
-        : st === "awaiting_connection"
+        : st === "awaiting_connection" || st === "awaiting_account_selection"
           ? 1
           : st === "failed"
             ? 1
@@ -261,6 +261,12 @@ function ObrigadoPage() {
         {st === "awaiting_connection" ? (
           <ConnectMetaCard metaUrl={metaUrl} />
         ) : null}
+
+        {st === "awaiting_account_selection" ? (
+          <ChooseAccountCard diagnosisId={d} secretSlug={s} />
+        ) : null}
+
+
 
         {/* Meta connected confirmation (after successful OAuth) */}
         {(st === "processing" || st === "completed") &&
