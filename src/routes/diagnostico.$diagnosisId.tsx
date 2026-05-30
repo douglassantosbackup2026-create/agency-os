@@ -229,51 +229,119 @@ function DiagnosticoReportPage() {
     );
   }
 
+  const score = analysis.score ?? 0;
+  const scoreTier = score < 40 ? "low" : score < 70 ? "mid" : "high";
+  const heroPain =
+    score < 40
+      ? "A tua conta está a sangrar dinheiro todos os dias."
+      : score < 70
+        ? "Estás a deixar resultados em cima da mesa — e nem sabes quanto."
+        : "Estás bem — mas há um tecto invisível a travar-te.";
+
+  const statusClass = (status: string) => {
+    const s = (status ?? "").toLowerCase();
+    if (/(mau|bad|baixo|crítico|critico|red|vermelho|low|alerta)/.test(s))
+      return "is-bad";
+    if (/(médio|medio|mid|atenção|atencao|warning|amber|amarelo)/.test(s))
+      return "is-mid";
+    if (/(bom|good|ok|verde|green|saudável|saudavel|high)/.test(s))
+      return "is-good";
+    return "";
+  };
+
+  const priorityBadge = (priority: string) => {
+    const p = (priority ?? "").toLowerCase();
+    if (/(alta|high|crítica|critica|urgente)/.test(p)) return "badge-high";
+    if (/(média|media|medium|moderada)/.test(p)) return "badge-medium";
+    return "badge-low";
+  };
+
   return (
     <div className="diagnosis-funnel">
       <div className="container">
-        <header className="card">
-          <p className="muted" style={{ margin: 0 }}>
-            Diagnóstico Meta Ads
-          </p>
-          <h1 style={{ margin: "0.25rem 0" }}>{analysis.scoreLabel}</h1>
-          <div className="score-big">{analysis.score}/100</div>
-          <p>{analysis.summary}</p>
+        <header className="card hero-card">
+          <span className="eyebrow">Diagnóstico Meta Ads</span>
+          <div
+            className="score-big"
+            style={{
+              color:
+                scoreTier === "low"
+                  ? "#dc2626"
+                  : scoreTier === "mid"
+                    ? "#d97706"
+                    : "#059669",
+            }}
+          >
+            {score}
+            <span style={{ fontSize: "1.5rem", color: "#94a3b8" }}>/100</span>
+          </div>
+          <div className={`score-bar score-${scoreTier}`}>
+            <span style={{ width: `${Math.max(4, Math.min(100, score))}%` }} />
+          </div>
+          <h1 style={{ margin: "0.25rem 0 0.5rem", fontSize: "1.5rem" }}>
+            {analysis.scoreLabel}
+          </h1>
+          <p className="hero-pain">{heroPain}</p>
+          <p style={{ margin: 0, color: "#334155" }}>{analysis.summary}</p>
         </header>
 
         {analysis.metrics?.length ? (
           <section className="card">
-            <h2>Métricas (resumo)</h2>
-            <div style={{ display: "grid", gap: "0.75rem" }}>
+            <h2>Onde o teu dinheiro está agora</h2>
+            <p className="section-hint">
+              Os números reais da tua conta — comparados com o que o mercado
+              consegue.
+            </p>
+            <div className="metric-grid">
               {analysis.metrics.map((m) => (
-                <div
-                  key={m.name}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: "1rem",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <strong>{m.name}</strong>
-                  <span>
-                    {m.current} vs ref. {m.reference}{" "}
-                    <span className="muted">({m.status})</span>
-                  </span>
+                <div key={m.name} className={`metric-card ${statusClass(m.status)}`}>
+                  <div>
+                    <div className="metric-name">{m.name}</div>
+                    <div className="metric-ref">Referência: {m.reference}</div>
+                  </div>
+                  <div>
+                    <div className="metric-value">{m.current}</div>
+                    <div style={{ textAlign: "right", marginTop: "0.25rem" }}>
+                      <span
+                        className={`badge ${
+                          statusClass(m.status) === "is-bad"
+                            ? "badge-bad"
+                            : statusClass(m.status) === "is-mid"
+                              ? "badge-mid"
+                              : "badge-good"
+                        }`}
+                      >
+                        {m.status}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               ))}
+            </div>
+            <div className="pain-line">
+              Cada métrica vermelha = euros que saem da conta sem voltar.
             </div>
           </section>
         ) : null}
 
         {analysis.criticalIssues?.length ? (
           <section className="card">
-            <h2>Problemas críticos</h2>
+            <h2>Os buracos no teu funil</h2>
+            <p className="section-hint">
+              Cada um destes pontos está activo agora — enquanto lês isto.
+            </p>
             {analysis.criticalIssues.map((i) => (
-              <div key={i.title} className="issue">
-                <h3 style={{ margin: "0 0 0.5rem" }}>{i.title}</h3>
-                <p className="muted">{i.description}</p>
-                <span className="badge badge-high">{i.priority}</span>
+              <div key={i.title} className="issue-card">
+                <div className="issue-icon">⚠️</div>
+                <div>
+                  <h3>{i.title}</h3>
+                  <p className="muted" style={{ margin: "0 0 0.5rem" }}>
+                    {i.description}
+                  </p>
+                  <span className={`badge ${priorityBadge(i.priority)}`}>
+                    {i.priority}
+                  </span>
+                </div>
               </div>
             ))}
           </section>
@@ -281,51 +349,78 @@ function DiagnosticoReportPage() {
 
         {analysis.budgetLeaks?.length ? (
           <section className="card">
-            <h2>Vazamentos de budget (estimativas)</h2>
+            <h2>Quanto estás a queimar por mês</h2>
+            <p className="section-hint">
+              Estimativas baseadas no histórico recente da tua conta.
+            </p>
             {analysis.budgetLeaks.map((b) => (
-              <div key={b.title} style={{ marginBottom: "1rem" }}>
-                <h3 style={{ margin: "0 0 0.35rem" }}>{b.title}</h3>
-                <p className="muted">{b.estimateNote}</p>
-                <p>{b.hint}</p>
+              <div key={b.title} className="leak-card">
+                <div className="leak-icon">💸</div>
+                <div>
+                  <h3>{b.title}</h3>
+                  <p style={{ margin: "0 0 0.35rem", fontWeight: 600, color: "#991b1b" }}>
+                    {b.estimateNote}
+                  </p>
+                  <p className="muted" style={{ margin: 0 }}>{b.hint}</p>
+                </div>
               </div>
             ))}
+            <div className="pain-line">
+              Soma o que está acima — é o custo mensal de não corrigir.
+            </div>
           </section>
         ) : null}
 
         {analysis.opportunities?.length ? (
           <section className="card">
-            <h2>Oportunidades</h2>
-            <ul>
-              {analysis.opportunities.map((o) => (
-                <li key={o.title} style={{ marginBottom: "0.75rem" }}>
-                  <strong>{o.title}</strong> ({o.complexity}) —{" "}
-                  {o.potentialNote}
-                </li>
-              ))}
-            </ul>
+            <h2>O que estás a deixar na mesa</h2>
+            <p className="section-hint">
+              Receita que existe na tua conta mas ainda não está activada.
+            </p>
+            {analysis.opportunities.map((o) => (
+              <div key={o.title} className="opp-card">
+                <div className="opp-icon">📈</div>
+                <div>
+                  <h3>{o.title}</h3>
+                  <p className="muted" style={{ margin: 0 }}>{o.potentialNote}</p>
+                </div>
+                <span className="badge badge-medium">{o.complexity}</span>
+              </div>
+            ))}
           </section>
         ) : null}
 
         {analysis.creativesSummary ? (
           <section className="card">
-            <h2>Criativos</h2>
-            <p>
-              <strong>Melhor:</strong> {analysis.creativesSummary.best}
+            <h2>Criativos: o que vende e o que queima</h2>
+            <p className="section-hint">
+              O que está a funcionar — e o que está a sugar budget.
             </p>
-            <p>
-              <strong>Pior:</strong> {analysis.creativesSummary.worst}
-            </p>
-            <p>{analysis.creativesSummary.recommendation}</p>
+            <div className="creatives-grid">
+              <div className="creative-col creative-best">
+                <h4 style={{ color: "#166534" }}>✅ Melhor</h4>
+                <p style={{ margin: 0 }}>{analysis.creativesSummary.best}</p>
+              </div>
+              <div className="creative-col creative-worst">
+                <h4 style={{ color: "#991b1b" }}>❌ Pior</h4>
+                <p style={{ margin: 0 }}>{analysis.creativesSummary.worst}</p>
+              </div>
+            </div>
+            <div className="creative-reco">
+              {analysis.creativesSummary.recommendation}
+            </div>
           </section>
         ) : null}
 
         {analysis.audiencesSummary ? (
           <section className="card">
-            <h2>Públicos</h2>
-            <p>{analysis.audiencesSummary.segmentation}</p>
-            <ul>
+            <h2>Estás a falar com as pessoas erradas?</h2>
+            <p style={{ marginTop: 0 }}>
+              <strong>{analysis.audiencesSummary.segmentation}</strong>
+            </p>
+            <ul style={{ paddingLeft: "1.2rem", margin: 0 }}>
               {analysis.audiencesSummary.notes?.map((n) => (
-                <li key={n}>{n}</li>
+                <li key={n} style={{ marginBottom: "0.35rem" }}>{n}</li>
               ))}
             </ul>
           </section>
@@ -333,10 +428,13 @@ function DiagnosticoReportPage() {
 
         {analysis.structureNotes?.length ? (
           <section className="card">
-            <h2>Estrutura da conta</h2>
-            <ul>
+            <h2>A fundação da conta</h2>
+            <p className="section-hint">
+              Sem isto certo, nenhuma optimização aguenta.
+            </p>
+            <ul style={{ paddingLeft: "1.2rem", margin: 0 }}>
               {analysis.structureNotes.map((n) => (
-                <li key={n}>{n}</li>
+                <li key={n} style={{ marginBottom: "0.35rem" }}>{n}</li>
               ))}
             </ul>
           </section>
@@ -344,47 +442,57 @@ function DiagnosticoReportPage() {
 
         {analysis.actionPlan?.length ? (
           <section className="card">
-            <h2>Plano de ação</h2>
-            <ol>
+            <h2>O caminho — se quisesses fazer sozinho</h2>
+            <p className="section-hint">
+              Execução técnica, passo a passo. É o que a nossa equipa faz por
+              ti se contratares a gestão.
+            </p>
+            <div className="timeline">
               {analysis.actionPlan.map((a) => (
-                <li key={a.step} style={{ marginBottom: "0.75rem" }}>
-                  <strong>{a.action}</strong> — impacto {a.impact}, {a.eta}
-                </li>
+                <div key={a.step} className="timeline-step">
+                  <div className="timeline-num">{a.step}</div>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>{a.action}</div>
+                    <div className="timeline-meta">
+                      Impacto {a.impact} · {a.eta}
+                    </div>
+                  </div>
+                </div>
               ))}
-            </ol>
+            </div>
+            <div className="pain-line">
+              Cada semana sozinho é mais uma semana a queimar budget.
+            </div>
           </section>
         ) : null}
 
         {analysis.improvementScenario ? (
-          <section className="card">
-            <h2>Cenário de melhoria</h2>
-            <p>{analysis.improvementScenario.note}</p>
-            <p className="muted">
+          <section className="card scenario-card">
+            <h2>Onde podes estar em 30 dias</h2>
+            <p className="scenario-value">{analysis.improvementScenario.note}</p>
+            <span className="badge badge-good">
               Confiança: {analysis.improvementScenario.confidence}
-            </p>
+            </span>
           </section>
         ) : null}
 
         {data.report?.management_cta_eligible ? (
-          <section className="card" style={{ border: "2px solid #2563eb" }}>
-            <h2>Gestão de tráfego</h2>
+          <section className="card cta-pain">
+            <span className="cta-stamp">Recomendado pela análise</span>
             {gestaoCheckout === "falha" ? (
-              <p
-                role="alert"
-                style={{ color: "#b91c1c", marginBottom: "1rem" }}
-              >
-                O Mercado Pago não concluiu o pagamento. Podes tentar de novo em
-                seguida.
+              <p role="alert" style={{ color: "#b91c1c", marginBottom: "1rem" }}>
+                O Mercado Pago não concluiu o pagamento. Podes tentar de novo
+                em seguida.
               </p>
             ) : gestaoCheckout === "pending" ? (
               <p className="muted" style={{ marginBottom: "1rem" }}>
-                Pagamento pendente no Mercado Pago. Esta página será actualizada
-                quando o relatório rever o estado da gestão — ou volta à página
-                de confirmação se acabaste de pagar.
+                Pagamento pendente no Mercado Pago. Esta página será
+                actualizada quando o relatório rever o estado da gestão.
               </p>
             ) : null}
             {managementPaid ? (
               <>
+                <h2>Estamos prontos a começar</h2>
                 <p>
                   Pagamento registado — obrigado. Fala connosco no WhatsApp com
                   o link abaixo (incluímos os dados da loja que indicaste).
@@ -403,16 +511,47 @@ function DiagnosticoReportPage() {
               </>
             ) : (
               <>
-                <p style={{ marginBottom: "1rem" }}>
-                  Queres que a nossa equipa execute este plano? Preenche os
-                  campos abaixo e segue para o pagamento de{" "}
-                  <strong>R$ 1.997</strong> (valor único), via Mercado Pago.
+                <h2>Cada dia parado custa-te dinheiro</h2>
+                <p style={{ marginTop: "0.5rem" }}>
+                  O diagnóstico acima mostra exactamente onde estás a queimar
+                  budget. Enquanto não corriges, três coisas continuam a
+                  acontecer todos os dias na tua conta:
+                </p>
+                <ul className="pain-list">
+                  <li>
+                    <span className="pain-emoji">🔥</span>
+                    <span>
+                      <strong>Budget queimado</strong> em criativos e públicos
+                      errados — dinheiro que não volta.
+                    </span>
+                  </li>
+                  <li>
+                    <span className="pain-emoji">📉</span>
+                    <span>
+                      <strong>Leads que o teu concorrente apanha</strong>{" "}
+                      porque o teu CPA está acima do mercado.
+                    </span>
+                  </li>
+                  <li>
+                    <span className="pain-emoji">⏰</span>
+                    <span>
+                      <strong>Cada semana sozinho</strong> é mais um mês de
+                      resultados adiados.
+                    </span>
+                  </li>
+                </ul>
+                <p className="bridge">
+                  Podes continuar a tentar sozinho — ou deixar a nossa equipa
+                  executar o plano em <strong>7 dias</strong>, por{" "}
+                  <strong>R$ 1.997</strong> (valor único, via Mercado Pago).
+                </p>
+                <p className="form-intro">
+                  Últimos 3 campos antes de começarmos
                 </p>
                 <div
                   style={{
                     display: "grid",
                     gap: "0.75rem",
-                    maxWidth: "28rem",
                     marginBottom: "1rem",
                   }}
                 >
@@ -465,7 +604,7 @@ function DiagnosticoReportPage() {
                 ) : null}
                 <button
                   type="button"
-                  className="btn btn-primary"
+                  className="btn btn-pain"
                   disabled={
                     mgmt.loading ||
                     !businessName.trim() ||
@@ -484,14 +623,22 @@ function DiagnosticoReportPage() {
                 >
                   {mgmt.loading
                     ? "A abrir Mercado Pago…"
-                    : "Pagar gestão — R$ 1.997"}
+                    : "Parar de queimar budget — R$ 1.997 →"}
                 </button>
+                <p className="cta-micro">
+                  Pagamento único · Sem mensalidade · Execução começa em 48h
+                </p>
+                <div className="trust-row">
+                  <span>✓ Equipa certificada Meta</span>
+                  <span>✓ Relatório semanal</span>
+                  <span>✓ Cancelas quando quiseres</span>
+                </div>
               </>
             )}
           </section>
         ) : null}
 
-        <p className="muted" style={{ fontSize: "0.8rem" }}>
+        <p className="muted" style={{ fontSize: "0.8rem", textAlign: "center" }}>
           {analysis.disclaimer}
         </p>
       </div>
