@@ -147,8 +147,8 @@ function DiagnosticoReportPage() {
           <div className="card">
             <h1>Link incompleto</h1>
             <p className="muted">
-              Abre o diagnóstico a partir do botão na página de obrigado (URL
-              com ?s=...).
+              Abra o diagnóstico pelo botão da página de obrigado (URL com
+              ?s=...).
             </p>
             <Link to="/" className="btn btn-outline">
               Início
