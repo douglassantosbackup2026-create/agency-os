@@ -171,7 +171,7 @@ async function fetchCampaigns(
   token: string,
 ): Promise<Record<string, unknown>[]> {
   const u = new URL(`https://graph.facebook.com/v21.0/${actId}/campaigns`);
-  u.searchParams.set("fields", "name,status,effective_status");
+  u.searchParams.set("fields", "name,status,effective_status,objective,daily_budget,lifetime_budget");
   u.searchParams.set("limit", "40");
   u.searchParams.set("access_token", token);
   const r = await fetch(u.toString());
