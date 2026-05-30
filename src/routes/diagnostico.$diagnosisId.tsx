@@ -396,7 +396,7 @@ function DiagnosticoReportPage() {
           <section className="card">
             <h2>Criativos: o que vende e o que queima</h2>
             <p className="section-hint">
-              O que está a funcionar — e o que está a sugar budget.
+              O que está funcionando — e o que está sugando budget.
             </p>
             <div className="creatives-grid">
               <div className="creative-col creative-best">
