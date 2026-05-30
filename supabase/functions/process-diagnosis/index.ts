@@ -33,7 +33,7 @@ const SYSTEM_PROMPT = `És um auditor sênior de Meta Ads especializado em e-com
 5. Oportunidades de escala
 
 ## LIMITES DE OUTPUT
-- metrics: SEMPRE inclui (se houver dados) — CTR, CPM, CPC, Frequência, Reach rate, ROAS estimado
+- metrics: SEMPRE inclui (mesmo que estimado a partir de dados parciais) — ROAS (OBRIGATÓRIO, sempre primeiro item da lista), CPA, CTR, CPM, CPC, Frequência, Reach rate. Se faltar dado para ROAS, calcula como receita/gasto do período disponível; se não houver receita rastreada, marca current como "sem tracking" e status "bad" com referência "> 3x".
 - criticalIssues: 3 a 7 itens, ordenados por priority desc
 - budgetLeaks: até 5
 - opportunities: 3 a 5

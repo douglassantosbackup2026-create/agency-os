@@ -147,8 +147,8 @@ function DiagnosticoReportPage() {
           <div className="card">
             <h1>Link incompleto</h1>
             <p className="muted">
-              Abre o diagnóstico a partir do botão na página de obrigado (URL
-              com ?s=...).
+              Abra o diagnóstico pelo botão da página de obrigado (URL com
+              ?s=...).
             </p>
             <Link to="/" className="btn btn-outline">
               Início
@@ -175,7 +175,7 @@ function DiagnosticoReportPage() {
     return (
       <div className="diagnosis-funnel">
         <div className="container">
-          <p className="muted">A carregar…</p>
+          <p className="muted">Carregando…</p>
         </div>
       </div>
     );
@@ -189,16 +189,16 @@ function DiagnosticoReportPage() {
       <div className="diagnosis-funnel">
         <div className="container">
           <div className="card">
-            <h1>Ainda a processar</h1>
+            <h1>Ainda processando</h1>
             <p className="muted">
-              Volta em breve ou mantém a página de obrigado aberta.
+              Volte em instantes ou mantenha a página de obrigado aberta.
             </p>
             <Link
               to="/obrigado"
               search={{ d: diagnosisId, s }}
               className="btn btn-outline"
             >
-              Estado do pedido
+              Status do pedido
             </Link>
           </div>
         </div>
@@ -233,10 +233,10 @@ function DiagnosticoReportPage() {
   const scoreTier = score < 40 ? "low" : score < 70 ? "mid" : "high";
   const heroPain =
     score < 40
-      ? "A tua conta está a sangrar dinheiro todos os dias."
+      ? "Sua conta está sangrando dinheiro todos os dias."
       : score < 70
-        ? "Estás a deixar resultados em cima da mesa — e nem sabes quanto."
-        : "Estás bem — mas há um tecto invisível a travar-te.";
+        ? "Você está deixando resultado em cima da mesa — e nem sabe quanto."
+        : "Está bem — mas tem um teto invisível te travando.";
 
   const statusClass = (status: string) => {
     const s = (status ?? "").toLowerCase();
@@ -287,10 +287,10 @@ function DiagnosticoReportPage() {
 
         {analysis.metrics?.length ? (
           <section className="card">
-            <h2>Onde o teu dinheiro está agora</h2>
+            <h2>Onde seu dinheiro está agora</h2>
             <p className="section-hint">
-              Os números reais da tua conta — comparados com o que o mercado
-              consegue.
+              Os números reais da sua conta — comparados com o que o mercado
+              está entregando. ROAS, CPA, CTR e companhia.
             </p>
             <div className="metric-grid">
               {analysis.metrics.map((m) => (
@@ -319,16 +319,18 @@ function DiagnosticoReportPage() {
               ))}
             </div>
             <div className="pain-line">
-              Cada métrica vermelha = euros que saem da conta sem voltar.
+              Cada métrica vermelha = real saindo da conta sem voltar. ROAS
+              baixo significa que cada R$ investido está rendendo menos do
+              que poderia.
             </div>
           </section>
         ) : null}
 
         {analysis.criticalIssues?.length ? (
           <section className="card">
-            <h2>Os buracos no teu funil</h2>
+            <h2>Os buracos no seu funil</h2>
             <p className="section-hint">
-              Cada um destes pontos está activo agora — enquanto lês isto.
+              Cada um desses pontos está ativo agora — enquanto você lê isso.
             </p>
             {analysis.criticalIssues.map((i) => (
               <div key={i.title} className="issue-card">
@@ -349,9 +351,9 @@ function DiagnosticoReportPage() {
 
         {analysis.budgetLeaks?.length ? (
           <section className="card">
-            <h2>Quanto estás a queimar por mês</h2>
+            <h2>Quanto você está queimando por mês</h2>
             <p className="section-hint">
-              Estimativas baseadas no histórico recente da tua conta.
+              Estimativas baseadas no histórico recente da sua conta.
             </p>
             {analysis.budgetLeaks.map((b) => (
               <div key={b.title} className="leak-card">
@@ -366,16 +368,16 @@ function DiagnosticoReportPage() {
               </div>
             ))}
             <div className="pain-line">
-              Soma o que está acima — é o custo mensal de não corrigir.
+              Some o que está aí em cima — é o custo mensal de não corrigir.
             </div>
           </section>
         ) : null}
 
         {analysis.opportunities?.length ? (
           <section className="card">
-            <h2>O que estás a deixar na mesa</h2>
+            <h2>O que você está deixando na mesa</h2>
             <p className="section-hint">
-              Receita que existe na tua conta mas ainda não está activada.
+              Receita que existe na sua conta mas ainda não foi ativada.
             </p>
             {analysis.opportunities.map((o) => (
               <div key={o.title} className="opp-card">
@@ -394,7 +396,7 @@ function DiagnosticoReportPage() {
           <section className="card">
             <h2>Criativos: o que vende e o que queima</h2>
             <p className="section-hint">
-              O que está a funcionar — e o que está a sugar budget.
+              O que está funcionando — e o que está sugando budget.
             </p>
             <div className="creatives-grid">
               <div className="creative-col creative-best">
@@ -414,7 +416,7 @@ function DiagnosticoReportPage() {
 
         {analysis.audiencesSummary ? (
           <section className="card">
-            <h2>Estás a falar com as pessoas erradas?</h2>
+            <h2>Você está falando com as pessoas erradas?</h2>
             <p style={{ marginTop: 0 }}>
               <strong>{analysis.audiencesSummary.segmentation}</strong>
             </p>
@@ -430,7 +432,7 @@ function DiagnosticoReportPage() {
           <section className="card">
             <h2>A fundação da conta</h2>
             <p className="section-hint">
-              Sem isto certo, nenhuma optimização aguenta.
+              Sem isso ajustado, nenhuma otimização se sustenta.
             </p>
             <ul style={{ paddingLeft: "1.2rem", margin: 0 }}>
               {analysis.structureNotes.map((n) => (
@@ -442,10 +444,10 @@ function DiagnosticoReportPage() {
 
         {analysis.actionPlan?.length ? (
           <section className="card">
-            <h2>O caminho — se quisesses fazer sozinho</h2>
+            <h2>O caminho — se você quisesse fazer sozinho</h2>
             <p className="section-hint">
-              Execução técnica, passo a passo. É o que a nossa equipa faz por
-              ti se contratares a gestão.
+              Execução técnica, passo a passo. É o que nossa equipe faz por
+              você se contratar a gestão.
             </p>
             <div className="timeline">
               {analysis.actionPlan.map((a) => (
@@ -461,14 +463,14 @@ function DiagnosticoReportPage() {
               ))}
             </div>
             <div className="pain-line">
-              Cada semana sozinho é mais uma semana a queimar budget.
+              Cada semana sozinho é mais uma semana queimando budget.
             </div>
           </section>
         ) : null}
 
         {analysis.improvementScenario ? (
           <section className="card scenario-card">
-            <h2>Onde podes estar em 30 dias</h2>
+            <h2>Onde você pode estar em 30 dias</h2>
             <p className="scenario-value">{analysis.improvementScenario.note}</p>
             <span className="badge badge-good">
               Confiança: {analysis.improvementScenario.confidence}
@@ -481,21 +483,22 @@ function DiagnosticoReportPage() {
             <span className="cta-stamp">Recomendado pela análise</span>
             {gestaoCheckout === "falha" ? (
               <p role="alert" style={{ color: "#b91c1c", marginBottom: "1rem" }}>
-                O Mercado Pago não concluiu o pagamento. Podes tentar de novo
-                em seguida.
+                O Mercado Pago não concluiu o pagamento. Você pode tentar de
+                novo em seguida.
               </p>
             ) : gestaoCheckout === "pending" ? (
               <p className="muted" style={{ marginBottom: "1rem" }}>
                 Pagamento pendente no Mercado Pago. Esta página será
-                actualizada quando o relatório rever o estado da gestão.
+                atualizada quando o relatório revisar o status da gestão.
               </p>
             ) : null}
             {managementPaid ? (
               <>
-                <h2>Estamos prontos a começar</h2>
+                <h2>Estamos prontos pra começar</h2>
                 <p>
-                  Pagamento registado — obrigado. Fala connosco no WhatsApp com
-                  o link abaixo (incluímos os dados da loja que indicaste).
+                  Pagamento registrado — obrigado! Fala com a gente no
+                  WhatsApp pelo link abaixo (já incluímos os dados da loja
+                  que você indicou).
                 </p>
                 {whatsappGestaoLink ? (
                   <a
@@ -511,11 +514,11 @@ function DiagnosticoReportPage() {
               </>
             ) : (
               <>
-                <h2>Cada dia parado custa-te dinheiro</h2>
+                <h2>Cada dia parado custa o seu dinheiro</h2>
                 <p style={{ marginTop: "0.5rem" }}>
-                  O diagnóstico acima mostra exactamente onde estás a queimar
-                  budget. Enquanto não corriges, três coisas continuam a
-                  acontecer todos os dias na tua conta:
+                  O diagnóstico acima mostra exatamente onde você está
+                  queimando budget. Enquanto não corrige, três coisas
+                  continuam acontecendo todos os dias na sua conta:
                 </p>
                 <ul className="pain-list">
                   <li>
@@ -528,21 +531,21 @@ function DiagnosticoReportPage() {
                   <li>
                     <span className="pain-emoji">📉</span>
                     <span>
-                      <strong>Leads que o teu concorrente apanha</strong>{" "}
-                      porque o teu CPA está acima do mercado.
+                      <strong>Leads que o seu concorrente leva</strong>{" "}
+                      porque o seu CPA está acima do mercado e o ROAS abaixo.
                     </span>
                   </li>
                   <li>
                     <span className="pain-emoji">⏰</span>
                     <span>
                       <strong>Cada semana sozinho</strong> é mais um mês de
-                      resultados adiados.
+                      resultado adiado.
                     </span>
                   </li>
                 </ul>
                 <p className="bridge">
-                  Podes continuar a tentar sozinho — ou deixar a nossa equipa
-                  executar o plano em <strong>7 dias</strong>, por{" "}
+                  Você pode continuar tentando sozinho — ou deixar nossa
+                  equipe executar o plano em <strong>7 dias</strong>, por{" "}
                   <strong>R$ 1.997</strong> (valor único, via Mercado Pago).
                 </p>
                 <p className="form-intro">
@@ -622,16 +625,16 @@ function DiagnosticoReportPage() {
                   }
                 >
                   {mgmt.loading
-                    ? "A abrir Mercado Pago…"
+                    ? "Abrindo Mercado Pago…"
                     : "Parar de queimar budget — R$ 1.997 →"}
                 </button>
                 <p className="cta-micro">
                   Pagamento único · Sem mensalidade · Execução começa em 48h
                 </p>
                 <div className="trust-row">
-                  <span>✓ Equipa certificada Meta</span>
+                  <span>✓ Equipe certificada Meta</span>
                   <span>✓ Relatório semanal</span>
-                  <span>✓ Cancelas quando quiseres</span>
+                  <span>✓ Cancela quando quiser</span>
                 </div>
               </>
             )}
