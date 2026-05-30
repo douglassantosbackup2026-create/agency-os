@@ -40,9 +40,22 @@ function redirectUri(): string {
 
 async function fetchAdAccounts(
   userToken: string,
-): Promise<{ id: string; account_id: string; name: string }[]> {
+): Promise<
+  {
+    id: string;
+    account_id: string;
+    name: string;
+    currency?: string;
+    account_status?: number;
+    business_name?: string;
+  }[]
+> {
   const u = new URL("https://graph.facebook.com/v21.0/me/adaccounts");
-  u.searchParams.set("fields", "id,account_id,name");
+  u.searchParams.set(
+    "fields",
+    "id,account_id,name,currency,account_status,business_name",
+  );
+  u.searchParams.set("limit", "100");
   u.searchParams.set("access_token", userToken);
   const r = await fetch(u.toString());
   if (!r.ok) {
@@ -50,10 +63,18 @@ async function fetchAdAccounts(
     return [];
   }
   const j = (await r.json()) as {
-    data?: { id: string; account_id: string; name: string }[];
+    data?: {
+      id: string;
+      account_id: string;
+      name: string;
+      currency?: string;
+      account_status?: number;
+      business_name?: string;
+    }[];
   };
   return j.data ?? [];
 }
+
 
 async function triggerProcess(): Promise<void> {
   const secret = Deno.env.get("CRON_SECRET");
