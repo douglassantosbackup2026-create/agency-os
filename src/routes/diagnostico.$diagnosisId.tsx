@@ -432,7 +432,7 @@ function DiagnosticoReportPage() {
           <section className="card">
             <h2>A fundação da conta</h2>
             <p className="section-hint">
-              Sem isto certo, nenhuma optimização aguenta.
+              Sem isso ajustado, nenhuma otimização se sustenta.
             </p>
             <ul style={{ paddingLeft: "1.2rem", margin: 0 }}>
               {analysis.structureNotes.map((n) => (
