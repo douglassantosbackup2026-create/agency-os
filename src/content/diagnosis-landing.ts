@@ -385,7 +385,7 @@ export const footerSection = {
 };
 
 export const seoDefaults = {
-  title: "Diagnóstico Meta Ads — Onde seu dinheiro está vazando | R$ 37",
+  title: "Diagnóstico Meta Ads — Onde você está perdendo dinheiro | R$ 37",
   description:
     "Auditoria técnica da sua conta Meta Ads em ~5 minutos: 9 módulos, score, problemas críticos e plano de ação. Por R$ 37. Pagamento seguro.",
 };
