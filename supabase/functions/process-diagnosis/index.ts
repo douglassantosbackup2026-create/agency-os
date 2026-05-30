@@ -4,26 +4,71 @@ import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 import { diagnosisAiBudgetExceeded } from "../_shared/ai-budget.ts";
 import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 
-const PROMPT_VERSION = "diagnosis-ecommerce-v1";
+const PROMPT_VERSION = "diagnosis-ecommerce-v2";
 const AI_TIMEOUT_MS = 60_000;
 
-const SYSTEM_PROMPT = `És um auditor de Meta Ads para e-commerce em PT-BR. Responde APENAS com JSON válido (sem markdown), com a estrutura:
+const SYSTEM_PROMPT = `És um auditor sênior de Meta Ads especializado em e-commerce brasileiro, com foco em eficiência de verba e escalabilidade. Respondes APENAS em PT-BR e APENAS com JSON válido (sem markdown, sem texto fora do JSON). Valores monetários sempre em BRL (a menos que facts.account_insights indique outra moeda).
+
+## REGRAS ABSOLUTAS
+1. NUNCA inventes métricas, valores ou percentuais que não derivem diretamente de facts_json ou de benchmarks explicitamente rotulados como "referência típica de mercado".
+2. NUNCA garantas ROAS, CPA ou resultado financeiro — usa sempre linguagem de estimativa ("potencial de", "estimativa de", "tipicamente", "pode chegar a").
+3. Se um campo depender de dados ausentes (criativos por ad, insights por campanha, públicos detalhados), preenche com null ou string explicando a limitação — NUNCA com suposições apresentadas como fatos.
+4. O score reflete apenas o observável. Dados insuficientes REDUZEM a confiança, não inflam o score.
+5. Todo campo null por falta de dados deve aparecer em dataLimitations[].
+6. Se facts_json parecer truncado ou malformado, regista em dataLimitations e ajusta o score em conformidade.
+
+## BENCHMARKS BR E-COMMERCE (referência, nunca garantia)
+- CTR feed/display: > 1,5% saudável; < 1% alerta
+- CPM: < R$25 eficiente; > R$40 investigar
+- CPC: < R$2,50 topo de funil; < R$5 fundo
+- Frequência 30d: < 3,5 saudável; > 5 saturação
+- ROAS viável: > 3x (varia por margem — não absoluto)
+- Reach rate (reach/impressions): < 50% indica sobreposição
+
+## PRIORIDADE DE PROBLEMAS (mais → menos crítico)
+1. Verba desperdiçada (campanhas inativas com gasto, CPM absurdo)
+2. Estrutura quebrada (sem conversão, pixel com problemas)
+3. Saturação (frequência alta, reach baixo)
+4. Criativos (CTR baixo, sem rotação)
+5. Oportunidades de escala
+
+## LIMITES DE OUTPUT
+- metrics: SEMPRE inclui (se houver dados) — CTR, CPM, CPC, Frequência, Reach rate, ROAS estimado
+- criticalIssues: 3 a 7 itens, ordenados por priority desc
+- budgetLeaks: até 5
+- opportunities: 3 a 5
+- actionPlan: 5 a 8 passos, eta em dias ("3-5 dias", "1-2 semanas")
+- structureNotes, audiencesSummary.notes: até 6 itens
+- summary: 2-4 frases, direto ao ponto
+
+Tom: direto, técnico mas legível por dono de e-commerce — sem jargão excessivo.
+
+## SCHEMA DE SAÍDA (JSON estrito, todos os campos obrigatórios)
 {
-  "score": number (0-100),
+  "score": number,
   "scoreLabel": string,
   "summary": string,
   "metrics": [{ "name": string, "current": string, "reference": string, "status": "ok"|"warn"|"bad" }],
   "criticalIssues": [{ "title": string, "description": string, "priority": "high"|"medium"|"low" }],
   "budgetLeaks": [{ "title": string, "estimateNote": string, "hint": string }],
   "opportunities": [{ "title": string, "potentialNote": string, "complexity": "quick"|"medium"|"advanced" }],
-  "creativesSummary": { "best": string, "worst": string, "recommendation": string },
+  "creativesSummary": { "best": string|null, "worst": string|null, "recommendation": string },
   "audiencesSummary": { "segmentation": string, "notes": string[] },
   "structureNotes": string[],
   "actionPlan": [{ "step": number, "action": string, "impact": string, "eta": string }],
   "improvementScenario": { "note": string, "confidence": "high"|"medium"|"low" },
-  "disclaimer": string
+  "disclaimer": string,
+  "dataLimitations": string[]
 }
-Usa linguagem de estimativa nos impactos financeiros. Nunca garantas ROAS.`;
+
+## RUBRICA DE SCORE
+- 90-100: conta otimizada, métricas dentro dos benchmarks
+- 70-89: boa base, ineficiências claras a corrigir
+- 50-69: problemas significativos impactam resultado
+- 30-49: estrutura comprometida, ação urgente
+- 0-29: estado crítico
+
+O disclaimer deve ser honesto sobre as limitações da análise face aos dados disponíveis.`;
 
 function buildUserPrompt(facts: Record<string, unknown>): string {
   return `Dados normalizados (facts_json):\n${JSON.stringify(facts).slice(0, 120000)}`;
@@ -39,7 +84,52 @@ function extractJsonFromText(text: string): unknown {
 function validateAnalysis(obj: unknown): boolean {
   if (!obj || typeof obj !== "object") return false;
   const o = obj as Record<string, unknown>;
-  return typeof o.score === "number" && typeof o.summary === "string";
+  if (typeof o.score !== "number") return false;
+  if (typeof o.summary !== "string") return false;
+  if (!Array.isArray(o.criticalIssues)) return false;
+  if (!Array.isArray(o.actionPlan)) return false;
+  if (typeof o.disclaimer !== "string") return false;
+  return true;
+}
+
+function normalizeAnalysis(obj: Record<string, unknown>): Record<string, unknown> {
+  if (!Array.isArray(obj.dataLimitations)) obj.dataLimitations = [];
+  if (!Array.isArray(obj.metrics)) obj.metrics = [];
+  if (!Array.isArray(obj.budgetLeaks)) obj.budgetLeaks = [];
+  if (!Array.isArray(obj.opportunities)) obj.opportunities = [];
+  if (!Array.isArray(obj.structureNotes)) obj.structureNotes = [];
+
+  if (typeof obj.scoreLabel !== "string") {
+    const s = obj.score as number;
+    obj.scoreLabel =
+      s >= 90 ? "Excelente" : s >= 70 ? "Bom" : s >= 50 ? "Regular" : s >= 30 ? "Crítico" : "Emergência";
+  }
+
+  if (!obj.creativesSummary || typeof obj.creativesSummary !== "object") {
+    obj.creativesSummary = {
+      best: null,
+      worst: null,
+      recommendation: "Dados insuficientes para análise de criativos no nível de anúncio.",
+    };
+    (obj.dataLimitations as string[]).push("Criativos por anúncio não disponíveis nos dados desta versão.");
+  }
+
+  if (!obj.audiencesSummary || typeof obj.audiencesSummary !== "object") {
+    obj.audiencesSummary = {
+      segmentation: "Dados insuficientes para análise de públicos.",
+      notes: [],
+    };
+    (obj.dataLimitations as string[]).push("Detalhamento de públicos por ad set não disponível.");
+  }
+
+  if (!obj.improvementScenario || typeof obj.improvementScenario !== "object") {
+    obj.improvementScenario = {
+      note: "Cenário de melhoria não calculado por dados insuficientes.",
+      confidence: "low",
+    };
+  }
+
+  return obj;
 }
 
 async function fetchWithTimeout(
