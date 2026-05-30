@@ -444,10 +444,10 @@ function DiagnosticoReportPage() {
 
         {analysis.actionPlan?.length ? (
           <section className="card">
-            <h2>O caminho — se quisesses fazer sozinho</h2>
+            <h2>O caminho — se você quisesse fazer sozinho</h2>
             <p className="section-hint">
-              Execução técnica, passo a passo. É o que a nossa equipa faz por
-              ti se contratares a gestão.
+              Execução técnica, passo a passo. É o que nossa equipe faz por
+              você se contratar a gestão.
             </p>
             <div className="timeline">
               {analysis.actionPlan.map((a) => (
