@@ -375,9 +375,9 @@ function DiagnosticoReportPage() {
 
         {analysis.opportunities?.length ? (
           <section className="card">
-            <h2>O que estás a deixar na mesa</h2>
+            <h2>O que você está deixando na mesa</h2>
             <p className="section-hint">
-              Receita que existe na tua conta mas ainda não está activada.
+              Receita que existe na sua conta mas ainda não foi ativada.
             </p>
             {analysis.opportunities.map((o) => (
               <div key={o.title} className="opp-card">
