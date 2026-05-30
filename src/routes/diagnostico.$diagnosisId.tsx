@@ -189,16 +189,16 @@ function DiagnosticoReportPage() {
       <div className="diagnosis-funnel">
         <div className="container">
           <div className="card">
-            <h1>Ainda a processar</h1>
+            <h1>Ainda processando</h1>
             <p className="muted">
-              Volta em breve ou mantém a página de obrigado aberta.
+              Volte em instantes ou mantenha a página de obrigado aberta.
             </p>
             <Link
               to="/obrigado"
               search={{ d: diagnosisId, s }}
               className="btn btn-outline"
             >
-              Estado do pedido
+              Status do pedido
             </Link>
           </div>
         </div>
