@@ -14,8 +14,8 @@ export const PRICE_LABEL = "R$ 37";
 
 export const hero = {
   eyebrow: "Diagnóstico Meta Ads para e-commerce",
-  headline: "Descubra EXATAMENTE onde seu dinheiro está vazando no Meta Ads",
-  headlineHighlight: "está vazando",
+  headline: "Descubra EXATAMENTE onde você está perdendo dinheiro no Meta Ads",
+  headlineHighlight: "perdendo dinheiro",
   subheadline: "Diagnóstico completo da sua conta em cerca de 5 minutos",
   priceLine: `Por apenas ${PRICE_LABEL}`,
   supportingLines: [
@@ -385,7 +385,7 @@ export const footerSection = {
 };
 
 export const seoDefaults = {
-  title: "Diagnóstico Meta Ads — Onde seu dinheiro está vazando | R$ 37",
+  title: "Diagnóstico Meta Ads — Onde você está perdendo dinheiro | R$ 37",
   description:
     "Auditoria técnica da sua conta Meta Ads em ~5 minutos: 9 módulos, score, problemas críticos e plano de ação. Por R$ 37. Pagamento seguro.",
 };
