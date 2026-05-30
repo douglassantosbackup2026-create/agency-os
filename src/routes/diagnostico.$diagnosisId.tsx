@@ -328,9 +328,9 @@ function DiagnosticoReportPage() {
 
         {analysis.criticalIssues?.length ? (
           <section className="card">
-            <h2>Os buracos no teu funil</h2>
+            <h2>Os buracos no seu funil</h2>
             <p className="section-hint">
-              Cada um destes pontos está activo agora — enquanto lês isto.
+              Cada um desses pontos está ativo agora — enquanto você lê isso.
             </p>
             {analysis.criticalIssues.map((i) => (
               <div key={i.title} className="issue-card">
