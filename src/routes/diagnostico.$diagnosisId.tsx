@@ -625,16 +625,16 @@ function DiagnosticoReportPage() {
                   }
                 >
                   {mgmt.loading
-                    ? "A abrir Mercado Pago…"
+                    ? "Abrindo Mercado Pago…"
                     : "Parar de queimar budget — R$ 1.997 →"}
                 </button>
                 <p className="cta-micro">
                   Pagamento único · Sem mensalidade · Execução começa em 48h
                 </p>
                 <div className="trust-row">
-                  <span>✓ Equipa certificada Meta</span>
+                  <span>✓ Equipe certificada Meta</span>
                   <span>✓ Relatório semanal</span>
-                  <span>✓ Cancelas quando quiseres</span>
+                  <span>✓ Cancela quando quiser</span>
                 </div>
               </>
             )}
