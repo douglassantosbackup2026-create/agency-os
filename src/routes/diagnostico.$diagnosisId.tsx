@@ -233,10 +233,10 @@ function DiagnosticoReportPage() {
   const scoreTier = score < 40 ? "low" : score < 70 ? "mid" : "high";
   const heroPain =
     score < 40
-      ? "A tua conta está a sangrar dinheiro todos os dias."
+      ? "Sua conta está sangrando dinheiro todos os dias."
       : score < 70
-        ? "Estás a deixar resultados em cima da mesa — e nem sabes quanto."
-        : "Estás bem — mas há um tecto invisível a travar-te.";
+        ? "Você está deixando resultado em cima da mesa — e nem sabe quanto."
+        : "Está bem — mas tem um teto invisível te travando.";
 
   const statusClass = (status: string) => {
     const s = (status ?? "").toLowerCase();
