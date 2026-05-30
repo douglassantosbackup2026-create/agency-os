@@ -483,13 +483,13 @@ function DiagnosticoReportPage() {
             <span className="cta-stamp">Recomendado pela análise</span>
             {gestaoCheckout === "falha" ? (
               <p role="alert" style={{ color: "#b91c1c", marginBottom: "1rem" }}>
-                O Mercado Pago não concluiu o pagamento. Podes tentar de novo
-                em seguida.
+                O Mercado Pago não concluiu o pagamento. Você pode tentar de
+                novo em seguida.
               </p>
             ) : gestaoCheckout === "pending" ? (
               <p className="muted" style={{ marginBottom: "1rem" }}>
                 Pagamento pendente no Mercado Pago. Esta página será
-                actualizada quando o relatório rever o estado da gestão.
+                atualizada quando o relatório revisar o status da gestão.
               </p>
             ) : null}
             {managementPaid ? (
