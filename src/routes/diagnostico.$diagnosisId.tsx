@@ -470,7 +470,7 @@ function DiagnosticoReportPage() {
 
         {analysis.improvementScenario ? (
           <section className="card scenario-card">
-            <h2>Onde podes estar em 30 dias</h2>
+            <h2>Onde você pode estar em 30 dias</h2>
             <p className="scenario-value">{analysis.improvementScenario.note}</p>
             <span className="badge badge-good">
               Confiança: {analysis.improvementScenario.confidence}
