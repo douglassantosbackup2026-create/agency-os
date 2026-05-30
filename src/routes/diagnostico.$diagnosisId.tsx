@@ -514,11 +514,11 @@ function DiagnosticoReportPage() {
               </>
             ) : (
               <>
-                <h2>Cada dia parado custa-te dinheiro</h2>
+                <h2>Cada dia parado custa o seu dinheiro</h2>
                 <p style={{ marginTop: "0.5rem" }}>
-                  O diagnóstico acima mostra exactamente onde estás a queimar
-                  budget. Enquanto não corriges, três coisas continuam a
-                  acontecer todos os dias na tua conta:
+                  O diagnóstico acima mostra exatamente onde você está
+                  queimando budget. Enquanto não corrige, três coisas
+                  continuam acontecendo todos os dias na sua conta:
                 </p>
                 <ul className="pain-list">
                   <li>
@@ -531,21 +531,21 @@ function DiagnosticoReportPage() {
                   <li>
                     <span className="pain-emoji">📉</span>
                     <span>
-                      <strong>Leads que o teu concorrente apanha</strong>{" "}
-                      porque o teu CPA está acima do mercado.
+                      <strong>Leads que o seu concorrente leva</strong>{" "}
+                      porque o seu CPA está acima do mercado e o ROAS abaixo.
                     </span>
                   </li>
                   <li>
                     <span className="pain-emoji">⏰</span>
                     <span>
                       <strong>Cada semana sozinho</strong> é mais um mês de
-                      resultados adiados.
+                      resultado adiado.
                     </span>
                   </li>
                 </ul>
                 <p className="bridge">
-                  Podes continuar a tentar sozinho — ou deixar a nossa equipa
-                  executar o plano em <strong>7 dias</strong>, por{" "}
+                  Você pode continuar tentando sozinho — ou deixar nossa
+                  equipe executar o plano em <strong>7 dias</strong>, por{" "}
                   <strong>R$ 1.997</strong> (valor único, via Mercado Pago).
                 </p>
                 <p className="form-intro">
