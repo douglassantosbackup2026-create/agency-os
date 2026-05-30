@@ -416,7 +416,7 @@ function DiagnosticoReportPage() {
 
         {analysis.audiencesSummary ? (
           <section className="card">
-            <h2>Estás a falar com as pessoas erradas?</h2>
+            <h2>Você está falando com as pessoas erradas?</h2>
             <p style={{ marginTop: 0 }}>
               <strong>{analysis.audiencesSummary.segmentation}</strong>
             </p>
