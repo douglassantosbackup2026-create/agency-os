@@ -319,7 +319,9 @@ function DiagnosticoReportPage() {
               ))}
             </div>
             <div className="pain-line">
-              Cada métrica vermelha = euros que saem da conta sem voltar.
+              Cada métrica vermelha = real saindo da conta sem voltar. ROAS
+              baixo significa que cada R$ investido está rendendo menos do
+              que poderia.
             </div>
           </section>
         ) : null}
