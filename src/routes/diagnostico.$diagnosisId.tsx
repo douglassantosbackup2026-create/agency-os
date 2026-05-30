@@ -351,9 +351,9 @@ function DiagnosticoReportPage() {
 
         {analysis.budgetLeaks?.length ? (
           <section className="card">
-            <h2>Quanto estás a queimar por mês</h2>
+            <h2>Quanto você está queimando por mês</h2>
             <p className="section-hint">
-              Estimativas baseadas no histórico recente da tua conta.
+              Estimativas baseadas no histórico recente da sua conta.
             </p>
             {analysis.budgetLeaks.map((b) => (
               <div key={b.title} className="leak-card">
