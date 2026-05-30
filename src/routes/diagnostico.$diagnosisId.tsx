@@ -463,7 +463,7 @@ function DiagnosticoReportPage() {
               ))}
             </div>
             <div className="pain-line">
-              Cada semana sozinho é mais uma semana a queimar budget.
+              Cada semana sozinho é mais uma semana queimando budget.
             </div>
           </section>
         ) : null}
