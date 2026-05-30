@@ -14,8 +14,8 @@ export const PRICE_LABEL = "R$ 37";
 
 export const hero = {
   eyebrow: "Diagnóstico Meta Ads para e-commerce",
-  headline: "Descubra EXATAMENTE onde seu dinheiro está vazando no Meta Ads",
-  headlineHighlight: "está vazando",
+  headline: "Descubra EXATAMENTE onde você está perdendo dinheiro no Meta Ads",
+  headlineHighlight: "perdendo dinheiro",
   subheadline: "Diagnóstico completo da sua conta em cerca de 5 minutos",
   priceLine: `Por apenas ${PRICE_LABEL}`,
   supportingLines: [
