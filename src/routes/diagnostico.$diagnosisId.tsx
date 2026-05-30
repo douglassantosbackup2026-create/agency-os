@@ -287,10 +287,10 @@ function DiagnosticoReportPage() {
 
         {analysis.metrics?.length ? (
           <section className="card">
-            <h2>Onde o teu dinheiro está agora</h2>
+            <h2>Onde seu dinheiro está agora</h2>
             <p className="section-hint">
-              Os números reais da tua conta — comparados com o que o mercado
-              consegue.
+              Os números reais da sua conta — comparados com o que o mercado
+              está entregando. ROAS, CPA, CTR e companhia.
             </p>
             <div className="metric-grid">
               {analysis.metrics.map((m) => (
