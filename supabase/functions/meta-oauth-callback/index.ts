@@ -40,9 +40,22 @@ function redirectUri(): string {
 
 async function fetchAdAccounts(
   userToken: string,
-): Promise<{ id: string; account_id: string; name: string }[]> {
+): Promise<
+  {
+    id: string;
+    account_id: string;
+    name: string;
+    currency?: string;
+    account_status?: number;
+    business_name?: string;
+  }[]
+> {
   const u = new URL("https://graph.facebook.com/v21.0/me/adaccounts");
-  u.searchParams.set("fields", "id,account_id,name");
+  u.searchParams.set(
+    "fields",
+    "id,account_id,name,currency,account_status,business_name",
+  );
+  u.searchParams.set("limit", "100");
   u.searchParams.set("access_token", userToken);
   const r = await fetch(u.toString());
   if (!r.ok) {
@@ -50,10 +63,18 @@ async function fetchAdAccounts(
     return [];
   }
   const j = (await r.json()) as {
-    data?: { id: string; account_id: string; name: string }[];
+    data?: {
+      id: string;
+      account_id: string;
+      name: string;
+      currency?: string;
+      account_status?: number;
+      business_name?: string;
+    }[];
   };
   return j.data ?? [];
 }
+
 
 async function triggerProcess(): Promise<void> {
   const secret = Deno.env.get("CRON_SECRET");
@@ -218,8 +239,7 @@ Deno.serve(async (req) => {
 
   const userToken = long.access_token;
   const accounts = await fetchAdAccounts(userToken);
-  const first = accounts[0];
-  if (!first) {
+  if (accounts.length === 0) {
     return new Response(null, {
       status: 302,
       headers: {
@@ -229,9 +249,6 @@ Deno.serve(async (req) => {
     });
   }
 
-  const actId = first.id.startsWith("act_")
-    ? first.id
-    : `act_${first.account_id}`;
   const expiresAt = short.expires_in
     ? new Date(Date.now() + short.expires_in * 1000).toISOString()
     : null;
@@ -249,10 +266,47 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Falha ao guardar token" }, 500);
   }
 
+  // Múltiplas contas → pede seleção do usuário antes de processar.
+  if (accounts.length > 1) {
+    const { error: eSel } = await sb
+      .from("diagnoses")
+      .update({
+        pending_ad_accounts: accounts,
+        status: "awaiting_account_selection",
+      })
+      .eq("id", diagnosisId)
+      .eq("secret_slug", secretSlug);
+
+    if (eSel) {
+      console.error(eSel);
+      return jsonResponse({ error: "Falha ao guardar contas" }, 500);
+    }
+
+    traceLog(
+      "meta_oauth_callback.awaiting_selection",
+      { diagnosis_id: diagnosisId, count: accounts.length },
+      traceId,
+    );
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: `${site}/diagnostico/${diagnosisId}/conectar?s=${secretSlug}`,
+        ...corsHeaders,
+      },
+    });
+  }
+
+  // Conta única → mantém o fluxo de auto-seleção.
+  const first = accounts[0];
+  const actId = first.id.startsWith("act_")
+    ? first.id
+    : `act_${first.account_id}`;
+
   const { error: e2 } = await sb
     .from("diagnoses")
     .update({
       meta_ad_account_id: actId,
+      pending_ad_accounts: null,
       status: "processing",
     })
     .eq("id", diagnosisId)
@@ -274,3 +328,4 @@ Deno.serve(async (req) => {
     },
   });
 });
+

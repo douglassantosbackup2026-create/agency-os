@@ -223,7 +223,7 @@ function ObrigadoPage() {
       ? 3
       : st === "processing"
         ? 2
-        : st === "awaiting_connection"
+        : st === "awaiting_connection" || st === "awaiting_account_selection"
           ? 1
           : st === "failed"
             ? 1
@@ -261,6 +261,12 @@ function ObrigadoPage() {
         {st === "awaiting_connection" ? (
           <ConnectMetaCard metaUrl={metaUrl} />
         ) : null}
+
+        {st === "awaiting_account_selection" ? (
+          <ChooseAccountCard diagnosisId={d} secretSlug={s} />
+        ) : null}
+
+
 
         {/* Meta connected confirmation (after successful OAuth) */}
         {(st === "processing" || st === "completed") &&
@@ -486,6 +492,38 @@ function SaveLinkBlock({ fullLink }: { fullLink: string }) {
 /* -------------------------------------------------------------------------- */
 /* Connect Meta                                                               */
 /* -------------------------------------------------------------------------- */
+
+function ChooseAccountCard({
+  diagnosisId,
+  secretSlug,
+}: {
+  diagnosisId: string;
+  secretSlug: string;
+}) {
+  return (
+    <div className="mt-4 overflow-hidden rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/5 via-card to-card shadow-sm animate-fade-in">
+      <div className="p-6 sm:p-7">
+        <h2 className="text-lg font-semibold tracking-tight">
+          Escolhe a conta de anúncio
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          O teu Facebook tem mais de uma conta de anúncio. Seleciona qual
+          queres que o diagnóstico analise.
+        </p>
+        <Link
+          to="/diagnostico/$diagnosisId/conectar"
+          params={{ diagnosisId }}
+          search={{ s: secretSlug }}
+          className="mt-5 inline-flex h-11 items-center justify-center rounded-lg bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90"
+        >
+          Escolher conta de anúncio →
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+
 
 function ConnectMetaCard({ metaUrl }: { metaUrl: string }) {
   return (

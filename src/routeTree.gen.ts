@@ -43,6 +43,7 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedActivityRouteImport } from './routes/_authenticated/activity'
 import { Route as AuthenticatedActionsRouteImport } from './routes/_authenticated/actions'
 import { Route as AuthenticatedClientsIndexRouteImport } from './routes/_authenticated/clients.index'
+import { Route as DiagnosticoDiagnosisIdConectarRouteImport } from './routes/diagnostico.$diagnosisId.conectar'
 import { Route as AuthenticatedClientsClientIdRouteImport } from './routes/_authenticated/clients.$clientId'
 import { Route as AuthenticatedIntegrationsOauthCallbackRouteImport } from './routes/_authenticated/integrations.oauth.callback'
 
@@ -219,6 +220,12 @@ const AuthenticatedClientsIndexRoute =
     path: '/clients/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const DiagnosticoDiagnosisIdConectarRoute =
+  DiagnosticoDiagnosisIdConectarRouteImport.update({
+    id: '/conectar',
+    path: '/conectar',
+    getParentRoute: () => DiagnosticoDiagnosisIdRoute,
+  } as any)
 const AuthenticatedClientsClientIdRoute =
   AuthenticatedClientsClientIdRouteImport.update({
     id: '/clients/$clientId',
@@ -262,10 +269,11 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AuthenticatedSettingsRoute
   '/standup': typeof AuthenticatedStandupRoute
   '/whatsapp': typeof AuthenticatedWhatsappRoute
-  '/diagnostico/$diagnosisId': typeof DiagnosticoDiagnosisIdRoute
+  '/diagnostico/$diagnosisId': typeof DiagnosticoDiagnosisIdRouteWithChildren
   '/p/$portalSlug': typeof PPortalSlugRoute
   '/test-meta-oauth/callback': typeof TestMetaOauthCallbackRoute
   '/clients/$clientId': typeof AuthenticatedClientsClientIdRoute
+  '/diagnostico/$diagnosisId/conectar': typeof DiagnosticoDiagnosisIdConectarRoute
   '/clients/': typeof AuthenticatedClientsIndexRoute
   '/integrations/oauth/callback': typeof AuthenticatedIntegrationsOauthCallbackRoute
 }
@@ -299,10 +307,11 @@ export interface FileRoutesByTo {
   '/settings': typeof AuthenticatedSettingsRoute
   '/standup': typeof AuthenticatedStandupRoute
   '/whatsapp': typeof AuthenticatedWhatsappRoute
-  '/diagnostico/$diagnosisId': typeof DiagnosticoDiagnosisIdRoute
+  '/diagnostico/$diagnosisId': typeof DiagnosticoDiagnosisIdRouteWithChildren
   '/p/$portalSlug': typeof PPortalSlugRoute
   '/test-meta-oauth/callback': typeof TestMetaOauthCallbackRoute
   '/clients/$clientId': typeof AuthenticatedClientsClientIdRoute
+  '/diagnostico/$diagnosisId/conectar': typeof DiagnosticoDiagnosisIdConectarRoute
   '/clients': typeof AuthenticatedClientsIndexRoute
   '/integrations/oauth/callback': typeof AuthenticatedIntegrationsOauthCallbackRoute
 }
@@ -338,10 +347,11 @@ export interface FileRoutesById {
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/standup': typeof AuthenticatedStandupRoute
   '/_authenticated/whatsapp': typeof AuthenticatedWhatsappRoute
-  '/diagnostico/$diagnosisId': typeof DiagnosticoDiagnosisIdRoute
+  '/diagnostico/$diagnosisId': typeof DiagnosticoDiagnosisIdRouteWithChildren
   '/p/$portalSlug': typeof PPortalSlugRoute
   '/test-meta-oauth/callback': typeof TestMetaOauthCallbackRoute
   '/_authenticated/clients/$clientId': typeof AuthenticatedClientsClientIdRoute
+  '/diagnostico/$diagnosisId/conectar': typeof DiagnosticoDiagnosisIdConectarRoute
   '/_authenticated/clients/': typeof AuthenticatedClientsIndexRoute
   '/_authenticated/integrations/oauth/callback': typeof AuthenticatedIntegrationsOauthCallbackRoute
 }
@@ -381,6 +391,7 @@ export interface FileRouteTypes {
     | '/p/$portalSlug'
     | '/test-meta-oauth/callback'
     | '/clients/$clientId'
+    | '/diagnostico/$diagnosisId/conectar'
     | '/clients/'
     | '/integrations/oauth/callback'
   fileRoutesByTo: FileRoutesByTo
@@ -418,6 +429,7 @@ export interface FileRouteTypes {
     | '/p/$portalSlug'
     | '/test-meta-oauth/callback'
     | '/clients/$clientId'
+    | '/diagnostico/$diagnosisId/conectar'
     | '/clients'
     | '/integrations/oauth/callback'
   id:
@@ -456,6 +468,7 @@ export interface FileRouteTypes {
     | '/p/$portalSlug'
     | '/test-meta-oauth/callback'
     | '/_authenticated/clients/$clientId'
+    | '/diagnostico/$diagnosisId/conectar'
     | '/_authenticated/clients/'
     | '/_authenticated/integrations/oauth/callback'
   fileRoutesById: FileRoutesById
@@ -475,7 +488,7 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   TermosRoute: typeof TermosRoute
   TestMetaOauthRoute: typeof TestMetaOauthRouteWithChildren
-  DiagnosticoDiagnosisIdRoute: typeof DiagnosticoDiagnosisIdRoute
+  DiagnosticoDiagnosisIdRoute: typeof DiagnosticoDiagnosisIdRouteWithChildren
   PPortalSlugRoute: typeof PPortalSlugRoute
 }
 
@@ -719,6 +732,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientsIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/diagnostico/$diagnosisId/conectar': {
+      id: '/diagnostico/$diagnosisId/conectar'
+      path: '/conectar'
+      fullPath: '/diagnostico/$diagnosisId/conectar'
+      preLoaderRoute: typeof DiagnosticoDiagnosisIdConectarRouteImport
+      parentRoute: typeof DiagnosticoDiagnosisIdRoute
+    }
     '/_authenticated/clients/$clientId': {
       id: '/_authenticated/clients/$clientId'
       path: '/clients/$clientId'
@@ -809,6 +829,20 @@ const TestMetaOauthRouteWithChildren = TestMetaOauthRoute._addFileChildren(
   TestMetaOauthRouteChildren,
 )
 
+interface DiagnosticoDiagnosisIdRouteChildren {
+  DiagnosticoDiagnosisIdConectarRoute: typeof DiagnosticoDiagnosisIdConectarRoute
+}
+
+const DiagnosticoDiagnosisIdRouteChildren: DiagnosticoDiagnosisIdRouteChildren =
+  {
+    DiagnosticoDiagnosisIdConectarRoute: DiagnosticoDiagnosisIdConectarRoute,
+  }
+
+const DiagnosticoDiagnosisIdRouteWithChildren =
+  DiagnosticoDiagnosisIdRoute._addFileChildren(
+    DiagnosticoDiagnosisIdRouteChildren,
+  )
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
@@ -824,7 +858,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   TermosRoute: TermosRoute,
   TestMetaOauthRoute: TestMetaOauthRouteWithChildren,
-  DiagnosticoDiagnosisIdRoute: DiagnosticoDiagnosisIdRoute,
+  DiagnosticoDiagnosisIdRoute: DiagnosticoDiagnosisIdRouteWithChildren,
   PPortalSlugRoute: PPortalSlugRoute,
 }
 export const routeTree = rootRouteImport

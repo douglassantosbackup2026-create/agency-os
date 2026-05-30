@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
   const { data } = await sb
     .from("diagnoses")
     .select(
-      "status, failed_reason, completed_at, mp_payment_id, meta_ad_account_id, management_status, management_paid_at, management_business_name, management_website, management_instagram",
+      "status, failed_reason, completed_at, mp_payment_id, meta_ad_account_id, pending_ad_accounts, management_status, management_paid_at, management_business_name, management_website, management_instagram",
     )
     .eq("id", d)
     .single();
@@ -104,6 +104,7 @@ Deno.serve(async (req) => {
     failed_reason: data?.failed_reason ?? null,
     completed_at: data?.completed_at ?? null,
     meta_ad_account_id: data?.meta_ad_account_id ?? null,
+    pending_ad_accounts: data?.pending_ad_accounts ?? null,
     management_status: data?.management_status ?? null,
     management_paid_at: data?.management_paid_at ?? null,
     management_business_name: data?.management_business_name ?? null,
@@ -111,3 +112,4 @@ Deno.serve(async (req) => {
     management_instagram: data?.management_instagram ?? null,
   });
 });
+
