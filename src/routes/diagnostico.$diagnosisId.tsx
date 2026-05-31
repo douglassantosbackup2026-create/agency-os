@@ -466,42 +466,6 @@ function DiagnosticoReportPage() {
           </section>
         ) : null}
 
-        {analysis.actionPlan?.length ? (
-          <section className="card">
-            <h2>O caminho — se você quisesse fazer sozinho</h2>
-            <p className="section-hint">
-              Execução técnica, passo a passo. É o que nossa equipe faz por
-              você se contratar a gestão.
-            </p>
-            <div className="timeline">
-              {analysis.actionPlan.map((a) => (
-                <div key={a.step} className="timeline-step">
-                  <div className="timeline-num">{a.step}</div>
-                  <div>
-                    <div style={{ fontWeight: 600 }}>{a.action}</div>
-                    <div className="timeline-meta">
-                      Impacto {a.impact} · {a.eta}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="pain-line">
-              Cada semana sozinho é mais uma semana queimando budget.
-            </div>
-          </section>
-        ) : null}
-
-        {analysis.improvementScenario ? (
-          <section className="card scenario-card">
-            <h2>Onde você pode estar em 30 dias</h2>
-            <p className="scenario-value">{analysis.improvementScenario.note}</p>
-            <span className="badge badge-good">
-              Confiança: {analysis.improvementScenario.confidence}
-            </span>
-          </section>
-        ) : null}
-
         {data.report?.management_cta_eligible ? (
           <section className="card cta-pain">
             <span className="cta-stamp">Recomendado pela análise</span>
@@ -538,42 +502,91 @@ function DiagnosticoReportPage() {
               </>
             ) : (
               <>
-                <h2>Cada dia parado custa o seu dinheiro</h2>
+                <h2>Você já sabe onde está o problema.</h2>
                 <p style={{ marginTop: "0.5rem" }}>
-                  O diagnóstico acima mostra exatamente onde você está
-                  queimando budget. Enquanto não corrige, três coisas
-                  continuam acontecendo todos os dias na sua conta:
+                  Agora a decisão é simples.
+                </p>
+                <p>
+                  Você pode continuar gerenciando essas correções
+                  internamente. Ou pode ter uma equipe acompanhando sua
+                  aquisição todos os dias para garantir que esses gargalos
+                  não continuem consumindo resultado.
+                </p>
+                <p>
+                  O diagnóstico mostrou exatamente onde sua operação está
+                  perdendo eficiência. Mas Meta Ads, Google Ads e mensuração
+                  não são problemas que se resolvem uma única vez.
                 </p>
                 <ul className="pain-list">
-                  <li>
-                    <span className="pain-emoji">🔥</span>
-                    <span>
-                      <strong>Budget queimado</strong> em criativos e públicos
-                      errados — dinheiro que não volta.
-                    </span>
-                  </li>
-                  <li>
-                    <span className="pain-emoji">📉</span>
-                    <span>
-                      <strong>Leads que o seu concorrente leva</strong>{" "}
-                      porque o seu CPA está acima do mercado e o ROAS abaixo.
-                    </span>
-                  </li>
-                  <li>
-                    <span className="pain-emoji">⏰</span>
-                    <span>
-                      <strong>Cada semana sozinho</strong> é mais um mês de
-                      resultado adiado.
-                    </span>
-                  </li>
+                  <li><span className="pain-emoji">•</span><span>Novos concorrentes entram no leilão.</span></li>
+                  <li><span className="pain-emoji">•</span><span>Criativos saturam.</span></li>
+                  <li><span className="pain-emoji">•</span><span>Custos oscilam.</span></li>
+                  <li><span className="pain-emoji">•</span><span>O comportamento do consumidor muda.</span></li>
                 </ul>
-                <p className="bridge">
-                  Você pode continuar tentando sozinho — ou deixar nossa
-                  equipe executar o plano em <strong>7 dias</strong>, por{" "}
-                  <strong>R$ 1.997</strong> (valor único, via Mercado Pago).
+                <p>
+                  E pequenas decisões erradas podem custar milhares de reais
+                  ao longo dos próximos meses.
                 </p>
+
+                <h3 style={{ marginTop: "1.5rem" }}>O que nossa equipe assume</h3>
+                <div className="services-grid">
+                  <div className="service-col">
+                    <h4>Meta Ads</h4>
+                    <ul>
+                      <li>✓ Gestão e otimização contínua</li>
+                      <li>✓ Controle de CPA e ROAS</li>
+                      <li>✓ Planejamento de testes</li>
+                      <li>✓ Escala de campanhas vencedoras</li>
+                      <li>✓ Públicos e remarketing</li>
+                    </ul>
+                  </div>
+                  <div className="service-col">
+                    <h4>Google Ads</h4>
+                    <ul>
+                      <li>✓ Pesquisa</li>
+                      <li>✓ Performance Max</li>
+                      <li>✓ Remarketing</li>
+                      <li>✓ Otimização de verba</li>
+                    </ul>
+                  </div>
+                  <div className="service-col">
+                    <h4>Dados e Mensuração</h4>
+                    <ul>
+                      <li>✓ Google Analytics 4</li>
+                      <li>✓ Auditoria de tracking</li>
+                      <li>✓ Validação de eventos</li>
+                      <li>✓ Análise de atribuição</li>
+                      <li>✓ Apoio estratégico baseado em dados</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="vagas-box">
+                  <h3 style={{ marginTop: 0 }}>
+                    Condição especial para as próximas 2 operações
+                  </h3>
+                  <p>
+                    Nossa gestão completa possui investimento de{" "}
+                    <strong>R$ 5.000</strong>. Mas estamos abrindo{" "}
+                    <strong>2 novas operações</strong> para entrar no
+                    processo por <strong>R$ 1.997</strong>.
+                  </p>
+                  <p>
+                    O objetivo é selecionar empresas com potencial de
+                    crescimento e construir novos cases de performance.
+                    Após o preenchimento das vagas, novas entradas retornam
+                    para a condição padrão.
+                  </p>
+                  <p style={{ fontWeight: 700, color: "#991b1b" }}>
+                    Restam apenas 2 vagas disponíveis.
+                  </p>
+                </div>
+
                 <p className="form-intro">
-                  Últimos 3 campos antes de começarmos
+                  Preencha os dados abaixo para solicitar uma avaliação da
+                  sua operação. Se houver compatibilidade, entraremos em
+                  contato para apresentar o plano de crescimento e iniciar a
+                  gestão.
                 </p>
                 <div
                   style={{
@@ -650,16 +663,8 @@ function DiagnosticoReportPage() {
                 >
                   {mgmt.loading
                     ? "Abrindo Mercado Pago…"
-                    : "Parar de queimar budget — R$ 1.997 →"}
+                    : "Reservar uma das 2 vagas por R$ 1.997 →"}
                 </button>
-                <p className="cta-micro">
-                  Pagamento único · Sem mensalidade · Execução começa em 48h
-                </p>
-                <div className="trust-row">
-                  <span>✓ Equipe certificada Meta</span>
-                  <span>✓ Relatório semanal</span>
-                  <span>✓ Cancela quando quiser</span>
-                </div>
               </>
             )}
           </section>
