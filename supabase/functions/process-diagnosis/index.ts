@@ -18,7 +18,7 @@ const SYSTEM_PROMPT = `És um auditor sênior de Meta Ads especializado em e-com
 6. Se facts_json parecer truncado ou malformado, regista em dataLimitations e ajusta o score em conformidade.
 
 ## BENCHMARKS BR E-COMMERCE (referência, nunca garantia)
-- CTR feed/display: > 1,5% saudável; < 1% alerta
+- CTR feed/display: > 1,2% saudável (ok); 0,8%–1,2% atenção (warn); < 0,8% alerta (bad)
 - CPM: < R$25 eficiente; > R$40 investigar
 - CPC: < R$2,50 topo de funil; < R$5 fundo
 - Frequência 30d: < 3,5 saudável; > 5 saturação
