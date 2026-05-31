@@ -417,11 +417,19 @@ function DiagnosticoReportPage() {
             <div className="creatives-grid">
               <div className="creative-col creative-best">
                 <h4 style={{ color: "#166534" }}>✅ Melhor</h4>
-                <p style={{ margin: 0 }}>{analysis.creativesSummary.best}</p>
+                <p style={{ margin: 0 }}>
+                  {analysis.creativesSummary.best?.trim()
+                    ? analysis.creativesSummary.best
+                    : "Sem criativo destaque identificado no período analisado."}
+                </p>
               </div>
               <div className="creative-col creative-worst">
                 <h4 style={{ color: "#991b1b" }}>❌ Pior</h4>
-                <p style={{ margin: 0 }}>{analysis.creativesSummary.worst}</p>
+                <p style={{ margin: 0 }}>
+                  {analysis.creativesSummary.worst?.trim()
+                    ? analysis.creativesSummary.worst
+                    : "Sem criativo com performance claramente negativa no período."}
+                </p>
               </div>
             </div>
             <div className="creative-reco">
