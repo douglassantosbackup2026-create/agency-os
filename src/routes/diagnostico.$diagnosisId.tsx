@@ -285,46 +285,62 @@ function DiagnosticoReportPage() {
           <p style={{ margin: 0, color: "#334155" }}>{analysis.summary}</p>
         </header>
 
-        {analysis.metrics?.length ? (
-          <section className="card">
-            <h2>Onde seu dinheiro está agora</h2>
-            <p className="section-hint">
-              Os números reais da sua conta — comparados com o que o mercado
-              está entregando. ROAS, CPA, CTR e companhia.
-            </p>
-            <div className="metric-grid">
-              {analysis.metrics.map((m) => (
-                <div key={m.name} className={`metric-card ${statusClass(m.status)}`}>
-                  <div>
-                    <div className="metric-name">{m.name}</div>
-                    <div className="metric-ref">Referência: {m.reference}</div>
-                  </div>
-                  <div>
-                    <div className="metric-value">{m.current}</div>
-                    <div style={{ textAlign: "right", marginTop: "0.25rem" }}>
-                      <span
-                        className={`badge ${
-                          statusClass(m.status) === "is-bad"
-                            ? "badge-bad"
-                            : statusClass(m.status) === "is-mid"
-                              ? "badge-mid"
-                              : "badge-good"
-                        }`}
-                      >
-                        {m.status}
-                      </span>
+        {(() => {
+          const rawMetrics = analysis.metrics ?? [];
+          const hasRoas = rawMetrics.some((m) =>
+            /roas/i.test(m.name ?? ""),
+          );
+          const metrics = hasRoas
+            ? rawMetrics
+            : [
+                {
+                  name: "ROAS",
+                  current: "sem tracking",
+                  reference: "> 3x",
+                  status: "bad",
+                },
+                ...rawMetrics,
+              ];
+          return metrics.length ? (
+            <section className="card">
+              <h2>Onde seu dinheiro está agora</h2>
+              <p className="section-hint">
+                Os números reais da sua conta, comparados com a referência
+                que usamos como base.
+              </p>
+              <div className="metric-grid">
+                {metrics.map((m) => (
+                  <div key={m.name} className={`metric-card ${statusClass(m.status)}`}>
+                    <div>
+                      <div className="metric-name">{m.name}</div>
+                      <div className="metric-ref">Referência: {m.reference}</div>
+                    </div>
+                    <div>
+                      <div className="metric-value">{m.current}</div>
+                      <div style={{ textAlign: "right", marginTop: "0.25rem" }}>
+                        <span
+                          className={`badge ${
+                            statusClass(m.status) === "is-bad"
+                              ? "badge-bad"
+                              : statusClass(m.status) === "is-mid"
+                                ? "badge-mid"
+                                : "badge-good"
+                          }`}
+                        >
+                          {m.status}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
-            <div className="pain-line">
-              Cada métrica vermelha = real saindo da conta sem voltar. ROAS
-              baixo significa que cada R$ investido está rendendo menos do
-              que poderia.
-            </div>
-          </section>
-        ) : null}
+                ))}
+              </div>
+              <div className="pain-line">
+                Cada métrica fora da referência = real saindo da conta sem
+                voltar.
+              </div>
+            </section>
+          ) : null;
+        })()}
 
         {analysis.criticalIssues?.length ? (
           <section className="card">
