@@ -100,7 +100,15 @@ export type DiagnosisAnalysis = {
     financialNote?: string | null;
     axis?: "structure" | "audience" | "creative" | "sales" | null;
     engine?: "leak" | "growth" | "risk" | null;
+    hypothesisId?: string;
+    confidence?: "high" | "medium" | "needs_data";
+    evidenceFor?: string[];
+    evidenceAgainst?: string[];
+    conclusion?: string;
   }[];
+  hypothesisSeeds?: HypothesisSeed[];
+  prioritizedActions?: PrioritizedAction[];
+  mondayActions?: PrioritizedAction[];
   budgetLeaks?: {
     title: string;
     estimateNote: string;
@@ -115,14 +123,7 @@ export type DiagnosisAnalysis = {
   creativesSummary?: { best: string | null; worst: string | null; recommendation: string };
   audiencesSummary?: { segmentation: string; notes: string[] };
   structureNotes?: string[];
-  actionPlan?: {
-    step: number;
-    action: string;
-    impact: string;
-    eta: string;
-    engine?: string;
-    relatedAxis?: string;
-  }[];
+  actionPlan?: PrioritizedAction[];
   improvementScenario?: { note: string; confidence: string };
   campaignBreakdown?: {
     name: string;
@@ -234,4 +235,28 @@ export type ChapterNarratives = {
   creative?: string | null;
   scale?: string | null;
   financial?: string | null;
+};
+
+export type HypothesisSeed = {
+  id: string;
+  axis: string;
+  title: string;
+  claim: string;
+  evidenceFor: string[];
+  evidenceAgainst: string[];
+  confidence: "high" | "medium" | "needs_data";
+  monthlyBrlHint?: number;
+};
+
+export type PrioritizedAction = {
+  step: number;
+  action: string;
+  impact: string;
+  eta: string;
+  impactBrl: number | null;
+  urgency: "now" | "soon" | "later";
+  effort: "low" | "medium" | "high";
+  relatedAxis: string | null;
+  engine: string;
+  rationale: string;
 };

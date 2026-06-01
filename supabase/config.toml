@@ -90,6 +90,9 @@ verify_jwt = false
 [functions.diagnosis-context]
 verify_jwt = false
 
+[functions.diagnosis-followup]
+verify_jwt = false
+
 # Dev-only harness: /test-meta-oauth (requer META_TEST_ENABLED=true)
 # NÃO deployar em produção com META_TEST_ENABLED=true.
 [functions.meta-api-test]

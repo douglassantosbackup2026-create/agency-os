@@ -40,6 +40,42 @@ export function DiagnosisIssueCard({ issue, priorityBadge, axisLabelPt }: Props)
         {issue.financialNote ? (
           <p className="issue-financial">{issue.financialNote}</p>
         ) : null}
+        {"hypothesisId" in issue && issue.hypothesisId ? (
+          <details className="issue-hypothesis-details">
+            <summary>Hipótese e evidências</summary>
+            {issue.conclusion ? (
+              <p className="issue-hypothesis-conclusion">
+                <strong>Conclusão:</strong> {issue.conclusion}
+              </p>
+            ) : null}
+            {issue.evidenceFor?.length ? (
+              <div>
+                <strong>A favor:</strong>
+                <ul>
+                  {issue.evidenceFor.map((e, i) => (
+                    <li key={i}>{e}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {issue.evidenceAgainst?.length ? (
+              <div>
+                <strong>Contra / ressalvas:</strong>
+                <ul>
+                  {issue.evidenceAgainst.map((e, i) => (
+                    <li key={i}>{e}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {issue.confidence ? (
+              <p className="muted">
+                Confiança:{" "}
+                <span className="badge badge-medium">{issue.confidence}</span>
+              </p>
+            ) : null}
+          </details>
+        ) : null}
         <div className="issue-meta-row">
           <span className={`badge ${priorityBadge(issue.priority)}`}>
             {issue.priority}

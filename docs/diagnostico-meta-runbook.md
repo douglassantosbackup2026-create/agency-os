@@ -9,7 +9,7 @@ Ver também: [`diagnosis-production-env.md`](diagnosis-production-env.md), [`dia
 
 ## Edge Functions (`verify_jwt = false`)
 
-Configuradas em `supabase/config.toml`: `create-diagnosis-checkout`, `start-diagnosis-payment`, `diagnosis-status`, `diagnosis-report`, `meta-oauth`, `meta-oauth-callback`, `process-diagnosis`, `create-management-checkout`, `mercadopago-webhook` (partilhado), `meta-api-test` (só com `META_TEST_ENABLED`).
+Configuradas em `supabase/config.toml`: `create-diagnosis-checkout`, `start-diagnosis-payment`, `diagnosis-status`, `diagnosis-report`, `diagnosis-context`, `diagnosis-followup`, `meta-oauth`, `meta-oauth-callback`, `process-diagnosis`, `create-management-checkout`, `mercadopago-webhook` (partilhado), `meta-api-test` (só com `META_TEST_ENABLED`).
 
 Cada endpoint público valida `secret_slug` / rate limit / `CRON_SECRET` (cron) conforme a função.
 
@@ -131,6 +131,32 @@ LIMIT 5;
 4. Recarregar sem reprocessar: hidratação deve manter motores determinísticos; narrativa `chapterNarratives` só após passo 2.
 
 **Piloto atual (2026-06-01):** `7e8e3d16-306f-4960-ace3-56de6a3f0b6a` — `facts_json` em v12 com `adsets_insights` e `seniorDerived` no servidor; se a IA falhar (timeout Anthropic / quota OpenAI), a UI v12 ainda exibe motores via hidratação em `diagnosis-report`. Reenfileirar `processing` + cron quando as chaves de IA estiverem OK para narrativa v12 completa.
+
+## Analista v13 (relator → consultor)
+
+- **Prompt:** `diagnosis-ecommerce-v13` — `hypothesis_seeds`, `business_context`, `business_hints`, few-shots consultivos; `chapterNarratives` obrigatório (5 capítulos).
+- **Servidor:** `derive-hypothesis-seeds.ts`, `derive-action-priority.ts`, `derive-business-hints.ts`; `facts.hypothesis_seeds`; `analysis_json.prioritizedActions` + `mondayActions`.
+- **Contexto loja:** coluna `diagnoses.business_context`; merge em `process-diagnosis`; formulário no relatório (`DiagnosisBusinessContextForm` → `diagnosis-context`).
+- **UI:** bloco **Segunda-feira** (`DiagnosisPriorityPlan`); issues com hipótese colapsável; banner legado se `prompt_version != v13`.
+- **Feedback 30d (esboço):** migration `20260602120000_diagnosis_followup.sql`; snapshot + job ao `completed`; cron `diagnosis-followup`.
+
+```bash
+npm test -- supabase/functions/_shared/diagnosis/
+npx supabase db push   # ou aplicar migration followup
+npx supabase functions deploy process-diagnosis diagnosis-report diagnosis-context diagnosis-followup --project-ref uvuotaxikuxejfeitlaw
+npm run ops:deploy-worker
+```
+
+**Reprocessar após v13:** `prompt_version IS DISTINCT FROM 'diagnosis-ecommerce-v13'`.
+
+### QA checklist v13
+
+1. Relatório com ≥1 issue: `hypothesisId`, `evidenceFor`/`evidenceAgainst`, `conclusion`, `confidence`.
+2. Top 3 ações `urgency=now` com `impactBrl` quando leak disponível.
+3. Margem no formulário → após reprocessar, `impactNote` no capítulo financeiro (breakeven).
+4. Conta funil misto: sem issue de overlap genérico entre Geo/Meio/Conversão.
+5. Ao concluir: linhas em `diagnosis_metric_snapshots` e `diagnosis_followup_jobs` (due +30d).
+6. `npm test -- supabase/functions/_shared/diagnosis/` — ≥35 testes.
 
 ## Fase 2 — Ad sets (implementado)
 

@@ -16,7 +16,17 @@ import {
   buildCommercialDerived,
   commercialToAnalysisFields,
 } from "./derive-commercial.ts";
+import {
+  deriveActionPriority,
+  topActionsNow,
+} from "./derive-action-priority.ts";
+import {
+  deriveBusinessHints,
+  type BusinessContextInput,
+} from "./derive-business-hints.ts";
+import { deriveHypothesisSeeds } from "./derive-hypothesis-seeds.ts";
 import { buildSeniorDerived } from "./derive-senior.ts";
+import type { SeniorDerived } from "./derive-senior-types.ts";
 
 export type { DerivedStatus };
 
@@ -555,13 +565,31 @@ export function normalizeAnalysisV2(
     commercial,
     scoreDerived.score,
   );
+  applyBusinessHintsToSenior(commercial.seniorDerived, facts ?? null);
   const commercialFields = commercialToAnalysisFields(commercial);
   Object.assign(obj, commercialFields);
 
-  const plan = obj.actionPlan as Record<string, unknown>[];
-  for (const step of plan) {
-    if (!step.engine) step.engine = "action";
-  }
+  const seeds =
+    (Array.isArray(facts?.hypothesis_seeds)
+      ? (facts!.hypothesis_seeds as ReturnType<typeof deriveHypothesisSeeds>)
+      : null) ??
+    deriveHypothesisSeeds(facts ?? null, commercial.seniorDerived!, commercial);
+  obj.hypothesisSeeds = seeds;
+
+  const rawPlan = obj.actionPlan as Record<string, unknown>[];
+  const prioritized = deriveActionPriority(
+    commercial.seniorDerived!,
+    rawPlan as Parameters<typeof deriveActionPriority>[1],
+    seeds,
+  );
+  obj.actionPlan = prioritized;
+  obj.prioritizedActions = prioritized;
+  obj.mondayActions = topActionsNow(prioritized);
+
+  enrichCriticalIssuesWithHypothesis(
+    obj.criticalIssues as Record<string, unknown>[],
+    seeds,
+  );
 
   if (typeof obj.narrativeHook !== "string" || !String(obj.narrativeHook).trim()) {
     obj.narrativeHook = commercial.storyExecutive.headline;
@@ -607,6 +635,60 @@ export function normalizeAnalysisV2(
   return obj;
 }
 
+function applyBusinessHintsToSenior(
+  senior: SeniorDerived,
+  facts: Record<string, unknown> | null,
+): void {
+  const ctx = facts?.business_context as BusinessContextInput | undefined;
+  const hints = deriveBusinessHints(ctx);
+  if (hints) {
+    facts!.business_hints = hints;
+    if (hints.marginNote) {
+      senior.diagnostics.financial.impactNote = hints.marginNote;
+    }
+  }
+}
+
+function enrichCriticalIssuesWithHypothesis(
+  issues: Record<string, unknown>[],
+  seeds: ReturnType<typeof deriveHypothesisSeeds>,
+): void {
+  for (const issue of issues) {
+    const priority = String(issue.priority ?? "medium");
+    if (priority === "low") continue;
+    if (issue.hypothesisId && issue.confidence) continue;
+    const axis = issue.axis ? String(issue.axis) : null;
+    const match =
+      seeds.find((s) => s.axis === axis && s.confidence !== "needs_data") ??
+      seeds.find((s) => s.confidence === "high") ??
+      seeds[0];
+    if (!match) continue;
+    if (!issue.hypothesisId) issue.hypothesisId = match.id;
+    if (!issue.confidence) issue.confidence = match.confidence;
+    if (!Array.isArray(issue.evidenceFor) || !(issue.evidenceFor as unknown[]).length) {
+      issue.evidenceFor = [...match.evidenceFor];
+    }
+    if (
+      !Array.isArray(issue.evidenceAgainst) ||
+      !(issue.evidenceAgainst as unknown[]).length
+    ) {
+      issue.evidenceAgainst = [...match.evidenceAgainst];
+    }
+    if (!issue.conclusion) {
+      issue.conclusion = match.claim;
+    }
+  }
+}
+
+export function mergeBusinessContextIntoFacts(
+  facts: Record<string, unknown>,
+  businessContext: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
+  if (!businessContext || typeof businessContext !== "object") return facts;
+  facts.business_context = businessContext;
+  return facts;
+}
+
 export function attachCommercialToFacts(
   facts: Record<string, unknown>,
 ): Record<string, unknown> {
@@ -614,6 +696,9 @@ export function attachCommercialToFacts(
   const commercial = buildCommercialDerived(facts);
   const scoreDerived = deriveScoreV2(facts);
   commercial.seniorDerived = buildSeniorDerived(facts, commercial, scoreDerived.score);
+  applyBusinessHintsToSenior(commercial.seniorDerived, facts);
+  const seeds = deriveHypothesisSeeds(facts, commercial.seniorDerived, commercial);
+  facts.hypothesis_seeds = seeds;
   facts.commercial_derived = commercial;
   facts.senior_derived = commercial.seniorDerived;
   return facts;

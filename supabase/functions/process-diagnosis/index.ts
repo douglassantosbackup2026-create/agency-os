@@ -7,11 +7,14 @@ import {
   attachCommercialToFacts,
   buildFactsEnrichment,
   deriveFunnelGuidanceForAi,
+  mergeBusinessContextIntoFacts,
   normalizeAnalysisV2,
 } from "../_shared/diagnosis/derive-analysis.ts";
 import { buildCommercialDerived } from "../_shared/diagnosis/derive-commercial.ts";
+import { recordDiagnosisFollowup } from "../_shared/diagnosis/record-diagnosis-followup.ts";
+import { V13_CONSULTATIVE_EXAMPLES } from "../_shared/diagnosis/v13-consultative-examples.ts";
 
-const PROMPT_VERSION = "diagnosis-ecommerce-v12";
+const PROMPT_VERSION = "diagnosis-ecommerce-v13";
 const AI_TIMEOUT_MS = 60_000;
 
 const SYSTEM_PROMPT = `És um auditor sênior de Meta Ads especializado em e-commerce brasileiro, com foco em eficiência de verba e escalabilidade. Respondes APENAS em PT-BR e APENAS com JSON válido (sem markdown, sem texto fora do JSON). Valores monetários sempre em BRL (a menos que facts.account_insights indique outra moeda).
@@ -96,6 +99,16 @@ Tom: consultivo e persuasivo para dono de e-commerce — traduz jargão ("sem tr
 38. PROIBIDO contradizer maturity.level, leakByAxis[].monthlyBrl ou growthScenarios (cenários indicativos — não garantia).
 39. chapterNarratives (opcional): { structure?, audience?, creative?, scale?, financial? } — texto editorial curto alinhado ao headline do capítulo correspondente em diagnostics; não altere status nem números.
 
+## ANALISTA v13 (CONSULTOR — HIPÓTESES E PRIORIDADE)
+40. ${V13_CONSULTATIVE_EXAMPLES}
+41. hypothesis_seeds no user prompt: cada criticalIssue com priority high/medium DEVE ter hypothesisId de um seed com confidence high|medium; reescreva evidenceFor/evidenceAgainst em tom consultivo sem inventar fatos novos.
+42. Seeds com confidence needs_data → dataLimitations[], NÃO criticalIssue alarmista.
+43. conclusion: uma frase consultiva por issue (o que fazer / o que significa para o negócio).
+44. chapterNarratives OBRIGATÓRIO para os 5 ids em diagnostics (structure, audience, creative, scale, financial) — 2–4 frases cada; não altere status/headline.
+45. verdictLine: primeira linha responde onde vaza + quanto (total leakByAxis ou top finding #1 com R$).
+46. actionPlan: 5–8 passos; preencha relatedAxis, urgency (now|soon|later), effort (low|medium|high), impactBrl quando alinhado a leakByAxis (mesmos números do servidor).
+47. business_context: usar ticket/margem/meta para interpretar ROAS — não inventar dados Meta; margem → comparar com business_hints.breakevenRoas se presente.
+
 ## SCHEMA DE SAÍDA (JSON estrito, todos os campos obrigatórios)
 {
   "score": number,
@@ -113,7 +126,12 @@ Tom: consultivo e persuasivo para dono de e-commerce — traduz jargão ("sem tr
     "financialNote": string|null,
     "priority": "high"|"medium"|"low",
     "axis": "structure"|"audience"|"creative"|"sales"|null,
-    "engine": "leak"|"growth"|"risk"|null
+    "engine": "leak"|"growth"|"risk"|null,
+    "hypothesisId": string,
+    "confidence": "high"|"medium"|"needs_data",
+    "evidenceFor": string[],
+    "evidenceAgainst": string[],
+    "conclusion": string
   }],
   "chapterNarratives": {
     "structure": string|null,
@@ -127,7 +145,7 @@ Tom: consultivo e persuasivo para dono de e-commerce — traduz jargão ("sem tr
   "creativesSummary": { "best": string|null, "worst": string|null, "recommendation": string },
   "audiencesSummary": { "segmentation": string, "notes": string[] },
   "structureNotes": string[],
-  "actionPlan": [{ "step": number, "action": string, "impact": string, "eta": string, "engine": "action"|null, "relatedAxis": "structure"|"audience"|"creative"|"sales"|"scale"|null }],
+  "actionPlan": [{ "step": number, "action": string, "impact": string, "eta": string, "engine": "action"|null, "relatedAxis": "structure"|"audience"|"creative"|"sales"|"scale"|null, "impactBrl": number|null, "urgency": "now"|"soon"|"later", "effort": "low"|"medium"|"high" }],
   "improvementScenario": { "note": string, "confidence": "high"|"medium"|"low" },
   "disclaimer": string,
   "dataLimitations": string[]
@@ -168,9 +186,21 @@ function buildUserPrompt(facts: Record<string, unknown>): string {
         risks: (senior as { risks?: unknown }).risks,
       }
     : null;
+  const seeds = facts.hypothesis_seeds;
+  const bizCtx = facts.business_context;
+  const bizHints = facts.business_hints;
   return [
     "funnel_guidance (REGRAS OBRIGATÓRIAS — funil misto NÃO é sobreposição; ROAS só em Vendas):",
     JSON.stringify(guidance).slice(0, 8000),
+    "",
+    "business_context (informado pelo lojista — interpretar ROAS/margem; não inventar Meta):",
+    bizCtx ? JSON.stringify(bizCtx).slice(0, 4000) : "(não informado)",
+    "",
+    "business_hints (servidor — ROAS breakeven indicativo):",
+    bizHints ? JSON.stringify(bizHints).slice(0, 2000) : "(não calculado)",
+    "",
+    "hypothesis_seeds (v13 — vincular criticalIssues; não contradizer):",
+    seeds ? JSON.stringify(seeds).slice(0, 12000) : "(indisponível)",
     "",
     "senior_derived (motores v12 — maturidade, leak por eixo, capítulos, riscos; não invente números):",
     seniorSlice ? JSON.stringify(seniorSlice).slice(0, 12000) : "(indisponível — seguir commercial_derived)",
@@ -530,7 +560,7 @@ Deno.serve(async (req) => {
 
   const { data: rows } = await sb
     .from("diagnoses")
-    .select("id, meta_ad_account_id, status")
+    .select("id, meta_ad_account_id, status, business_context")
     .eq("status", "processing")
     .limit(
       Math.max(
@@ -672,6 +702,10 @@ Deno.serve(async (req) => {
       }
 
       if (factsForAnalysis) {
+        mergeBusinessContextIntoFacts(
+          factsForAnalysis,
+          row.business_context as Record<string, unknown> | null,
+        );
         attachCommercialToFacts(factsForAnalysis);
         await sb
           .from("diagnosis_reports")
@@ -725,6 +759,12 @@ Deno.serve(async (req) => {
           .eq("diagnosis_id", id);
       }
 
+      const { data: finalRep } = await sb
+        .from("diagnosis_reports")
+        .select("facts_json, analysis_json")
+        .eq("diagnosis_id", id)
+        .maybeSingle();
+
       await sb
         .from("diagnoses")
         .update({
@@ -732,6 +772,20 @@ Deno.serve(async (req) => {
           completed_at: new Date().toISOString(),
         })
         .eq("id", id);
+
+      try {
+        await recordDiagnosisFollowup(
+          sb,
+          id,
+          finalRep?.facts_json as Record<string, unknown> | null,
+          finalRep?.analysis_json as Record<string, unknown> | null,
+        );
+      } catch (followErr) {
+        console.warn(
+          `[process-diagnosis] followup snapshot: ${String(followErr).slice(0, 200)}`,
+        );
+      }
+
       processed++;
     } catch (e) {
       console.error(e);

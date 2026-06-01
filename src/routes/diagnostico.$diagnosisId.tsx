@@ -20,6 +20,8 @@ import { DiagnosisLeakByAxis } from "@/components/diagnosis-report/DiagnosisLeak
 import { DiagnosisIssueCard } from "@/components/diagnosis-report/DiagnosisIssueCard";
 import { DiagnosisMaturityCard } from "@/components/diagnosis-report/DiagnosisMaturityCard";
 import { DiagnosisRisksCard } from "@/components/diagnosis-report/DiagnosisRisksCard";
+import { DiagnosisBusinessContextForm } from "@/components/diagnosis-report/DiagnosisBusinessContextForm";
+import { DiagnosisPriorityPlan } from "@/components/diagnosis-report/DiagnosisPriorityPlan";
 import { DiagnosisPrintCover } from "@/components/diagnosis-report/DiagnosisPrintCover";
 import { DiagnosisReportShell } from "@/components/diagnosis-report/DiagnosisReportShell";
 import { DiagnosisTopFindings } from "@/components/diagnosis-report/DiagnosisTopFindings";
@@ -669,10 +671,23 @@ function DiagnosticoReportPage() {
 
         {legacyReport && !hasSeniorV12 ? (
           <p className="legacy-report-banner no-print" role="status">
-            Relatório gerado antes da versão Analista Sênior (v12) — reprocessar a
-            análise para maturidade, vazamentos por eixo e os 5 capítulos de diagnóstico.
+            Relatório gerado antes da versão Analista v13 — reprocessar a análise para
+            hipóteses testadas, plano priorizado e narrativa consultiva.
           </p>
         ) : null}
+
+        {s ? (
+          <DiagnosisBusinessContextForm
+            diagnosisId={diagnosisId}
+            secretSlug={s}
+            initial={savedContext}
+            reportCompleted={data?.diagnosis?.status === "completed"}
+          />
+        ) : null}
+
+        <p className="followup-banner no-print muted" role="note">
+          Reavaliação automática das métricas da conta em 30 dias (sem novo relatório de IA).
+        </p>
 
         <DiagnosisVerdictHero
           analysis={analysis}
@@ -876,6 +891,19 @@ function DiagnosticoReportPage() {
               </div>
             ))}
           </section>
+        ) : null}
+
+        {hasSeniorV12 &&
+        (analysis.prioritizedActions?.length || analysis.actionPlan?.length) ? (
+          <DiagnosisPriorityPlan
+            actions={
+              analysis.prioritizedActions?.length
+                ? analysis.prioritizedActions
+                : (analysis.actionPlan ?? [])
+            }
+            mondayActions={analysis.mondayActions}
+            axisLabelPt={axisLabelPt}
+          />
         ) : null}
 
         <details className="card technical-details-block" id="sec-technical">

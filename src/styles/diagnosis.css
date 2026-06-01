@@ -2122,3 +2122,76 @@
     break-inside: avoid;
   }
 }
+
+.diagnosis-context-form {
+  margin-bottom: 1.25rem;
+}
+
+.diagnosis-context-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.diagnosis-context-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.diagnosis-context-form input,
+.diagnosis-context-form textarea {
+  padding: 0.45rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--border, #e2e8f0);
+}
+
+.diagnosis-context-notes {
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+.diagnosis-context-msg {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.followup-banner {
+  font-size: 0.85rem;
+  margin: 0 0 1rem;
+}
+
+.issue-hypothesis-details {
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+}
+
+.issue-hypothesis-details summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.monday-actions-block {
+  margin-bottom: 1.5rem;
+}
+
+.monday-actions-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.monday-action-item {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+.priority-matrix-details {
+  margin-top: 0.5rem;
+}
+
+.priority-plan-list {
+  padding-left: 1.2rem;
+}
