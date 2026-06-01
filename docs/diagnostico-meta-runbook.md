@@ -37,6 +37,22 @@ Redirect URI Meta: `https://uvuotaxikuxejfeitlaw.supabase.co/functions/v1/meta-o
 
 No início de cada batch, a função chama `cleanup_stale_diagnosis_processing(30)` (migration `20260605120000`).
 
+## Diagnóstico por objetivo de campanha (v8)
+
+- **Prompt:** `diagnosis-ecommerce-v8` em `process-diagnosis` (invalida `analysis_json` antigo ao reprocessar).
+- **Facts:** `campaigns_enriched` + `objective_spend_mix` em `diagnosis_reports.facts_json` (join `campaign.objective` da API + insights).
+- **Semáforo:** por família (Vendas → ROAS; Tráfego → custo/page view; Reconhecimento → alcance/CPM; etc.) — não julgar alcance com ROAS de compra.
+- **UI:** `/diagnostico/$id` — secção “Como sua conta está organizada”, métricas de Vendas, tabela com Objetivo / Resultados / Custo por resultado.
+- **Código compartilhado:** `supabase/functions/_shared/diagnosis/campaign-objective.ts`, `derive-analysis.ts`.
+- **Testes:** `npm test -- supabase/functions/_shared/diagnosis/campaign-objective.test.ts`
+
+### Validar conta mista (ex.: Conversão + Geo + Meio)
+
+1. Reprocessar diagnóstico (`process-diagnosis` ou novo checkout).
+2. Relatório: chips de funil com % por objetivo; ROAS só na linha **Vendas**.
+3. `sales_block`: CPA ≈ gasto_vendas / compras (não misturar gasto de alcance/tráfego).
+4. Campanha de alcance: status não “sem tracking” vermelho por ROAS `—`.
+
 ## Queries operacionais
 
 Diagnósticos presos em `processing` (> 30 min):

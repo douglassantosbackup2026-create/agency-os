@@ -1,4 +1,10 @@
-## Problema
+## Estado (2026-06)
+
+Implementado no repo: diagnóstico por **objective API** (`campaign-objective.ts`, `derive-analysis.ts`, prompt v8, UI `/diagnostico`). Ver `docs/diagnostico-meta-runbook.md`.
+
+---
+
+## Problema (histórico — sobreposição / nomenclatura)
 
 O relatório está fazendo duas inferências erradas no card "Sobreposição de Públicos":
 

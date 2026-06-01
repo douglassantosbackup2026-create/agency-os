@@ -47,6 +47,33 @@ type Analysis = {
     cpm: string;
     frequency: string;
     status: string;
+    objective_label?: string;
+    result_label?: string;
+    results_count?: string;
+    cost_per_result?: string;
+    status_reason?: string;
+  }[];
+  accountObjectiveSummary?: {
+    mixed_funnel: boolean;
+    sales_block: {
+      spend_formatted: string;
+      roas_formatted: string;
+      cpa_formatted: string;
+      campaign_count: number;
+    } | null;
+    by_family: {
+      family: string;
+      label: string;
+      spend_pct: number;
+      spend_formatted: string;
+      headline_kpi: string;
+    }[];
+  };
+  accountContextMetrics?: {
+    name: string;
+    current: string;
+    reference: string;
+    status: string;
   }[];
   dataLimitations?: string[];
   disclaimer?: string;
@@ -478,8 +505,14 @@ function DiagnosticoReportPage() {
     return [...issues, ...planSteps];
   })();
 
+  const hasObjectiveV2 = Boolean(
+    analysis.accountObjectiveSummary?.by_family?.length ||
+      analysis.campaignBreakdown?.some((c) => c.objective_label),
+  );
+
   const tocItems: { id: string; label: string }[] = [];
   if (topPriorities.length) tocItems.push({ id: "sec-top", label: "Top 3 prioridades" });
+  if (hasObjectiveV2) tocItems.push({ id: "sec-funnel", label: "Funil" });
   if (analysis.metrics?.length) tocItems.push({ id: "sec-metrics", label: "Métricas" });
   if (analysis.campaignBreakdown?.length) tocItems.push({ id: "sec-campaigns", label: "Campanhas" });
   if (analysis.criticalIssues?.length) tocItems.push({ id: "sec-issues", label: "Problemas" });
@@ -788,6 +821,38 @@ function DiagnosticoReportPage() {
           </nav>
         ) : null}
 
+        {hasObjectiveV2 && analysis.accountObjectiveSummary ? (
+          <section className="card" id="sec-funnel">
+            <h2>Como sua conta está organizada</h2>
+            <p className="section-hint">
+              Avaliação por objetivo de campanha (como no Gerenciador de Anúncios da Meta).
+              {analysis.accountObjectiveSummary.mixed_funnel
+                ? " Esta conta mistura funil completo — ROAS abaixo refere-se só a campanhas de Vendas."
+                : ""}
+            </p>
+            <div className="funnel-chips">
+              {analysis.accountObjectiveSummary.by_family.map((f) => (
+                <span
+                  key={f.family}
+                  className={`funnel-chip objective-${f.family}`}
+                  title={f.headline_kpi}
+                >
+                  {f.label} · {f.spend_pct}%
+                </span>
+              ))}
+            </div>
+            {analysis.accountObjectiveSummary.sales_block ? (
+              <p className="section-hint" style={{ marginTop: "0.75rem" }}>
+                <strong>Vendas ({analysis.accountObjectiveSummary.sales_block.campaign_count}{" "}
+                campanha{analysis.accountObjectiveSummary.sales_block.campaign_count !== 1 ? "s" : ""}):</strong>{" "}
+                gasto {analysis.accountObjectiveSummary.sales_block.spend_formatted}, ROAS{" "}
+                {analysis.accountObjectiveSummary.sales_block.roas_formatted}, custo/compra{" "}
+                {analysis.accountObjectiveSummary.sales_block.cpa_formatted}
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+
         {topPriorities.length ? (
           <section className="card top-priorities" id="sec-top">
             <h2>Top 3 prioridades</h2>
@@ -820,8 +885,9 @@ function DiagnosticoReportPage() {
           <section className="card" id="sec-metrics">
             <h2>Onde seu dinheiro está agora</h2>
             <p className="section-hint">
-              Os números reais da sua conta, comparados com a referência
-              que usamos como base.
+              {hasObjectiveV2
+                ? "Métricas principais de campanhas de Vendas (compras rastreadas). CTR/CPM da conta inteira aparecem abaixo como contexto."
+                : "Os números reais da sua conta, comparados com a referência que usamos como base."}
             </p>
             <div className="metric-grid">
               {analysis.metrics.map((m) => {
@@ -878,6 +944,42 @@ function DiagnosticoReportPage() {
               Cada métrica fora da referência = real saindo da conta sem
               voltar.
             </div>
+            {analysis.accountContextMetrics?.length ? (
+              <details className="account-context-metrics" style={{ marginTop: "1rem" }}>
+                <summary className="section-hint" style={{ cursor: "pointer" }}>
+                  Contexto geral da conta (todas as campanhas)
+                </summary>
+                <div className="metric-grid" style={{ marginTop: "0.75rem" }}>
+                  {analysis.accountContextMetrics.map((m) => {
+                    const cls = statusClass(m.status);
+                    const badgeCls =
+                      cls === "is-bad"
+                        ? "badge-bad"
+                        : cls === "is-mid"
+                          ? "badge-mid"
+                          : cls === "is-good"
+                            ? "badge-good"
+                            : "badge-medium";
+                    return (
+                      <div key={m.name} className={`metric-card ${cls}`}>
+                        <div>
+                          <div className="metric-name">{m.name}</div>
+                          <div className="metric-ref">Referência: {m.reference}</div>
+                        </div>
+                        <div>
+                          <div className="metric-value">{m.current}</div>
+                          <div style={{ textAlign: "right", marginTop: "0.25rem" }}>
+                            <span className={`badge ${badgeCls}`}>
+                              {statusLabelPt(m.status)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </details>
+            ) : null}
           </section>
         ) : null}
 
@@ -886,19 +988,30 @@ function DiagnosticoReportPage() {
           <section className="card" id="sec-campaigns">
             <h2>Desempenho por campanha</h2>
             <p className="section-hint">
-              Top campanhas por gasto nos últimos 30 dias — onde o orçamento
-              está concentrado e o retorno real de cada uma.
+              Top campanhas por gasto nos últimos 30 dias — objetivo, resultado
+              e custo por resultado como no Gerenciador de Anúncios.
             </p>
             <div className="campaign-table-wrap">
               <table className="campaign-table">
                 <thead>
                   <tr>
                     <th>Campanha</th>
+                    {hasObjectiveV2 ? (
+                      <>
+                        <th>Objetivo</th>
+                        <th>Resultados</th>
+                        <th>Custo / resultado</th>
+                      </>
+                    ) : null}
                     <th>Gasto</th>
                     <th>ROAS</th>
-                    <th>CTR</th>
-                    <th>CPM</th>
-                    <th>Freq.</th>
+                    {!hasObjectiveV2 ? (
+                      <>
+                        <th>CTR</th>
+                        <th>CPM</th>
+                        <th>Freq.</th>
+                      </>
+                    ) : null}
                     <th>Status</th>
                   </tr>
                 </thead>
@@ -913,15 +1026,48 @@ function DiagnosticoReportPage() {
                           : cls === "is-good"
                             ? "badge-good"
                             : "badge-medium";
+                    const roasNa = c.roas === "—" || c.roas === "sem tracking";
                     return (
                       <tr key={c.name} className={cls}>
                         <td className="campaign-name" title={c.name}>{c.name}</td>
+                        {hasObjectiveV2 ? (
+                          <>
+                            <td>
+                              {c.objective_label ? (
+                                <span className="objective-badge">{c.objective_label}</span>
+                              ) : (
+                                "—"
+                              )}
+                            </td>
+                            <td>
+                              {c.results_count && c.results_count !== "—" ? (
+                                <>
+                                  <strong>{c.results_count}</strong>
+                                  {c.result_label ? (
+                                    <span className="muted" style={{ display: "block", fontSize: "0.8rem" }}>
+                                      {c.result_label}
+                                    </span>
+                                  ) : null}
+                                </>
+                              ) : (
+                                "—"
+                              )}
+                            </td>
+                            <td>{c.cost_per_result ?? "—"}</td>
+                          </>
+                        ) : null}
                         <td>{c.spend}</td>
-                        <td>{c.roas}</td>
-                        <td>{c.ctr}</td>
-                        <td>{c.cpm}</td>
-                        <td>{c.frequency}</td>
-                        <td>
+                        <td className={roasNa ? "roas-na" : undefined} title={roasNa ? "ROAS não se aplica a este objetivo de campanha" : undefined}>
+                          {c.roas}
+                        </td>
+                        {!hasObjectiveV2 ? (
+                          <>
+                            <td>{c.ctr}</td>
+                            <td>{c.cpm}</td>
+                            <td>{c.frequency}</td>
+                          </>
+                        ) : null}
+                        <td title={c.status_reason}>
                           <span className={`badge ${badgeCls}`}>
                             {statusLabelPt(c.status)}
                           </span>
@@ -933,8 +1079,9 @@ function DiagnosticoReportPage() {
               </table>
             </div>
             <div className="pain-line">
-              Campanhas no vermelho concentram gasto e devolvem pouco — onde
-              cortar primeiro.
+              {hasObjectiveV2
+                ? "Status por objetivo: alcance e tráfego não são julgados por ROAS de compra."
+                : "Campanhas no vermelho concentram gasto e devolvem pouco — onde cortar primeiro."}
             </div>
           </section>
         ) : null}

@@ -3,8 +3,12 @@ import { assertCronOrUser } from "../_shared/cron-auth.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 import { diagnosisAiBudgetExceeded } from "../_shared/ai-budget.ts";
 import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
+import {
+  buildFactsEnrichment,
+  normalizeAnalysisV2,
+} from "../_shared/diagnosis/derive-analysis.ts";
 
-const PROMPT_VERSION = "diagnosis-ecommerce-v7";
+const PROMPT_VERSION = "diagnosis-ecommerce-v8";
 const AI_TIMEOUT_MS = 60_000;
 
 const SYSTEM_PROMPT = `És um auditor sênior de Meta Ads especializado em e-commerce brasileiro, com foco em eficiência de verba e escalabilidade. Respondes APENAS em PT-BR e APENAS com JSON válido (sem markdown, sem texto fora do JSON). Valores monetários sempre em BRL (a menos que facts.account_insights indique outra moeda).
@@ -49,10 +53,19 @@ const SYSTEM_PROMPT = `És um auditor sênior de Meta Ads especializado em e-com
 - summary: 2-4 frases, direto ao ponto
 
 ## DADOS DISPONÍVEIS EM facts_json
-- account_insights: agregado da conta (30d)
-- campaigns_sample: lista de campanhas com status/objetivo/orçamento
-- campaigns_insights: insights por campanha (30d) — gasto, ROAS, CTR, CPM, frequência, ações. Usa para identificar campanhas com problemas específicos.
-- ads_insights_top: top 25 anúncios por gasto (30d). O servidor calcula melhor/pior automaticamente; tu podes apenas comentar padrões (ex.: "anúncios de carrossel concentram pior CTR").
+- account_insights: agregado da conta (30d) — contexto geral apenas; NÃO uses para julgar campanhas de alcance/tráfego com ROAS de compra.
+- campaigns_sample: lista de campanhas com status e **objective** (API Meta — fonte de verdade do objetivo).
+- campaigns_insights: insights brutos por campanha (30d).
+- **campaigns_enriched** (OBRIGATÓRIO para citar campanhas): join objective + KPI por família (Vendas, Tráfego, Reconhecimento, Leads, etc.) — espelha colunas Resultados / Custo por resultado do Gerenciador.
+- **objective_spend_mix**: percentual de gasto por família de objetivo.
+- ads_insights_top: top 25 anúncios por gasto (30d).
+
+## REGRAS POR OBJETIVO DE CAMPANHA (v8 — CRÍTICO)
+11. Para QUALQUER menção a desempenho de campanha, usa EXCLUSIVAMENTE facts.campaigns_enriched[] (objective_raw, family_label_pt, primary_result, roas, kpi_status). NUNCA infiras objetivo pelo nome da campanha ([GM], Geo, Meio, etc.).
+12. ROAS e custo por compra no texto referem-se a campanhas family=sales com tracking. Campanhas awareness/traffic/leads: NÃO critiques ausência de ROAS — usa primary_result.label_pt e cost_per_result.
+13. PROIBIDO dizer que "a conta está otimizada para Leads/Vendas" sem objective_spend_mix mostrando essa família como dominante (>50% gasto).
+14. Cada criticalIssue sobre campanha deve citar: nome, family_label_pt, KPI observado (ex.: "ROAS 4,2x" ou "custo por alcance R$ 3,14 / 1k").
+15. O servidor preenche metrics, campaignBreakdown, accountObjectiveSummary e score — o teu JSON de narrativa deve ser coerente com esses campos, não contradizê-los.
 
 Tom: direto, técnico mas legível por dono de e-commerce — sem jargão excessivo.
 
@@ -105,283 +118,11 @@ function validateAnalysis(obj: unknown): boolean {
   return true;
 }
 
-// ── Normalização determinística de métricas (P0) ─────────────────────────────
-// Não confiar no status que a IA atribui: recalcular a partir de facts_json
-// com thresholds estáveis. Fonte de verdade do semáforo é o servidor.
-
-type DerivedStatus = "bom" | "atenção" | "alerta" | "sem tracking" | "sem dados";
-
-function _num(v: unknown): number | null {
-  const n = typeof v === "string" ? Number(v) : (v as number);
-  return Number.isFinite(n) ? (n as number) : null;
-}
-
-function _fmtBRL(n: number | null): string {
-  if (n == null) return "—";
-  return `R$ ${n.toFixed(2).replace(".", ",")}`;
-}
-
-function _fmtPct(n: number | null): string {
-  if (n == null) return "—";
-  return `${n.toFixed(2).replace(".", ",")}%`;
-}
-
-function _fmtX(n: number | null): string {
-  if (n == null) return "—";
-  return `${n.toFixed(2).replace(".", ",")}x`;
-}
-
-function _fmtNum(n: number | null, dec = 2): string {
-  if (n == null) return "—";
-  return n.toFixed(dec).replace(".", ",");
-}
-
-function _findActionValue(arr: unknown, regex: RegExp): number | null {
-  if (!Array.isArray(arr)) return null;
-  const hit = arr.find((a) => {
-    const o = a as Record<string, unknown>;
-    return typeof o?.action_type === "string" && regex.test(o.action_type);
-  }) as Record<string, unknown> | undefined;
-  return hit ? _num(hit.value) : null;
-}
-
-function deriveMetricsFromFacts(
-  facts: Record<string, unknown> | null | undefined,
-): {
-  metrics: { name: string; current: string; reference: string; status: DerivedStatus }[];
-  limitations: string[];
-} {
-  const ins = (facts?.account_insights ?? {}) as Record<string, unknown>;
-  const spend = _num(ins.spend);
-  const impressions = _num(ins.impressions);
-  const reach = _num(ins.reach);
-  const frequency = _num(ins.frequency);
-  const ctr = _num(ins.ctr);
-  const cpc = _num(ins.cpc);
-  const cpm = _num(ins.cpm);
-
-  let revenue = _findActionValue(ins.action_values, /^purchase$|^omni_purchase$/i);
-  let purchases = _findActionValue(ins.actions, /^purchase$|^omni_purchase$/i);
-
-  // Fallback: somar a partir de campaigns_insights quando o nível conta não traz action_values
-  const campsList = Array.isArray(facts?.campaigns_insights)
-    ? (facts!.campaigns_insights as Record<string, unknown>[])
-    : [];
-  if (revenue == null && campsList.length > 0) {
-    let sum = 0; let any = false;
-    for (const c of campsList) {
-      const r = _findActionValue(c.action_values, /^purchase$|^omni_purchase$/i);
-      if (r != null) { sum += r; any = true; }
-    }
-    if (any) revenue = sum;
-  }
-  if (purchases == null && campsList.length > 0) {
-    let sum = 0; let any = false;
-    for (const c of campsList) {
-      const p = _findActionValue(c.actions, /^purchase$|^omni_purchase$/i);
-      if (p != null) { sum += p; any = true; }
-    }
-    if (any) purchases = sum;
-  }
-
-  const roas = revenue != null && spend && spend > 0 ? revenue / spend : null;
-  const cpa = purchases != null && purchases > 0 && spend ? spend / purchases : null;
-  const reachRate = reach != null && impressions && impressions > 0 ? reach / impressions : null;
-
-  const limitations: string[] = [];
-  if (roas == null) limitations.push("ROAS não disponível: receita de compra não rastreada nos dados da Meta para este período.");
-  if (cpa == null) limitations.push("CPA não disponível: eventos de compra ausentes nos dados da Meta.");
-
-  const sRoas: DerivedStatus = roas == null ? "sem tracking" : roas >= 3 ? "bom" : roas >= 1.5 ? "atenção" : "alerta";
-  const sCpa: DerivedStatus = cpa == null ? "sem tracking" : "sem dados"; // CPA depende da margem — não classifica sozinho
-  const sCtr: DerivedStatus = ctr == null ? "sem dados" : ctr >= 1.2 ? "bom" : ctr >= 0.8 ? "atenção" : "alerta";
-  const sCpm: DerivedStatus = cpm == null ? "sem dados" : cpm <= 25 ? "bom" : cpm <= 40 ? "atenção" : "alerta";
-  const sCpc: DerivedStatus = cpc == null ? "sem dados" : cpc <= 2.5 ? "bom" : cpc <= 5 ? "atenção" : "alerta";
-  const sFreq: DerivedStatus = frequency == null ? "sem dados" : frequency <= 3.5 ? "bom" : frequency <= 5 ? "atenção" : "alerta";
-  const sReach: DerivedStatus = reachRate == null ? "sem dados" : reachRate >= 0.5 ? "bom" : "atenção";
-
-  return {
-    metrics: [
-      { name: "ROAS", current: roas != null ? _fmtX(roas) : "sem tracking", reference: "> 3x", status: sRoas },
-      { name: "CPA", current: cpa != null ? _fmtBRL(cpa) : "sem tracking", reference: "varia por margem", status: sCpa },
-      { name: "CTR", current: ctr != null ? _fmtPct(ctr) : "—", reference: "> 1,2%", status: sCtr },
-      { name: "CPM", current: cpm != null ? _fmtBRL(cpm) : "—", reference: "< R$ 25", status: sCpm },
-      { name: "CPC", current: cpc != null ? _fmtBRL(cpc) : "—", reference: "< R$ 2,50 topo / < R$ 5 fundo", status: sCpc },
-      { name: "Frequência", current: _fmtNum(frequency), reference: "< 3,5", status: sFreq },
-      { name: "Reach rate", current: reachRate != null ? _fmtPct(reachRate * 100) : "—", reference: "> 50%", status: sReach },
-    ],
-    limitations,
-  };
-}
-
-// P1 — Breakdown determinístico por campanha (top por gasto)
-type CampaignBreakdownRow = {
-  name: string;
-  spend: string;
-  roas: string;
-  ctr: string;
-  cpm: string;
-  frequency: string;
-  status: DerivedStatus;
-};
-
-function deriveCampaignBreakdown(
-  facts: Record<string, unknown> | null | undefined,
-): { rows: CampaignBreakdownRow[]; totalSpend: number } {
-  const list = Array.isArray(facts?.campaigns_insights)
-    ? (facts!.campaigns_insights as Record<string, unknown>[])
-    : [];
-  const enriched = list.map((c) => {
-    const spend = _num(c.spend) ?? 0;
-    const ctr = _num(c.ctr);
-    const cpm = _num(c.cpm);
-    const frequency = _num(c.frequency);
-    const revenue = _findActionValue(c.action_values, /purchase|omni_purchase/i);
-    const roas = revenue != null && spend > 0 ? revenue / spend : null;
-    const sRoas: DerivedStatus =
-      roas == null ? "sem tracking" : roas >= 3 ? "bom" : roas >= 1.5 ? "atenção" : "alerta";
-    return {
-      name: String(c.campaign_name ?? c.campaign_id ?? "campanha"),
-      spendNum: spend,
-      spend: _fmtBRL(spend),
-      roas: roas != null ? _fmtX(roas) : "sem tracking",
-      ctr: _fmtPct(ctr),
-      cpm: _fmtBRL(cpm),
-      frequency: _fmtNum(frequency),
-      status: sRoas,
-    };
-  });
-  enriched.sort((a, b) => b.spendNum - a.spendNum);
-  const totalSpend = enriched.reduce((s, r) => s + r.spendNum, 0);
-  return {
-    rows: enriched.slice(0, 8).map(({ spendNum: _s, ...rest }) => rest),
-    totalSpend,
-  };
-}
-
-// P1 — Melhor / pior anúncio com base em ROAS (fallback CTR), com mínimo de gasto
-function deriveBestWorstAds(
-  facts: Record<string, unknown> | null | undefined,
-): { best: string | null; worst: string | null } {
-  const list = Array.isArray(facts?.ads_insights_top)
-    ? (facts!.ads_insights_top as Record<string, unknown>[])
-    : [];
-  if (list.length === 0) return { best: null, worst: null };
-  const totalSpend = list.reduce((s, a) => s + (_num(a.spend) ?? 0), 0);
-  const minSpend = Math.max(50, totalSpend * 0.02); // 2% do gasto ou R$50
-  type Scored = {
-    name: string;
-    campaign: string;
-    spend: number;
-    ctr: number | null;
-    roas: number | null;
-  };
-  const scored: Scored[] = list.map((a) => {
-    const spend = _num(a.spend) ?? 0;
-    const revenue = _findActionValue(a.action_values, /purchase|omni_purchase/i);
-    return {
-      name: String(a.ad_name ?? a.ad_id ?? "anúncio"),
-      campaign: String(a.campaign_name ?? ""),
-      spend,
-      ctr: _num(a.ctr),
-      roas: revenue != null && spend > 0 ? revenue / spend : null,
-    };
-  });
-  const eligible = scored.filter((a) => a.spend >= minSpend);
-  const pool = eligible.length >= 2 ? eligible : scored;
-  const withRoas = pool.filter((a) => a.roas != null);
-  let best: Scored | null = null;
-  let worst: Scored | null = null;
-  if (withRoas.length >= 2) {
-    best = [...withRoas].sort((a, b) => (b.roas! - a.roas!))[0];
-    worst = [...withRoas].sort((a, b) => (a.roas! - b.roas!))[0];
-  } else {
-    const withCtr = pool.filter((a) => a.ctr != null);
-    if (withCtr.length >= 2) {
-      best = [...withCtr].sort((a, b) => (b.ctr! - a.ctr!))[0];
-      worst = [...withCtr].sort((a, b) => (a.ctr! - b.ctr!))[0];
-    }
-  }
-  const fmt = (a: Scored | null) => {
-    if (!a) return null;
-    const parts: string[] = [a.name];
-    if (a.campaign) parts.push(`(${a.campaign})`);
-    const metr: string[] = [];
-    if (a.roas != null) metr.push(`ROAS ${_fmtX(a.roas)}`);
-    if (a.ctr != null) metr.push(`CTR ${_fmtPct(a.ctr)}`);
-    metr.push(`gasto ${_fmtBRL(a.spend)}`);
-    return `${parts.join(" ")} — ${metr.join(" · ")}`;
-  };
-  return { best: fmt(best), worst: fmt(worst) };
-}
-
 function normalizeAnalysis(
   obj: Record<string, unknown>,
   facts?: Record<string, unknown> | null,
 ): Record<string, unknown> {
-  if (!Array.isArray(obj.dataLimitations)) obj.dataLimitations = [];
-  if (!Array.isArray(obj.metrics)) obj.metrics = [];
-  if (!Array.isArray(obj.budgetLeaks)) obj.budgetLeaks = [];
-  if (!Array.isArray(obj.opportunities)) obj.opportunities = [];
-  if (!Array.isArray(obj.structureNotes)) obj.structureNotes = [];
-  if (!Array.isArray(obj.actionPlan)) obj.actionPlan = [];
-
-  // Fonte de verdade do semáforo: backend determinístico (substitui métricas da IA).
-  const derived = deriveMetricsFromFacts(facts ?? null);
-  obj.metrics = derived.metrics;
-  for (const lim of derived.limitations) {
-    if (!(obj.dataLimitations as string[]).includes(lim)) {
-      (obj.dataLimitations as string[]).push(lim);
-    }
-  }
-
-  // P1 — campaign breakdown determinístico
-  const cb = deriveCampaignBreakdown(facts ?? null);
-  obj.campaignBreakdown = cb.rows;
-  if (cb.rows.length === 0) {
-    (obj.dataLimitations as string[]).push(
-      "Breakdown por campanha indisponível: a Meta não retornou insights ao nível de campanha para o período.",
-    );
-  }
-
-  // P1 — melhor / pior criativo determinístico (sobrescreve IA se houver dados reais)
-  const bw = deriveBestWorstAds(facts ?? null);
-  const prevCreatives = (obj.creativesSummary as Record<string, unknown> | undefined) ?? {};
-  obj.creativesSummary = {
-    best: bw.best ?? (prevCreatives.best as string | null) ?? null,
-    worst: bw.worst ?? (prevCreatives.worst as string | null) ?? null,
-    recommendation:
-      (prevCreatives.recommendation as string | undefined) ??
-      "Concentrar verba nos anúncios com melhor ROAS e pausar os de pior performance.",
-  };
-  if (!bw.best && !bw.worst) {
-    (obj.dataLimitations as string[]).push(
-      "Análise de criativos limitada: insights ao nível de anúncio não disponíveis ou insuficientes no período.",
-    );
-  }
-
-  if (typeof obj.scoreLabel !== "string") {
-    const s = obj.score as number;
-    obj.scoreLabel =
-      s >= 90 ? "Excelente" : s >= 70 ? "Bom" : s >= 50 ? "Regular" : s >= 30 ? "Crítico" : "Emergência";
-  }
-
-  if (!obj.audiencesSummary || typeof obj.audiencesSummary !== "object") {
-    obj.audiencesSummary = {
-      segmentation: "Dados insuficientes para análise de públicos.",
-      notes: [],
-    };
-    (obj.dataLimitations as string[]).push("Detalhamento de públicos por ad set não disponível.");
-  }
-
-  if (!obj.improvementScenario || typeof obj.improvementScenario !== "object") {
-    obj.improvementScenario = {
-      note: "Cenário de melhoria não calculado por dados insuficientes.",
-      confidence: "low",
-    };
-  }
-
-  return obj;
+  return normalizeAnalysisV2(obj, facts);
 }
 
 async function fetchWithTimeout(
@@ -445,7 +186,7 @@ async function fetchCampaignInsights(
   u.searchParams.set("level", "campaign");
   u.searchParams.set(
     "fields",
-    "campaign_id,campaign_name,impressions,clicks,spend,cpc,cpm,ctr,reach,frequency,actions,action_values",
+    "campaign_id,campaign_name,impressions,clicks,spend,cpc,cpm,ctr,reach,frequency,actions,action_values,cost_per_action_type,inline_link_click_ctr,cost_per_inline_link_click",
   );
   u.searchParams.set("date_preset", "last_30d");
   u.searchParams.set("limit", "100");
@@ -708,7 +449,9 @@ Deno.serve(async (req) => {
       const _hasAdsInsights =
         Array.isArray(_f?.ads_insights_top) &&
         (_f!.ads_insights_top as unknown[]).length > 0;
-      const needsEnrichment = !_f || !_hasCampaignInsights || !_hasAdsInsights;
+      const _hasCampaignsEnriched = Array.isArray(_f?.campaigns_enriched);
+      const needsEnrichment =
+        !_f || !_hasCampaignInsights || !_hasAdsInsights || !_hasCampaignsEnriched;
       if (needsEnrichment) {
         const account_insights = factsForAnalysis?.account_insights
           ? (factsForAnalysis.account_insights as Record<string, unknown>)
@@ -728,12 +471,18 @@ Deno.serve(async (req) => {
         } catch (e) {
           console.warn(`[process-diagnosis] ad insights falhou: ${String(e).slice(0, 200)}`);
         }
+        const { campaigns_enriched, objective_spend_mix } = buildFactsEnrichment(
+          campaigns.slice(0, 40),
+          campaigns_insights.slice(0, 50),
+        );
         const facts = {
           meta_ad_account_id: actId,
           date_preset: "last_30d",
           account_insights,
           campaigns_sample: campaigns.slice(0, 40),
           campaigns_insights: campaigns_insights.slice(0, 50),
+          campaigns_enriched,
+          objective_spend_mix,
           ads_insights_top: ads_insights_top.slice(0, 25),
           generated_at: new Date().toISOString(),
         };

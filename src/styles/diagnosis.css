@@ -651,6 +651,61 @@
 .diagnosis-funnel .campaign-table tr.is-good td:first-child {
   border-left: 3px solid #16a34a;
 }
+.diagnosis-funnel .campaign-table td.roas-na {
+  color: #94a3b8;
+  font-style: italic;
+}
+.diagnosis-funnel .funnel-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.diagnosis-funnel .funnel-chip {
+  display: inline-block;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: #334155;
+}
+.diagnosis-funnel .funnel-chip.objective-sales {
+  background: #dcfce7;
+  color: #166534;
+}
+.diagnosis-funnel .funnel-chip.objective-traffic {
+  background: #dbeafe;
+  color: #1e40af;
+}
+.diagnosis-funnel .funnel-chip.objective-awareness {
+  background: #fef3c7;
+  color: #92400e;
+}
+.diagnosis-funnel .funnel-chip.objective-leads {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+.diagnosis-funnel .funnel-chip.objective-engagement {
+  background: #fce7f3;
+  color: #9d174d;
+}
+.diagnosis-funnel .funnel-chip.objective-app {
+  background: #e0f2fe;
+  color: #075985;
+}
+.diagnosis-funnel .objective-badge {
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  background: #f1f5f9;
+  color: #475569;
+}
+.diagnosis-funnel .campaign-table {
+  min-width: 720px;
+}
 
 /* ===== P2 — Smooth scroll + scroll offset for anchor jumps ===== */
 .diagnosis-funnel {

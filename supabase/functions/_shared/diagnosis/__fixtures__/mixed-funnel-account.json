@@ -1,0 +1,58 @@
+{
+  "campaigns_sample": [
+    {
+      "id": "c1",
+      "name": "[GM] - Conversão 1",
+      "objective": "OUTCOME_SALES",
+      "effective_status": "ACTIVE"
+    },
+    {
+      "id": "c2",
+      "name": "[GM] - Geo",
+      "objective": "OUTCOME_AWARENESS",
+      "effective_status": "ACTIVE"
+    },
+    {
+      "id": "c3",
+      "name": "[GM] - Meio",
+      "objective": "OUTCOME_TRAFFIC",
+      "effective_status": "ACTIVE"
+    }
+  ],
+  "campaigns_insights": [
+    {
+      "campaign_id": "c1",
+      "campaign_name": "[GM] - Conversão 1",
+      "spend": "7137.80",
+      "impressions": "150000",
+      "ctr": "2.93",
+      "cpm": "47.58",
+      "frequency": "1.14",
+      "actions": [{ "action_type": "purchase", "value": "30" }],
+      "action_values": [{ "action_type": "purchase", "value": "35358.39" }]
+    },
+    {
+      "campaign_id": "c2",
+      "campaign_name": "[GM] - Geo",
+      "spend": "752.37",
+      "impressions": "500000",
+      "reach": "239480",
+      "ctr": "0.03",
+      "cpm": "1.50",
+      "frequency": "2.1",
+      "actions": [{ "action_type": "reach", "value": "239480" }],
+      "cost_per_action_type": [{ "action_type": "reach", "value": "3.14" }]
+    },
+    {
+      "campaign_id": "c3",
+      "campaign_name": "[GM] - Meio",
+      "spend": "602.78",
+      "impressions": "60000",
+      "ctr": "10.30",
+      "cpm": "10.05",
+      "frequency": "1.8",
+      "actions": [{ "action_type": "landing_page_view", "value": "4415" }],
+      "cost_per_action_type": [{ "action_type": "landing_page_view", "value": "0.14" }]
+    }
+  ]
+}

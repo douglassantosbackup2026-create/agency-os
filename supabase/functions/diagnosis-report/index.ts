@@ -58,9 +58,13 @@ function summarizeFacts(facts: unknown): Record<string, unknown> | null {
   const f = facts as Record<string, unknown>;
   const ins = f.account_insights as Record<string, unknown> | undefined;
   const camps = f.campaigns_sample as unknown[] | undefined;
+  const mix = f.objective_spend_mix as Record<string, number> | undefined;
+  const enriched = f.campaigns_enriched as unknown[] | undefined;
   return {
     generated_at: f.generated_at,
     campaigns_count: Array.isArray(camps) ? camps.length : 0,
+    campaigns_enriched_count: Array.isArray(enriched) ? enriched.length : 0,
+    objective_spend_mix: mix ?? null,
     impressions: ins?.impressions,
     spend: ins?.spend,
     ctr: ins?.ctr,
