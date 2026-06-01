@@ -45,6 +45,15 @@ type Analysis = {
   disclaimer?: string;
 };
 
+type BusinessContext = {
+  niche?: string | null;
+  avg_ticket_brl?: number | null;
+  margin_pct?: number | null;
+  monthly_goal_brl?: number | null;
+  notes?: string | null;
+  saved_at?: string | null;
+};
+
 export const Route = createFileRoute("/diagnostico/$diagnosisId")({
   validateSearch: (search: Record<string, unknown>): DiagnosticoSearch => ({
     s: typeof search.s === "string" ? search.s : undefined,
