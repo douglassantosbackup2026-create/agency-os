@@ -966,6 +966,47 @@ function DiagnosticoReportPage() {
           );
         })() : null}
 
+        {analysis.actionPlan?.length ? (
+          <section className="card" id="sec-roadmap">
+            <h2>Roadmap 30 / 60 / 90 dias</h2>
+            <p className="section-hint">
+              O plano organizado pelo horizonte sugerido. Comece pela coluna
+              de curto prazo — são os ajustes com retorno mais rápido.
+            </p>
+            <div className="roadmap-grid">
+              {([
+                { key: "short", title: "0–14 dias", subtitle: "Quick wins", items: roadmap.short },
+                { key: "mid", title: "15–45 dias", subtitle: "Otimização", items: roadmap.mid },
+                { key: "long", title: "46–90 dias", subtitle: "Estrutura", items: roadmap.long },
+              ] as const).map((col) => (
+                <div key={col.key} className={`roadmap-col roadmap-${col.key}`}>
+                  <div className="roadmap-head">
+                    <span className="roadmap-title">{col.title}</span>
+                    <span className="roadmap-sub">{col.subtitle}</span>
+                  </div>
+                  {col.items && col.items.length ? (
+                    <ul className="roadmap-list">
+                      {col.items.map((a) => (
+                        <li key={`${col.key}-${a.step}-${a.action}`}>
+                          <span className="roadmap-step">#{a.step}</span>
+                          <span className="roadmap-action">{a.action}</span>
+                          <span className="roadmap-eta muted">{a.eta}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
+                      Nada nesta janela.
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+
+
 
         <section className="card business-card" id="sec-business">
           <span className="business-tag">Interpretação contextual · informado por você</span>
