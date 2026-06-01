@@ -145,6 +145,17 @@ function DiagnosticoReportPage() {
   }, [diagnosisId, s]);
 
   const analysis = data?.report?.analysis_json;
+  const savedContext = data?.diagnosis?.business_context ?? null;
+
+  useEffect(() => {
+    if (!savedContext) return;
+    setCtxNiche(savedContext.niche ?? "");
+    setCtxTicket(savedContext.avg_ticket_brl != null ? String(savedContext.avg_ticket_brl) : "");
+    setCtxMargin(savedContext.margin_pct != null ? String(savedContext.margin_pct) : "");
+    setCtxGoal(savedContext.monthly_goal_brl != null ? String(savedContext.monthly_goal_brl) : "");
+    setCtxNotes(savedContext.notes ?? "");
+    setCtxSavedAt(savedContext.saved_at ?? null);
+  }, [savedContext]);
 
   async function trackCta() {
     if (!s) return;
@@ -156,6 +167,43 @@ function DiagnosticoReportPage() {
         event: "cta",
       }),
     });
+  }
+
+  async function saveBusinessContext() {
+    if (!s) return;
+    setCtxError(null);
+    setCtxSaving(true);
+    try {
+      const res = await invokeDiagnosisFunction("diagnosis-context", {
+        method: "POST",
+        body: JSON.stringify({
+          diagnosis_id: diagnosisId,
+          secret_slug: s,
+          context: {
+            niche: ctxNiche.trim() || null,
+            avg_ticket_brl: ctxTicket || null,
+            margin_pct: ctxMargin || null,
+            monthly_goal_brl: ctxGoal || null,
+            notes: ctxNotes.trim() || null,
+          },
+        }),
+      });
+      const j = (await res.json()) as { ok?: boolean; error?: string; context?: BusinessContext };
+      if (!res.ok || !j.ok) throw new Error(j.error ?? "Falha ao salvar");
+      setCtxSavedAt(j.context?.saved_at ?? new Date().toISOString());
+      setData((d) =>
+        d
+          ? {
+              ...d,
+              diagnosis: { ...d.diagnosis, business_context: j.context ?? null },
+            }
+          : d,
+      );
+    } catch (e) {
+      setCtxError(e instanceof Error ? e.message : "Erro");
+    } finally {
+      setCtxSaving(false);
+    }
   }
 
   const managementPaid = data?.diagnosis?.management_status === "paid";
