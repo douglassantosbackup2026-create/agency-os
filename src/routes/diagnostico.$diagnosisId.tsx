@@ -399,6 +399,30 @@ function DiagnosticoReportPage() {
   if (analysis.dataLimitations?.length) tocItems.push({ id: "sec-limits", label: "Limitações" });
   if (data.report?.management_cta_eligible) tocItems.push({ id: "sec-cta", label: "Próximo passo" });
 
+  const parseNum = (v: string): number | null => {
+    if (!v) return null;
+    const n = Number(v.replace(/[^\d.,-]/g, "").replace(",", "."));
+    return Number.isFinite(n) ? n : null;
+  };
+  const ticketNum = parseNum(ctxTicket);
+  const marginNum = parseNum(ctxMargin);
+  const goalNum = parseNum(ctxGoal);
+  const fmtBRL = (n: number) =>
+    n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+  const fmtInt = (n: number) => Math.round(n).toLocaleString("pt-BR");
+
+  const observedRoasMetric = analysis.metrics?.find((m) => /roas/i.test(m.name));
+  const observedRoas = observedRoasMetric
+    ? Number((observedRoasMetric.current ?? "").replace(/[^\d.,-]/g, "").replace(",", "."))
+    : null;
+
+  const breakevenRoas = marginNum && marginNum > 0 ? 100 / marginNum : null;
+  const salesNeeded = goalNum && ticketNum && ticketNum > 0 ? goalNum / ticketNum : null;
+  const contributionAtGoal = goalNum && marginNum ? (goalNum * marginNum) / 100 : null;
+  const roasGap = observedRoas && breakevenRoas ? observedRoas - breakevenRoas : null;
+  const hasInterpretation =
+    Boolean(savedContext) && (breakevenRoas || salesNeeded || contributionAtGoal);
+
   return (
     <div className="diagnosis-funnel">
       <div className="container">
