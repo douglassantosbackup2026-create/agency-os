@@ -533,6 +533,21 @@ function DiagnosticoReportPage() {
           <p style={{ margin: 0, color: "#334155" }}>{analysis.summary}</p>
         </header>
 
+        <div className="report-toolbar no-print" role="toolbar" aria-label="Ações do relatório">
+          <button type="button" className="toolbar-btn" onClick={() => void copyReportLink()}>
+            🔗 Copiar link
+          </button>
+          <button type="button" className="toolbar-btn" onClick={printReport}>
+            🖨️ Imprimir / Salvar PDF
+          </button>
+          <button type="button" className="toolbar-btn" onClick={downloadReminder}>
+            ⏰ Lembrar em 30 dias
+          </button>
+          {shareMsg ? <span className="toolbar-msg" role="status">{shareMsg}</span> : null}
+        </div>
+
+
+
 
 
         {tocItems.length > 1 ? (
