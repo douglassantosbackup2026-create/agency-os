@@ -72,6 +72,15 @@ function DiagnosticoReportPage() {
   const [businessName, setBusinessName] = useState("");
   const [website, setWebsite] = useState("");
   const [instagram, setInstagram] = useState("");
+  const [ctxNiche, setCtxNiche] = useState("");
+  const [ctxTicket, setCtxTicket] = useState("");
+  const [ctxMargin, setCtxMargin] = useState("");
+  const [ctxGoal, setCtxGoal] = useState("");
+  const [ctxNotes, setCtxNotes] = useState("");
+  const [ctxOpen, setCtxOpen] = useState(false);
+  const [ctxSaving, setCtxSaving] = useState(false);
+  const [ctxSavedAt, setCtxSavedAt] = useState<string | null>(null);
+  const [ctxError, setCtxError] = useState<string | null>(null);
   const [data, setData] = useState<{
     diagnosis?: {
       status?: string;
