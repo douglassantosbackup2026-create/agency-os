@@ -511,6 +511,71 @@ function DiagnosticoReportPage() {
   const hasInterpretation =
     Boolean(savedContext) && (breakevenRoas || salesNeeded || contributionAtGoal);
 
+  // P5 — benchmarks por nicho
+  const nicheKey = matchNicheKey(savedContext?.niche ?? null);
+  const niche = nicheKey ? NICHE_BENCHMARKS[nicheKey] : null;
+
+  // P5 — gasto mensal estimado a partir das métricas (procura "Investimento", "Gasto" etc.)
+  const spendMetric = analysis.metrics?.find((m) =>
+    /investimento|gasto|spend|orç|invest/i.test(m.name),
+  );
+  const observedMonthlySpend = spendMetric
+    ? Number((spendMetric.current ?? "").replace(/[^\d.,-]/g, "").replace(",", "."))
+    : null;
+
+  // P5 — simulador interativo (sliders)
+  const [simCpa, setSimCpa] = useState(15); // % redução de CPA
+  const [simCtr, setSimCtr] = useState(20); // % aumento de CTR
+  const [simLeak, setSimLeak] = useState(40); // % do vazamento recuperado
+  const [simSpendInput, setSimSpendInput] = useState("");
+  const simSpendNum = parseNum(simSpendInput);
+  const monthlySpend = observedMonthlySpend || simSpendNum;
+
+  const simulation = useMemo(() => {
+    if (!observedRoas || !monthlySpend) return null;
+    // ganho composto (indicativo): CPA puxa direto, CTR meio peso, leak puxa peso alto
+    const gain = simCpa / 100 + (simCtr * 0.5) / 100 + (simLeak * 0.7) / 100;
+    const newRoas = observedRoas * (1 + gain);
+    const baseRevenue = monthlySpend * observedRoas;
+    const newRevenue = monthlySpend * newRoas;
+    const extraRevenue = newRevenue - baseRevenue;
+    const extraContribution = marginNum ? (extraRevenue * marginNum) / 100 : null;
+    const gapPctClosed =
+      contributionAtGoal && extraContribution
+        ? Math.min(100, (extraContribution / contributionAtGoal) * 100)
+        : null;
+    return { newRoas, extraRevenue, extraContribution, gapPctClosed, baseRevenue };
+  }, [observedRoas, monthlySpend, simCpa, simCtr, simLeak, marginNum, contributionAtGoal]);
+
+  // P6 — roadmap 30/60/90: agrupa actionPlan pelo campo eta
+  const roadmap = useMemo(() => {
+    const buckets: { short: typeof analysis.actionPlan; mid: typeof analysis.actionPlan; long: typeof analysis.actionPlan } = {
+      short: [],
+      mid: [],
+      long: [],
+    };
+    (analysis.actionPlan ?? []).forEach((item) => {
+      const eta = (item.eta || "").toLowerCase();
+      const days = (() => {
+        const m = eta.match(/(\d+)/);
+        if (!m) return 30;
+        const n = Number(m[1]);
+        if (/h(ora)?/.test(eta)) return Math.ceil(n / 24);
+        if (/dia/.test(eta)) return n;
+        if (/sem/.test(eta)) return n * 7;
+        if (/m[eê]s/.test(eta)) return n * 30;
+        if (/trim/.test(eta)) return n * 90;
+        return n;
+      })();
+      if (days <= 14) buckets.short!.push(item);
+      else if (days <= 45) buckets.mid!.push(item);
+      else buckets.long!.push(item);
+    });
+    return buckets;
+  }, [analysis.actionPlan]);
+
+
+
   return (
     <div className="diagnosis-funnel">
       <div className="container">
