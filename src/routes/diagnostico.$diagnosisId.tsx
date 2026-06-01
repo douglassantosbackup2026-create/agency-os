@@ -81,6 +81,8 @@ function DiagnosticoReportPage() {
   const [ctxSaving, setCtxSaving] = useState(false);
   const [ctxSavedAt, setCtxSavedAt] = useState<string | null>(null);
   const [ctxError, setCtxError] = useState<string | null>(null);
+  const [doneSteps, setDoneSteps] = useState<Record<string, boolean>>({});
+  const [shareMsg, setShareMsg] = useState<string | null>(null);
   const [data, setData] = useState<{
     diagnosis?: {
       status?: string;
@@ -168,6 +170,85 @@ function DiagnosticoReportPage() {
       }),
     });
   }
+
+  function trackEvent(event: string) {
+    if (!s) return;
+    void invokeDiagnosisFunction("diagnosis-track", {
+      method: "POST",
+      body: JSON.stringify({ diagnosis_id: diagnosisId, secret_slug: s, event }),
+    }).catch(() => {});
+  }
+
+  const planStorageKey = `diag-plan-${diagnosisId}`;
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(planStorageKey);
+      if (raw) setDoneSteps(JSON.parse(raw));
+    } catch {
+      /* noop */
+    }
+  }, [planStorageKey]);
+
+  function toggleStep(key: string) {
+    setDoneSteps((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      try {
+        localStorage.setItem(planStorageKey, JSON.stringify(next));
+      } catch {
+        /* noop */
+      }
+      return next;
+    });
+    trackEvent("plan_check");
+  }
+
+  async function copyReportLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setShareMsg("Link copiado!");
+      trackEvent("copy_link");
+    } catch {
+      setShareMsg("Não foi possível copiar. Copie da barra de endereço.");
+    }
+    setTimeout(() => setShareMsg(null), 2500);
+  }
+
+  function printReport() {
+    trackEvent("print");
+    window.print();
+  }
+
+  function downloadReminder() {
+    trackEvent("reminder");
+    const dt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const stamp = `${dt.getUTCFullYear()}${pad(dt.getUTCMonth() + 1)}${pad(dt.getUTCDate())}T${pad(dt.getUTCHours())}${pad(dt.getUTCMinutes())}00Z`;
+    const url = window.location.href;
+    const ics = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//Retentio//Diagnostico Meta//PT",
+      "BEGIN:VEVENT",
+      `UID:diag-${diagnosisId}@retentio`,
+      `DTSTAMP:${stamp}`,
+      `DTSTART:${stamp}`,
+      `DTEND:${stamp}`,
+      "SUMMARY:Revisar diagnóstico Meta Ads",
+      `DESCRIPTION:Revisitar o plano de ação e medir progresso.\\n${url}`,
+      `URL:${url}`,
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n");
+    const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "revisar-diagnostico-30dias.ics";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  }
+
 
   async function saveBusinessContext() {
     if (!s) return;
@@ -452,6 +533,21 @@ function DiagnosticoReportPage() {
           <p style={{ margin: 0, color: "#334155" }}>{analysis.summary}</p>
         </header>
 
+        <div className="report-toolbar no-print" role="toolbar" aria-label="Ações do relatório">
+          <button type="button" className="toolbar-btn" onClick={() => void copyReportLink()}>
+            🔗 Copiar link
+          </button>
+          <button type="button" className="toolbar-btn" onClick={printReport}>
+            🖨️ Imprimir / Salvar PDF
+          </button>
+          <button type="button" className="toolbar-btn" onClick={downloadReminder}>
+            ⏰ Lembrar em 30 dias
+          </button>
+          {shareMsg ? <span className="toolbar-msg" role="status">{shareMsg}</span> : null}
+        </div>
+
+
+
 
 
         {tocItems.length > 1 ? (
@@ -716,30 +812,62 @@ function DiagnosticoReportPage() {
           </section>
         ) : null}
 
-        {analysis.actionPlan?.length ? (
-          <section className="card" id="sec-plan">
-            <h2>Plano de ação</h2>
-            <p className="section-hint">
-              A sequência sugerida pela análise — ordenada por impacto.
-            </p>
-            <ol className="action-plan">
-              {[...analysis.actionPlan]
-                .sort((a, b) => (a.step ?? 0) - (b.step ?? 0))
-                .map((a) => (
-                  <li key={`${a.step}-${a.action}`} className="action-step">
-                    <div className="action-step-num">{a.step}</div>
-                    <div className="action-step-body">
-                      <div className="action-step-title">{a.action}</div>
-                      <div className="action-step-meta">
-                        <span><strong>Impacto:</strong> {a.impact}</span>
-                        <span><strong>Prazo:</strong> {a.eta}</span>
+        {analysis.actionPlan?.length ? (() => {
+          const planItems = [...analysis.actionPlan].sort(
+            (a, b) => (a.step ?? 0) - (b.step ?? 0),
+          );
+          const doneCount = planItems.filter(
+            (a) => doneSteps[`${a.step}-${a.action}`],
+          ).length;
+          const pct = Math.round((doneCount / planItems.length) * 100);
+          return (
+            <section className="card" id="sec-plan">
+              <h2>Plano de ação</h2>
+              <p className="section-hint">
+                A sequência sugerida pela análise — ordenada por impacto.
+                Marque cada item conforme for executando.
+              </p>
+              <div className="plan-progress no-print" aria-label="Progresso do plano">
+                <div className="plan-progress-bar">
+                  <span style={{ width: `${pct}%` }} />
+                </div>
+                <span className="plan-progress-label">
+                  {doneCount}/{planItems.length} concluídos · {pct}%
+                </span>
+              </div>
+              <ol className="action-plan">
+                {planItems.map((a) => {
+                  const key = `${a.step}-${a.action}`;
+                  const done = !!doneSteps[key];
+                  return (
+                    <li
+                      key={key}
+                      className={`action-step${done ? " action-step-done" : ""}`}
+                    >
+                      <label className="action-step-check no-print">
+                        <input
+                          type="checkbox"
+                          checked={done}
+                          onChange={() => toggleStep(key)}
+                          aria-label={`Marcar passo ${a.step} como concluído`}
+                        />
+                      </label>
+                      <div className="action-step-num">{a.step}</div>
+                      <div className="action-step-body">
+                        <div className="action-step-title">{a.action}</div>
+                        <div className="action-step-meta">
+                          <span><strong>Impacto:</strong> {a.impact}</span>
+                          <span><strong>Prazo:</strong> {a.eta}</span>
+                        </div>
                       </div>
-                    </div>
-                  </li>
-                ))}
-            </ol>
-          </section>
-        ) : null}
+                    </li>
+                  );
+                })}
+              </ol>
+            </section>
+          );
+        })() : null}
+
 
         <section className="card business-card" id="sec-business">
           <span className="business-tag">Interpretação contextual · informado por você</span>

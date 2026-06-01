@@ -872,3 +872,101 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* P4 — report toolbar */
+.diagnosis-funnel .report-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0 0 1rem;
+}
+.diagnosis-funnel .toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.05s;
+}
+.diagnosis-funnel .toolbar-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+.diagnosis-funnel .toolbar-btn:active { transform: translateY(1px); }
+.diagnosis-funnel .toolbar-msg {
+  font-size: 0.8rem;
+  color: #059669;
+  font-weight: 600;
+}
+
+/* P4 — action plan progress + checklist */
+.diagnosis-funnel .plan-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.5rem 0 1rem;
+}
+.diagnosis-funnel .plan-progress-bar {
+  flex: 1;
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.diagnosis-funnel .plan-progress-bar > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #059669);
+  transition: width 0.25s ease;
+}
+.diagnosis-funnel .plan-progress-label {
+  font-size: 0.8rem;
+  color: #475569;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.diagnosis-funnel .action-step {
+  position: relative;
+}
+.diagnosis-funnel .action-step-check {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 0.5rem;
+}
+.diagnosis-funnel .action-step-check input {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #059669;
+}
+.diagnosis-funnel .action-step-done .action-step-title {
+  text-decoration: line-through;
+  color: #64748b;
+}
+.diagnosis-funnel .action-step-done .action-step-num {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+/* P4 — print styles */
+@media print {
+  body { background: #ffffff !important; }
+  .diagnosis-funnel { background: #ffffff !important; }
+  .diagnosis-funnel .no-print,
+  .diagnosis-funnel .report-toc,
+  .diagnosis-funnel .cta-pain { display: none !important; }
+  .diagnosis-funnel .card {
+    box-shadow: none !important;
+    border: 1px solid #e2e8f0 !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .diagnosis-funnel a { color: inherit; text-decoration: none; }
+}
