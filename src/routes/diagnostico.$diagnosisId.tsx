@@ -5,8 +5,15 @@ import {
   buildGestaoIntroMessage,
   whatsappGestaoHref,
 } from "@/lib/gestao-whatsapp";
+import {
+  NICHE_BENCHMARKS,
+  formatBenchmark,
+  matchMetricKey,
+  matchNicheKey,
+} from "@/lib/diagnosis-benchmarks";
 import { useManagementCheckout } from "@/hooks/use-management-checkout";
 import "@/styles/diagnosis.css";
+
 
 type DiagnosticoSearch = { s?: string; gestaoCheckout?: string };
 
