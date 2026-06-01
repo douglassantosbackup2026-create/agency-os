@@ -623,6 +623,14 @@ function DiagnosticoReportPage() {
     return out.slice(0, 5);
   })();
 
+  if (antiPatterns.length) {
+    const idx = tocItems.findIndex((t) => t.id === "sec-leaks");
+    const entry = { id: "sec-anti", label: "Anti-padrões" };
+    if (idx >= 0) tocItems.splice(idx + 1, 0, entry);
+    else tocItems.push(entry);
+  }
+
+
   // P7 — resumo executivo (texto plano para WhatsApp / e-mail / copy)
   const execSummary = (() => {
     const lines: string[] = [];
