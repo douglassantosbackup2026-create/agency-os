@@ -94,6 +94,8 @@ function DiagnosticoReportPage() {
   const [simCtr, setSimCtr] = useState(20);
   const [simLeak, setSimLeak] = useState(40);
   const [simSpendInput, setSimSpendInput] = useState("");
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [summaryMsg, setSummaryMsg] = useState<string | null>(null);
 
   const [data, setData] = useState<{
     diagnosis?: {
