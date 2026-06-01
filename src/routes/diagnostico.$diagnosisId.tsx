@@ -5,8 +5,15 @@ import {
   buildGestaoIntroMessage,
   whatsappGestaoHref,
 } from "@/lib/gestao-whatsapp";
+import {
+  NICHE_BENCHMARKS,
+  formatBenchmark,
+  matchMetricKey,
+  matchNicheKey,
+} from "@/lib/diagnosis-benchmarks";
 import { useManagementCheckout } from "@/hooks/use-management-checkout";
 import "@/styles/diagnosis.css";
+
 
 type DiagnosticoSearch = { s?: string; gestaoCheckout?: string };
 
@@ -83,6 +90,11 @@ function DiagnosticoReportPage() {
   const [ctxError, setCtxError] = useState<string | null>(null);
   const [doneSteps, setDoneSteps] = useState<Record<string, boolean>>({});
   const [shareMsg, setShareMsg] = useState<string | null>(null);
+  const [simCpa, setSimCpa] = useState(15);
+  const [simCtr, setSimCtr] = useState(20);
+  const [simLeak, setSimLeak] = useState(40);
+  const [simSpendInput, setSimSpendInput] = useState("");
+
   const [data, setData] = useState<{
     diagnosis?: {
       status?: string;
@@ -475,8 +487,11 @@ function DiagnosticoReportPage() {
   if (analysis.audiencesSummary) tocItems.push({ id: "sec-audiences", label: "Públicos" });
   if (analysis.structureNotes?.length) tocItems.push({ id: "sec-structure", label: "Fundação" });
   if (analysis.actionPlan?.length) tocItems.push({ id: "sec-plan", label: "Plano de ação" });
+  if (analysis.actionPlan?.length) tocItems.push({ id: "sec-roadmap", label: "Roadmap 30/60/90" });
   tocItems.push({ id: "sec-business", label: "Negócio" });
+  tocItems.push({ id: "sec-sim", label: "Simulador" });
   if (analysis.improvementScenario?.note) tocItems.push({ id: "sec-scenario", label: "Cenário" });
+
   if (analysis.dataLimitations?.length) tocItems.push({ id: "sec-limits", label: "Limitações" });
   if (data.report?.management_cta_eligible) tocItems.push({ id: "sec-cta", label: "Próximo passo" });
 
@@ -503,6 +518,64 @@ function DiagnosticoReportPage() {
   const roasGap = observedRoas && breakevenRoas ? observedRoas - breakevenRoas : null;
   const hasInterpretation =
     Boolean(savedContext) && (breakevenRoas || salesNeeded || contributionAtGoal);
+
+  // P5 — benchmarks por nicho
+  const nicheKey = matchNicheKey(savedContext?.niche ?? null);
+  const niche = nicheKey ? NICHE_BENCHMARKS[nicheKey] : null;
+
+  // P5 — gasto mensal estimado a partir das métricas (procura "Investimento", "Gasto" etc.)
+  const spendMetric = analysis.metrics?.find((m) =>
+    /investimento|gasto|spend|orç|invest/i.test(m.name),
+  );
+  const observedMonthlySpend = spendMetric
+    ? Number((spendMetric.current ?? "").replace(/[^\d.,-]/g, "").replace(",", "."))
+    : null;
+
+  // P5 — simulador interativo (estado declarado no topo)
+  const simSpendNum = parseNum(simSpendInput);
+  const monthlySpend = observedMonthlySpend || simSpendNum;
+
+  const simulation = (() => {
+    if (!observedRoas || !monthlySpend) return null;
+    const gain = simCpa / 100 + (simCtr * 0.5) / 100 + (simLeak * 0.7) / 100;
+    const newRoas = observedRoas * (1 + gain);
+    const baseRevenue = monthlySpend * observedRoas;
+    const newRevenue = monthlySpend * newRoas;
+    const extraRevenue = newRevenue - baseRevenue;
+    const extraContribution = marginNum ? (extraRevenue * marginNum) / 100 : null;
+    const gapPctClosed =
+      contributionAtGoal && extraContribution
+        ? Math.min(100, (extraContribution / contributionAtGoal) * 100)
+        : null;
+    return { newRoas, extraRevenue, extraContribution, gapPctClosed, baseRevenue };
+  })();
+
+  // P6 — roadmap 30/60/90: agrupa actionPlan pelo campo eta
+  type PlanItem = { step: number; action: string; impact: string; eta: string };
+  const roadmap: { short: PlanItem[]; mid: PlanItem[]; long: PlanItem[] } = (() => {
+    const buckets = { short: [] as PlanItem[], mid: [] as PlanItem[], long: [] as PlanItem[] };
+    (analysis.actionPlan ?? []).forEach((item) => {
+      const eta = (item.eta || "").toLowerCase();
+      const m = eta.match(/(\d+)/);
+      const n = m ? Number(m[1]) : 0;
+      let days = 30;
+      if (m) {
+        if (/h(ora)?/.test(eta)) days = Math.ceil(n / 24);
+        else if (/dia/.test(eta)) days = n;
+        else if (/sem/.test(eta)) days = n * 7;
+        else if (/m[eê]s/.test(eta)) days = n * 30;
+        else if (/trim/.test(eta)) days = n * 90;
+        else days = n;
+      }
+      if (days <= 14) buckets.short.push(item);
+      else if (days <= 45) buckets.mid.push(item);
+      else buckets.long.push(item);
+    });
+    return buckets;
+  })();
+
+
+
 
   return (
     <div className="diagnosis-funnel">
@@ -611,6 +684,17 @@ function DiagnosticoReportPage() {
                     <div>
                       <div className="metric-name">{m.name}</div>
                       <div className="metric-ref">Referência: {m.reference}</div>
+                      {niche && (() => {
+                        const mk = matchMetricKey(m.name);
+                        const range = mk ? niche.ranges[mk] : undefined;
+                        if (!range) return null;
+                        return (
+                          <div className="metric-bench" title={`Faixa típica em ${niche.label}`}>
+                            <span className="metric-bench-tag">{niche.label}</span>{" "}
+                            {formatBenchmark(mk!, range)}
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div>
                       <div className="metric-value">{m.current}</div>
@@ -624,12 +708,24 @@ function DiagnosticoReportPage() {
                 );
               })}
             </div>
+            {niche ? (
+              <p className="section-hint" style={{ marginTop: "0.75rem" }}>
+                Faixas de referência indicativas para <strong>{niche.label}</strong>,
+                baseadas no contexto que você informou.
+              </p>
+            ) : (
+              <p className="section-hint" style={{ marginTop: "0.75rem" }}>
+                Informe seu nicho em <a href="#sec-business">Contexto de negócio</a>{" "}
+                para ver faixas de referência específicas ao seu segmento.
+              </p>
+            )}
             <div className="pain-line">
               Cada métrica fora da referência = real saindo da conta sem
               voltar.
             </div>
           </section>
         ) : null}
+
 
         {analysis.campaignBreakdown?.length ? (
           <section className="card" id="sec-campaigns">
@@ -868,6 +964,47 @@ function DiagnosticoReportPage() {
           );
         })() : null}
 
+        {analysis.actionPlan?.length ? (
+          <section className="card" id="sec-roadmap">
+            <h2>Roadmap 30 / 60 / 90 dias</h2>
+            <p className="section-hint">
+              O plano organizado pelo horizonte sugerido. Comece pela coluna
+              de curto prazo — são os ajustes com retorno mais rápido.
+            </p>
+            <div className="roadmap-grid">
+              {([
+                { key: "short", title: "0–14 dias", subtitle: "Quick wins", items: roadmap.short },
+                { key: "mid", title: "15–45 dias", subtitle: "Otimização", items: roadmap.mid },
+                { key: "long", title: "46–90 dias", subtitle: "Estrutura", items: roadmap.long },
+              ] as const).map((col) => (
+                <div key={col.key} className={`roadmap-col roadmap-${col.key}`}>
+                  <div className="roadmap-head">
+                    <span className="roadmap-title">{col.title}</span>
+                    <span className="roadmap-sub">{col.subtitle}</span>
+                  </div>
+                  {col.items && col.items.length ? (
+                    <ul className="roadmap-list">
+                      {col.items.map((a) => (
+                        <li key={`${col.key}-${a.step}-${a.action}`}>
+                          <span className="roadmap-step">#{a.step}</span>
+                          <span className="roadmap-action">{a.action}</span>
+                          <span className="roadmap-eta muted">{a.eta}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
+                      Nada nesta janela.
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+
+
 
         <section className="card business-card" id="sec-business">
           <span className="business-tag">Interpretação contextual · informado por você</span>
@@ -1042,6 +1179,129 @@ function DiagnosticoReportPage() {
             </div>
           ) : null}
         </section>
+
+        <section className="card simulator-card" id="sec-sim">
+          <span className="business-tag">Simulador indicativo</span>
+          <h2>Quanto a correção pode gerar</h2>
+          <p className="section-hint">
+            Ajuste os controles para estimar o impacto de implementar as
+            recomendações. Valores indicativos — não são projeção garantida.
+          </p>
+          {!observedRoas ? (
+            <p className="muted">
+              Precisamos do ROAS observado para simular. Reabra o diagnóstico
+              quando a Meta retornar dados completos.
+            </p>
+          ) : (
+            <>
+              {!observedMonthlySpend ? (
+                <label className="sim-spend">
+                  <span className="muted" style={{ fontSize: "0.85rem" }}>
+                    Gasto mensal médio (R$) — informe para calcular
+                  </span>
+                  <input
+                    className="field-input"
+                    inputMode="numeric"
+                    placeholder="Ex.: 8000"
+                    value={simSpendInput}
+                    onChange={(e) => setSimSpendInput(e.target.value)}
+                  />
+                </label>
+              ) : null}
+
+              <div className="sim-controls">
+                <label className="sim-slider">
+                  <span>
+                    Redução de CPA: <strong>{simCpa}%</strong>
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={50}
+                    step={1}
+                    value={simCpa}
+                    onChange={(e) => setSimCpa(Number(e.target.value))}
+                  />
+                </label>
+                <label className="sim-slider">
+                  <span>
+                    Aumento de CTR: <strong>{simCtr}%</strong>
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={80}
+                    step={1}
+                    value={simCtr}
+                    onChange={(e) => setSimCtr(Number(e.target.value))}
+                  />
+                </label>
+                <label className="sim-slider">
+                  <span>
+                    Recuperação de vazamento: <strong>{simLeak}%</strong>
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={5}
+                    value={simLeak}
+                    onChange={(e) => setSimLeak(Number(e.target.value))}
+                  />
+                </label>
+              </div>
+
+              {simulation ? (
+                <div className="sim-results">
+                  <div className="sim-stat">
+                    <span className="sim-stat-label">ROAS projetado</span>
+                    <span className="sim-stat-value">
+                      {simulation.newRoas.toFixed(2)}x
+                    </span>
+                    <span className="muted" style={{ fontSize: "0.75rem" }}>
+                      hoje {observedRoas?.toFixed(2)}x
+                    </span>
+                  </div>
+                  <div className="sim-stat">
+                    <span className="sim-stat-label">Receita extra / mês</span>
+                    <span className="sim-stat-value">
+                      +{fmtBRL(Math.max(0, simulation.extraRevenue))}
+                    </span>
+                  </div>
+                  {simulation.extraContribution != null ? (
+                    <div className="sim-stat">
+                      <span className="sim-stat-label">Margem extra / mês</span>
+                      <span className="sim-stat-value">
+                        +{fmtBRL(Math.max(0, simulation.extraContribution))}
+                      </span>
+                      <span className="muted" style={{ fontSize: "0.75rem" }}>
+                        considerando margem informada
+                      </span>
+                    </div>
+                  ) : null}
+                  {simulation.gapPctClosed != null ? (
+                    <div className="sim-stat">
+                      <span className="sim-stat-label">Gap até a meta</span>
+                      <span className="sim-stat-value">
+                        {Math.round(simulation.gapPctClosed)}% fechado
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="muted">
+                  Informe o gasto mensal acima para ver a estimativa.
+                </p>
+              )}
+              <p className="muted" style={{ fontSize: "0.75rem", marginTop: "0.5rem" }}>
+                Cálculo composto e indicativo: CPA tem peso direto, CTR peso
+                médio e recuperação de vazamento peso alto sobre o ROAS atual.
+              </p>
+            </>
+          )}
+        </section>
+
+
 
 
 
