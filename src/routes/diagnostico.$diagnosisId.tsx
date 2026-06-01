@@ -240,14 +240,24 @@ function DiagnosticoReportPage() {
         : "Está bem — mas tem um teto invisível te travando.";
 
   const statusClass = (status: string) => {
-    const s = (status ?? "").toLowerCase();
+    const s = (status ?? "").toLowerCase().trim();
     if (/(mau|bad|baixo|crítico|critico|red|vermelho|low|alerta)/.test(s))
       return "is-bad";
-    if (/(médio|medio|mid|atenção|atencao|warning|amber|amarelo)/.test(s))
+    if (/(médio|medio|mid|atenção|atencao|warning|warn|amber|amarelo)/.test(s))
       return "is-mid";
     if (/(bom|good|ok|verde|green|saudável|saudavel|high)/.test(s))
       return "is-good";
-    return "";
+    return "is-neutral";
+  };
+
+  const statusLabelPt = (status: string) => {
+    const s = (status ?? "").toLowerCase().trim();
+    if (/(mau|bad|baixo|crítico|critico|red|vermelho|low|alerta)/.test(s)) return "Alerta";
+    if (/(médio|medio|mid|atenção|atencao|warning|warn|amber|amarelo)/.test(s)) return "Atenção";
+    if (/(bom|good|ok|verde|green|saudável|saudavel|high)/.test(s)) return "Bom";
+    if (/sem tracking/.test(s)) return "Sem tracking";
+    if (/sem dados/.test(s)) return "Sem dados";
+    return status || "—";
   };
 
   const priorityBadge = (priority: string) => {
@@ -255,6 +265,14 @@ function DiagnosticoReportPage() {
     if (/(alta|high|crítica|critica|urgente)/.test(p)) return "badge-high";
     if (/(média|media|medium|moderada)/.test(p)) return "badge-medium";
     return "badge-low";
+  };
+
+  const confidenceLabelPt = (c: string) => {
+    const s = (c ?? "").toLowerCase().trim();
+    if (s === "high" || s === "alta") return "Alta";
+    if (s === "medium" || s === "média" || s === "media") return "Média";
+    if (s === "low" || s === "baixa") return "Baixa";
+    return c || "—";
   };
 
   return (
