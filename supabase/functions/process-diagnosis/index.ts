@@ -666,14 +666,36 @@ Deno.serve(async (req) => {
     const analysisExisting = rep?.analysis_json;
 
     try {
-      if (!factsForAnalysis) {
-        const account_insights = await fetchAccountInsights(actId, token);
-        const campaigns = await fetchCampaigns(actId, token);
+      // P1 — facts enriquecidos com insights por campanha + top anúncios
+      const needsEnrichment =
+        !factsForAnalysis ||
+        !Array.isArray((factsForAnalysis as Record<string, unknown>).campaigns_insights);
+      if (needsEnrichment) {
+        const account_insights = factsForAnalysis?.account_insights
+          ? (factsForAnalysis.account_insights as Record<string, unknown>)
+          : await fetchAccountInsights(actId, token);
+        const campaigns =
+          (factsForAnalysis?.campaigns_sample as Record<string, unknown>[] | undefined) ??
+          (await fetchCampaigns(actId, token));
+        let campaigns_insights: Record<string, unknown>[] = [];
+        let ads_insights_top: Record<string, unknown>[] = [];
+        try {
+          campaigns_insights = await fetchCampaignInsights(actId, token);
+        } catch (e) {
+          console.warn(`[process-diagnosis] campaign insights falhou: ${String(e).slice(0, 200)}`);
+        }
+        try {
+          ads_insights_top = await fetchTopAdsInsights(actId, token, 25);
+        } catch (e) {
+          console.warn(`[process-diagnosis] ad insights falhou: ${String(e).slice(0, 200)}`);
+        }
         const facts = {
           meta_ad_account_id: actId,
           date_preset: "last_30d",
           account_insights,
           campaigns_sample: campaigns.slice(0, 40),
+          campaigns_insights: campaigns_insights.slice(0, 50),
+          ads_insights_top: ads_insights_top.slice(0, 25),
           generated_at: new Date().toISOString(),
         };
         await sb.from("diagnosis_reports").upsert({
