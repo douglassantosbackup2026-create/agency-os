@@ -236,13 +236,16 @@
 }
 .diagnosis-funnel .action-step {
   display: grid;
-  grid-template-columns: 2.25rem 1fr;
+  grid-template-columns: auto 2.25rem 1fr;
   gap: 0.85rem;
   align-items: start;
   padding: 0.85rem 1rem;
   border-radius: 10px;
   background: #f8fafc;
   border: 1px solid #e2e8f0;
+}
+.diagnosis-funnel .action-step > .action-step-body {
+  min-width: 0;
 }
 .diagnosis-funnel .action-step-num {
   width: 2.25rem;
