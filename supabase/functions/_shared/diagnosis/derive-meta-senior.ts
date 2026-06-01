@@ -17,6 +17,24 @@ import { deriveStructureRecommendations } from "./derive-structure-recommendatio
 import type { MetaSeniorDerived } from "./meta-senior-types.ts";
 import { deriveFunnelGuidanceForAi } from "./derive-analysis.ts";
 
+/** `objective_spend_mix` é fração por família (0–1); legado em array com spend_pct. */
+function salesSpendPctFromMix(mix: unknown): number {
+  if (Array.isArray(mix)) {
+    const row = mix.find(
+      (m) =>
+        m &&
+        typeof m === "object" &&
+        (m as { family?: string }).family === "sales",
+    ) as { spend_pct?: number } | undefined;
+    return row?.spend_pct ?? 0;
+  }
+  if (mix && typeof mix === "object") {
+    const sales = (mix as Record<string, number>).sales;
+    return typeof sales === "number" ? Math.round(sales * 100) : 0;
+  }
+  return 0;
+}
+
 /** Enriquece facts in-place com raw fetch (opcional — se já tiver dados, só deriva). */
 export async function enrichFactsWithMetaSeniorFetch(
   facts: Record<string, unknown>,
@@ -103,8 +121,7 @@ export function buildMetaSeniorDerived(
   const opportunityScore = computeOpportunityScore(funnelHealth);
 
   const guidance = deriveFunnelGuidanceForAi(facts);
-  const mix = facts.objective_spend_mix as { family?: string; spend_pct?: number }[] | undefined;
-  const salesPct = mix?.find((m) => m.family === "sales")?.spend_pct ?? 0;
+  const salesPct = salesSpendPctFromMix(facts.objective_spend_mix);
 
   return {
     generatedAt: new Date().toISOString(),
