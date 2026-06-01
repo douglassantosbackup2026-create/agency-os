@@ -4,7 +4,7 @@ import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 import { diagnosisAiBudgetExceeded } from "../_shared/ai-budget.ts";
 import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 
-const PROMPT_VERSION = "diagnosis-ecommerce-v2";
+const PROMPT_VERSION = "diagnosis-ecommerce-v3";
 const AI_TIMEOUT_MS = 60_000;
 
 const SYSTEM_PROMPT = `És um auditor sênior de Meta Ads especializado em e-commerce brasileiro, com foco em eficiência de verba e escalabilidade. Respondes APENAS em PT-BR e APENAS com JSON válido (sem markdown, sem texto fora do JSON). Valores monetários sempre em BRL (a menos que facts.account_insights indique outra moeda).
