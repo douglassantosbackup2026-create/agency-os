@@ -284,6 +284,53 @@ function DiagnosticoReportPage() {
     return c || "—";
   };
 
+  const priorityWeight = (p: string) => {
+    const s = (p ?? "").toLowerCase();
+    if (/(alta|high|crítica|critica|urgente)/.test(s)) return 0;
+    if (/(média|media|medium|moderada)/.test(s)) return 1;
+    return 2;
+  };
+
+  const topPriorities = (() => {
+    const issues = (analysis.criticalIssues ?? [])
+      .slice()
+      .sort((a, b) => priorityWeight(a.priority) - priorityWeight(b.priority))
+      .slice(0, 3)
+      .map((i) => ({
+        title: i.title,
+        description: i.description,
+        meta: i.priority,
+        href: "#sec-issues",
+      }));
+    if (issues.length >= 3) return issues;
+    const planSteps = (analysis.actionPlan ?? [])
+      .slice()
+      .sort((a, b) => (a.step ?? 0) - (b.step ?? 0))
+      .slice(0, 3 - issues.length)
+      .map((a) => ({
+        title: a.action,
+        description: `Impacto: ${a.impact} · Prazo: ${a.eta}`,
+        meta: "Plano",
+        href: "#sec-plan",
+      }));
+    return [...issues, ...planSteps];
+  })();
+
+  const tocItems: { id: string; label: string }[] = [];
+  if (topPriorities.length) tocItems.push({ id: "sec-top", label: "Top 3 prioridades" });
+  if (analysis.metrics?.length) tocItems.push({ id: "sec-metrics", label: "Métricas" });
+  if (analysis.campaignBreakdown?.length) tocItems.push({ id: "sec-campaigns", label: "Campanhas" });
+  if (analysis.criticalIssues?.length) tocItems.push({ id: "sec-issues", label: "Problemas" });
+  if (analysis.budgetLeaks?.length) tocItems.push({ id: "sec-leaks", label: "Vazamentos" });
+  if (analysis.opportunities?.length) tocItems.push({ id: "sec-opps", label: "Oportunidades" });
+  if (analysis.creativesSummary) tocItems.push({ id: "sec-creatives", label: "Criativos" });
+  if (analysis.audiencesSummary) tocItems.push({ id: "sec-audiences", label: "Públicos" });
+  if (analysis.structureNotes?.length) tocItems.push({ id: "sec-structure", label: "Fundação" });
+  if (analysis.actionPlan?.length) tocItems.push({ id: "sec-plan", label: "Plano de ação" });
+  if (analysis.improvementScenario?.note) tocItems.push({ id: "sec-scenario", label: "Cenário" });
+  if (analysis.dataLimitations?.length) tocItems.push({ id: "sec-limits", label: "Limitações" });
+  if (data.report?.management_cta_eligible) tocItems.push({ id: "sec-cta", label: "Próximo passo" });
+
   return (
     <div className="diagnosis-funnel">
       <div className="container">
@@ -313,8 +360,48 @@ function DiagnosticoReportPage() {
           <p style={{ margin: 0, color: "#334155" }}>{analysis.summary}</p>
         </header>
 
+
+
+        {tocItems.length > 1 ? (
+          <nav className="report-toc" aria-label="Índice do relatório">
+            {tocItems.map((it) => (
+              <a key={it.id} href={`#${it.id}`} className="report-toc-link">
+                {it.label}
+              </a>
+            ))}
+          </nav>
+        ) : null}
+
+        {topPriorities.length ? (
+          <section className="card top-priorities" id="sec-top">
+            <h2>Top 3 prioridades</h2>
+            <p className="section-hint">
+              O que tratar primeiro, com base no impacto identificado.
+            </p>
+            <ol className="top-priorities-list">
+              {topPriorities.map((p, idx) => (
+                <li key={`${idx}-${p.title}`} className="top-priority-item">
+                  <div className="top-priority-num">{idx + 1}</div>
+                  <div className="top-priority-body">
+                    <div className="top-priority-title">{p.title}</div>
+                    <p className="muted" style={{ margin: "0.25rem 0 0.4rem" }}>
+                      {p.description}
+                    </p>
+                    <div className="top-priority-meta">
+                      <span className={`badge ${priorityBadge(p.meta)}`}>{p.meta}</span>
+                      <a href={p.href} className="top-priority-link">
+                        Ver detalhe →
+                      </a>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </section>
+        ) : null}
+
         {analysis.metrics?.length ? (
-          <section className="card">
+          <section className="card" id="sec-metrics">
             <h2>Onde seu dinheiro está agora</h2>
             <p className="section-hint">
               Os números reais da sua conta, comparados com a referência
@@ -357,7 +444,7 @@ function DiagnosticoReportPage() {
         ) : null}
 
         {analysis.campaignBreakdown?.length ? (
-          <section className="card">
+          <section className="card" id="sec-campaigns">
             <h2>Desempenho por campanha</h2>
             <p className="section-hint">
               Top campanhas por gasto nos últimos 30 dias — onde o orçamento
@@ -414,7 +501,7 @@ function DiagnosticoReportPage() {
         ) : null}
 
         {analysis.criticalIssues?.length ? (
-          <section className="card">
+          <section className="card" id="sec-issues">
             <h2>Os buracos no seu funil</h2>
             <p className="section-hint">
               Cada um desses pontos está ativo agora — enquanto você lê isso.
@@ -437,7 +524,7 @@ function DiagnosticoReportPage() {
         ) : null}
 
         {analysis.budgetLeaks?.length ? (
-          <section className="card">
+          <section className="card" id="sec-leaks">
             <h2>Quanto você está queimando por mês</h2>
             <p className="section-hint">
               Estimativas baseadas no histórico recente da sua conta.
@@ -461,7 +548,7 @@ function DiagnosticoReportPage() {
         ) : null}
 
         {analysis.opportunities?.length ? (
-          <section className="card">
+          <section className="card" id="sec-opps">
             <h2>O que você está deixando na mesa</h2>
             <p className="section-hint">
               Receita que existe na sua conta mas ainda não foi ativada.
@@ -480,7 +567,7 @@ function DiagnosticoReportPage() {
         ) : null}
 
         {analysis.creativesSummary ? (
-          <section className="card">
+          <section className="card" id="sec-creatives">
             <h2>Criativos: o que vende e o que queima</h2>
             <p className="section-hint">
               O que está funcionando — e o que está sugando budget.
@@ -510,7 +597,7 @@ function DiagnosticoReportPage() {
         ) : null}
 
         {analysis.audiencesSummary ? (
-          <section className="card">
+          <section className="card" id="sec-audiences">
             <h2>Você está falando com as pessoas erradas?</h2>
             <p style={{ marginTop: 0 }}>
               <strong>{analysis.audiencesSummary.segmentation}</strong>
@@ -524,7 +611,7 @@ function DiagnosticoReportPage() {
         ) : null}
 
         {analysis.structureNotes?.length ? (
-          <section className="card">
+          <section className="card" id="sec-structure">
             <h2>A fundação da conta</h2>
             <p className="section-hint">
               Sem isso ajustado, nenhuma otimização se sustenta.
@@ -538,7 +625,7 @@ function DiagnosticoReportPage() {
         ) : null}
 
         {analysis.actionPlan?.length ? (
-          <section className="card">
+          <section className="card" id="sec-plan">
             <h2>Plano de ação</h2>
             <p className="section-hint">
               A sequência sugerida pela análise — ordenada por impacto.
@@ -563,7 +650,7 @@ function DiagnosticoReportPage() {
         ) : null}
 
         {analysis.improvementScenario?.note ? (
-          <section className="card">
+          <section className="card" id="sec-scenario">
             <h2>Cenário de melhoria</h2>
             <p style={{ margin: "0 0 0.5rem" }}>
               {analysis.improvementScenario.note}
@@ -575,7 +662,7 @@ function DiagnosticoReportPage() {
         ) : null}
 
         {analysis.dataLimitations?.length ? (
-          <section className="card">
+          <section className="card" id="sec-limits">
             <h2>Limitações dos dados</h2>
             <p className="section-hint">
               O que não foi possível observar — para que você saiba o que
@@ -592,7 +679,7 @@ function DiagnosticoReportPage() {
 
 
         {data.report?.management_cta_eligible ? (
-          <section className="card cta-pain">
+          <section className="card cta-pain" id="sec-cta">
             <span className="cta-stamp">Recomendado pela análise</span>
             {gestaoCheckout === "falha" ? (
               <p role="alert" style={{ color: "#b91c1c", marginBottom: "1rem" }}>
