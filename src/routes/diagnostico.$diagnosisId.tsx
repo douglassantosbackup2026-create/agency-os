@@ -669,7 +669,7 @@ function DiagnosticoReportPage() {
           }
         />
 
-        {legacyReport && !hasSeniorV12 ? (
+        {legacyReport ? (
           <p className="legacy-report-banner no-print" role="status">
             Relatório gerado antes da versão Analista v13 — reprocessar a análise para
             hipóteses testadas, plano priorizado e narrativa consultiva.

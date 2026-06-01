@@ -2195,3 +2195,27 @@
 .priority-plan-list {
   padding-left: 1.2rem;
 }
+
+.priority-matrix-grid {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.75rem 0 1rem;
+  font-size: 0.9rem;
+}
+
+.priority-matrix-row {
+  display: grid;
+  grid-template-columns: 5rem 1fr 1fr;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.priority-matrix-header {
+  font-weight: 600;
+  font-size: 0.8rem;
+  color: var(--muted, #64748b);
+}
+
+.priority-matrix-label {
+  font-weight: 600;
+}

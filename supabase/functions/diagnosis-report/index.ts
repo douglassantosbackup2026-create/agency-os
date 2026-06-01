@@ -6,7 +6,10 @@ import {
 import { assertDiagnosisSecret } from "../_shared/diagnosis/validate-diagnosis-access.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
-import { normalizeAnalysisV2 } from "../_shared/diagnosis/derive-analysis.ts";
+import {
+  mergeBusinessContextIntoFacts,
+  normalizeAnalysisV2,
+} from "../_shared/diagnosis/derive-analysis.ts";
 
 Deno.serve(async (req) => {
   const cors = handleCors(req);
@@ -36,7 +39,7 @@ Deno.serve(async (req) => {
     .eq("diagnosis_id", d)
     .maybeSingle();
 
-  const factsJson = rep?.facts_json;
+  let factsJson = rep?.facts_json;
   const spendLast30d = parseSpendFromFacts(factsJson);
 
   let analysisJson = rep?.analysis_json ?? null;
@@ -46,9 +49,16 @@ Deno.serve(async (req) => {
     typeof analysisJson === "object" &&
     typeof factsJson === "object"
   ) {
+    const factsForNormalize = {
+      ...(factsJson as Record<string, unknown>),
+    };
+    mergeBusinessContextIntoFacts(
+      factsForNormalize,
+      diag?.business_context as Record<string, unknown> | null | undefined,
+    );
     analysisJson = normalizeAnalysisV2(
       { ...(analysisJson as Record<string, unknown>) },
-      factsJson as Record<string, unknown>,
+      factsForNormalize,
     );
   }
 

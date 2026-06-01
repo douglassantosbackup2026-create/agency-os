@@ -586,6 +586,11 @@ export function normalizeAnalysisV2(
   obj.prioritizedActions = prioritized;
   obj.mondayActions = topActionsNow(prioritized);
 
+  const limitations = obj.dataLimitations as string[];
+  obj.criticalIssues = sanitizeCriticalIssuesV13(
+    obj.criticalIssues as Record<string, unknown>[],
+    limitations,
+  );
   enrichCriticalIssuesWithHypothesis(
     obj.criticalIssues as Record<string, unknown>[],
     seeds,
@@ -647,6 +652,32 @@ function applyBusinessHintsToSenior(
       senior.diagnostics.financial.impactNote = hints.marginNote;
     }
   }
+}
+
+function sanitizeCriticalIssuesV13(
+  issues: Record<string, unknown>[],
+  limitations: string[],
+): Record<string, unknown>[] {
+  const kept: Record<string, unknown>[] = [];
+  for (const issue of issues) {
+    if (String(issue.confidence ?? "") === "needs_data") {
+      const title = String(issue.title ?? "problema identificado").slice(0, 120);
+      const note = `Dados insuficientes para conclusão definitiva: ${title}`;
+      if (!limitations.includes(note)) limitations.push(note);
+      continue;
+    }
+    const priority = String(issue.priority ?? "medium");
+    if (
+      (priority === "high" || priority === "medium") &&
+      !issue.hypothesisId
+    ) {
+      console.warn(
+        `[normalizeAnalysisV2] criticalIssue high/medium sem hypothesisId: ${String(issue.title ?? "").slice(0, 80)}`,
+      );
+    }
+    kept.push(issue);
+  }
+  return kept;
 }
 
 function enrichCriticalIssuesWithHypothesis(

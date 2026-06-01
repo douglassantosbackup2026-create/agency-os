@@ -107,3 +107,18 @@ SELECT cron.schedule(
   );
   $$
 );
+
+SELECT cron.schedule(
+  'diagnosis-followup-daily',
+  '0 6 * * *',
+  $$
+  SELECT net.http_post(
+    url := 'https://uvuotaxikuxejfeitlaw.supabase.co/functions/v1/diagnosis-followup',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer __CRON_SECRET_HERE__'
+    ),
+    body := '{}'::jsonb
+  );
+  $$
+);

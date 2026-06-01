@@ -1,4 +1,4 @@
--- Esboço feedback loop 30 dias (Analista v13)
+-- Esboço feedback loop 30 dias (Analista v13) — timestamp único (evita conflito com resilience_phase3)
 
 create table if not exists public.diagnosis_metric_snapshots (
   diagnosis_id uuid primary key references public.diagnoses (id) on delete cascade,

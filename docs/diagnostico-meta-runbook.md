@@ -138,7 +138,7 @@ LIMIT 5;
 - **Servidor:** `derive-hypothesis-seeds.ts`, `derive-action-priority.ts`, `derive-business-hints.ts`; `facts.hypothesis_seeds`; `analysis_json.prioritizedActions` + `mondayActions`.
 - **Contexto loja:** coluna `diagnoses.business_context`; merge em `process-diagnosis`; formulário no relatório (`DiagnosisBusinessContextForm` → `diagnosis-context`).
 - **UI:** bloco **Segunda-feira** (`DiagnosisPriorityPlan`); issues com hipótese colapsável; banner legado se `prompt_version != v13`.
-- **Feedback 30d (esboço):** migration `20260602120000_diagnosis_followup.sql`; snapshot + job ao `completed`; cron `diagnosis-followup`.
+- **Feedback 30d (esboço):** migration `20260602153000_diagnosis_followup.sql`; snapshot + job ao `completed`; cron `diagnosis-followup-daily` (re-agendar: `SELECT public.setup_retentio_cron_jobs('<CRON_SECRET>');`).
 
 ```bash
 npm test -- supabase/functions/_shared/diagnosis/

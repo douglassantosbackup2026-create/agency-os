@@ -31,6 +31,14 @@ export function DiagnosisPriorityPlan({
     ? mondayActions
     : actions.filter((a) => a.urgency === "now").slice(0, 3);
 
+  const highImpact = (a: Action) => (a.impactBrl ?? 0) >= 500;
+  const matrix = {
+    nowHigh: actions.filter((a) => a.urgency === "now" && highImpact(a)),
+    nowOther: actions.filter((a) => a.urgency === "now" && !highImpact(a)),
+    laterHigh: actions.filter((a) => a.urgency !== "now" && highImpact(a)),
+    laterOther: actions.filter((a) => a.urgency !== "now" && !highImpact(a)),
+  };
+
   return (
     <section className="diagnosis-priority-plan">
       {now.length > 0 ? (
@@ -70,6 +78,27 @@ export function DiagnosisPriorityPlan({
           </ul>
         </div>
       ) : null}
+
+      <details className="priority-matrix-details">
+        <summary>Matriz impacto × urgência</summary>
+        <div className="priority-matrix-grid" role="table" aria-label="Matriz de prioridade">
+          <div className="priority-matrix-row priority-matrix-header">
+            <span />
+            <span>Alto impacto (~R$ 500+/mês)</span>
+            <span>Outros</span>
+          </div>
+          <div className="priority-matrix-row">
+            <span className="priority-matrix-label">Agora</span>
+            <span>{matrix.nowHigh.length} ação(ões)</span>
+            <span>{matrix.nowOther.length} ação(ões)</span>
+          </div>
+          <div className="priority-matrix-row">
+            <span className="priority-matrix-label">Depois</span>
+            <span>{matrix.laterHigh.length} ação(ões)</span>
+            <span>{matrix.laterOther.length} ação(ões)</span>
+          </div>
+        </div>
+      </details>
 
       <details className="priority-matrix-details">
         <summary>Plano completo priorizado ({actions.length} passos)</summary>
