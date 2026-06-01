@@ -812,30 +812,62 @@ function DiagnosticoReportPage() {
           </section>
         ) : null}
 
-        {analysis.actionPlan?.length ? (
-          <section className="card" id="sec-plan">
-            <h2>Plano de ação</h2>
-            <p className="section-hint">
-              A sequência sugerida pela análise — ordenada por impacto.
-            </p>
-            <ol className="action-plan">
-              {[...analysis.actionPlan]
-                .sort((a, b) => (a.step ?? 0) - (b.step ?? 0))
-                .map((a) => (
-                  <li key={`${a.step}-${a.action}`} className="action-step">
-                    <div className="action-step-num">{a.step}</div>
-                    <div className="action-step-body">
-                      <div className="action-step-title">{a.action}</div>
-                      <div className="action-step-meta">
-                        <span><strong>Impacto:</strong> {a.impact}</span>
-                        <span><strong>Prazo:</strong> {a.eta}</span>
+        {analysis.actionPlan?.length ? (() => {
+          const planItems = [...analysis.actionPlan].sort(
+            (a, b) => (a.step ?? 0) - (b.step ?? 0),
+          );
+          const doneCount = planItems.filter(
+            (a) => doneSteps[`${a.step}-${a.action}`],
+          ).length;
+          const pct = Math.round((doneCount / planItems.length) * 100);
+          return (
+            <section className="card" id="sec-plan">
+              <h2>Plano de ação</h2>
+              <p className="section-hint">
+                A sequência sugerida pela análise — ordenada por impacto.
+                Marque cada item conforme for executando.
+              </p>
+              <div className="plan-progress no-print" aria-label="Progresso do plano">
+                <div className="plan-progress-bar">
+                  <span style={{ width: `${pct}%` }} />
+                </div>
+                <span className="plan-progress-label">
+                  {doneCount}/{planItems.length} concluídos · {pct}%
+                </span>
+              </div>
+              <ol className="action-plan">
+                {planItems.map((a) => {
+                  const key = `${a.step}-${a.action}`;
+                  const done = !!doneSteps[key];
+                  return (
+                    <li
+                      key={key}
+                      className={`action-step${done ? " action-step-done" : ""}`}
+                    >
+                      <label className="action-step-check no-print">
+                        <input
+                          type="checkbox"
+                          checked={done}
+                          onChange={() => toggleStep(key)}
+                          aria-label={`Marcar passo ${a.step} como concluído`}
+                        />
+                      </label>
+                      <div className="action-step-num">{a.step}</div>
+                      <div className="action-step-body">
+                        <div className="action-step-title">{a.action}</div>
+                        <div className="action-step-meta">
+                          <span><strong>Impacto:</strong> {a.impact}</span>
+                          <span><strong>Prazo:</strong> {a.eta}</span>
+                        </div>
                       </div>
-                    </div>
-                  </li>
-                ))}
-            </ol>
-          </section>
-        ) : null}
+                    </li>
+                  );
+                })}
+              </ol>
+            </section>
+          );
+        })() : null}
+
 
         <section className="card business-card" id="sec-business">
           <span className="business-tag">Interpretação contextual · informado por você</span>
