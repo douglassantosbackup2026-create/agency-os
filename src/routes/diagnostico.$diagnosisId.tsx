@@ -482,8 +482,11 @@ function DiagnosticoReportPage() {
   if (analysis.audiencesSummary) tocItems.push({ id: "sec-audiences", label: "Públicos" });
   if (analysis.structureNotes?.length) tocItems.push({ id: "sec-structure", label: "Fundação" });
   if (analysis.actionPlan?.length) tocItems.push({ id: "sec-plan", label: "Plano de ação" });
+  if (analysis.actionPlan?.length) tocItems.push({ id: "sec-roadmap", label: "Roadmap 30/60/90" });
   tocItems.push({ id: "sec-business", label: "Negócio" });
+  tocItems.push({ id: "sec-sim", label: "Simulador" });
   if (analysis.improvementScenario?.note) tocItems.push({ id: "sec-scenario", label: "Cenário" });
+
   if (analysis.dataLimitations?.length) tocItems.push({ id: "sec-limits", label: "Limitações" });
   if (data.report?.management_cta_eligible) tocItems.push({ id: "sec-cta", label: "Próximo passo" });
 
