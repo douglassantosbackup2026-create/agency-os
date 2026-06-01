@@ -770,3 +770,105 @@
     font-size: 3rem;
   }
 }
+
+/* ===== P3 — Business context & interpretation ===== */
+.diagnosis-funnel .business-card {
+  border-top: 4px solid #6366f1;
+}
+.diagnosis-funnel .business-tag {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #4338ca;
+  background: #eef2ff;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  margin-bottom: 0.5rem;
+}
+.diagnosis-funnel .business-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+.diagnosis-funnel .business-grid label {
+  display: grid;
+  gap: 0.25rem;
+}
+.diagnosis-funnel .business-summary {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+  margin-top: 0.5rem;
+}
+.diagnosis-funnel .business-summary ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.75rem;
+  display: grid;
+  gap: 0.35rem;
+  color: #334155;
+  font-size: 0.92rem;
+}
+.diagnosis-funnel .business-interpretation {
+  margin-top: 1.25rem;
+  border-top: 1px dashed #cbd5e1;
+  padding-top: 1rem;
+}
+.diagnosis-funnel .business-interpretation-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.25rem;
+}
+.diagnosis-funnel .business-interpretation-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.diagnosis-funnel .business-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  margin-top: 0.65rem;
+}
+.diagnosis-funnel .business-stat {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.8rem 0.9rem;
+}
+.diagnosis-funnel .business-stat.is-bad {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+.diagnosis-funnel .business-stat.is-good {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+.diagnosis-funnel .business-stat-label {
+  font-size: 0.78rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+.diagnosis-funnel .business-stat-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-top: 0.25rem;
+}
+.diagnosis-funnel .business-stat-hint {
+  font-size: 0.8rem;
+  color: #475569;
+  margin-top: 0.25rem;
+}
+@media (max-width: 640px) {
+  .diagnosis-funnel .business-grid,
+  .diagnosis-funnel .business-stats {
+    grid-template-columns: 1fr;
+  }
+}

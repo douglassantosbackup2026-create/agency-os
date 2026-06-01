@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
   const { data: diag } = await sb
     .from("diagnoses")
     .select(
-      "status, completed_at, failed_reason, management_status, management_paid_at, management_business_name, management_website, management_instagram",
+      "status, completed_at, failed_reason, management_status, management_paid_at, management_business_name, management_website, management_instagram, business_context",
     )
     .eq("id", d)
     .single();
