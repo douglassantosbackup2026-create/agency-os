@@ -32,6 +32,7 @@ type Analysis = {
   structureNotes?: string[];
   actionPlan?: { step: number; action: string; impact: string; eta: string }[];
   improvementScenario?: { note: string; confidence: string };
+  dataLimitations?: string[];
   disclaimer?: string;
 };
 
