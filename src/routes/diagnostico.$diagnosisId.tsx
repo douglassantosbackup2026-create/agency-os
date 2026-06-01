@@ -741,6 +741,182 @@ function DiagnosticoReportPage() {
           </section>
         ) : null}
 
+        <section className="card business-card" id="sec-business">
+          <span className="business-tag">Interpretação contextual · informado por você</span>
+          <h2>Contexto de negócio</h2>
+          <p className="section-hint">
+            Opcional. Use para gerar uma leitura econômica do que os dados da
+            Meta significam para a sua operação. Não substitui métricas
+            observadas — apenas as traduz para o seu cenário.
+          </p>
+
+          {savedContext && !ctxOpen ? (
+            <div className="business-summary">
+              <ul>
+                {savedContext.niche ? <li><strong>Nicho:</strong> {savedContext.niche}</li> : null}
+                {savedContext.avg_ticket_brl != null ? (
+                  <li><strong>Ticket médio:</strong> {fmtBRL(Number(savedContext.avg_ticket_brl))}</li>
+                ) : null}
+                {savedContext.margin_pct != null ? (
+                  <li><strong>Margem líquida:</strong> {savedContext.margin_pct}%</li>
+                ) : null}
+                {savedContext.monthly_goal_brl != null ? (
+                  <li><strong>Meta mensal:</strong> {fmtBRL(Number(savedContext.monthly_goal_brl))}</li>
+                ) : null}
+                {savedContext.notes ? <li><strong>Notas:</strong> {savedContext.notes}</li> : null}
+              </ul>
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => setCtxOpen(true)}
+              >
+                Editar contexto
+              </button>
+            </div>
+          ) : (
+            <div className="business-form">
+              <div className="business-grid">
+                <label>
+                  <span className="muted" style={{ fontSize: "0.85rem" }}>Nicho / segmento</span>
+                  <input
+                    className="field-input"
+                    value={ctxNiche}
+                    onChange={(e) => setCtxNiche(e.target.value)}
+                    maxLength={120}
+                    placeholder="Ex.: moda feminina, suplementos"
+                  />
+                </label>
+                <label>
+                  <span className="muted" style={{ fontSize: "0.85rem" }}>Ticket médio (R$)</span>
+                  <input
+                    className="field-input"
+                    inputMode="decimal"
+                    value={ctxTicket}
+                    onChange={(e) => setCtxTicket(e.target.value)}
+                    placeholder="Ex.: 180"
+                  />
+                </label>
+                <label>
+                  <span className="muted" style={{ fontSize: "0.85rem" }}>Margem líquida (%)</span>
+                  <input
+                    className="field-input"
+                    inputMode="decimal"
+                    value={ctxMargin}
+                    onChange={(e) => setCtxMargin(e.target.value)}
+                    placeholder="Ex.: 30"
+                  />
+                </label>
+                <label>
+                  <span className="muted" style={{ fontSize: "0.85rem" }}>Meta de faturamento mensal (R$)</span>
+                  <input
+                    className="field-input"
+                    inputMode="decimal"
+                    value={ctxGoal}
+                    onChange={(e) => setCtxGoal(e.target.value)}
+                    placeholder="Ex.: 100000"
+                  />
+                </label>
+              </div>
+              <label style={{ display: "grid", gap: "0.25rem", marginTop: "0.65rem" }}>
+                <span className="muted" style={{ fontSize: "0.85rem" }}>Observações (opcional)</span>
+                <textarea
+                  className="field-input"
+                  rows={2}
+                  maxLength={600}
+                  value={ctxNotes}
+                  onChange={(e) => setCtxNotes(e.target.value)}
+                  placeholder="Sazonalidade, lançamentos, contexto relevante"
+                />
+              </label>
+              {ctxError ? (
+                <p style={{ color: "#b91c1c", marginTop: "0.5rem" }}>{ctxError}</p>
+              ) : null}
+              <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  disabled={ctxSaving}
+                  onClick={() => void saveBusinessContext().then(() => setCtxOpen(false))}
+                >
+                  {ctxSaving ? "Salvando…" : savedContext ? "Atualizar contexto" : "Salvar contexto"}
+                </button>
+                {savedContext ? (
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    onClick={() => setCtxOpen(false)}
+                    disabled={ctxSaving}
+                  >
+                    Cancelar
+                  </button>
+                ) : null}
+              </div>
+              {ctxSavedAt && !ctxSaving ? (
+                <p className="muted" style={{ fontSize: "0.8rem", marginTop: "0.5rem" }}>
+                  Salvo em {new Date(ctxSavedAt).toLocaleString("pt-BR")}.
+                </p>
+              ) : null}
+            </div>
+          )}
+
+          {hasInterpretation ? (
+            <div className="business-interpretation">
+              <div className="business-interpretation-header">
+                <h3>Interpretação de negócio</h3>
+                <span className="badge badge-medium">Inferência contextual</span>
+              </div>
+              <p className="muted" style={{ marginTop: 0 }}>
+                Cálculos baseados no que você informou acima. Não são dados
+                observados na Meta — são uma tradução econômica do cenário.
+              </p>
+              <div className="business-stats">
+                {breakevenRoas ? (
+                  <div className="business-stat">
+                    <div className="business-stat-label">ROAS de equilíbrio</div>
+                    <div className="business-stat-value">{breakevenRoas.toFixed(2)}x</div>
+                    <div className="business-stat-hint">
+                      Abaixo disso, mídia paga consome margem.
+                    </div>
+                  </div>
+                ) : null}
+                {roasGap != null ? (
+                  <div className={`business-stat ${roasGap < 0 ? "is-bad" : "is-good"}`}>
+                    <div className="business-stat-label">Gap vs. ROAS observado</div>
+                    <div className="business-stat-value">
+                      {roasGap >= 0 ? "+" : ""}{roasGap.toFixed(2)}x
+                    </div>
+                    <div className="business-stat-hint">
+                      {roasGap >= 0
+                        ? "Mídia está cobrindo a margem."
+                        : "Mídia ainda não paga a operação."}
+                    </div>
+                  </div>
+                ) : null}
+                {salesNeeded ? (
+                  <div className="business-stat">
+                    <div className="business-stat-label">Vendas/mês p/ meta</div>
+                    <div className="business-stat-value">{fmtInt(salesNeeded)}</div>
+                    <div className="business-stat-hint">
+                      No ticket médio informado.
+                    </div>
+                  </div>
+                ) : null}
+                {contributionAtGoal ? (
+                  <div className="business-stat">
+                    <div className="business-stat-label">Margem na meta</div>
+                    <div className="business-stat-value">{fmtBRL(contributionAtGoal)}</div>
+                    <div className="business-stat-hint">
+                      Contribuição bruta projetada.
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+        </section>
+
+
+
         {analysis.improvementScenario?.note ? (
           <section className="card" id="sec-scenario">
             <h2>Cenário de melhoria</h2>
