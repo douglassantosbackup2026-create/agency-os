@@ -284,6 +284,53 @@ function DiagnosticoReportPage() {
     return c || "—";
   };
 
+  const priorityWeight = (p: string) => {
+    const s = (p ?? "").toLowerCase();
+    if (/(alta|high|crítica|critica|urgente)/.test(s)) return 0;
+    if (/(média|media|medium|moderada)/.test(s)) return 1;
+    return 2;
+  };
+
+  const topPriorities = (() => {
+    const issues = (analysis.criticalIssues ?? [])
+      .slice()
+      .sort((a, b) => priorityWeight(a.priority) - priorityWeight(b.priority))
+      .slice(0, 3)
+      .map((i) => ({
+        title: i.title,
+        description: i.description,
+        meta: i.priority,
+        href: "#sec-issues",
+      }));
+    if (issues.length >= 3) return issues;
+    const planSteps = (analysis.actionPlan ?? [])
+      .slice()
+      .sort((a, b) => (a.step ?? 0) - (b.step ?? 0))
+      .slice(0, 3 - issues.length)
+      .map((a) => ({
+        title: a.action,
+        description: `Impacto: ${a.impact} · Prazo: ${a.eta}`,
+        meta: "Plano",
+        href: "#sec-plan",
+      }));
+    return [...issues, ...planSteps];
+  })();
+
+  const tocItems: { id: string; label: string }[] = [];
+  if (topPriorities.length) tocItems.push({ id: "sec-top", label: "Top 3 prioridades" });
+  if (analysis.metrics?.length) tocItems.push({ id: "sec-metrics", label: "Métricas" });
+  if (analysis.campaignBreakdown?.length) tocItems.push({ id: "sec-campaigns", label: "Campanhas" });
+  if (analysis.criticalIssues?.length) tocItems.push({ id: "sec-issues", label: "Problemas" });
+  if (analysis.budgetLeaks?.length) tocItems.push({ id: "sec-leaks", label: "Vazamentos" });
+  if (analysis.opportunities?.length) tocItems.push({ id: "sec-opps", label: "Oportunidades" });
+  if (analysis.creativesSummary) tocItems.push({ id: "sec-creatives", label: "Criativos" });
+  if (analysis.audiencesSummary) tocItems.push({ id: "sec-audiences", label: "Públicos" });
+  if (analysis.structureNotes?.length) tocItems.push({ id: "sec-structure", label: "Fundação" });
+  if (analysis.actionPlan?.length) tocItems.push({ id: "sec-plan", label: "Plano de ação" });
+  if (analysis.improvementScenario?.note) tocItems.push({ id: "sec-scenario", label: "Cenário" });
+  if (analysis.dataLimitations?.length) tocItems.push({ id: "sec-limits", label: "Limitações" });
+  if (data.report?.management_cta_eligible) tocItems.push({ id: "sec-cta", label: "Próximo passo" });
+
   return (
     <div className="diagnosis-funnel">
       <div className="container">
