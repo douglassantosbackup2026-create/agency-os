@@ -164,6 +164,7 @@ export type DiagnosisAnalysis = {
   dataLimitations?: string[];
   disclaimer?: string;
   seniorDerived?: SeniorDerived;
+  metaSenior?: MetaSeniorDerived;
   maturity?: MaturityScore;
   leakByAxis?: LeakByAxisItem[];
   growthScenarios?: GrowthScenarios;
@@ -216,6 +217,74 @@ export type GrowthScenarios = {
   basisNote: string;
   confidence: "low" | "medium";
   revenueFormatted?: string | null;
+};
+
+export type RankingLabel =
+  | "above_average"
+  | "average"
+  | "below_average"
+  | "bottom_20"
+  | "not_available";
+
+export type AuctionAdRow = {
+  adId: string;
+  adName: string;
+  campaignName: string;
+  spend: number;
+  quality: RankingLabel;
+  engagement: RankingLabel;
+  conversion: RankingLabel;
+  diagnosisPt: string;
+  pauseCandidate: boolean;
+};
+
+export type AdsetAudienceType =
+  | "prospecting"
+  | "retargeting"
+  | "catalog"
+  | "traffic"
+  | "awareness"
+  | "other";
+
+export type AdsetTrendRow = {
+  adsetId: string;
+  adsetName: string;
+  campaignName: string;
+  audienceType: AdsetAudienceType;
+  ctrNow: number;
+  ctrPrev: number;
+  ctrChangePct: number | null;
+  trend: "good" | "bad" | "flat";
+};
+
+export type MetaRecommendationRow = {
+  id: string;
+  title: string;
+  body: string;
+  impactPoints: number;
+  priority: "urgent" | "high" | "medium";
+  source: "api" | "heuristic";
+};
+
+export type FunnelHealthRow = {
+  axis: string;
+  label: string;
+  status: "critical" | "attention" | "ok";
+  note: string;
+};
+
+export type MetaSeniorDerived = {
+  generatedAt: string;
+  auctionDiagnostics: AuctionAdRow[];
+  adsetTrends: AdsetTrendRow[];
+  recommendations: MetaRecommendationRow[];
+  funnelHealth: FunnelHealthRow[];
+  opportunityScore: number;
+  accountSummary: {
+    mixedFunnel: boolean;
+    primaryObjectiveLabel: string;
+    anomalyCount: number;
+  };
 };
 
 export type SeniorDerived = {

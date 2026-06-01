@@ -13,8 +13,11 @@ import {
 import { buildCommercialDerived } from "../_shared/diagnosis/derive-commercial.ts";
 import { recordDiagnosisFollowup } from "../_shared/diagnosis/record-diagnosis-followup.ts";
 import { V13_CONSULTATIVE_EXAMPLES } from "../_shared/diagnosis/v13-consultative-examples.ts";
+import {
+  enrichFactsWithMetaSeniorFetch,
+} from "../_shared/diagnosis/derive-meta-senior.ts";
 
-const PROMPT_VERSION = "diagnosis-ecommerce-v13";
+const PROMPT_VERSION = "diagnosis-ecommerce-v14";
 const AI_TIMEOUT_MS = 60_000;
 
 const SYSTEM_PROMPT = `És um auditor sênior de Meta Ads especializado em e-commerce brasileiro, com foco em eficiência de verba e escalabilidade. Respondes APENAS em PT-BR e APENAS com JSON válido (sem markdown, sem texto fora do JSON). Valores monetários sempre em BRL (a menos que facts.account_insights indique outra moeda).
@@ -109,6 +112,13 @@ Tom: consultivo e persuasivo para dono de e-commerce — traduz jargão ("sem tr
 46. actionPlan: 5–8 passos; preencha relatedAxis, urgency (now|soon|later), effort (low|medium|high), impactBrl quando alinhado a leakByAxis (mesmos números do servidor).
 47. business_context: usar ticket/margem/meta para interpretar ROAS — não inventar dados Meta; margem → comparar com business_hints.breakevenRoas se presente.
 
+## META SÊNIOR (v14 — Graph API, não MCP)
+48. O user prompt inclui meta_senior com auctionDiagnostics, adsetTrends, recommendations, funnelHealth, opportunityScore. NUNCA inventes rankings de leilão nem % de variação de CTR — use apenas os valores do bloco.
+49. criticalIssues sobre criativos: cite adName e diagnosisPt de auctionDiagnostics quando conversion=bottom_20 ou pauseCandidate=true.
+50. recommendations: priorize source=api; heurísticas já vêm rotuladas — não apresente como garantia da Meta.
+51. funnelHealth: não contradiga status (critical/attention/ok); opportunityScore é indicativo (35–95).
+52. PROIBIDO inventar trend de ROAS/CPR na conta se meta_senior não trouxer — use adsetTrends (CTR) apenas.
+
 ## SCHEMA DE SAÍDA (JSON estrito, todos os campos obrigatórios)
 {
   "score": number,
@@ -189,6 +199,19 @@ function buildUserPrompt(facts: Record<string, unknown>): string {
   const seeds = facts.hypothesis_seeds;
   const bizCtx = facts.business_context;
   const bizHints = facts.business_hints;
+  const metaSenior = facts.meta_senior;
+  const metaSlice = metaSenior
+    ? {
+        opportunityScore: (metaSenior as { opportunityScore?: unknown }).opportunityScore,
+        accountSummary: (metaSenior as { accountSummary?: unknown }).accountSummary,
+        auctionDiagnostics: (
+          metaSenior as { auctionDiagnostics?: unknown }
+        ).auctionDiagnostics,
+        adsetTrends: (metaSenior as { adsetTrends?: unknown }).adsetTrends,
+        recommendations: (metaSenior as { recommendations?: unknown }).recommendations,
+        funnelHealth: (metaSenior as { funnelHealth?: unknown }).funnelHealth,
+      }
+    : null;
   return [
     "funnel_guidance (REGRAS OBRIGATÓRIAS — funil misto NÃO é sobreposição; ROAS só em Vendas):",
     JSON.stringify(guidance).slice(0, 8000),
@@ -204,6 +227,9 @@ function buildUserPrompt(facts: Record<string, unknown>): string {
     "",
     "senior_derived (motores v12 — maturidade, leak por eixo, capítulos, riscos; não invente números):",
     seniorSlice ? JSON.stringify(seniorSlice).slice(0, 12000) : "(indisponível — seguir commercial_derived)",
+    "",
+    "meta_senior (v14 — leilão, trends CTR ad set, recomendações, funil; não invente rankings/%):",
+    metaSlice ? JSON.stringify(metaSlice).slice(0, 16000) : "(indisponível)",
     "",
     "commercial_derived (fonte única para valores em R$ — não invente outros):",
     JSON.stringify(compact).slice(0, 28000),
@@ -699,6 +725,21 @@ Deno.serve(async (req) => {
           updated_at: new Date().toISOString(),
         });
         factsForAnalysis = facts as unknown as Record<string, unknown>;
+      }
+
+      if (factsForAnalysis && token) {
+        const needsMetaSenior =
+          !factsForAnalysis.meta_senior ||
+          !Array.isArray(factsForAnalysis.ads_insights_auction);
+        if (needsMetaSenior) {
+          try {
+            await enrichFactsWithMetaSeniorFetch(factsForAnalysis, actId, token);
+          } catch (e) {
+            console.warn(
+              `[process-diagnosis] meta-senior fetch: ${String(e).slice(0, 200)}`,
+            );
+          }
+        }
       }
 
       if (factsForAnalysis) {

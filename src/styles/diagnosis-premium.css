@@ -1,0 +1,443 @@
+/* Layout amplo do relatório — sem alterar identidade visual (cores/tema herdados de diagnosis.css) */
+
+.diagnosis-funnel.diagnosis-layout-wide .container {
+  max-width: 1100px;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-grid-5 {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.75rem;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-section-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0 0 0.35rem;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-section-hint {
+  font-size: 0.88rem;
+  margin: 0 0 1rem;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-kpi-card {
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--diag-border, #e2e8f0);
+  background: #f8fafc;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-kpi-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--diag-muted, #64748b);
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-kpi-value {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .severity-pill {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .severity-critical {
+  background: #fef2f2;
+  color: var(--diag-score-low, #dc2626);
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .severity-high {
+  background: #fff7ed;
+  color: var(--diag-score-mid, #d97706);
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .severity-medium {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .severity-low {
+  background: #ecfdf5;
+  color: var(--diag-score-high, #059669);
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-hero {
+  display: grid;
+  grid-template-columns: 1fr minmax(200px, 280px);
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-hero-headline {
+  font-size: clamp(1.35rem, 3vw, 1.75rem);
+  font-weight: 800;
+  line-height: 1.25;
+  margin: 0 0 0.75rem;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-pain-box {
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  font-size: 0.95rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-pain-box strong {
+  color: var(--diag-score-low, #dc2626);
+  font-size: 1.1rem;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-cta-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  border: 1px solid var(--diag-border, #e2e8f0);
+  border-radius: 10px;
+  padding: 0.85rem 1.25rem;
+  margin-bottom: 1.25rem;
+  background: #f8fafc;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-alert-box {
+  background: #fef2f2;
+  border-left: 3px solid var(--diag-score-low, #dc2626);
+  padding: 0.75rem 1rem;
+  margin-top: 0.75rem;
+  border-radius: 0 8px 8px 0;
+  font-size: 0.9rem;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-featured-alert {
+  padding: 1rem 1.15rem;
+  margin-bottom: 1rem;
+  margin-top: 0;
+  border-radius: 10px;
+  border: 1px solid #fecaca;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .presentation-section-eyebrow {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--diag-muted, #64748b);
+  margin: 0 0 0.35rem;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .presentation-layout-section {
+  margin-bottom: 2rem;
+  scroll-margin-top: 4.5rem;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .presentation-economics-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  align-items: start;
+  margin-bottom: 2rem;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .presentation-economics-row > .card {
+  margin-bottom: 0;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .presentation-economics-row .premium-grid-4 {
+  grid-template-columns: 1fr;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .presentation-economics-row--single {
+  grid-template-columns: 1fr;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .presentation-toc {
+  position: sticky;
+  top: 3.25rem;
+  z-index: 15;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+  overflow-x: auto;
+  background: rgb(255 255 255 / 92%);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--diag-border, #e2e8f0);
+  border-radius: 12px;
+  padding: 0.65rem 0.85rem;
+  margin: 0 0 1.25rem;
+  box-shadow: 0 4px 14px -8px rgb(15 23 42 / 18%);
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .presentation-toc-link {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #334155;
+  text-decoration: none;
+  background: #f1f5f9;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  white-space: nowrap;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .presentation-toc-link:hover {
+  background: #2563eb;
+  color: #fff;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide #veredito,
+.diagnosis-funnel.diagnosis-layout-wide #resumo-executivo,
+.diagnosis-funnel.diagnosis-layout-wide #sec-issues,
+.diagnosis-funnel.diagnosis-layout-wide #vazamentos,
+.diagnosis-funnel.diagnosis-layout-wide #crescimento,
+.diagnosis-funnel.diagnosis-layout-wide #sec-roadmap,
+.diagnosis-funnel.diagnosis-layout-wide #sec-footer-cta {
+  scroll-margin-top: 4.5rem;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-loss-card {
+  text-align: center;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-loss-amount {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--diag-score-low, #dc2626);
+  display: block;
+  margin: 0.35rem 0;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-opp-card {
+  text-align: center;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-opp-value {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: var(--diag-score-high, #059669);
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-problems-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) 1fr;
+  gap: 1rem;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-problem-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-problem-list button {
+  width: 100%;
+  text-align: left;
+  background: #f8fafc;
+  border: 1px solid var(--diag-border, #e2e8f0);
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  margin-bottom: 0.35rem;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-problem-list button:hover,
+.diagnosis-funnel.diagnosis-layout-wide .premium-problem-list button[aria-selected="true"] {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-problem-detail {
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--diag-border, #e2e8f0);
+  background: #fafafa;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-roadmap-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-roadmap-col {
+  border-radius: 10px;
+  padding: 1rem;
+  border: 1px solid var(--diag-border, #e2e8f0);
+  background: #f8fafc;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-roadmap-col.phase-short {
+  border-color: #bfdbfe;
+  background: #eff6ff;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-roadmap-col.phase-mid {
+  border-color: #e9d5ff;
+  background: #faf5ff;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-roadmap-col.phase-long {
+  border-color: #fbcfe8;
+  background: #fdf2f8;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-footer-cta {
+  text-align: center;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-score-gauge circle.gauge-track {
+  stroke: #e2e8f0;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-score-gauge text.gauge-score {
+  fill: #0f172a;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .premium-score-gauge text.gauge-denom {
+  fill: var(--diag-muted, #64748b);
+}
+
+@media (max-width: 900px) {
+  .diagnosis-funnel.diagnosis-layout-wide .premium-grid-3 {
+    grid-template-columns: 1fr;
+  }
+  .diagnosis-funnel.diagnosis-layout-wide .presentation-economics-row {
+    grid-template-columns: 1fr;
+  }
+  .diagnosis-funnel.diagnosis-layout-wide .premium-grid-5 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .diagnosis-funnel.diagnosis-layout-wide .premium-grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .diagnosis-funnel.diagnosis-layout-wide .premium-hero {
+    grid-template-columns: 1fr;
+  }
+  .diagnosis-funnel.diagnosis-layout-wide .premium-problems-layout {
+    grid-template-columns: 1fr;
+  }
+  .diagnosis-funnel.diagnosis-layout-wide .premium-roadmap-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  .diagnosis-funnel.diagnosis-layout-wide .premium-grid-5,
+  .diagnosis-funnel.diagnosis-layout-wide .premium-grid-4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .diagnosis-funnel.diagnosis-layout-wide .premium-score-gauge circle.gauge-progress {
+    transition: none;
+  }
+}
+
+/* Meta Sênior (v14) */
+.diagnosis-funnel.diagnosis-layout-wide .meta-auction-table-wrap {
+  overflow-x: auto;
+  margin-top: 0.75rem;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .meta-auction-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .meta-auction-table th,
+.diagnosis-funnel.diagnosis-layout-wide .meta-auction-table td {
+  padding: 0.5rem 0.65rem;
+  border-bottom: 1px solid var(--diag-border, #e2e8f0);
+  text-align: left;
+  vertical-align: top;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .meta-auction-table th {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--diag-muted, #64748b);
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .meta-row-alert {
+  background: #fffbeb;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .meta-cell-sub {
+  display: block;
+  font-size: 0.72rem;
+  margin-top: 0.15rem;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .meta-pause-pill {
+  margin-left: 0.35rem;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .meta-reco-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .meta-reco-card {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--diag-border, #e2e8f0);
+  border-radius: 10px;
+  background: #fafafa;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .meta-reco-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .meta-trend-good {
+  border-color: #86efac;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .meta-trend-bad {
+  border-color: #fecaca;
+  background: #fff5f5;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .meta-funnel-grid {
+  margin-top: 0.5rem;
+}

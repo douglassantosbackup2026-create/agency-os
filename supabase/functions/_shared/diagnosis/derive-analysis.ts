@@ -27,6 +27,7 @@ import {
 import { deriveHypothesisSeeds } from "./derive-hypothesis-seeds.ts";
 import { buildSeniorDerived } from "./derive-senior.ts";
 import type { SeniorDerived } from "./derive-senior-types.ts";
+import { attachMetaSeniorToFacts } from "./derive-meta-senior.ts";
 
 export type { DerivedStatus };
 
@@ -569,6 +570,11 @@ export function normalizeAnalysisV2(
   const commercialFields = commercialToAnalysisFields(commercial);
   Object.assign(obj, commercialFields);
 
+  const metaSenior = facts?.meta_senior;
+  if (metaSenior && typeof metaSenior === "object") {
+    obj.metaSenior = metaSenior;
+  }
+
   const seeds =
     (Array.isArray(facts?.hypothesis_seeds)
       ? (facts!.hypothesis_seeds as ReturnType<typeof deriveHypothesisSeeds>)
@@ -723,6 +729,7 @@ export function mergeBusinessContextIntoFacts(
 export function attachCommercialToFacts(
   facts: Record<string, unknown>,
 ): Record<string, unknown> {
+  attachMetaSeniorToFacts(facts);
   facts.funnel_guidance = deriveFunnelGuidanceForAi(facts);
   const commercial = buildCommercialDerived(facts);
   const scoreDerived = deriveScoreV2(facts);

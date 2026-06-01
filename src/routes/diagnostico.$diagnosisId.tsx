@@ -13,10 +13,7 @@ import {
 } from "@/lib/diagnosis-benchmarks";
 import { useManagementCheckout } from "@/hooks/use-management-checkout";
 import { DiagnosisBenchmarkMetrics } from "@/components/diagnosis-report/DiagnosisBenchmarkMetrics";
-import { DiagnosisFinancialBalance } from "@/components/diagnosis-report/DiagnosisFinancialBalance";
 import { DiagnosisFiveChapters } from "@/components/diagnosis-report/DiagnosisFiveChapters";
-import { DiagnosisGrowthScenarios } from "@/components/diagnosis-report/DiagnosisGrowthScenarios";
-import { DiagnosisLeakByAxis } from "@/components/diagnosis-report/DiagnosisLeakByAxis";
 import { DiagnosisIssueCard } from "@/components/diagnosis-report/DiagnosisIssueCard";
 import { DiagnosisMaturityCard } from "@/components/diagnosis-report/DiagnosisMaturityCard";
 import { DiagnosisRisksCard } from "@/components/diagnosis-report/DiagnosisRisksCard";
@@ -24,15 +21,16 @@ import { DiagnosisBusinessContextForm } from "@/components/diagnosis-report/Diag
 import { DiagnosisPriorityPlan } from "@/components/diagnosis-report/DiagnosisPriorityPlan";
 import { DiagnosisPrintCover } from "@/components/diagnosis-report/DiagnosisPrintCover";
 import { DiagnosisReportShell } from "@/components/diagnosis-report/DiagnosisReportShell";
-import { DiagnosisTopFindings } from "@/components/diagnosis-report/DiagnosisTopFindings";
-import { DiagnosisVerdictHero } from "@/components/diagnosis-report/DiagnosisVerdictHero";
 import type { DiagnosisAnalysis } from "@/components/diagnosis-report/types";
 import {
   buildClientFinancialBalance,
   buildClientTopFindings,
   isLegacyReport,
 } from "@/lib/diagnosis-report-fallback";
+import { DiagnosisPresentationLayout } from "@/components/diagnosis-report/presentation/DiagnosisPresentationLayout";
+import { buildRoadmapFromActionPlan } from "@/lib/diagnosis-roadmap";
 import "@/styles/diagnosis.css";
+import "@/styles/diagnosis-premium.css";
 
 const GESTAO_URGENCY_TEXT =
   import.meta.env.VITE_GESTAO_URGENCY_TEXT?.trim() ||
@@ -364,6 +362,9 @@ function DiagnosticoReportPage() {
 
   const score = analysis.score ?? 0;
   const scoreTier = score < 40 ? "low" : score < 70 ? "mid" : "high";
+  const consultWhatsappHref = whatsappGestaoHref(
+    `Olá! Concluí o diagnóstico Meta Ads (score ${score}/100). Gostaria de conversar sobre os próximos passos. ID: ${diagnosisId}`,
+  );
   const heroPain =
     score < 40
       ? "Sua conta está sangrando dinheiro todos os dias."
@@ -503,29 +504,12 @@ function DiagnosticoReportPage() {
   if (analysis.dataLimitations?.length) tocItems.push({ id: "sec-limits", label: "Limitações" });
   if (data.report?.management_cta_eligible) tocItems.push({ id: "sec-cta", label: "Próximo passo" });
 
-  // P6 — roadmap 30/60/90: agrupa actionPlan pelo campo eta
-  type PlanItem = { step: number; action: string; impact: string; eta: string };
-  const roadmap: { short: PlanItem[]; mid: PlanItem[]; long: PlanItem[] } = (() => {
-    const buckets = { short: [] as PlanItem[], mid: [] as PlanItem[], long: [] as PlanItem[] };
-    (analysis.actionPlan ?? []).forEach((item) => {
-      const eta = (item.eta || "").toLowerCase();
-      const m = eta.match(/(\d+)/);
-      const n = m ? Number(m[1]) : 0;
-      let days = 30;
-      if (m) {
-        if (/h(ora)?/.test(eta)) days = Math.ceil(n / 24);
-        else if (/dia/.test(eta)) days = n;
-        else if (/sem/.test(eta)) days = n * 7;
-        else if (/m[eê]s/.test(eta)) days = n * 30;
-        else if (/trim/.test(eta)) days = n * 90;
-        else days = n;
-      }
-      if (days <= 14) buckets.short.push(item);
-      else if (days <= 45) buckets.mid.push(item);
-      else buckets.long.push(item);
-    });
-    return buckets;
-  })();
+  const roadmap = buildRoadmapFromActionPlan(analysis.actionPlan ?? []);
+
+  function scrollToManagementCta() {
+    document.getElementById("sec-cta")?.scrollIntoView({ behavior: "smooth" });
+    trackEvent("cta_scroll");
+  }
 
   // P6 — anti-padrões: armadilhas comuns derivadas do próprio diagnóstico
   const antiPatterns: { title: string; reason: string }[] = (() => {
@@ -638,10 +622,19 @@ function DiagnosticoReportPage() {
   const accountPrintLabel =
     data?.diagnosis?.management_business_name?.trim() || undefined;
 
+  const completedAtLabel = data?.diagnosis?.completed_at
+    ? new Date(data.diagnosis.completed_at).toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "long",
+        year: "numeric",
+      })
+    : null;
+
   return (
     <DiagnosisReportShell
       shareMsg={shareMsg}
       summaryOpen={summaryOpen}
+      layoutWide
       onCopyLink={() => void copyReportLink()}
       onPrint={printReport}
       onToggleSummary={() => {
@@ -671,8 +664,8 @@ function DiagnosticoReportPage() {
 
         {legacyReport ? (
           <p className="legacy-report-banner no-print" role="status">
-            Relatório gerado antes da versão Analista v13 — reprocessar a análise para
-            hipóteses testadas, plano priorizado e narrativa consultiva.
+            Relatório gerado antes da versão Analista v14 — reprocessar a análise para
+            leilão Meta, tendências de CTR e recomendações estruturais.
           </p>
         ) : null}
 
@@ -689,47 +682,22 @@ function DiagnosticoReportPage() {
           Reavaliação automática das métricas da conta em 30 dias (sem novo relatório de IA).
         </p>
 
-        <DiagnosisVerdictHero
+        <DiagnosisPresentationLayout
           analysis={analysis}
-          balance={financialBalance}
+          metaSenior={analysis.metaSenior ?? null}
+          seniorDerived={seniorDerived}
+          financialBalance={financialBalance}
+          topFindings={topFindings}
+          score={score}
           scoreTier={scoreTier}
-          scoreLegendOpen={scoreLegendOpen}
-          onToggleScoreLegend={() => setScoreLegendOpen((v) => !v)}
+          scoreLabel={analysis.scoreLabel}
+          priorityBadge={priorityBadge}
+          axisLabelPt={axisLabelPt}
+          onScrollToManagementCta={scrollToManagementCta}
+          whatsappGestaoHref={consultWhatsappHref}
+          accountLabel={accountPrintLabel}
+          completedAtLabel={completedAtLabel}
         />
-
-        <DiagnosisTopFindings findings={topFindings} />
-
-        {hasSeniorV12 && seniorDerived ? (
-          <>
-            <DiagnosisMaturityCard maturity={seniorDerived.maturity} />
-            <DiagnosisRisksCard risks={seniorDerived.risks} />
-            <DiagnosisLeakByAxis items={seniorDerived.leakByAxis} />
-            <DiagnosisFiveChapters
-              senior={seniorDerived}
-              narratives={analysis.chapterNarratives}
-              financialBalance={financialBalance}
-            />
-            <DiagnosisGrowthScenarios scenarios={seniorDerived.growthScenarios} />
-          </>
-        ) : financialBalance ? (
-          <DiagnosisFinancialBalance balance={financialBalance} />
-        ) : null}
-
-        {serverBenchmarks.length ? (
-          <DiagnosisBenchmarkMetrics
-            nicheLabel={analysis.benchmarkComparison?.nicheLabel ?? niche.label}
-            gaps={serverBenchmarks}
-          />
-        ) : null}
-
-        <section className="card summary-brief" id="sec-summary-text">
-          <p className="muted" style={{ margin: 0 }}>{analysis.summary}</p>
-          {executiveBrief?.oneLiner ? (
-            <p className="exec-one-liner" style={{ marginTop: "0.75rem" }}>
-              {executiveBrief.oneLiner}
-            </p>
-          ) : null}
-        </section>
 
         {summaryOpen ? (
           <section className="card summary-panel no-print" aria-label="Resumo executivo">
@@ -770,7 +738,7 @@ function DiagnosticoReportPage() {
 
 
 
-        {tocItems.length > 1 ? (
+        {!hasSeniorV12 && tocItems.length > 1 ? (
           <nav className="report-toc" aria-label="Índice do relatório">
             {tocItems.map((it) => (
               <a key={it.id} href={`#${it.id}`} className="report-toc-link">
@@ -893,19 +861,6 @@ function DiagnosticoReportPage() {
           </section>
         ) : null}
 
-        {hasSeniorV12 &&
-        (analysis.prioritizedActions?.length || analysis.actionPlan?.length) ? (
-          <DiagnosisPriorityPlan
-            actions={
-              analysis.prioritizedActions?.length
-                ? analysis.prioritizedActions
-                : (analysis.actionPlan ?? [])
-            }
-            mondayActions={analysis.mondayActions}
-            axisLabelPt={axisLabelPt}
-          />
-        ) : null}
-
         <details className="card technical-details-block" id="sec-technical">
           <summary className="technical-details-summary">
             {hasSeniorV12
@@ -913,6 +868,59 @@ function DiagnosticoReportPage() {
               : "Detalhe técnico — campanhas, métricas e estrutura"}
           </summary>
           <div className="technical-details-inner">
+
+        {hasSeniorV12 && seniorDerived ? (
+          <>
+            <section className="card technical-inner-card" id="maturidade">
+              <DiagnosisMaturityCard maturity={seniorDerived.maturity} />
+            </section>
+            <section className="card technical-inner-card" id="capitulos">
+              <DiagnosisFiveChapters
+                senior={seniorDerived}
+                narratives={analysis.chapterNarratives}
+                financialBalance={financialBalance}
+              />
+            </section>
+            {seniorDerived.risks.length ? (
+              <section className="card technical-inner-card">
+                <DiagnosisRisksCard risks={seniorDerived.risks} />
+              </section>
+            ) : null}
+          </>
+        ) : null}
+
+        {serverBenchmarks.length ? (
+          <section className="card technical-inner-card" id="benchmark">
+            <DiagnosisBenchmarkMetrics
+              nicheLabel={analysis.benchmarkComparison?.nicheLabel ?? niche.label}
+              gaps={serverBenchmarks}
+            />
+          </section>
+        ) : null}
+
+        <section className="card technical-inner-card summary-brief" id="sec-summary-text">
+          <h2>Resumo narrativo</h2>
+          <p className="muted" style={{ margin: 0 }}>{analysis.summary}</p>
+          {executiveBrief?.oneLiner ? (
+            <p className="exec-one-liner" style={{ marginTop: "0.75rem" }}>
+              {executiveBrief.oneLiner}
+            </p>
+          ) : null}
+        </section>
+
+        {analysis.prioritizedActions?.length || analysis.actionPlan?.length ? (
+          <section className="card technical-inner-card">
+            <DiagnosisPriorityPlan
+              actions={
+                analysis.prioritizedActions?.length
+                  ? analysis.prioritizedActions
+                  : (analysis.actionPlan ?? [])
+              }
+              mondayActions={analysis.mondayActions}
+              axisLabelPt={axisLabelPt}
+            />
+          </section>
+        ) : null}
 
         {hasSeniorV12 && analysis.criticalIssues?.length ? (
           <section className="card technical-inner-card" id="sec-issues">

@@ -9,6 +9,8 @@ type Props = {
   onPrint: () => void;
   onToggleSummary: () => void;
   onReminder: () => void;
+  /** Layout amplo (mockup) — não altera cores nem branding */
+  layoutWide?: boolean;
 };
 
 export function DiagnosisReportShell({
@@ -19,9 +21,14 @@ export function DiagnosisReportShell({
   onPrint,
   onToggleSummary,
   onReminder,
+  layoutWide = false,
 }: Props) {
+  const rootClass = layoutWide
+    ? "diagnosis-funnel diagnosis-report-root diagnosis-layout-wide"
+    : "diagnosis-funnel diagnosis-report-root";
+
   return (
-    <div className="diagnosis-funnel diagnosis-report-root">
+    <div className={rootClass}>
       <div className="report-toolbar-sticky no-print" role="toolbar" aria-label="Ações do relatório">
         <button type="button" className="toolbar-btn" onClick={onCopyLink}>
           <Link2 size={16} aria-hidden />

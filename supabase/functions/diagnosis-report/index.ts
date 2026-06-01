@@ -10,6 +10,7 @@ import {
   mergeBusinessContextIntoFacts,
   normalizeAnalysisV2,
 } from "../_shared/diagnosis/derive-analysis.ts";
+import { attachMetaSeniorToFacts } from "../_shared/diagnosis/derive-meta-senior.ts";
 
 Deno.serve(async (req) => {
   const cors = handleCors(req);
@@ -56,6 +57,7 @@ Deno.serve(async (req) => {
       factsForNormalize,
       diag?.business_context as Record<string, unknown> | null | undefined,
     );
+    attachMetaSeniorToFacts(factsForNormalize);
     analysisJson = normalizeAnalysisV2(
       { ...(analysisJson as Record<string, unknown>) },
       factsForNormalize,
