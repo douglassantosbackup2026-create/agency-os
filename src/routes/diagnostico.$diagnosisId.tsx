@@ -576,7 +576,105 @@ function DiagnosticoReportPage() {
     return buckets;
   })();
 
+  // P6 — anti-padrões: armadilhas comuns derivadas do próprio diagnóstico
+  const antiPatterns: { title: string; reason: string }[] = (() => {
+    const out: { title: string; reason: string }[] = [];
+    const badCamps = (analysis.campaignBreakdown ?? []).filter((c) =>
+      statusClass(c.status) === "is-bad",
+    );
+    if (badCamps.length) {
+      out.push({
+        title: "Não aumentar budget de campanhas no vermelho",
+        reason: `${badCamps.length} campanha(s) com performance ruim. Escalar agora multiplica o vazamento.`,
+      });
+    }
+    const hiFreq = (analysis.campaignBreakdown ?? []).filter((c) => {
+      const f = Number((c.frequency ?? "").replace(",", "."));
+      return Number.isFinite(f) && f >= 3;
+    });
+    if (hiFreq.length) {
+      out.push({
+        title: "Não duplicar criativos fatigados",
+        reason: `${hiFreq.length} campanha(s) com frequência ≥ 3. Duplicar não renova fadiga — produza criativo novo.`,
+      });
+    }
+    const noTracking = (analysis.metrics ?? []).some((m) =>
+      /sem tracking|sem dados/i.test(m.status),
+    );
+    if (noTracking) {
+      out.push({
+        title: "Não decidir corte sem tracking validado",
+        reason: "Há métricas sem tracking. Corrigir mensuração antes de pausar campanhas evita falsos negativos.",
+      });
+    }
+    if (roasGap != null && roasGap < 0) {
+      out.push({
+        title: "Não escalar antes de fechar break-even",
+        reason: `ROAS observado está ${Math.abs(roasGap).toFixed(2)}x abaixo do ponto de equilíbrio. Escalar amplia o prejuízo unitário.`,
+      });
+    }
+    if ((analysis.budgetLeaks ?? []).length >= 2) {
+      out.push({
+        title: "Não focar só em criativo",
+        reason: "Há vazamentos estruturais identificados. Trocar criativo sem fechar o ralo só adia o problema.",
+      });
+    }
+    return out.slice(0, 5);
+  })();
 
+  // P7 — resumo executivo (texto plano para WhatsApp / e-mail / copy)
+  const execSummary = (() => {
+    const lines: string[] = [];
+    lines.push(`Diagnóstico Meta Ads — score ${score}/100 (${analysis.scoreLabel})`);
+    lines.push("");
+    if (topPriorities.length) {
+      lines.push("Top 3 prioridades:");
+      topPriorities.forEach((p, i) => lines.push(`${i + 1}. ${p.title}`));
+      lines.push("");
+    }
+    if (roasGap != null) {
+      lines.push(
+        `ROAS observado vs equilíbrio: ${roasGap >= 0 ? "+" : ""}${roasGap.toFixed(2)}x`,
+      );
+    }
+    if ((analysis.budgetLeaks ?? []).length) {
+      lines.push(`Vazamentos identificados: ${analysis.budgetLeaks!.length}`);
+    }
+    const firstAction = (analysis.actionPlan ?? [])
+      .slice()
+      .sort((a, b) => (a.step ?? 0) - (b.step ?? 0))[0];
+    if (firstAction) {
+      lines.push("");
+      lines.push(`Próximo passo: ${firstAction.action} (${firstAction.eta})`);
+    }
+    lines.push("");
+    lines.push(`Relatório completo: ${typeof window !== "undefined" ? window.location.href : ""}`);
+    return lines.join("\n");
+  })();
+
+  async function copyExecSummary() {
+    try {
+      await navigator.clipboard.writeText(execSummary);
+      setSummaryMsg("Resumo copiado!");
+      trackEvent("summary_copy");
+    } catch {
+      setSummaryMsg("Não foi possível copiar.");
+    }
+    setTimeout(() => setSummaryMsg(null), 2500);
+  }
+
+  function shareSummaryWhatsApp() {
+    trackEvent("summary_whatsapp");
+    const url = `https://wa.me/?text=${encodeURIComponent(execSummary)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  function shareSummaryEmail() {
+    trackEvent("summary_email");
+    const subject = encodeURIComponent(`Diagnóstico Meta Ads — score ${score}/100`);
+    const body = encodeURIComponent(execSummary);
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  }
 
 
   return (
