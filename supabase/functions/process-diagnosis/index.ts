@@ -4,11 +4,13 @@ import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 import { diagnosisAiBudgetExceeded } from "../_shared/ai-budget.ts";
 import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 import {
+  attachCommercialToFacts,
   buildFactsEnrichment,
   normalizeAnalysisV2,
 } from "../_shared/diagnosis/derive-analysis.ts";
+import { buildCommercialDerived } from "../_shared/diagnosis/derive-commercial.ts";
 
-const PROMPT_VERSION = "diagnosis-ecommerce-v8";
+const PROMPT_VERSION = "diagnosis-ecommerce-v10";
 const AI_TIMEOUT_MS = 60_000;
 
 const SYSTEM_PROMPT = `És um auditor sênior de Meta Ads especializado em e-commerce brasileiro, com foco em eficiência de verba e escalabilidade. Respondes APENAS em PT-BR e APENAS com JSON válido (sem markdown, sem texto fora do JSON). Valores monetários sempre em BRL (a menos que facts.account_insights indique outra moeda).
@@ -67,16 +69,36 @@ const SYSTEM_PROMPT = `És um auditor sênior de Meta Ads especializado em e-com
 14. Cada criticalIssue sobre campanha deve citar: nome, family_label_pt, KPI observado (ex.: "ROAS 4,2x" ou "custo por alcance R$ 3,14 / 1k").
 15. O servidor preenche metrics, campaignBreakdown, accountObjectiveSummary e score — o teu JSON de narrativa deve ser coerente com esses campos, não contradizê-los.
 
-Tom: direto, técnico mas legível por dono de e-commerce — sem jargão excessivo.
+Tom: consultivo e persuasivo para dono de e-commerce — traduz jargão ("sem tracking" → "vendas que a Meta não consegue atribuir"). O servidor já calcula score, métricas, financialImpact e storyExecutive — não contradigas esses números.
+
+## NARRATIVA COMERCIAL (v10 — CRÍTICO)
+16. O user prompt inclui commercial_derived com top_findings[], financial_balance, perda mensal e benchmarks. NUNCA alteres valores BRL de top_findings — são fonte de verdade do servidor.
+17. PROIBIDO: "você já sabe onde está o problema", "até R$ X em risco" sem nome de campanha quando top_findings existir, conclusões vazias.
+18. verdictLine: UMA frase (≤220 caracteres) — veredito editorial; NÃO repita literalmente storyExecutive.headline; cite campanha #1 de top_findings com valor em R$ quando severity for critical/warning.
+19. narrativeHook: 1 frase complementar ao verdictLine (não duplicar o mesmo texto).
+20. summary: 3–4 frases — situação → risco (R$ + campanha) → recuperação → próximo passo.
+21. executiveSummary.oneLiner DEVE citar top_findings[0].campaignName e monthlyImpactFormatted quando aplicável.
+22. Cada criticalIssue: cause, consequence, description; financialNote alinhado ao top_findings ou waste.lines (mesmos números).
+23. budgetLeaks: monthlyBrl e estimateNote com campanha + R$ quando derivável.
 
 ## SCHEMA DE SAÍDA (JSON estrito, todos os campos obrigatórios)
 {
   "score": number,
   "scoreLabel": string,
+  "verdictLine": string,
+  "narrativeHook": string,
+  "executiveSummary": { "strengths": string[], "risks": string[], "oneLiner": string },
   "summary": string,
   "metrics": [{ "name": string, "current": string, "reference": string, "status": "ok"|"warn"|"bad" }],
-  "criticalIssues": [{ "title": string, "description": string, "priority": "high"|"medium"|"low" }],
-  "budgetLeaks": [{ "title": string, "estimateNote": string, "hint": string }],
+  "criticalIssues": [{
+    "title": string,
+    "description": string,
+    "cause": string,
+    "consequence": string,
+    "financialNote": string|null,
+    "priority": "high"|"medium"|"low"
+  }],
+  "budgetLeaks": [{ "title": string, "estimateNote": string, "hint": string, "monthlyBrl": number|null }],
   "opportunities": [{ "title": string, "potentialNote": string, "complexity": "quick"|"medium"|"advanced" }],
   "creativesSummary": { "best": string|null, "worst": string|null, "recommendation": string },
   "audiencesSummary": { "segmentation": string, "notes": string[] },
@@ -97,7 +119,24 @@ Tom: direto, técnico mas legível por dono de e-commerce — sem jargão excess
 O disclaimer deve ser honesto sobre as limitações da análise face aos dados disponíveis.`;
 
 function buildUserPrompt(facts: Record<string, unknown>): string {
-  return `Dados normalizados (facts_json):\n${JSON.stringify(facts).slice(0, 120000)}`;
+  const commercial =
+    facts.commercial_derived ?? buildCommercialDerived(facts);
+  const compact = {
+    top_findings: commercial.topFindings,
+    financial_balance: commercial.financialBalance,
+    story_executive: commercial.storyExecutive,
+    waste: commercial.waste,
+    recovery: commercial.recovery,
+    benchmark_comparison: commercial.benchmarkComparison,
+    account_economics: commercial.accountEconomics,
+  };
+  return [
+    "commercial_derived (fonte única para valores em R$ — não invente outros):",
+    JSON.stringify(compact).slice(0, 28000),
+    "",
+    "facts_json:",
+    JSON.stringify(facts).slice(0, 90000),
+  ].join("\n");
 }
 
 function extractJsonFromText(text: string): unknown {
@@ -112,9 +151,13 @@ function validateAnalysis(obj: unknown): boolean {
   const o = obj as Record<string, unknown>;
   if (typeof o.score !== "number") return false;
   if (typeof o.summary !== "string") return false;
-  if (!Array.isArray(o.criticalIssues)) return false;
+  if (typeof o.narrativeHook !== "string" || !o.narrativeHook.trim()) return false;
+  if (typeof o.verdictLine !== "string" || !String(o.verdictLine).trim()) return false;
+  if (!Array.isArray(o.criticalIssues) || o.criticalIssues.length < 1) return false;
   if (!Array.isArray(o.actionPlan)) return false;
   if (typeof o.disclaimer !== "string") return false;
+  const ex = o.executiveSummary as Record<string, unknown> | undefined;
+  if (!ex || !Array.isArray(ex.strengths) || !Array.isArray(ex.risks)) return false;
   return true;
 }
 
@@ -493,6 +536,17 @@ Deno.serve(async (req) => {
           updated_at: new Date().toISOString(),
         });
         factsForAnalysis = facts as unknown as Record<string, unknown>;
+      }
+
+      if (factsForAnalysis) {
+        attachCommercialToFacts(factsForAnalysis);
+        await sb
+          .from("diagnosis_reports")
+          .update({
+            facts_json: factsForAnalysis,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("diagnosis_id", id);
       }
 
       if (!analysisExisting) {

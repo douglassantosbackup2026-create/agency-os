@@ -12,72 +12,29 @@ import {
   matchNicheKey,
 } from "@/lib/diagnosis-benchmarks";
 import { useManagementCheckout } from "@/hooks/use-management-checkout";
+import { DiagnosisAuthoritySection } from "@/components/diagnosis-report/DiagnosisAuthoritySection";
+import { DiagnosisBenchmarkMetrics } from "@/components/diagnosis-report/DiagnosisBenchmarkMetrics";
+import { DiagnosisFinancialBalance } from "@/components/diagnosis-report/DiagnosisFinancialBalance";
+import { DiagnosisPrintCover } from "@/components/diagnosis-report/DiagnosisPrintCover";
+import { DiagnosisReportShell } from "@/components/diagnosis-report/DiagnosisReportShell";
+import { DiagnosisTopFindings } from "@/components/diagnosis-report/DiagnosisTopFindings";
+import { DiagnosisVerdictHero } from "@/components/diagnosis-report/DiagnosisVerdictHero";
+import type { DiagnosisAnalysis } from "@/components/diagnosis-report/types";
+import {
+  buildClientFinancialBalance,
+  buildClientTopFindings,
+  isLegacyReport,
+} from "@/lib/diagnosis-report-fallback";
 import "@/styles/diagnosis.css";
+
+const GESTAO_URGENCY_TEXT =
+  import.meta.env.VITE_GESTAO_URGENCY_TEXT?.trim() ||
+  "Condição especial para as próximas 2 operações";
 
 
 type DiagnosticoSearch = { s?: string; gestaoCheckout?: string };
 
-type Analysis = {
-  score: number;
-  scoreLabel: string;
-  summary: string;
-  metrics?: {
-    name: string;
-    current: string;
-    reference: string;
-    status: string;
-  }[];
-  criticalIssues?: { title: string; description: string; priority: string }[];
-  budgetLeaks?: { title: string; estimateNote: string; hint: string }[];
-  opportunities?: {
-    title: string;
-    potentialNote: string;
-    complexity: string;
-  }[];
-  creativesSummary?: { best: string | null; worst: string | null; recommendation: string };
-  audiencesSummary?: { segmentation: string; notes: string[] };
-  structureNotes?: string[];
-  actionPlan?: { step: number; action: string; impact: string; eta: string }[];
-  improvementScenario?: { note: string; confidence: string };
-  campaignBreakdown?: {
-    name: string;
-    spend: string;
-    roas: string;
-    ctr: string;
-    cpm: string;
-    frequency: string;
-    status: string;
-    objective_label?: string;
-    result_label?: string;
-    results_count?: string;
-    cost_per_result?: string;
-    status_reason?: string;
-  }[];
-  accountObjectiveSummary?: {
-    mixed_funnel: boolean;
-    sales_block: {
-      spend_formatted: string;
-      roas_formatted: string;
-      cpa_formatted: string;
-      campaign_count: number;
-    } | null;
-    by_family: {
-      family: string;
-      label: string;
-      spend_pct: number;
-      spend_formatted: string;
-      headline_kpi: string;
-    }[];
-  };
-  accountContextMetrics?: {
-    name: string;
-    current: string;
-    reference: string;
-    status: string;
-  }[];
-  dataLimitations?: string[];
-  disclaimer?: string;
-};
+type Analysis = DiagnosisAnalysis;
 
 type BusinessContext = {
   niche?: string | null;
@@ -123,6 +80,7 @@ function DiagnosticoReportPage() {
   const [simSpendInput, setSimSpendInput] = useState("");
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [summaryMsg, setSummaryMsg] = useState<string | null>(null);
+  const [scoreLegendOpen, setScoreLegendOpen] = useState(false);
 
   const [data, setData] = useState<{
     diagnosis?: {
@@ -135,6 +93,7 @@ function DiagnosticoReportPage() {
     report?: {
       analysis_json?: Analysis | null;
       management_cta_eligible?: boolean;
+      prompt_version?: string | null;
     } | null;
   } | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -188,7 +147,18 @@ function DiagnosticoReportPage() {
   }, [diagnosisId, s]);
 
   const analysis = data?.report?.analysis_json;
+  const reportPromptVersion = data?.report?.prompt_version;
   const savedContext = data?.diagnosis?.business_context ?? null;
+
+  const topFindings = useMemo(
+    () => (analysis ? buildClientTopFindings(analysis) : []),
+    [analysis],
+  );
+  const financialBalance = useMemo(
+    () => (analysis ? buildClientFinancialBalance(analysis) : null),
+    [analysis],
+  );
+  const legacyReport = isLegacyReport(reportPromptVersion);
 
   useEffect(() => {
     if (!savedContext) return;
@@ -199,6 +169,18 @@ function DiagnosticoReportPage() {
     setCtxNotes(savedContext.notes ?? "");
     setCtxSavedAt(savedContext.saved_at ?? null);
   }, [savedContext]);
+
+  useEffect(() => {
+    const loss = data?.report?.analysis_json?.financialImpact?.lossMonthlyBrl;
+    const rec =
+      data?.report?.analysis_json?.financialImpact?.recoveryConservativeBrl;
+    if (loss && loss > 0 && rec != null && rec > 0) {
+      setSimLeak(Math.min(100, Math.max(15, Math.round((rec / loss) * 100))));
+    }
+  }, [
+    data?.report?.analysis_json?.financialImpact?.lossMonthlyBrl,
+    data?.report?.analysis_json?.financialImpact?.recoveryConservativeBrl,
+  ]);
 
   async function trackCta() {
     if (!s) return;
@@ -256,6 +238,19 @@ function DiagnosticoReportPage() {
 
   function printReport() {
     trackEvent("print");
+    const root = document.querySelector(".diagnosis-report-root");
+    root?.classList.add("is-printing");
+    const details = document.querySelectorAll<HTMLDetailsElement>(
+      ".technical-details-block",
+    );
+    details.forEach((d) => {
+      d.open = true;
+    });
+    const cleanup = () => {
+      root?.classList.remove("is-printing");
+      window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup);
     window.print();
   }
 
@@ -510,7 +505,25 @@ function DiagnosticoReportPage() {
       analysis.campaignBreakdown?.some((c) => c.objective_label),
   );
 
+  const fi = analysis.financialImpact;
+  const story = analysis.storyExecutive;
+  const narrativeHook =
+    analysis.narrativeHook?.trim() ||
+    story?.headline ||
+    heroPain;
+  const executiveBrief = analysis.executiveSummary;
+
+  const nicheKey =
+    matchNicheKey(savedContext?.niche ?? null) ?? "ecom_geral";
+  const niche = NICHE_BENCHMARKS[nicheKey];
+  const serverBenchmarks = analysis.benchmarkComparison?.gaps ?? [];
+
   const tocItems: { id: string; label: string }[] = [];
+  tocItems.push({ id: "veredito", label: "Veredito" });
+  if (topFindings.length) tocItems.push({ id: "achados", label: "Achados" });
+  if (financialBalance) tocItems.push({ id: "financeiro", label: "Balanço" });
+  if (serverBenchmarks.length) tocItems.push({ id: "benchmark", label: "Mercado" });
+  tocItems.push({ id: "sec-authority", label: "Quem assina" });
   if (topPriorities.length) tocItems.push({ id: "sec-top", label: "Top 3 prioridades" });
   if (hasObjectiveV2) tocItems.push({ id: "sec-funnel", label: "Funil" });
   if (analysis.metrics?.length) tocItems.push({ id: "sec-metrics", label: "Métricas" });
@@ -554,10 +567,6 @@ function DiagnosticoReportPage() {
   const roasGap = observedRoas && breakevenRoas ? observedRoas - breakevenRoas : null;
   const hasInterpretation =
     Boolean(savedContext) && (breakevenRoas || salesNeeded || contributionAtGoal);
-
-  // P5 — benchmarks por nicho
-  const nicheKey = matchNicheKey(savedContext?.niche ?? null);
-  const niche = nicheKey ? NICHE_BENCHMARKS[nicheKey] : null;
 
   // P5 — gasto mensal estimado a partir das métricas (procura "Investimento", "Gasto" etc.)
   const spendMetric = analysis.metrics?.find((m) =>
@@ -665,11 +674,21 @@ function DiagnosticoReportPage() {
 
 
   // P7 — resumo executivo (texto plano para WhatsApp / e-mail / copy)
-  const execSummary = (() => {
+  const execSummaryPlain = (() => {
     const lines: string[] = [];
     lines.push(`Diagnóstico Meta Ads — score ${score}/100 (${analysis.scoreLabel})`);
     lines.push("");
-    if (topPriorities.length) {
+    if (analysis.verdictLine) {
+      lines.push(analysis.verdictLine);
+      lines.push("");
+    }
+    if (topFindings.length) {
+      lines.push("Top achados:");
+      topFindings.forEach((f) =>
+        lines.push(`${f.rank}. ${f.headline} (${f.monthlyImpactFormatted})`),
+      );
+      lines.push("");
+    } else if (topPriorities.length) {
       lines.push("Top 3 prioridades:");
       topPriorities.forEach((p, i) => lines.push(`${i + 1}. ${p.title}`));
       lines.push("");
@@ -696,7 +715,7 @@ function DiagnosticoReportPage() {
 
   async function copyExecSummary() {
     try {
-      await navigator.clipboard.writeText(execSummary);
+      await navigator.clipboard.writeText(execSummaryPlain);
       setSummaryMsg("Resumo copiado!");
       trackEvent("summary_copy");
     } catch {
@@ -707,70 +726,77 @@ function DiagnosticoReportPage() {
 
   function shareSummaryWhatsApp() {
     trackEvent("summary_whatsapp");
-    const url = `https://wa.me/?text=${encodeURIComponent(execSummary)}`;
+    const url = `https://wa.me/?text=${encodeURIComponent(execSummaryPlain)}`;
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
   function shareSummaryEmail() {
     trackEvent("summary_email");
     const subject = encodeURIComponent(`Diagnóstico Meta Ads — score ${score}/100`);
-    const body = encodeURIComponent(execSummary);
+    const body = encodeURIComponent(execSummaryPlain);
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   }
 
 
-  return (
-    <div className="diagnosis-funnel">
-      <div className="container">
-        <header className="card hero-card">
-          <span className="eyebrow">Diagnóstico Meta Ads</span>
-          <div
-            className="score-big"
-            style={{
-              color:
-                scoreTier === "low"
-                  ? "#dc2626"
-                  : scoreTier === "mid"
-                    ? "#d97706"
-                    : "#059669",
-            }}
-          >
-            {score}
-            <span style={{ fontSize: "1.5rem", color: "#94a3b8" }}>/100</span>
-          </div>
-          <div className={`score-bar score-${scoreTier}`}>
-            <span style={{ width: `${Math.max(4, Math.min(100, score))}%` }} />
-          </div>
-          <h1 style={{ margin: "0.25rem 0 0.5rem", fontSize: "1.5rem" }}>
-            {analysis.scoreLabel}
-          </h1>
-          <p className="hero-pain">{heroPain}</p>
-          <p style={{ margin: 0, color: "#334155" }}>{analysis.summary}</p>
-        </header>
+  const accountPrintLabel =
+    data?.diagnosis?.management_business_name?.trim() || undefined;
 
-        <div className="report-toolbar no-print" role="toolbar" aria-label="Ações do relatório">
-          <button type="button" className="toolbar-btn" onClick={() => void copyReportLink()}>
-            🔗 Copiar link
-          </button>
-          <button type="button" className="toolbar-btn" onClick={printReport}>
-            🖨️ Imprimir / Salvar PDF
-          </button>
-          <button
-            type="button"
-            className="toolbar-btn"
-            onClick={() => {
-              setSummaryOpen((v) => !v);
-              if (!summaryOpen) trackEvent("summary_open");
-            }}
-            aria-expanded={summaryOpen}
-          >
-            📤 Resumo executivo
-          </button>
-          <button type="button" className="toolbar-btn" onClick={downloadReminder}>
-            ⏰ Lembrar em 30 dias
-          </button>
-          {shareMsg ? <span className="toolbar-msg" role="status">{shareMsg}</span> : null}
-        </div>
+  return (
+    <DiagnosisReportShell
+      shareMsg={shareMsg}
+      summaryOpen={summaryOpen}
+      onCopyLink={() => void copyReportLink()}
+      onPrint={printReport}
+      onToggleSummary={() => {
+        setSummaryOpen((v) => !v);
+        if (!summaryOpen) trackEvent("summary_open");
+      }}
+      onReminder={downloadReminder}
+    >
+        <DiagnosisPrintCover
+          score={score}
+          scoreLabel={analysis.scoreLabel}
+          accountLabel={accountPrintLabel}
+        />
+
+        {legacyReport && !analysis.topFindings?.length ? (
+          <p className="legacy-report-banner no-print" role="status">
+            Relatório gerado antes da versão premium — reprocessar a análise para
+            achados por campanha com valores exatos.
+          </p>
+        ) : null}
+
+        <DiagnosisVerdictHero
+          analysis={analysis}
+          balance={financialBalance}
+          scoreTier={scoreTier}
+          scoreLegendOpen={scoreLegendOpen}
+          onToggleScoreLegend={() => setScoreLegendOpen((v) => !v)}
+        />
+
+        <DiagnosisTopFindings findings={topFindings} />
+
+        {financialBalance ? (
+          <DiagnosisFinancialBalance balance={financialBalance} />
+        ) : null}
+
+        {serverBenchmarks.length ? (
+          <DiagnosisBenchmarkMetrics
+            nicheLabel={analysis.benchmarkComparison?.nicheLabel ?? niche.label}
+            gaps={serverBenchmarks}
+          />
+        ) : null}
+
+        <DiagnosisAuthoritySection />
+
+        <section className="card summary-brief" id="sec-summary-text">
+          <p className="muted" style={{ margin: 0 }}>{analysis.summary}</p>
+          {executiveBrief?.oneLiner ? (
+            <p className="exec-one-liner" style={{ marginTop: "0.75rem" }}>
+              {executiveBrief.oneLiner}
+            </p>
+          ) : null}
+        </section>
 
         {summaryOpen ? (
           <section className="card summary-panel no-print" aria-label="Resumo executivo">
@@ -788,7 +814,7 @@ function DiagnosticoReportPage() {
             <p className="section-hint" style={{ marginTop: "0.25rem" }}>
               Uma página para compartilhar com sócio, gestor ou agência.
             </p>
-            <pre className="summary-text">{execSummary}</pre>
+            <pre className="summary-text">{execSummaryPlain}</pre>
             <div className="summary-actions">
               <button type="button" className="toolbar-btn" onClick={() => void copyExecSummary()}>
                 Copiar texto
@@ -821,8 +847,144 @@ function DiagnosticoReportPage() {
           </nav>
         ) : null}
 
+        {topPriorities.length ? (
+          <section className="card top-priorities" id="sec-top">
+            <h2>Top 3 prioridades</h2>
+            <p className="section-hint">
+              O que tratar primeiro, com base no impacto identificado.
+            </p>
+            <ol className="top-priorities-list">
+              {topPriorities.map((p, idx) => (
+                <li key={`${idx}-${p.title}`} className="top-priority-item">
+                  <div className="top-priority-num">{idx + 1}</div>
+                  <div className="top-priority-body">
+                    <div className="top-priority-title">{p.title}</div>
+                    <p className="muted" style={{ margin: "0.25rem 0 0.4rem" }}>
+                      {p.description}
+                    </p>
+                    <div className="top-priority-meta">
+                      <span className={`badge ${priorityBadge(p.meta)}`}>{p.meta}</span>
+                      <a href={p.href} className="top-priority-link">
+                        Ver detalhe →
+                      </a>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </section>
+        ) : null}
+
+        {analysis.criticalIssues?.length ? (
+          <section className="card" id="sec-issues">
+            <h2>O que está travando seu resultado</h2>
+            <p className="section-hint">
+              Causa, consequência e impacto — para você decidir com clareza.
+            </p>
+            {analysis.criticalIssues.map((i) => (
+              <div key={i.title} className="issue-card issue-card-v9">
+                <div className="issue-icon">⚠️</div>
+                <div className="issue-card-body">
+                  <h3>{i.title}</h3>
+                  <p className="muted" style={{ margin: "0 0 0.5rem" }}>{i.description}</p>
+                  {i.cause ? (
+                    <p className="issue-cause">
+                      <strong>Por quê:</strong> {i.cause}
+                    </p>
+                  ) : null}
+                  {i.consequence ? (
+                    <p className="issue-consequence">
+                      <strong>Impacto:</strong> {i.consequence}
+                    </p>
+                  ) : null}
+                  {i.financialNote ? (
+                    <p className="issue-financial">{i.financialNote}</p>
+                  ) : null}
+                  <span className={`badge ${priorityBadge(i.priority)}`}>
+                    {i.priority}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </section>
+        ) : null}
+
+        {analysis.budgetLeaks?.length ? (
+          <section className="card" id="sec-leaks">
+            <h2>Quanto isso custa por mês</h2>
+            <p className="section-hint">
+              Valores indicativos com base nos dados da sua conta (últimos 30 dias).
+            </p>
+            {analysis.budgetLeaks.map((b) => (
+              <div key={b.title} className="leak-card">
+                <div className="leak-icon">💸</div>
+                <div>
+                  <h3>{b.title}</h3>
+                  {b.monthlyBrl != null && b.monthlyBrl > 0 ? (
+                    <p className="leak-amount">
+                      ~{b.monthlyBrl.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}/mês
+                    </p>
+                  ) : null}
+                  <p style={{ margin: "0 0 0.35rem", fontWeight: 600, color: "#991b1b" }}>
+                    {b.estimateNote}
+                  </p>
+                  <p className="muted" style={{ margin: 0 }}>{b.hint}</p>
+                </div>
+              </div>
+            ))}
+            <div className="pain-line">
+              Some o que está acima — é o custo de adiar correções.
+            </div>
+          </section>
+        ) : null}
+
+        {antiPatterns.length ? (
+          <section className="card anti-card" id="sec-anti">
+            <h2>O que NÃO fazer agora</h2>
+            <p className="section-hint">
+              Armadilhas comuns que estragam o ganho das correções.
+            </p>
+            <ul className="anti-list">
+              {antiPatterns.map((a) => (
+                <li key={a.title} className="anti-item">
+                  <span className="anti-icon" aria-hidden>🚫</span>
+                  <div>
+                    <div className="anti-title">{a.title}</div>
+                    <p className="muted" style={{ margin: "0.15rem 0 0" }}>{a.reason}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {analysis.opportunities?.length ? (
+          <section className="card" id="sec-opps">
+            <h2>Potencial de ganho</h2>
+            <p className="section-hint">
+              Oportunidades observadas nos seus dados — não são promessa de resultado.
+            </p>
+            {analysis.opportunities.map((o) => (
+              <div key={o.title} className="opp-card">
+                <div className="opp-icon">📈</div>
+                <div>
+                  <h3>{o.title}</h3>
+                  <p className="muted" style={{ margin: 0 }}>{o.potentialNote}</p>
+                </div>
+                <span className="badge badge-medium">{o.complexity}</span>
+              </div>
+            ))}
+          </section>
+        ) : null}
+
+        <details className="card technical-details-block" id="sec-technical">
+          <summary className="technical-details-summary">
+            Detalhe técnico — campanhas, métricas e estrutura
+          </summary>
+          <div className="technical-details-inner">
+
         {hasObjectiveV2 && analysis.accountObjectiveSummary ? (
-          <section className="card" id="sec-funnel">
+          <section className="card technical-inner-card" id="sec-funnel">
             <h2>Como sua conta está organizada</h2>
             <p className="section-hint">
               Avaliação por objetivo de campanha (como no Gerenciador de Anúncios da Meta).
@@ -853,36 +1015,8 @@ function DiagnosticoReportPage() {
           </section>
         ) : null}
 
-        {topPriorities.length ? (
-          <section className="card top-priorities" id="sec-top">
-            <h2>Top 3 prioridades</h2>
-            <p className="section-hint">
-              O que tratar primeiro, com base no impacto identificado.
-            </p>
-            <ol className="top-priorities-list">
-              {topPriorities.map((p, idx) => (
-                <li key={`${idx}-${p.title}`} className="top-priority-item">
-                  <div className="top-priority-num">{idx + 1}</div>
-                  <div className="top-priority-body">
-                    <div className="top-priority-title">{p.title}</div>
-                    <p className="muted" style={{ margin: "0.25rem 0 0.4rem" }}>
-                      {p.description}
-                    </p>
-                    <div className="top-priority-meta">
-                      <span className={`badge ${priorityBadge(p.meta)}`}>{p.meta}</span>
-                      <a href={p.href} className="top-priority-link">
-                        Ver detalhe →
-                      </a>
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </section>
-        ) : null}
-
         {analysis.metrics?.length ? (
-          <section className="card" id="sec-metrics">
+          <section className="card technical-inner-card" id="sec-metrics">
             <h2>Onde seu dinheiro está agora</h2>
             <p className="section-hint">
               {hasObjectiveV2
@@ -936,8 +1070,8 @@ function DiagnosticoReportPage() {
               </p>
             ) : (
               <p className="section-hint" style={{ marginTop: "0.75rem" }}>
-                Informe seu nicho em <a href="#sec-business">Contexto de negócio</a>{" "}
-                para ver faixas de referência específicas ao seu segmento.
+                Faixas de referência para <strong>{niche.label}</strong> (padrão).
+                Refine em <a href="#sec-business">Contexto de negócio</a> para outro segmento.
               </p>
             )}
             <div className="pain-line">
@@ -985,7 +1119,7 @@ function DiagnosticoReportPage() {
 
 
         {analysis.campaignBreakdown?.length ? (
-          <section className="card" id="sec-campaigns">
+          <section className="card technical-inner-card" id="sec-campaigns">
             <h2>Desempenho por campanha</h2>
             <p className="section-hint">
               Top campanhas por gasto nos últimos 30 dias — objetivo, resultado
@@ -1086,97 +1220,8 @@ function DiagnosticoReportPage() {
           </section>
         ) : null}
 
-        {analysis.criticalIssues?.length ? (
-          <section className="card" id="sec-issues">
-            <h2>Os buracos no seu funil</h2>
-            <p className="section-hint">
-              Cada um desses pontos está ativo agora — enquanto você lê isso.
-            </p>
-            {analysis.criticalIssues.map((i) => (
-              <div key={i.title} className="issue-card">
-                <div className="issue-icon">⚠️</div>
-                <div>
-                  <h3>{i.title}</h3>
-                  <p className="muted" style={{ margin: "0 0 0.5rem" }}>
-                    {i.description}
-                  </p>
-                  <span className={`badge ${priorityBadge(i.priority)}`}>
-                    {i.priority}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </section>
-        ) : null}
-
-        {analysis.budgetLeaks?.length ? (
-          <section className="card" id="sec-leaks">
-            <h2>Quanto você está queimando por mês</h2>
-            <p className="section-hint">
-              Estimativas baseadas no histórico recente da sua conta.
-            </p>
-            {analysis.budgetLeaks.map((b) => (
-              <div key={b.title} className="leak-card">
-                <div className="leak-icon">💸</div>
-                <div>
-                  <h3>{b.title}</h3>
-                  <p style={{ margin: "0 0 0.35rem", fontWeight: 600, color: "#991b1b" }}>
-                    {b.estimateNote}
-                  </p>
-                  <p className="muted" style={{ margin: 0 }}>{b.hint}</p>
-                </div>
-              </div>
-            ))}
-            <div className="pain-line">
-              Some o que está aí em cima — é o custo mensal de não corrigir.
-            </div>
-          </section>
-        ) : null}
-
-        {antiPatterns.length ? (
-          <section className="card anti-card" id="sec-anti">
-            <h2>O que NÃO fazer agora</h2>
-            <p className="section-hint">
-              Armadilhas comuns que estragam o ganho das correções. Evite
-              estes movimentos enquanto executa o plano.
-            </p>
-            <ul className="anti-list">
-              {antiPatterns.map((a) => (
-                <li key={a.title} className="anti-item">
-                  <span className="anti-icon" aria-hidden>🚫</span>
-                  <div>
-                    <div className="anti-title">{a.title}</div>
-                    <p className="muted" style={{ margin: "0.15rem 0 0" }}>{a.reason}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-
-
-        {analysis.opportunities?.length ? (
-          <section className="card" id="sec-opps">
-            <h2>O que você está deixando na mesa</h2>
-            <p className="section-hint">
-              Receita que existe na sua conta mas ainda não foi ativada.
-            </p>
-            {analysis.opportunities.map((o) => (
-              <div key={o.title} className="opp-card">
-                <div className="opp-icon">📈</div>
-                <div>
-                  <h3>{o.title}</h3>
-                  <p className="muted" style={{ margin: 0 }}>{o.potentialNote}</p>
-                </div>
-                <span className="badge badge-medium">{o.complexity}</span>
-              </div>
-            ))}
-          </section>
-        ) : null}
-
         {analysis.creativesSummary ? (
-          <section className="card" id="sec-creatives">
+          <section className="card technical-inner-card" id="sec-creatives">
             <h2>Criativos: o que vende e o que queima</h2>
             <p className="section-hint">
               O que está funcionando — e o que está sugando budget.
@@ -1206,7 +1251,7 @@ function DiagnosticoReportPage() {
         ) : null}
 
         {analysis.audiencesSummary ? (
-          <section className="card" id="sec-audiences">
+          <section className="card technical-inner-card" id="sec-audiences">
             <h2>Você está falando com as pessoas erradas?</h2>
             <p style={{ marginTop: 0 }}>
               <strong>{analysis.audiencesSummary.segmentation}</strong>
@@ -1220,7 +1265,7 @@ function DiagnosticoReportPage() {
         ) : null}
 
         {analysis.structureNotes?.length ? (
-          <section className="card" id="sec-structure">
+          <section className="card technical-inner-card" id="sec-structure">
             <h2>A fundação da conta</h2>
             <p className="section-hint">
               Sem isso ajustado, nenhuma otimização se sustenta.
@@ -1232,6 +1277,9 @@ function DiagnosticoReportPage() {
             </ul>
           </section>
         ) : null}
+
+          </div>
+        </details>
 
         {analysis.actionPlan?.length ? (() => {
           const planItems = [...analysis.actionPlan].sort(
@@ -1657,8 +1705,6 @@ function DiagnosticoReportPage() {
           </section>
         ) : null}
 
-
-
         {data.report?.management_cta_eligible ? (
           <section className="card cta-pain" id="sec-cta">
             <span className="cta-stamp">Recomendado pela análise</span>
@@ -1695,15 +1741,18 @@ function DiagnosticoReportPage() {
               </>
             ) : (
               <>
-                <h2>Você já sabe onde está o problema.</h2>
+                <h2>
+                  {(fi?.lossMonthlyBrl ?? 0) > 0
+                    ? `${fi?.lossMonthlyFormatted ?? story?.lossMonthlyFormatted} ainda em risco — quem corrige isso com você?`
+                    : "Seu diagnóstico apontou gargalos — vamos fechá-los juntos?"}
+                </h2>
                 <p style={{ marginTop: "0.5rem" }}>
-                  Agora a decisão é simples.
+                  Você pode executar o plano internamente. Ou ter uma equipe
+                  especializada aplicando as correções deste relatório todos os dias.
                 </p>
                 <p>
-                  Você pode continuar gerenciando essas correções
-                  internamente. Ou pode ter uma equipe acompanhando sua
-                  aquisição todos os dias para garantir que esses gargalos
-                  não continuem consumindo resultado.
+                  Cada semana sem ajuste em campanhas críticas mantém a mesma
+                  ineficiência no ar — e o leilão da Meta não espera.
                 </p>
                 <p>
                   O diagnóstico mostrou exatamente onde sua operação está
@@ -1756,7 +1805,7 @@ function DiagnosticoReportPage() {
 
                 <div className="vagas-box">
                   <h3 style={{ marginTop: 0 }}>
-                    Condição especial para as próximas 2 operações
+                    {GESTAO_URGENCY_TEXT}
                   </h3>
                   <p>
                     Nossa gestão completa possui investimento de{" "}
@@ -1866,7 +1915,6 @@ function DiagnosticoReportPage() {
         <p className="muted" style={{ fontSize: "0.8rem", textAlign: "center" }}>
           {analysis.disclaimer}
         </p>
-      </div>
-    </div>
+    </DiagnosisReportShell>
   );
 }

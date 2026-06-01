@@ -1237,3 +1237,604 @@
   font-weight: 600;
   color: #92400e;
 }
+
+/* v9 — narrativa comercial / AIDA */
+.diagnosis-funnel .narrative-hook {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.45;
+  margin: 0.5rem 0 1rem;
+}
+.diagnosis-funnel .hero-score-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .diagnosis-funnel .hero-score-row {
+    grid-template-columns: 1fr;
+  }
+}
+.diagnosis-funnel .money-at-stake {
+  background: linear-gradient(135deg, #fef2f2 0%, #fff 100%);
+  border: 1px solid #fecaca;
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+}
+.diagnosis-funnel .money-at-stake-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #991b1b;
+  font-weight: 600;
+}
+.diagnosis-funnel .money-at-stake-loss {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #b91c1c;
+  line-height: 1.2;
+  margin-top: 0.35rem;
+}
+.diagnosis-funnel .money-at-stake-sub {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #7f1d1d;
+  margin-top: 0.25rem;
+}
+.diagnosis-funnel .score-legend-toggle {
+  background: none;
+  border: none;
+  color: #4f46e5;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+.diagnosis-funnel .score-legend-panel {
+  margin-top: 0.5rem;
+  padding: 0.65rem 0.75rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+.diagnosis-funnel .score-pillars {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.82rem;
+}
+.diagnosis-funnel .exec-dashboard {
+  border-top: 3px solid #4f46e5;
+}
+.diagnosis-funnel .exec-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+@media (max-width: 900px) {
+  .diagnosis-funnel .exec-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+.diagnosis-funnel .exec-kpi {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.diagnosis-funnel .exec-kpi-danger {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+.diagnosis-funnel .exec-kpi-success {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+.diagnosis-funnel .exec-kpi-label {
+  font-size: 0.72rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.diagnosis-funnel .exec-kpi-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+.diagnosis-funnel .before-after-bars {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0.5rem 0 1rem;
+}
+.diagnosis-funnel .bar-row {
+  display: grid;
+  grid-template-columns: 140px 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.85rem;
+}
+@media (max-width: 600px) {
+  .diagnosis-funnel .bar-row {
+    grid-template-columns: 1fr;
+  }
+}
+.diagnosis-funnel .bar-track {
+  height: 10px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.diagnosis-funnel .bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+.diagnosis-funnel .bar-fill-risk {
+  background: #ef4444;
+}
+.diagnosis-funnel .bar-fill-gain {
+  background: #22c55e;
+}
+.diagnosis-funnel .exec-summary-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+@media (max-width: 600px) {
+  .diagnosis-funnel .exec-summary-cols {
+    grid-template-columns: 1fr;
+  }
+}
+.diagnosis-funnel .exec-col-title {
+  font-size: 0.9rem;
+  margin: 0 0 0.35rem;
+}
+.diagnosis-funnel .exec-one-liner {
+  margin: 1rem 0 0;
+  font-weight: 600;
+  color: #334155;
+}
+.diagnosis-funnel .benchmark-gap-grid {
+  display: grid;
+  gap: 0.65rem;
+}
+.diagnosis-funnel .benchmark-gap-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  background: #fff;
+}
+.diagnosis-funnel .benchmark-gap-card.is-bad {
+  border-color: #fecaca;
+  background: #fffbfb;
+}
+.diagnosis-funnel .benchmark-gap-card.is-good {
+  border-color: #a7f3d0;
+  background: #f0fdf4;
+}
+.diagnosis-funnel .benchmark-gap-metric {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.diagnosis-funnel .benchmark-gap-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
+}
+.diagnosis-funnel .technical-details-block {
+  border: 1px dashed #cbd5e1;
+  background: #fafafa;
+}
+.diagnosis-funnel .technical-details-summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.25rem;
+}
+.diagnosis-funnel .technical-details-inner {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 1rem;
+}
+.diagnosis-funnel .technical-inner-card {
+  box-shadow: none;
+  margin: 0;
+}
+.diagnosis-funnel .issue-card-v9 .issue-cause,
+.diagnosis-funnel .issue-card-v9 .issue-consequence {
+  font-size: 0.88rem;
+  margin: 0.35rem 0;
+}
+.diagnosis-funnel .issue-financial {
+  font-weight: 600;
+  color: #b91c1c;
+  font-size: 0.9rem;
+  margin: 0.35rem 0 0.5rem;
+}
+.diagnosis-funnel .leak-amount {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #b91c1c;
+  margin: 0 0 0.25rem;
+}
+.diagnosis-funnel .authority-card {
+  border-left: 4px solid #4f46e5;
+}
+.diagnosis-funnel .authority-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin: 0.25rem 0;
+}
+.diagnosis-funnel .authority-credentials {
+  margin: 0.5rem 0 1rem;
+  padding-left: 1.2rem;
+  font-size: 0.88rem;
+}
+.diagnosis-funnel .authority-para {
+  font-size: 0.9rem;
+  color: #475569;
+}
+.diagnosis-funnel .social-proof-mini {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+.diagnosis-funnel .social-proof-disclaimer {
+  font-size: 0.75rem;
+}
+.diagnosis-funnel .proof-quote {
+  margin: 0.75rem 0 0;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border-left: 3px solid #6366f1;
+  font-size: 0.88rem;
+}
+.diagnosis-funnel .proof-quote footer {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+/* v10 — veredito editorial + tokens */
+.diagnosis-funnel {
+  --diag-score-low: #dc2626;
+  --diag-score-mid: #d97706;
+  --diag-score-high: #059669;
+  --diag-amber: #d97706;
+  --diag-border: #e2e8f0;
+  --diag-surface: #ffffff;
+  --diag-muted: #64748b;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+.diagnosis-report-root .report-toolbar-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0.65rem 0;
+  margin-bottom: 0.75rem;
+  background: rgba(248, 250, 252, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--diag-border);
+}
+.diagnosis-report-root .toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.diagnosis-funnel .legacy-report-banner {
+  font-size: 0.85rem;
+  padding: 0.65rem 1rem;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  color: #92400e;
+}
+
+.diagnosis-funnel .verdict-hero {
+  border-top: 4px solid #4f46e5;
+  background: linear-gradient(180deg, #fafafa 0%, var(--diag-surface) 40%);
+}
+.diagnosis-funnel .verdict-score-block {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .diagnosis-funnel .verdict-score-block {
+    grid-template-columns: 1fr;
+  }
+}
+.diagnosis-funnel .verdict-score-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--diag-muted);
+  margin: 0;
+}
+.diagnosis-funnel .score-denom {
+  font-size: 1.5rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+.diagnosis-funnel .verdict-score-badge {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+.diagnosis-funnel .verdict-kpi-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.diagnosis-funnel .verdict-kpi {
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid var(--diag-border);
+  background: #f8fafc;
+}
+.diagnosis-funnel .verdict-kpi-risk {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+.diagnosis-funnel .verdict-kpi-gain {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+.diagnosis-funnel .verdict-kpi-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--diag-muted);
+}
+.diagnosis-funnel .verdict-kpi-value {
+  font-size: 1.35rem;
+  font-weight: 800;
+  display: block;
+}
+.diagnosis-funnel .verdict-kpi-value-sm {
+  font-size: 1rem;
+}
+.diagnosis-funnel .verdict-line {
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.45;
+  margin: 1rem 0 0.35rem;
+  color: #0f172a;
+}
+.diagnosis-funnel .verdict-sub {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.diagnosis-funnel .findings-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0;
+}
+.diagnosis-funnel .findings-title-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--diag-amber);
+}
+.diagnosis-funnel .findings-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.diagnosis-funnel .finding-row {
+  display: grid;
+  grid-template-columns: 2rem 1fr auto;
+  gap: 0.75rem;
+  align-items: start;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid var(--diag-border);
+  background: #fafafa;
+}
+.diagnosis-funnel .finding-row.severity-critical {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+.diagnosis-funnel .finding-rank {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #4f46e5;
+}
+.diagnosis-funnel .finding-headline {
+  margin: 0 0 0.35rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+.diagnosis-funnel .finding-action {
+  margin: 0.5rem 0 0;
+  font-size: 0.88rem;
+}
+.diagnosis-funnel .finding-impact {
+  font-weight: 800;
+  color: #b91c1c;
+  white-space: nowrap;
+  font-size: 0.95rem;
+}
+
+.diagnosis-funnel .balance-sheet {
+  border-left: 4px solid #0ea5e9;
+}
+.diagnosis-funnel .balance-grid {
+  display: grid;
+  gap: 0.5rem;
+}
+.diagnosis-funnel .balance-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #f1f5f9;
+  font-size: 0.92rem;
+}
+.diagnosis-funnel .balance-line-risk strong {
+  color: #b91c1c;
+}
+.diagnosis-funnel .balance-line-gain strong {
+  color: #059669;
+}
+.diagnosis-funnel .allocation-bar {
+  margin-top: 1rem;
+}
+.diagnosis-funnel .allocation-track {
+  display: flex;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #e2e8f0;
+}
+.diagnosis-funnel .allocation-seg {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+}
+.diagnosis-funnel .allocation-profit {
+  background: #059669;
+}
+.diagnosis-funnel .allocation-risk {
+  background: #dc2626;
+}
+.diagnosis-funnel .allocation-recover {
+  background: #6366f1;
+}
+.diagnosis-funnel .allocation-legend {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--diag-muted);
+}
+.diagnosis-funnel .allocation-legend i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  margin-right: 0.25rem;
+  vertical-align: middle;
+}
+.diagnosis-funnel .leg-profit {
+  background: #059669;
+}
+.diagnosis-funnel .leg-risk {
+  background: #dc2626;
+}
+.diagnosis-funnel .leg-recover {
+  background: #6366f1;
+}
+
+.diagnosis-funnel .metric-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.diagnosis-funnel .metric-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--diag-border);
+}
+.diagnosis-funnel .metric-row.is-bad {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+.diagnosis-funnel .metric-row-name {
+  font-weight: 600;
+  display: block;
+}
+.diagnosis-funnel .metric-row-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #059669;
+}
+.diagnosis-funnel .metric-row-delta.is-bad {
+  color: #dc2626;
+}
+.diagnosis-funnel .metric-row-delta-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+.diagnosis-funnel .print-cover {
+  display: none;
+}
+.diagnosis-funnel.is-printing .technical-details-block {
+  display: block;
+}
+.diagnosis-funnel.is-printing .technical-details-block[open] summary {
+  list-style: none;
+}
+
+@media print {
+  .diagnosis-funnel .print-cover {
+    display: block;
+    min-height: 100vh;
+    page-break-after: always;
+    padding: 2rem;
+    box-sizing: border-box;
+  }
+  .diagnosis-funnel .print-cover-inner {
+    max-width: 32rem;
+    margin: 0 auto;
+    text-align: center;
+    padding-top: 4rem;
+  }
+  .diagnosis-funnel .print-cover-brand {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #64748b;
+  }
+  .diagnosis-funnel .print-cover-title {
+    font-size: 2rem;
+    margin: 1rem 0 0.5rem;
+  }
+  .diagnosis-funnel .print-cover-score-num {
+    font-size: 4rem;
+    font-weight: 800;
+    color: #d97706;
+  }
+  .diagnosis-funnel .print-cover-disclaimer {
+    margin-top: 3rem;
+    font-size: 0.75rem;
+    color: #64748b;
+  }
+  .diagnosis-funnel .no-print,
+  .diagnosis-funnel .report-toolbar-sticky,
+  .diagnosis-funnel .legacy-report-banner {
+    display: none !important;
+  }
+  .diagnosis-funnel .card {
+    break-inside: avoid;
+  }
+}

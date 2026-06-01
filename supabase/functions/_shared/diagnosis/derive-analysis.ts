@@ -12,6 +12,10 @@ import {
   labelFamilyPt,
   num,
 } from "./campaign-objective.ts";
+import {
+  buildCommercialDerived,
+  commercialToAnalysisFields,
+} from "./derive-commercial.ts";
 
 export type { DerivedStatus };
 
@@ -483,5 +487,56 @@ export function normalizeAnalysisV2(
     };
   }
 
+  const commercial = buildCommercialDerived(facts ?? null);
+  const commercialFields = commercialToAnalysisFields(commercial);
+  Object.assign(obj, commercialFields);
+
+  if (typeof obj.narrativeHook !== "string" || !String(obj.narrativeHook).trim()) {
+    obj.narrativeHook = commercial.storyExecutive.headline;
+  }
+  if (typeof obj.verdictLine !== "string" || !String(obj.verdictLine).trim()) {
+    const first = commercial.topFindings[0];
+    obj.verdictLine = first
+      ? `${first.headline}. ${commercial.financialBalance.netPositionLabel}`.slice(0, 220)
+      : commercial.storyExecutive.headline.slice(0, 220);
+  }
+  if (!obj.executiveSummary || typeof obj.executiveSummary !== "object") {
+    obj.executiveSummary = {
+      strengths: [],
+      risks: [],
+      oneLiner: commercial.recovery.basisNote,
+    };
+  }
+  const issues = obj.criticalIssues as Record<string, unknown>[];
+  for (const issue of issues) {
+    if (typeof issue.cause !== "string" || !issue.cause.trim()) {
+      issue.cause =
+        "Combinação de configuração da campanha, objetivo declarado na Meta e desempenho observado no período.";
+    }
+    if (typeof issue.consequence !== "string" || !issue.consequence.trim()) {
+      issue.consequence =
+        "Reduz previsibilidade de resultado e pode elevar custo por venda ou desperdiçar verba em funil incorreto.";
+    }
+  }
+  if (!obj.improvementScenario || typeof obj.improvementScenario !== "object") {
+    obj.improvementScenario = {
+      note: commercial.recovery.basisNote,
+      confidence: commercial.recovery.confidence,
+    };
+  } else {
+    const prev = obj.improvementScenario as Record<string, unknown>;
+    if (!prev.note || String(prev.note).includes("insuficientes")) {
+      prev.note = commercial.recovery.basisNote;
+    }
+    if (!prev.confidence) prev.confidence = commercial.recovery.confidence;
+  }
+
   return obj;
+}
+
+export function attachCommercialToFacts(
+  facts: Record<string, unknown>,
+): Record<string, unknown> {
+  facts.commercial_derived = buildCommercialDerived(facts);
+  return facts;
 }

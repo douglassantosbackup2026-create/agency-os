@@ -46,6 +46,32 @@ No início de cada batch, a função chama `cleanup_stale_diagnosis_processing(3
 - **Código compartilhado:** `supabase/functions/_shared/diagnosis/campaign-objective.ts`, `derive-analysis.ts`.
 - **Testes:** `npm test -- supabase/functions/_shared/diagnosis/campaign-objective.test.ts`
 
+## Narrativa comercial / pitch consultoria (v9)
+
+- **Prompt:** `diagnosis-ecommerce-v9` — narrativa AIDA; `commercial_derived` no user prompt (perda/recuperação em R$ só do servidor).
+- **Facts:** `commercial_derived` em `facts_json` (economics, waste, recovery, benchmarks, scoreExplanation, storyExecutive).
+- **analysis_json:** `financialImpact`, `storyExecutive`, `scoreExplanation`, `benchmarkComparison`, `narrativeHook`, `executiveSummary`, `criticalIssues[].cause|consequence|financialNote`, `budgetLeaks[].monthlyBrl`.
+- **UI:** hero “Dinheiro em jogo”, resumo executivo, benchmark de mercado, cards causa→impacto, detalhe técnico colapsável, autoridade + CTA por perda mensal.
+- **Código:** `derive-commercial.ts` + testes `derive-commercial.test.ts`.
+- **Reprocessar:** relatórios com `prompt_version` &lt; v9 precisam de novo `process-diagnosis` (cron ou `POST` com `CRON_SECRET`).
+
+## Veredito editorial premium (v10)
+
+- **Prompt:** `diagnosis-ecommerce-v10` — `verdictLine` única; `top_findings` e `financial_balance` no user prompt (compacto); proibido alterar BRL do servidor.
+- **Servidor:** `derive-top-findings.ts`, `derive-financial-balance.ts`; `benchmarkComparison.gaps[]` com `deltaLabel` e `isBad`.
+- **analysis_json:** `topFindings`, `financialBalance`, `verdictLine` (fallback em `normalizeAnalysisV2` se IA omitir).
+- **UI:** veredito + top 3 achados por campanha + balanço 30d + benchmark com delta (Lucide); autoridade após benchmark; capa PDF em `@media print`; toolbar sticky sem emojis.
+- **Legado:** relatórios sem `topFindings` usam fallback no client + banner; reprocessar para v10.
+- **Testes:** `derive-top-findings.test.ts` + `derive-commercial.test.ts`.
+
+```bash
+npm test -- supabase/functions/_shared/diagnosis/
+npx supabase functions deploy process-diagnosis --project-ref uvuotaxikuxejfeitlaw
+# Worker (requer sessão Cloudflare): npx wrangler login && npm run ops:deploy-worker
+```
+
+**Reprocessar após v10:** qualquer relatório com `prompt_version != diagnosis-ecommerce-v10`.
+
 ### Validar conta mista (ex.: Conversão + Geo + Meio)
 
 1. Reprocessar diagnóstico (`process-diagnosis` ou novo checkout).
