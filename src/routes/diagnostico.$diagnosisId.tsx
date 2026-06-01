@@ -360,10 +360,7 @@ function DiagnosticoReportPage() {
           <p style={{ margin: 0, color: "#334155" }}>{analysis.summary}</p>
         </header>
 
-        {analysis.metrics?.length ? (
-          <section className="card">
-          <p style={{ margin: 0, color: "#334155" }}>{analysis.summary}</p>
-        </header>
+
 
         {tocItems.length > 1 ? (
           <nav className="report-toc" aria-label="Índice do relatório">
