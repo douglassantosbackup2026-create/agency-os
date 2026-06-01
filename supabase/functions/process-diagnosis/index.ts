@@ -666,18 +666,23 @@ Deno.serve(async (req) => {
 
     const { data: rep } = await sb
       .from("diagnosis_reports")
-      .select("facts_json, analysis_json")
+      .select("facts_json, analysis_json, prompt_version")
       .eq("diagnosis_id", id)
       .maybeSingle();
 
     let factsForAnalysis = rep?.facts_json as Record<string, unknown> | null;
-    const analysisExisting = rep?.analysis_json;
+    // Invalida análise antiga quando o prompt mudou (re-roda IA com facts atualizados).
+    const analysisExisting =
+      rep?.prompt_version === PROMPT_VERSION ? rep?.analysis_json : null;
 
     try {
       // P1 — facts enriquecidos com insights por campanha + top anúncios
-      const needsEnrichment =
-        !factsForAnalysis ||
-        !Array.isArray((factsForAnalysis as Record<string, unknown>).campaigns_insights);
+      const _f = factsForAnalysis as Record<string, unknown> | null;
+      const _hasCampaignInsights = Array.isArray(_f?.campaigns_insights);
+      const _hasAdsInsights =
+        Array.isArray(_f?.ads_insights_top) &&
+        (_f!.ads_insights_top as unknown[]).length > 0;
+      const needsEnrichment = !_f || !_hasCampaignInsights || !_hasAdsInsights;
       if (needsEnrichment) {
         const account_insights = factsForAnalysis?.account_insights
           ? (factsForAnalysis.account_insights as Record<string, unknown>)
