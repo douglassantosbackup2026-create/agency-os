@@ -444,7 +444,7 @@ function DiagnosticoReportPage() {
         ) : null}
 
         {analysis.campaignBreakdown?.length ? (
-          <section className="card">
+          <section className="card" id="sec-campaigns">
             <h2>Desempenho por campanha</h2>
             <p className="section-hint">
               Top campanhas por gasto nos últimos 30 dias — onde o orçamento
@@ -501,7 +501,7 @@ function DiagnosticoReportPage() {
         ) : null}
 
         {analysis.criticalIssues?.length ? (
-          <section className="card">
+          <section className="card" id="sec-issues">
             <h2>Os buracos no seu funil</h2>
             <p className="section-hint">
               Cada um desses pontos está ativo agora — enquanto você lê isso.
@@ -524,7 +524,7 @@ function DiagnosticoReportPage() {
         ) : null}
 
         {analysis.budgetLeaks?.length ? (
-          <section className="card">
+          <section className="card" id="sec-leaks">
             <h2>Quanto você está queimando por mês</h2>
             <p className="section-hint">
               Estimativas baseadas no histórico recente da sua conta.
@@ -548,7 +548,7 @@ function DiagnosticoReportPage() {
         ) : null}
 
         {analysis.opportunities?.length ? (
-          <section className="card">
+          <section className="card" id="sec-opps">
             <h2>O que você está deixando na mesa</h2>
             <p className="section-hint">
               Receita que existe na sua conta mas ainda não foi ativada.
@@ -567,7 +567,7 @@ function DiagnosticoReportPage() {
         ) : null}
 
         {analysis.creativesSummary ? (
-          <section className="card">
+          <section className="card" id="sec-creatives">
             <h2>Criativos: o que vende e o que queima</h2>
             <p className="section-hint">
               O que está funcionando — e o que está sugando budget.
@@ -597,7 +597,7 @@ function DiagnosticoReportPage() {
         ) : null}
 
         {analysis.audiencesSummary ? (
-          <section className="card">
+          <section className="card" id="sec-audiences">
             <h2>Você está falando com as pessoas erradas?</h2>
             <p style={{ marginTop: 0 }}>
               <strong>{analysis.audiencesSummary.segmentation}</strong>
@@ -611,7 +611,7 @@ function DiagnosticoReportPage() {
         ) : null}
 
         {analysis.structureNotes?.length ? (
-          <section className="card">
+          <section className="card" id="sec-structure">
             <h2>A fundação da conta</h2>
             <p className="section-hint">
               Sem isso ajustado, nenhuma otimização se sustenta.
@@ -625,7 +625,7 @@ function DiagnosticoReportPage() {
         ) : null}
 
         {analysis.actionPlan?.length ? (
-          <section className="card">
+          <section className="card" id="sec-plan">
             <h2>Plano de ação</h2>
             <p className="section-hint">
               A sequência sugerida pela análise — ordenada por impacto.
@@ -650,7 +650,7 @@ function DiagnosticoReportPage() {
         ) : null}
 
         {analysis.improvementScenario?.note ? (
-          <section className="card">
+          <section className="card" id="sec-scenario">
             <h2>Cenário de melhoria</h2>
             <p style={{ margin: "0 0 0.5rem" }}>
               {analysis.improvementScenario.note}
@@ -662,7 +662,7 @@ function DiagnosticoReportPage() {
         ) : null}
 
         {analysis.dataLimitations?.length ? (
-          <section className="card">
+          <section className="card" id="sec-limits">
             <h2>Limitações dos dados</h2>
             <p className="section-hint">
               O que não foi possível observar — para que você saiba o que
@@ -679,7 +679,7 @@ function DiagnosticoReportPage() {
 
 
         {data.report?.management_cta_eligible ? (
-          <section className="card cta-pain">
+          <section className="card cta-pain" id="sec-cta">
             <span className="cta-stamp">Recomendado pela análise</span>
             {gestaoCheckout === "falha" ? (
               <p role="alert" style={{ color: "#b91c1c", marginBottom: "1rem" }}>
