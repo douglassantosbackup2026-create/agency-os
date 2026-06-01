@@ -356,7 +356,62 @@ function DiagnosticoReportPage() {
           </section>
         ) : null}
 
-
+        {analysis.campaignBreakdown?.length ? (
+          <section className="card">
+            <h2>Desempenho por campanha</h2>
+            <p className="section-hint">
+              Top campanhas por gasto nos últimos 30 dias — onde o orçamento
+              está concentrado e o retorno real de cada uma.
+            </p>
+            <div className="campaign-table-wrap">
+              <table className="campaign-table">
+                <thead>
+                  <tr>
+                    <th>Campanha</th>
+                    <th>Gasto</th>
+                    <th>ROAS</th>
+                    <th>CTR</th>
+                    <th>CPM</th>
+                    <th>Freq.</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {analysis.campaignBreakdown.map((c) => {
+                    const cls = statusClass(c.status);
+                    const badgeCls =
+                      cls === "is-bad"
+                        ? "badge-bad"
+                        : cls === "is-mid"
+                          ? "badge-mid"
+                          : cls === "is-good"
+                            ? "badge-good"
+                            : "badge-medium";
+                    return (
+                      <tr key={c.name} className={cls}>
+                        <td className="campaign-name" title={c.name}>{c.name}</td>
+                        <td>{c.spend}</td>
+                        <td>{c.roas}</td>
+                        <td>{c.ctr}</td>
+                        <td>{c.cpm}</td>
+                        <td>{c.frequency}</td>
+                        <td>
+                          <span className={`badge ${badgeCls}`}>
+                            {statusLabelPt(c.status)}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div className="pain-line">
+              Campanhas no vermelho concentram gasto e devolvem pouco — onde
+              cortar primeiro.
+            </div>
+          </section>
+        ) : null}
 
         {analysis.criticalIssues?.length ? (
           <section className="card">
