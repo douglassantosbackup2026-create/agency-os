@@ -986,6 +986,29 @@ function DiagnosticoReportPage() {
           </section>
         ) : null}
 
+        {antiPatterns.length ? (
+          <section className="card anti-card" id="sec-anti">
+            <h2>O que NÃO fazer agora</h2>
+            <p className="section-hint">
+              Armadilhas comuns que estragam o ganho das correções. Evite
+              estes movimentos enquanto executa o plano.
+            </p>
+            <ul className="anti-list">
+              {antiPatterns.map((a) => (
+                <li key={a.title} className="anti-item">
+                  <span className="anti-icon" aria-hidden>🚫</span>
+                  <div>
+                    <div className="anti-title">{a.title}</div>
+                    <p className="muted" style={{ margin: "0.15rem 0 0" }}>{a.reason}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+
+
         {analysis.opportunities?.length ? (
           <section className="card" id="sec-opps">
             <h2>O que você está deixando na mesa</h2>
