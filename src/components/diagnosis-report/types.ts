@@ -166,6 +166,8 @@ export type DiagnosisAnalysis = {
   seniorDerived?: SeniorDerived;
   metaSenior?: MetaSeniorDerived;
   consultativeDerived?: ConsultativeDerived;
+  growthIntelligenceDerived?: GrowthIntelligenceDerived;
+  executiveConclusion?: ExecutiveConclusion;
   maturity?: MaturityScore;
   leakByAxis?: LeakByAxisItem[];
   growthScenarios?: GrowthScenarios;
@@ -360,6 +362,85 @@ export type ConsultativeDerived = {
   adsetBleedRanking?: AdsetBleedRow[];
   winnerUnderinvested?: WinnerUnderinvested | null;
   adVideoDiagnostics?: AdVideoDiagnostic[];
+};
+
+export type ExecutiveConclusion = {
+  isHealthy: boolean;
+  primaryProblemDomain: "meta" | "structure" | "mixed";
+  moneyLostMonthlyBrl: number | null;
+  recoverableMonthlyBrl: number | null;
+  generatableMonthlyBrl: number | null;
+  scaleNow: "yes" | "no" | "conditional";
+  firstDecisionIfIHired: string;
+};
+
+export type MoneyLeakItem = {
+  id: string;
+  title: string;
+  monthlyImpactBrl: number;
+  monthlyImpactFormatted: string;
+  confidence: string;
+  rootCause: string;
+  action: string;
+  priority: number;
+  category: string;
+};
+
+export type GrowthIntelligenceDerived = {
+  executiveImpact: {
+    investedFormatted: string;
+    revenueActualFormatted: string;
+    roasActualFormatted: string;
+    gapMonthlyFormatted: string;
+    headlinePt: string;
+  };
+  moneyLeaks: MoneyLeakItem[];
+  growthOpportunities: {
+    id: string;
+    title: string;
+    potentialFormatted: string;
+    whyExists: string;
+    howToCapture: string;
+    estimatedEta: string;
+  }[];
+  risks: {
+    id: string;
+    title: string;
+    severity: string;
+    evidence: string;
+    potentialImpactFormatted: string;
+  }[];
+  benchmarkImpacts: {
+    metric: string;
+    current: string;
+    reference: string;
+    tierNote: string;
+    estimatedImpactFormatted: string;
+  }[];
+  maturity: {
+    score0to100: number;
+    enterpriseLabel: string;
+    summary: string;
+    blockersToNextLevel: string[];
+    pillars: MaturityPillar[];
+  };
+  decisionActions: {
+    step: number;
+    action: string;
+    impactFormatted: string;
+    priorityScore: number;
+    eta: string;
+  }[];
+  projections: {
+    disclaimer: string;
+    scenarios: {
+      key: string;
+      label: string;
+      revenueUpliftFormatted: string;
+      additionalRevenueFormatted: string;
+      estimatedEta: string;
+    }[];
+  };
 };
 
 export type SeniorDerived = {

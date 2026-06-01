@@ -29,6 +29,7 @@ import { buildSeniorDerived } from "./derive-senior.ts";
 import type { SeniorDerived } from "./derive-senior-types.ts";
 import { attachMetaSeniorToFacts } from "./derive-meta-senior.ts";
 import { buildConsultativeDerived } from "./derive-consultative-blocks.ts";
+import { buildGrowthIntelligenceDerived } from "./derive-growth-intelligence.ts";
 
 export type { DerivedStatus };
 
@@ -582,6 +583,14 @@ export function normalizeAnalysisV2(
     obj.consultativeDerived = consultative;
   }
 
+  if (facts && typeof facts === "object" && !facts.growth_intelligence_derived) {
+    buildGrowthIntelligenceDerived(facts as Record<string, unknown>, commercial);
+  }
+  const growthIntel = facts?.growth_intelligence_derived;
+  if (growthIntel && typeof growthIntel === "object") {
+    obj.growthIntelligenceDerived = growthIntel;
+  }
+
   const seeds =
     (Array.isArray(facts?.hypothesis_seeds)
       ? (facts!.hypothesis_seeds as ReturnType<typeof deriveHypothesisSeeds>)
@@ -648,6 +657,37 @@ export function normalizeAnalysisV2(
       prev.note = commercial.recovery.basisNote;
     }
     if (!prev.confidence) prev.confidence = commercial.recovery.confidence;
+  }
+
+  if (!obj.executiveConclusion || typeof obj.executiveConclusion !== "object") {
+    const gi = growthIntel as Record<string, unknown> | undefined;
+    const impact = gi?.executiveImpact as Record<string, unknown> | undefined;
+    const leaks = Array.isArray(gi?.moneyLeaks)
+      ? (gi!.moneyLeaks as { monthlyImpactBrl?: number }[])
+      : [];
+    const leakSum = leaks.reduce((s, l) => s + (l.monthlyImpactBrl ?? 0), 0);
+    const gap = typeof impact?.gapMonthlyBrl === "number" ? impact.gapMonthlyBrl : 0;
+    const recover = commercial.recovery.conservativeMonthlyBrl;
+    const firstAction = Array.isArray(gi?.decisionActions)
+      ? String((gi!.decisionActions as { action?: string }[])[0]?.action ?? "")
+      : String(prioritized[0]?.action ?? "");
+    const funnel = (consultative as { conversionFunnel?: { bottleneck?: string } } | undefined)
+      ?.conversionFunnel;
+    obj.executiveConclusion = {
+      isHealthy: gap < 500 && leakSum < 800 && scoreDerived.score >= 70,
+      primaryProblemDomain:
+        funnel?.bottleneck === "checkout" ? "structure" : leakSum > 0 ? "meta" : "mixed",
+      moneyLostMonthlyBrl: leakSum > 0 ? leakSum : gap > 0 ? gap : null,
+      recoverableMonthlyBrl: recover > 0 ? recover : null,
+      generatableMonthlyBrl:
+        typeof impact?.gapMonthlyBrl === "number" && impact.gapMonthlyBrl > 0
+          ? impact.gapMonthlyBrl
+          : null,
+      scaleNow:
+        scoreDerived.score >= 75 && gap < 1000 ? "yes" : gap > 3000 ? "no" : "conditional",
+      firstDecisionIfIHired:
+        firstAction || commercial.storyExecutive.headline.slice(0, 200),
+    };
   }
 
   return obj;
@@ -991,5 +1031,8 @@ export function attachCommercialToFacts(
   facts.hypothesis_seeds = seeds;
   facts.commercial_derived = commercial;
   facts.senior_derived = commercial.seniorDerived;
+
+  buildGrowthIntelligenceDerived(facts, commercial);
+
   return facts;
 }

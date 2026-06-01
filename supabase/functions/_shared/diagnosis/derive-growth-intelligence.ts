@@ -1,0 +1,529 @@
+/**
+ * Meta Ads Growth Intelligence Engine v3 — 8 motores determinísticos (Enterprise 3.0).
+ * Compõe consultative + commercial + senior; números em BRL só do servidor.
+ */
+
+import type { PrioritizedAction } from "./derive-action-priority.ts";
+import { deriveActionPriority } from "./derive-action-priority.ts";
+import type { AccountFinancialGap } from "./derive-account-financial-gap.ts";
+import type { AdsetBleedRow } from "./derive-adset-bleed.ts";
+import type { ConsultativeDerived } from "./derive-consultative-blocks.ts";
+import type {
+  BenchmarkComparison,
+  CommercialDerived,
+} from "./derive-commercial.ts";
+import type { DeliverySummary } from "./derive-delivery-summary.ts";
+import type {
+  GrowthScenarios,
+  MaturityScore,
+  SeniorDerived,
+  SeniorRisk,
+} from "./derive-senior-types.ts";
+export type ExecutiveImpact = {
+  invested30d: number;
+  investedFormatted: string;
+  revenueActual: number | null;
+  revenueActualFormatted: string;
+  roasActual: number | null;
+  roasActualFormatted: string;
+  revenuePotential: number | null;
+  revenuePotentialFormatted: string;
+  gapMonthlyBrl: number;
+  gapMonthlyFormatted: string;
+  gapAnnualBrl: number;
+  gapAnnualFormatted: string;
+  headlinePt: string;
+};
+
+export type MoneyLeakCategory =
+  | "structure"
+  | "audience"
+  | "creative"
+  | "learning"
+  | "saturation"
+  | "budget"
+  | "sales";
+
+export type MoneyLeakItem = {
+  id: string;
+  title: string;
+  monthlyImpactBrl: number;
+  monthlyImpactFormatted: string;
+  confidence: "high" | "medium" | "low";
+  rootCause: string;
+  action: string;
+  priority: number;
+  category: MoneyLeakCategory;
+  entityName?: string;
+};
+
+export type GrowthOpportunityItem = {
+  id: string;
+  title: string;
+  potentialMonthlyBrl: number | null;
+  potentialFormatted: string;
+  whyExists: string;
+  howToCapture: string;
+  estimatedEta: string;
+};
+
+export type GrowthRiskItem = {
+  id: string;
+  title: string;
+  severity: "low" | "medium" | "high" | "critical";
+  evidence: string;
+  potentialImpactBrl: number | null;
+  potentialImpactFormatted: string;
+};
+
+export type BenchmarkImpactItem = {
+  metric: string;
+  current: string;
+  reference: string;
+  tierNote: string;
+  estimatedMonthlyImpactBrl: number | null;
+  estimatedImpactFormatted: string;
+};
+
+export type EnterpriseMaturity = {
+  score0to100: number;
+  enterpriseLabel: string;
+  levelLegacy: 1 | 2 | 3 | 4 | 5;
+  summary: string;
+  blockersToNextLevel: string[];
+  pillars: MaturityScore["pillars"];
+};
+
+export type DecisionActionItem = {
+  step: number;
+  action: string;
+  impactBrl: number | null;
+  impactFormatted: string;
+  eta: string;
+  complexityWeight: number;
+  priorityScore: number;
+  confidence: "high" | "medium" | "low";
+  urgency: PrioritizedAction["urgency"];
+  effort: PrioritizedAction["effort"];
+};
+
+export type GrowthProjectionScenario = {
+  key: "conservative" | "probable" | "aggressive";
+  label: string;
+  revenueUpliftPct: number;
+  revenueUpliftFormatted: string;
+  additionalRevenueMonthlyBrl: number | null;
+  additionalRevenueFormatted: string;
+  estimatedEta: string;
+};
+
+export type GrowthProjections = {
+  disclaimer: string;
+  scenarios: GrowthProjectionScenario[];
+};
+
+export type GrowthIntelligenceDerived = {
+  executiveImpact: ExecutiveImpact;
+  moneyLeaks: MoneyLeakItem[];
+  growthOpportunities: GrowthOpportunityItem[];
+  risks: GrowthRiskItem[];
+  benchmarkImpacts: BenchmarkImpactItem[];
+  maturity: EnterpriseMaturity;
+  decisionActions: DecisionActionItem[];
+  projections: GrowthProjections;
+};
+
+function fmtBrl(n: number): string {
+  return `R$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
+function enterpriseLabelFromScore(score: number): string {
+  if (score <= 30) return "Iniciante";
+  if (score <= 50) return "Operacional";
+  if (score <= 70) return "Estruturada";
+  if (score <= 85) return "Growth";
+  return "Elite";
+}
+
+function effortWeight(effort: PrioritizedAction["effort"]): number {
+  if (effort === "low") return 1;
+  if (effort === "high") return 3;
+  return 2;
+}
+
+function mapSeniorSeverity(s: SeniorRisk["severity"]): GrowthRiskItem["severity"] {
+  if (s === "critical") return "critical";
+  if (s === "warning") return "high";
+  return "low";
+}
+
+function buildExecutiveImpact(
+  gap: AccountFinancialGap | null,
+  commercial: CommercialDerived,
+): ExecutiveImpact {
+  const econ = commercial.accountEconomics;
+  if (gap) {
+    return {
+      invested30d: gap.invested30d,
+      investedFormatted: gap.investedFormatted,
+      revenueActual: gap.revenueActual,
+      revenueActualFormatted: gap.revenueActualFormatted,
+      roasActual: gap.roasActual,
+      roasActualFormatted: gap.roasActualFormatted,
+      revenuePotential: gap.revenuePotential,
+      revenuePotentialFormatted: gap.revenuePotentialFormatted,
+      gapMonthlyBrl: gap.gapMonthlyBrl,
+      gapMonthlyFormatted: gap.gapMonthlyFormatted,
+      gapAnnualBrl: gap.gapAnnualBrl,
+      gapAnnualFormatted: gap.gapAnnualFormatted,
+      headlinePt: gap.headlinePt,
+    };
+  }
+  return {
+    invested30d: econ.spend30d,
+    investedFormatted: econ.spendFormatted,
+    revenueActual: econ.revenue30d,
+    revenueActualFormatted: econ.revenueFormatted,
+    roasActual: econ.roasSales,
+    roasActualFormatted: econ.roasFormatted,
+    revenuePotential: null,
+    revenuePotentialFormatted: "—",
+    gapMonthlyBrl: 0,
+    gapMonthlyFormatted: fmtBrl(0),
+    gapAnnualBrl: 0,
+    gapAnnualFormatted: fmtBrl(0),
+    headlinePt: `Investimento de ${econ.spendFormatted} no período — gap financeiro depende de vendas rastreadas.`,
+  };
+}
+
+function buildMoneyLeaks(
+  consultative: ConsultativeDerived | null,
+  commercial: CommercialDerived,
+  senior: SeniorDerived | undefined,
+): MoneyLeakItem[] {
+  const leaks: MoneyLeakItem[] = [];
+  let rank = 0;
+
+  for (const row of consultative?.adsetBleedRanking ?? []) {
+    if (row.bleedBrl < 50) continue;
+    leaks.push({
+      id: `bleed:${row.adsetId}`,
+      title: `${row.adsetName} — abaixo do ROAS do nicho`,
+      monthlyImpactBrl: row.bleedBrl,
+      monthlyImpactFormatted: row.bleedFormatted,
+      confidence: row.bleedBrl >= 500 ? "high" : "medium",
+      rootCause: `ROAS ${row.roasFormatted} vs referência do nicho em campanha de Vendas.`,
+      action: "Reduzir verba, pausar ou reestruturar público/criativo neste conjunto.",
+      priority: 0,
+      category: "sales",
+      entityName: row.adsetName,
+    });
+  }
+
+  for (const line of commercial.waste.lines) {
+    if (line.monthlyBrl < 30) continue;
+    const axis = senior?.leakByAxis.find((l) =>
+      line.campaignNames.some((n) => l.evidence.includes(n))
+    );
+    const category: MoneyLeakCategory =
+      axis?.axis === "audience"
+        ? "audience"
+        : axis?.axis === "creative"
+          ? "creative"
+          : axis?.axis === "sales"
+            ? "sales"
+            : "structure";
+    leaks.push({
+      id: `waste:${rank++}`,
+      title: line.label,
+      monthlyImpactBrl: line.monthlyBrl,
+      monthlyImpactFormatted: fmtBrl(line.monthlyBrl),
+      confidence: "medium",
+      rootCause: line.campaignNames.slice(0, 2).join(", ") || line.label,
+      action: "Corrigir campanhas listadas ou redistribuir verba.",
+      priority: 0,
+      category,
+    });
+  }
+
+  const delivery = consultative?.deliverySummary;
+  if (delivery && delivery.estimatedDailyBlindSpendBrl > 0) {
+    const monthly = Math.round(delivery.estimatedDailyBlindSpendBrl * 30);
+    leaks.push({
+      id: "delivery:learning",
+      title: "Verba em conjuntos em aprendizado ou com limitações",
+      monthlyImpactBrl: monthly,
+      monthlyImpactFormatted: fmtBrl(monthly),
+      confidence: "medium",
+      rootCause: delivery.summaryPt,
+      action: "Consolidar conjuntos antes de escalar; evitar fragmentação excessiva.",
+      priority: 0,
+      category: "learning",
+    });
+  }
+
+  for (const item of senior?.leakByAxis ?? []) {
+    if (leaks.some((l) => l.monthlyImpactBrl === item.monthlyBrl && l.title.includes(item.axisLabel))) {
+      continue;
+    }
+    const category: MoneyLeakCategory =
+      item.axis === "audience"
+        ? "saturation"
+        : item.axis === "creative"
+          ? "creative"
+          : item.axis === "sales"
+            ? "sales"
+            : "structure";
+    leaks.push({
+      id: `axis:${item.axis}`,
+      title: item.headline,
+      monthlyImpactBrl: item.monthlyBrl,
+      monthlyImpactFormatted: item.monthlyFormatted,
+      confidence: item.severity === "critical" ? "high" : "medium",
+      rootCause: item.evidence,
+      action: `Priorizar eixo ${item.axisLabel} no Gerenciador.`,
+      priority: 0,
+      category,
+    });
+  }
+
+  leaks.sort((a, b) => b.monthlyImpactBrl - a.monthlyImpactBrl);
+  return leaks.map((l, i) => ({ ...l, priority: i + 1 }));
+}
+
+function buildGrowthOpportunities(
+  consultative: ConsultativeDerived | null,
+  commercial: CommercialDerived,
+  senior: SeniorDerived | undefined,
+): GrowthOpportunityItem[] {
+  const out: GrowthOpportunityItem[] = [];
+  const recovery = commercial.recovery.conservativeMonthlyBrl;
+  const winner = consultative?.winnerUnderinvested;
+
+  if (winner) {
+    const uplift = Math.round(winner.spend * Math.max(0, winner.roas - 1) * 2);
+    out.push({
+      id: "winner-underinvested",
+      title: `Isolar criativo vencedor: ${winner.adName}`,
+      potentialMonthlyBrl: uplift > 0 ? uplift : null,
+      potentialFormatted: uplift > 0 ? fmtBrl(uplift) : "—",
+      whyExists: winner.spendNote,
+      howToCapture:
+        `Criar conjunto dedicado com orçamento exclusivo para ${winner.adName} (ROAS ${winner.roas.toFixed(1)}×).`,
+      estimatedEta: "3–7 dias",
+    });
+  }
+
+  const gs = senior?.growthScenarios;
+  if (gs && recovery > 0) {
+    out.push({
+      id: "recovery-headroom",
+      title: "Recuperar eficiência de verba já investida",
+      potentialMonthlyBrl: recovery,
+      potentialFormatted: fmtBrl(recovery),
+      whyExists: gs.basisNote,
+      howToCapture: "Executar plano de correção nos eixos com maior vazamento antes de escalar.",
+      estimatedEta: "30 dias",
+    });
+  }
+
+  if (consultative?.conversionFunnel?.revenueAtRiskMonthlyBrl) {
+    const r = consultative.conversionFunnel.revenueAtRiskMonthlyBrl;
+    out.push({
+      id: "funnel-checkout",
+      title: "Recuperar compras no checkout (site)",
+      potentialMonthlyBrl: r,
+      potentialFormatted: fmtBrl(r),
+      whyExists: consultative.conversionFunnel.bottleneckLabel,
+      howToCapture: "Otimizar checkout/UX — o Meta já entrega intenção; o gargalo está fora dos anúncios.",
+      estimatedEta: "2–4 semanas",
+    });
+  }
+
+  return out.slice(0, 6);
+}
+
+function buildRisks(
+  senior: SeniorDerived | undefined,
+  delivery: DeliverySummary | null,
+  commercial: CommercialDerived,
+): GrowthRiskItem[] {
+  const risks: GrowthRiskItem[] = [];
+  for (const r of senior?.risks ?? []) {
+    const leak = senior?.leakByAxis.find((l) => l.axis === r.relatedAxis);
+    const impact = leak?.monthlyBrl ?? Math.round(commercial.waste.totalMonthlyBrl * 0.15);
+    risks.push({
+      id: r.id,
+      title: r.title,
+      severity: mapSeniorSeverity(r.severity),
+      evidence: r.evidence,
+      potentialImpactBrl: impact > 0 ? impact : null,
+      potentialImpactFormatted: impact > 0 ? fmtBrl(impact) : "—",
+    });
+  }
+  if (delivery && delivery.pctSpendNonOptimized >= 15) {
+    risks.push({
+      id: "delivery-blind-spend",
+      title: "Parcela relevante do budget sem otimização plena",
+      severity: delivery.pctSpendNonOptimized >= 25 ? "high" : "medium",
+      evidence: delivery.summaryPt,
+      potentialImpactBrl: Math.round(delivery.estimatedDailyBlindSpendBrl * 30),
+      potentialImpactFormatted: delivery.estimatedDailyBlindSpendFormatted.replace(
+        /\/dia/,
+        "/mês est.",
+      ),
+    });
+  }
+  return risks;
+}
+
+function estimateBenchmarkImpactBrl(
+  gap: BenchmarkComparison["gaps"][0],
+  spend30d: number,
+): number | null {
+  if (!gap.isBad || gap.deltaPct == null || spend30d <= 0) return null;
+  const pct = Math.min(40, gap.deltaPct) / 100;
+  return Math.round(spend30d * pct * 0.35);
+}
+
+function buildBenchmarkImpacts(
+  commercial: CommercialDerived,
+): BenchmarkImpactItem[] {
+  const spend = commercial.accountEconomics.spend30d;
+  return commercial.benchmarkComparison.gaps.map((g) => {
+    const brl = estimateBenchmarkImpactBrl(g, spend);
+    return {
+      metric: g.metric,
+      current: g.current,
+      reference: g.reference,
+      tierNote: g.gapNote,
+      estimatedMonthlyImpactBrl: brl,
+      estimatedImpactFormatted: brl != null ? fmtBrl(brl) : "—",
+    };
+  });
+}
+
+function buildEnterpriseMaturity(maturity: MaturityScore): EnterpriseMaturity {
+  const weighted = maturity.pillars.reduce((s, p) => s + p.score, 0) / maturity.pillars.length;
+  const score0to100 = Math.round(Math.min(100, Math.max(0, weighted)));
+  const enterpriseLabel = enterpriseLabelFromScore(score0to100);
+  const blockers: string[] = [];
+  for (const p of maturity.pillars) {
+    if (p.score < 55) blockers.push(`${p.label}: ${p.detail}`);
+  }
+  if (maturity.level < 5 && blockers.length === 0) {
+    blockers.push("Consolidar testes criativos e escala controlada para subir de nível.");
+  }
+  return {
+    score0to100,
+    enterpriseLabel,
+    levelLegacy: maturity.level,
+    summary: maturity.summary,
+    blockersToNextLevel: blockers.slice(0, 4),
+    pillars: maturity.pillars,
+  };
+}
+
+function buildDecisionActions(
+  senior: SeniorDerived | undefined,
+  facts: Record<string, unknown>,
+): DecisionActionItem[] {
+  if (!senior) return [];
+  const seeds = Array.isArray(facts.hypothesis_seeds)
+    ? (facts.hypothesis_seeds as Parameters<typeof deriveActionPriority>[2])
+    : [];
+  const rawPlan = Array.isArray(facts.prioritized_actions)
+    ? (facts.prioritized_actions as PrioritizedAction[])
+    : undefined;
+  const prioritized = deriveActionPriority(senior, rawPlan, seeds);
+  return prioritized.map((a, i) => {
+    const w = effortWeight(a.effort);
+    const impact = a.impactBrl ?? 0;
+    const priorityScore = impact > 0 ? Math.round(impact / w) : 0;
+    return {
+      step: i + 1,
+      action: a.action,
+      impactBrl: a.impactBrl,
+      impactFormatted: a.impactBrl != null ? fmtBrl(a.impactBrl) : "—",
+      eta: a.eta,
+      complexityWeight: w,
+      priorityScore,
+      confidence: a.urgency === "now" ? "high" : "medium",
+      urgency: a.urgency,
+      effort: a.effort,
+    };
+  });
+}
+
+function buildProjections(
+  commercial: CommercialDerived,
+  gs: GrowthScenarios | undefined,
+): GrowthProjections {
+  const revenue = commercial.accountEconomics.revenue30d;
+  const disclaimer =
+    "Cenários indicativos com base em recuperação de desperdício e headroom observado — não são garantia de resultado.";
+  if (!gs) {
+    return { disclaimer, scenarios: [] };
+  }
+  const mk = (
+    key: GrowthProjectionScenario["key"],
+    label: string,
+    pct: number,
+  ): GrowthProjectionScenario => {
+    const additional =
+      revenue != null && revenue > 0 ? Math.round(revenue * (pct / 100)) : null;
+    return {
+      key,
+      label,
+      revenueUpliftPct: pct,
+      revenueUpliftFormatted: `+${pct}%`,
+      additionalRevenueMonthlyBrl: additional,
+      additionalRevenueFormatted: additional != null ? fmtBrl(additional) : "—",
+      estimatedEta: key === "conservative" ? "60–90 dias" : key === "probable" ? "30–60 dias" : "30 dias",
+    };
+  };
+  return {
+    disclaimer,
+    scenarios: [
+      mk("conservative", "Conservador", gs.conservativePct),
+      mk("probable", "Provável", gs.probablePct),
+      mk("aggressive", "Agressivo", gs.aggressivePct),
+    ],
+  };
+}
+
+export function buildGrowthIntelligenceDerived(
+  facts: Record<string, unknown>,
+  commercial: CommercialDerived,
+): GrowthIntelligenceDerived {
+  const consultative = facts.consultative_derived as ConsultativeDerived | undefined;
+  const senior = commercial.seniorDerived;
+  const gap = consultative?.accountFinancialGap ?? null;
+
+  const executiveImpact = buildExecutiveImpact(gap, commercial);
+  const moneyLeaks = buildMoneyLeaks(consultative ?? null, commercial, senior);
+  const growthOpportunities = buildGrowthOpportunities(consultative ?? null, commercial, senior);
+  const risks = buildRisks(senior, consultative?.deliverySummary ?? null, commercial);
+  const benchmarkImpacts = buildBenchmarkImpacts(commercial);
+  const maturity = buildEnterpriseMaturity(senior?.maturity ?? {
+    level: 3,
+    label: "Intermediário",
+    summary: "Dados limitados para maturidade.",
+    pillars: [],
+  });
+  const decisionActions = buildDecisionActions(senior, facts);
+  const projections = buildProjections(commercial, senior?.growthScenarios);
+
+  const out: GrowthIntelligenceDerived = {
+    executiveImpact,
+    moneyLeaks,
+    growthOpportunities,
+    risks,
+    benchmarkImpacts,
+    maturity,
+    decisionActions,
+    projections,
+  };
+  facts.growth_intelligence_derived = out;
+  return out;
+}

@@ -158,6 +158,26 @@ npm run ops:deploy-worker
 6. Cada problema cita ad set/campanha + valor em R$.
 7. `consultative_derived.qaChecklist` coerente no `facts_json`.
 8. Banner legado some quando `prompt_version = v16`.
+
+## Growth Intelligence v3 Enterprise
+
+- **Prompt:** `diagnosis-growth-intelligence-v3` — regras em `v3-growth-intelligence-rules.ts`; doc em `diagnostico-meta/prompts/diagnosis-growth-intelligence-v3.md`.
+- **facts_json:** `growth_intelligence_derived` (8 motores) + `consultative_derived` (Páprika).
+- **analysis_json:** `growthIntelligenceDerived`, `executiveConclusion`.
+- **UI:** 10 seções na apresentação (veredito → na mesa → crescimento → gargalos → riscos → benchmark → maturidade 0–100 → plano → potencial → conclusão).
+
+```bash
+npm test -- supabase/functions/_shared/diagnosis/derive-growth-intelligence.test.ts
+npx supabase functions deploy process-diagnosis diagnosis-report --project-ref uvuotaxikuxejfeitlaw
+```
+
+**Reprocessar após v3:** `prompt_version IS DISTINCT FROM 'diagnosis-growth-intelligence-v3'`.
+
+**Deploy Worker:** requer `CLOUDFLARE_API_TOKEN` no `.env` → `npm run ops:deploy-worker`.
+
+**Reprocess local:** `CRON_SECRET` no `.env` → enfileirar `status=processing` → `npm run ops:reprocess-diagnosis`.
+
+**Piloto:** `7e8e3d16-306f-4960-ace3-56de6a3f0b6a`.
 9. Testes Vitest Páprika passam.
 
 ## Analista v13 (relator → consultor)

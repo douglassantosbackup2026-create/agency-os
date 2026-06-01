@@ -664,8 +664,8 @@ function DiagnosticoReportPage() {
 
         {legacyReport ? (
           <p className="legacy-report-banner no-print" role="status">
-            Relatório gerado antes da versão Analista v16 (Páprika) — reprocessar para
-            gap financeiro por nicho, status de entrega e funil checkout.
+            Relatório gerado antes da versão Growth Intelligence v3 — reprocessar para
+            motores Enterprise (8 blocos), conclusão executiva e layout completo.
           </p>
         ) : null}
 

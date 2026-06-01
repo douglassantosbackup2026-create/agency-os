@@ -473,3 +473,105 @@
     font-size: 1.1rem;
   }
 }
+
+.money-leak-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.money-leak-item {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--diag-border, #e2e8f0);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.money-leak-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.money-leak-rank {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--diag-muted, #64748b);
+}
+
+.money-leak-amount {
+  margin-left: auto;
+  font-weight: 700;
+  color: #b91c1c;
+}
+
+.benchmark-impact-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.benchmark-impact-row {
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--diag-border, #e2e8f0);
+}
+
+.benchmark-impact-brl {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+}
+
+.exec-conclusion-grid {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+}
+
+@media (min-width: 640px) {
+  .exec-conclusion-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.exec-conclusion-grid dt {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--diag-muted, #64748b);
+  margin: 0;
+}
+
+.exec-conclusion-grid dd {
+  margin: 0.15rem 0 0;
+  font-weight: 500;
+}
+
+.exec-first-decision {
+  margin: 0;
+  padding: 1rem;
+  border-left: 4px solid #0f766e;
+  background: #f0fdfa;
+  border-radius: 0 8px 8px 0;
+  font-size: 0.95rem;
+}
+
+.maturity-blockers {
+  margin: 0.75rem 0 0;
+  padding-left: 1.2rem;
+  font-size: 0.88rem;
+  color: var(--diag-muted, #475569);
+}
+
+.presentation-risks-wrap .risks-card {
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}

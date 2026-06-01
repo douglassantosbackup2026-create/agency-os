@@ -14,14 +14,15 @@ import { buildCommercialDerived } from "../_shared/diagnosis/derive-commercial.t
 import { recordDiagnosisFollowup } from "../_shared/diagnosis/record-diagnosis-followup.ts";
 import { V13_CONSULTATIVE_EXAMPLES } from "../_shared/diagnosis/v13-consultative-examples.ts";
 import { V16_PAPRIKA_RULES } from "../_shared/diagnosis/v16-paprika-rules.ts";
+import { V3_GROWTH_INTELLIGENCE_RULES } from "../_shared/diagnosis/v3-growth-intelligence-rules.ts";
 import {
   enrichFactsWithMetaSeniorFetch,
 } from "../_shared/diagnosis/derive-meta-senior.ts";
 
-const PROMPT_VERSION = "diagnosis-ecommerce-v16";
+const PROMPT_VERSION = "diagnosis-growth-intelligence-v3";
 const AI_TIMEOUT_MS = 60_000;
 
-const SYSTEM_PROMPT = `És um auditor sênior de Meta Ads especializado em e-commerce brasileiro, com foco em eficiência de verba e escalabilidade. Respondes APENAS em PT-BR e APENAS com JSON válido (sem markdown, sem texto fora do JSON). Valores monetários sempre em BRL (a menos que facts.account_insights indique outra moeda).
+const SYSTEM_PROMPT = `És um Diretor de Crescimento especializado em Meta Ads para e-commerce brasileiro — não és auditor, dashboard nem lista de KPIs. Respondes APENAS em PT-BR e APENAS com JSON válido (sem markdown, sem texto fora do JSON). Valores monetários sempre em BRL (a menos que facts.account_insights indique outra moeda). Hierarquia: Dinheiro → Crescimento → Gargalos → Riscos → Métricas.
 
 ## REGRAS ABSOLUTAS
 1. NUNCA inventes métricas, valores ou percentuais que não derivem diretamente de facts_json ou de benchmarks explicitamente rotulados como "referência típica de mercado".
@@ -155,6 +156,8 @@ Tom: consultivo e persuasivo para dono de e-commerce — traduz jargão ("sem tr
 
 ${V16_PAPRIKA_RULES}
 
+${V3_GROWTH_INTELLIGENCE_RULES}
+
 ## SCHEMA DE SAÍDA (JSON estrito, todos os campos obrigatórios)
 {
   "score": number,
@@ -193,6 +196,15 @@ ${V16_PAPRIKA_RULES}
   "structureNotes": string[],
   "actionPlan": [{ "step": number, "action": string, "impact": string, "eta": string, "engine": "action"|null, "relatedAxis": "structure"|"audience"|"creative"|"sales"|"scale"|null, "impactBrl": number|null, "urgency": "now"|"soon"|"later", "effort": "low"|"medium"|"high" }],
   "improvementScenario": { "note": string, "confidence": "high"|"medium"|"low" },
+  "executiveConclusion": {
+    "isHealthy": boolean,
+    "primaryProblemDomain": "meta"|"structure"|"mixed",
+    "moneyLostMonthlyBrl": number|null,
+    "recoverableMonthlyBrl": number|null,
+    "generatableMonthlyBrl": number|null,
+    "scaleNow": "yes"|"no"|"conditional",
+    "firstDecisionIfIHired": string
+  },
   "disclaimer": string,
   "dataLimitations": string[]
 }
@@ -275,7 +287,24 @@ function buildUserPrompt(facts: Record<string, unknown>): string {
           nicheContext: facts.niche_context,
         }
       : null;
+  const growthIntel = facts.growth_intelligence_derived;
+  const growthSlice = growthIntel
+    ? {
+        executiveImpact: (growthIntel as { executiveImpact?: unknown }).executiveImpact,
+        moneyLeaks: (growthIntel as { moneyLeaks?: unknown }).moneyLeaks,
+        growthOpportunities: (growthIntel as { growthOpportunities?: unknown })
+          .growthOpportunities,
+        risks: (growthIntel as { risks?: unknown }).risks,
+        benchmarkImpacts: (growthIntel as { benchmarkImpacts?: unknown }).benchmarkImpacts,
+        maturity: (growthIntel as { maturity?: unknown }).maturity,
+        decisionActions: (growthIntel as { decisionActions?: unknown }).decisionActions,
+        projections: (growthIntel as { projections?: unknown }).projections,
+      }
+    : null;
   return [
+    "growth_intelligence_derived (v3 Enterprise — 8 motores; fonte única para R$ e maturidade 0–100):",
+    growthSlice ? JSON.stringify(growthSlice).slice(0, 24000) : "(indisponível)",
+    "",
     "consultative_derived (v16 Páprika — fonte única blocos 1–5; não invente R$):",
     consultSlice ? JSON.stringify(consultSlice).slice(0, 22000) : "(indisponível)",
     "",

@@ -13,8 +13,9 @@ type Props = {
 export function DiagnosisRisksCard({ risks }: Props) {
   if (!risks.length) return null;
   return (
-    <section className="card risks-card" id="riscos">
-      <h2>Riscos estruturados</h2>
+    <section className="card risks-card" id="sec-risks">
+      <p className="presentation-section-eyebrow">05 · Riscos</p>
+      <h2 className="premium-section-title">Principais riscos</h2>
       <p className="section-hint">
         Sinais prioritários calculados no servidor — a IA deve alinhar os problemas críticos a estes IDs.
       </p>
