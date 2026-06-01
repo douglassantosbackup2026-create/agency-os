@@ -27,11 +27,20 @@ type Analysis = {
     potentialNote: string;
     complexity: string;
   }[];
-  creativesSummary?: { best: string; worst: string; recommendation: string };
+  creativesSummary?: { best: string | null; worst: string | null; recommendation: string };
   audiencesSummary?: { segmentation: string; notes: string[] };
   structureNotes?: string[];
   actionPlan?: { step: number; action: string; impact: string; eta: string }[];
   improvementScenario?: { note: string; confidence: string };
+  campaignBreakdown?: {
+    name: string;
+    spend: string;
+    roas: string;
+    ctr: string;
+    cpm: string;
+    frequency: string;
+    status: string;
+  }[];
   dataLimitations?: string[];
   disclaimer?: string;
 };
