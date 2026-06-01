@@ -171,6 +171,85 @@ function DiagnosticoReportPage() {
     });
   }
 
+  function trackEvent(event: string) {
+    if (!s) return;
+    void invokeDiagnosisFunction("diagnosis-track", {
+      method: "POST",
+      body: JSON.stringify({ diagnosis_id: diagnosisId, secret_slug: s, event }),
+    }).catch(() => {});
+  }
+
+  const planStorageKey = `diag-plan-${diagnosisId}`;
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(planStorageKey);
+      if (raw) setDoneSteps(JSON.parse(raw));
+    } catch {
+      /* noop */
+    }
+  }, [planStorageKey]);
+
+  function toggleStep(key: string) {
+    setDoneSteps((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      try {
+        localStorage.setItem(planStorageKey, JSON.stringify(next));
+      } catch {
+        /* noop */
+      }
+      return next;
+    });
+    trackEvent("plan_check");
+  }
+
+  async function copyReportLink() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setShareMsg("Link copiado!");
+      trackEvent("copy_link");
+    } catch {
+      setShareMsg("Não foi possível copiar. Copie da barra de endereço.");
+    }
+    setTimeout(() => setShareMsg(null), 2500);
+  }
+
+  function printReport() {
+    trackEvent("print");
+    window.print();
+  }
+
+  function downloadReminder() {
+    trackEvent("reminder");
+    const dt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const stamp = `${dt.getUTCFullYear()}${pad(dt.getUTCMonth() + 1)}${pad(dt.getUTCDate())}T${pad(dt.getUTCHours())}${pad(dt.getUTCMinutes())}00Z`;
+    const url = window.location.href;
+    const ics = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//Retentio//Diagnostico Meta//PT",
+      "BEGIN:VEVENT",
+      `UID:diag-${diagnosisId}@retentio`,
+      `DTSTAMP:${stamp}`,
+      `DTSTART:${stamp}`,
+      `DTEND:${stamp}`,
+      "SUMMARY:Revisar diagnóstico Meta Ads",
+      `DESCRIPTION:Revisitar o plano de ação e medir progresso.\\n${url}`,
+      `URL:${url}`,
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n");
+    const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "revisar-diagnostico-30dias.ics";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  }
+
+
   async function saveBusinessContext() {
     if (!s) return;
     setCtxError(null);
