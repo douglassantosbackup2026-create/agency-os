@@ -94,6 +94,8 @@ function DiagnosticoReportPage() {
   const [simCtr, setSimCtr] = useState(20);
   const [simLeak, setSimLeak] = useState(40);
   const [simSpendInput, setSimSpendInput] = useState("");
+  const [summaryOpen, setSummaryOpen] = useState(false);
+  const [summaryMsg, setSummaryMsg] = useState<string | null>(null);
 
   const [data, setData] = useState<{
     diagnosis?: {
@@ -482,6 +484,7 @@ function DiagnosticoReportPage() {
   if (analysis.campaignBreakdown?.length) tocItems.push({ id: "sec-campaigns", label: "Campanhas" });
   if (analysis.criticalIssues?.length) tocItems.push({ id: "sec-issues", label: "Problemas" });
   if (analysis.budgetLeaks?.length) tocItems.push({ id: "sec-leaks", label: "Vazamentos" });
+  // anti-patterns inserted later if present
   if (analysis.opportunities?.length) tocItems.push({ id: "sec-opps", label: "Oportunidades" });
   if (analysis.creativesSummary) tocItems.push({ id: "sec-creatives", label: "Criativos" });
   if (analysis.audiencesSummary) tocItems.push({ id: "sec-audiences", label: "Públicos" });
@@ -574,7 +577,113 @@ function DiagnosticoReportPage() {
     return buckets;
   })();
 
+  // P6 — anti-padrões: armadilhas comuns derivadas do próprio diagnóstico
+  const antiPatterns: { title: string; reason: string }[] = (() => {
+    const out: { title: string; reason: string }[] = [];
+    const badCamps = (analysis.campaignBreakdown ?? []).filter((c) =>
+      statusClass(c.status) === "is-bad",
+    );
+    if (badCamps.length) {
+      out.push({
+        title: "Não aumentar budget de campanhas no vermelho",
+        reason: `${badCamps.length} campanha(s) com performance ruim. Escalar agora multiplica o vazamento.`,
+      });
+    }
+    const hiFreq = (analysis.campaignBreakdown ?? []).filter((c) => {
+      const f = Number((c.frequency ?? "").replace(",", "."));
+      return Number.isFinite(f) && f >= 3;
+    });
+    if (hiFreq.length) {
+      out.push({
+        title: "Não duplicar criativos fatigados",
+        reason: `${hiFreq.length} campanha(s) com frequência ≥ 3. Duplicar não renova fadiga — produza criativo novo.`,
+      });
+    }
+    const noTracking = (analysis.metrics ?? []).some((m) =>
+      /sem tracking|sem dados/i.test(m.status),
+    );
+    if (noTracking) {
+      out.push({
+        title: "Não decidir corte sem tracking validado",
+        reason: "Há métricas sem tracking. Corrigir mensuração antes de pausar campanhas evita falsos negativos.",
+      });
+    }
+    if (roasGap != null && roasGap < 0) {
+      out.push({
+        title: "Não escalar antes de fechar break-even",
+        reason: `ROAS observado está ${Math.abs(roasGap).toFixed(2)}x abaixo do ponto de equilíbrio. Escalar amplia o prejuízo unitário.`,
+      });
+    }
+    if ((analysis.budgetLeaks ?? []).length >= 2) {
+      out.push({
+        title: "Não focar só em criativo",
+        reason: "Há vazamentos estruturais identificados. Trocar criativo sem fechar o ralo só adia o problema.",
+      });
+    }
+    return out.slice(0, 5);
+  })();
 
+  if (antiPatterns.length) {
+    const idx = tocItems.findIndex((t) => t.id === "sec-leaks");
+    const entry = { id: "sec-anti", label: "Anti-padrões" };
+    if (idx >= 0) tocItems.splice(idx + 1, 0, entry);
+    else tocItems.push(entry);
+  }
+
+
+  // P7 — resumo executivo (texto plano para WhatsApp / e-mail / copy)
+  const execSummary = (() => {
+    const lines: string[] = [];
+    lines.push(`Diagnóstico Meta Ads — score ${score}/100 (${analysis.scoreLabel})`);
+    lines.push("");
+    if (topPriorities.length) {
+      lines.push("Top 3 prioridades:");
+      topPriorities.forEach((p, i) => lines.push(`${i + 1}. ${p.title}`));
+      lines.push("");
+    }
+    if (roasGap != null) {
+      lines.push(
+        `ROAS observado vs equilíbrio: ${roasGap >= 0 ? "+" : ""}${roasGap.toFixed(2)}x`,
+      );
+    }
+    if ((analysis.budgetLeaks ?? []).length) {
+      lines.push(`Vazamentos identificados: ${analysis.budgetLeaks!.length}`);
+    }
+    const firstAction = (analysis.actionPlan ?? [])
+      .slice()
+      .sort((a, b) => (a.step ?? 0) - (b.step ?? 0))[0];
+    if (firstAction) {
+      lines.push("");
+      lines.push(`Próximo passo: ${firstAction.action} (${firstAction.eta})`);
+    }
+    lines.push("");
+    lines.push(`Relatório completo: ${typeof window !== "undefined" ? window.location.href : ""}`);
+    return lines.join("\n");
+  })();
+
+  async function copyExecSummary() {
+    try {
+      await navigator.clipboard.writeText(execSummary);
+      setSummaryMsg("Resumo copiado!");
+      trackEvent("summary_copy");
+    } catch {
+      setSummaryMsg("Não foi possível copiar.");
+    }
+    setTimeout(() => setSummaryMsg(null), 2500);
+  }
+
+  function shareSummaryWhatsApp() {
+    trackEvent("summary_whatsapp");
+    const url = `https://wa.me/?text=${encodeURIComponent(execSummary)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
+  function shareSummaryEmail() {
+    trackEvent("summary_email");
+    const subject = encodeURIComponent(`Diagnóstico Meta Ads — score ${score}/100`);
+    const body = encodeURIComponent(execSummary);
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  }
 
 
   return (
@@ -613,11 +722,57 @@ function DiagnosticoReportPage() {
           <button type="button" className="toolbar-btn" onClick={printReport}>
             🖨️ Imprimir / Salvar PDF
           </button>
+          <button
+            type="button"
+            className="toolbar-btn"
+            onClick={() => {
+              setSummaryOpen((v) => !v);
+              if (!summaryOpen) trackEvent("summary_open");
+            }}
+            aria-expanded={summaryOpen}
+          >
+            📤 Resumo executivo
+          </button>
           <button type="button" className="toolbar-btn" onClick={downloadReminder}>
             ⏰ Lembrar em 30 dias
           </button>
           {shareMsg ? <span className="toolbar-msg" role="status">{shareMsg}</span> : null}
         </div>
+
+        {summaryOpen ? (
+          <section className="card summary-panel no-print" aria-label="Resumo executivo">
+            <div className="summary-head">
+              <h2 style={{ margin: 0, fontSize: "1.05rem" }}>Resumo executivo</h2>
+              <button
+                type="button"
+                className="toolbar-btn"
+                onClick={() => setSummaryOpen(false)}
+                aria-label="Fechar resumo"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="section-hint" style={{ marginTop: "0.25rem" }}>
+              Uma página para compartilhar com sócio, gestor ou agência.
+            </p>
+            <pre className="summary-text">{execSummary}</pre>
+            <div className="summary-actions">
+              <button type="button" className="toolbar-btn" onClick={() => void copyExecSummary()}>
+                Copiar texto
+              </button>
+              <button type="button" className="toolbar-btn" onClick={shareSummaryWhatsApp}>
+                WhatsApp
+              </button>
+              <button type="button" className="toolbar-btn" onClick={shareSummaryEmail}>
+                E-mail
+              </button>
+              {summaryMsg ? (
+                <span className="toolbar-msg" role="status">{summaryMsg}</span>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
+
 
 
 
@@ -830,6 +985,29 @@ function DiagnosticoReportPage() {
             </div>
           </section>
         ) : null}
+
+        {antiPatterns.length ? (
+          <section className="card anti-card" id="sec-anti">
+            <h2>O que NÃO fazer agora</h2>
+            <p className="section-hint">
+              Armadilhas comuns que estragam o ganho das correções. Evite
+              estes movimentos enquanto executa o plano.
+            </p>
+            <ul className="anti-list">
+              {antiPatterns.map((a) => (
+                <li key={a.title} className="anti-item">
+                  <span className="anti-icon" aria-hidden>🚫</span>
+                  <div>
+                    <div className="anti-title">{a.title}</div>
+                    <p className="muted" style={{ margin: "0.15rem 0 0" }}>{a.reason}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+
 
         {analysis.opportunities?.length ? (
           <section className="card" id="sec-opps">
