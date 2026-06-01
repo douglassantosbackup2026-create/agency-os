@@ -81,6 +81,8 @@ function DiagnosticoReportPage() {
   const [ctxSaving, setCtxSaving] = useState(false);
   const [ctxSavedAt, setCtxSavedAt] = useState<string | null>(null);
   const [ctxError, setCtxError] = useState<string | null>(null);
+  const [doneSteps, setDoneSteps] = useState<Record<string, boolean>>({});
+  const [shareMsg, setShareMsg] = useState<string | null>(null);
   const [data, setData] = useState<{
     diagnosis?: {
       status?: string;
