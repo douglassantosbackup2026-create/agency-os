@@ -601,3 +601,50 @@
 .diagnosis-funnel .vagas-box h3 {
   color: #9a3412;
 }
+
+/* P1 — Campaign breakdown */
+.diagnosis-funnel .campaign-table-wrap {
+  overflow-x: auto;
+  margin-top: 0.75rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+.diagnosis-funnel .campaign-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  min-width: 640px;
+}
+.diagnosis-funnel .campaign-table th,
+.diagnosis-funnel .campaign-table td {
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #f1f5f9;
+  white-space: nowrap;
+}
+.diagnosis-funnel .campaign-table th {
+  background: #f8fafc;
+  font-weight: 600;
+  color: #475569;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.diagnosis-funnel .campaign-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.diagnosis-funnel .campaign-table td.campaign-name {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 500;
+}
+.diagnosis-funnel .campaign-table tr.is-bad td:first-child {
+  border-left: 3px solid #dc2626;
+}
+.diagnosis-funnel .campaign-table tr.is-mid td:first-child {
+  border-left: 3px solid #d97706;
+}
+.diagnosis-funnel .campaign-table tr.is-good td:first-child {
+  border-left: 3px solid #16a34a;
+}
