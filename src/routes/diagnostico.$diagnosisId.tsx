@@ -484,6 +484,7 @@ function DiagnosticoReportPage() {
   if (analysis.campaignBreakdown?.length) tocItems.push({ id: "sec-campaigns", label: "Campanhas" });
   if (analysis.criticalIssues?.length) tocItems.push({ id: "sec-issues", label: "Problemas" });
   if (analysis.budgetLeaks?.length) tocItems.push({ id: "sec-leaks", label: "Vazamentos" });
+  // anti-patterns inserted later if present
   if (analysis.opportunities?.length) tocItems.push({ id: "sec-opps", label: "Oportunidades" });
   if (analysis.creativesSummary) tocItems.push({ id: "sec-creatives", label: "Criativos" });
   if (analysis.audiencesSummary) tocItems.push({ id: "sec-audiences", label: "Públicos" });
