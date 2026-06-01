@@ -1,4 +1,5 @@
 import { computeRoas, num } from "./campaign-objective.ts";
+import { deriveAdCreativeSignals } from "./derive-ad-metrics.ts";
 import type { BenchmarkComparison } from "./derive-commercial.ts";
 import type { DiagnosticChapter, ChapterStatus } from "./derive-senior-types.ts";
 
@@ -98,6 +99,8 @@ export function deriveCreativeDiagnosis(
   if (ctrGap) {
     parts.push(`CTR conta vs nicho: ${ctrGap.current} (ref. ${ctrGap.reference})`);
   }
+  const adSignals = deriveAdCreativeSignals(ads);
+  if (adSignals?.note) parts.push(adSignals.note);
 
   let headline: string;
   if (dep?.isHighDependency && dep.topAdPurchaseSharePct != null) {

@@ -30,6 +30,11 @@ export function deriveGrowthScenarios(commercial: CommercialDerived): GrowthScen
     basisNote += ` Receita rastreada no período: referência para upside relativo.`;
   }
 
+  const revenueFormatted =
+    revenue != null && revenue > 0
+      ? `R$ ${revenue.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+      : null;
+
   return {
     conservativePct,
     probablePct,
@@ -39,5 +44,6 @@ export function deriveGrowthScenarios(commercial: CommercialDerived): GrowthScen
     aggressiveFormatted: fmtPct(aggressivePct),
     basisNote,
     confidence: recovery > 300 ? "medium" : "low",
+    revenueFormatted,
   };
 }

@@ -48,6 +48,7 @@ export type GrowthScenarios = {
   aggressiveFormatted: string;
   basisNote: string;
   confidence: "low" | "medium";
+  revenueFormatted?: string | null;
 };
 
 export type SeniorRisk = {

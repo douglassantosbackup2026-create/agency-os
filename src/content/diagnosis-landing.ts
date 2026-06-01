@@ -12,6 +12,50 @@ export const ANCHOR_FAQ = "faq";
 
 export const PRICE_LABEL = "R$ 37";
 
+/** Vazamento anualizado indicativo para CTA (leak mensal × 12). */
+export function formatAnnualizedLeakNote(monthlyLeakBrl: number): string {
+  const annual = Math.round(monthlyLeakBrl * 12);
+  const formatted = annual.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 0,
+  });
+  return `Vazamento indicativo: até ${formatted}/ano se nada for corrigido — cenário conservador, não garantia.`;
+}
+
+/** Cenário de upside anualizado para copy comercial (indicativo). */
+export function formatAnnualizedGrowthNote(
+  growthProbablePct: number,
+  monthlyRevenueBrl?: number | null,
+): string {
+  if (monthlyRevenueBrl != null && monthlyRevenueBrl > 0) {
+    const annual = Math.round(monthlyRevenueBrl * (growthProbablePct / 100) * 12);
+    const formatted = annual.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+      maximumFractionDigits: 0,
+    });
+    return `Cenário provável (+${growthProbablePct}%): upside indicativo de até ${formatted}/ano sobre a receita rastreada — não é garantia.`;
+  }
+  return `Cenário provável de crescimento: +${growthProbablePct}% (indicativo, não garantia de resultado).`;
+}
+
+/** Amostra v12 — maturidade, vazamento e crescimento para preview da landing. */
+const PREVIEW_LEAK_MONTHLY_BRL = 4_200;
+
+export const seniorReportPreview = {
+  maturityLevel: 3,
+  maturityLabel: "Intermediário",
+  leakMonthlyFormatted: "R$ 4.200",
+  leakMonthlyBrl: PREVIEW_LEAK_MONTHLY_BRL,
+  growthProbablePct: 18,
+  growthProbableFormatted: "+18%",
+  annualizedGrowthNote: formatAnnualizedGrowthNote(18, 35_000),
+  annualizedLeakNote: formatAnnualizedLeakNote(PREVIEW_LEAK_MONTHLY_BRL),
+  /** Hero / CTA: growth + leak anualizados */
+  annualizedNote: `${formatAnnualizedGrowthNote(18, 35_000)} ${formatAnnualizedLeakNote(PREVIEW_LEAK_MONTHLY_BRL)}`,
+};
+
 export const hero = {
   eyebrow: "Diagnóstico Meta Ads para e-commerce",
   headline: "Descubra EXATAMENTE onde você está perdendo dinheiro no Meta Ads",
@@ -23,7 +67,7 @@ export const hero = {
     "Feita por quem já gerenciou R$ 30 milhões em tráfego pago",
   ],
   ctaPrimary: "ANALISAR MINHA CONTA AGORA",
-  ctaSub: undefined as string | undefined,
+  ctaSub: seniorReportPreview.annualizedNote,
   trustBadges: [
     "Resultado em ~5 minutos",
     "Pagamento seguro",
@@ -367,7 +411,7 @@ export const finalCta = {
   closing:
     "Ou você age agora... ou continua no escuro, desperdiçando dinheiro todo mês, sem saber onde está o buraco. A escolha é sua.",
   ctaPrimary: `ANALISAR MINHA CONTA POR ${PRICE_LABEL}`,
-  ctaSub: "Acesso em ~5 minutos",
+  ctaSub: `${seniorReportPreview.annualizedNote} · Acesso em ~5 minutos`,
   trustLines: [
     "Pagamento 100% seguro (Mercado Pago)",
     "Resultado em ~5 minutos",

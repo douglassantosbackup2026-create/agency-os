@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { AlertTriangle, Eye, TrendingDown, TrendingUp } from "lucide-react";
-import { ANCHOR_PREVIEW, PRICE_LABEL } from "@/content/diagnosis-landing";
+import { ANCHOR_PREVIEW, PRICE_LABEL, seniorReportPreview } from "@/content/diagnosis-landing";
 import {
   LANDING_SECTION_SCROLL,
   landingEyebrowClass,
@@ -39,10 +39,43 @@ const demoMetrics = [
   },
 ];
 
+const demoChapters = [
+  {
+    title: "Estrutura",
+    status: "Atenção",
+    headline: "3 campanhas de Vendas com gasto paralelo — simplificar antes de escalar.",
+    statusClass: "warning",
+  },
+  {
+    title: "Públicos",
+    status: "Saudável",
+    headline: "Funil Geo + Meio + Conversão — objetivos distintos, não é overlap.",
+    statusClass: "good",
+  },
+  {
+    title: "Criativo",
+    status: "Crítico",
+    headline: "Top anúncio concentra 62% do gasto — dependência alta.",
+    statusClass: "critical",
+  },
+  {
+    title: "Escala",
+    status: "Informativo",
+    headline: "Headroom moderado — testar incremento de 15–20% nas campanhas saudáveis.",
+    statusClass: "info",
+  },
+  {
+    title: "Financeiro",
+    status: "Atenção",
+    headline: "R$ 28k investidos · recuperação indicativa conservadora R$ 4,2k/mês.",
+    statusClass: "warning",
+  },
+];
+
 const demoIssues = [
-  "Frequência média 8.7 na campanha principal → estimativa de R$2.400/mês desperdiçado",
-  "CTR de 0.7% (ideal ≥2%) — criativos com desgaste crítico em 4 conjuntos de anúncios",
-  "73% de sobreposição de público entre conjuntos — canibalização de orçamento",
+  "Campanha de Vendas com ROAS abaixo do ideal → ~R$2.400/mês em risco",
+  "CTR de 0.7% (ideal ≥2%) — criativos com desgaste em 4 anúncios do top gasto",
+  "Funil Geo + Meio + Conversão — objetivos distintos (não é overlap entre campanhas)",
 ];
 
 const demoBlurred = [
@@ -103,6 +136,66 @@ function DiagnosisReportPreviewInner({ onCheckout, loading }: Props) {
           </div>
 
           <div className="p-5 md:p-6">
+            {/* Maturidade + vazamento (v12) */}
+            <div className="mb-5 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-3 text-center">
+                <p className="text-xs font-semibold uppercase text-muted-foreground">
+                  Maturidade Meta
+                </p>
+                <p className="mt-1 text-2xl font-bold text-amber-600">
+                  {seniorReportPreview.maturityLevel}/5
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {seniorReportPreview.maturityLabel}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-3 text-center">
+                <p className="text-xs font-semibold uppercase text-muted-foreground">
+                  Vazamento / mês
+                </p>
+                <p className="mt-1 text-xl font-bold text-red-600">
+                  {seniorReportPreview.leakMonthlyFormatted}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border/60 bg-muted/20 p-3 text-center">
+                <p className="text-xs font-semibold uppercase text-muted-foreground">
+                  Crescimento provável
+                </p>
+                <p className="mt-1 text-xl font-bold text-blue-600">
+                  {seniorReportPreview.growthProbableFormatted}
+                </p>
+              </div>
+            </div>
+            <p className="mb-2 text-center text-xs text-muted-foreground">
+              {seniorReportPreview.annualizedGrowthNote}
+            </p>
+            <p className="mb-5 text-center text-xs text-muted-foreground">
+              {seniorReportPreview.annualizedLeakNote}
+            </p>
+
+            {/* 5 capítulos (v12) */}
+            <div className="mb-5">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Os 5 diagnósticos
+              </p>
+              <div className="flex flex-col gap-2">
+                {demoChapters.map((ch) => (
+                  <div
+                    key={ch.title}
+                    className={`rounded-lg border px-3 py-2.5 preview-chapter preview-chapter-${ch.statusClass}`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-semibold">{ch.title}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wide opacity-80">
+                        {ch.status}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">{ch.headline}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* Score */}
             <div className="rounded-xl border border-amber-500/30 bg-amber-50/60 p-4 dark:bg-amber-500/[0.06]">
               <div className="flex items-start justify-between gap-4">

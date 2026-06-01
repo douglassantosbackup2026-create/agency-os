@@ -288,6 +288,64 @@ async function fetchCampaignInsights(
 }
 
 // P1 — Insights por anúncio (top spenders) com criativo
+/** Fase 2 — insights por ad set (reach, frequency) para overlap com evidência */
+async function fetchAdSetInsights(
+  actId: string,
+  token: string,
+  limit = 80,
+): Promise<Record<string, unknown>[]> {
+  const u = new URL(`https://graph.facebook.com/v21.0/${actId}/insights`);
+  u.searchParams.set("level", "adset");
+  u.searchParams.set(
+    "fields",
+    "adset_id,adset_name,campaign_id,campaign_name,impressions,reach,frequency,spend,ctr,inline_link_clicks",
+  );
+  u.searchParams.set("date_preset", "last_30d");
+  u.searchParams.set("limit", String(limit));
+  u.searchParams.set("access_token", token);
+  const r = await fetch(u.toString());
+  const j = (await r.json()) as {
+    data?: Record<string, unknown>[];
+    error?: { message: string };
+  };
+  if (j.error) throw new Error(j.error.message);
+  return j.data ?? [];
+}
+
+/** Fase 2 — targeting resumido (top campanhas por recorte). */
+async function fetchAdSetsTargetingSample(
+  campaigns: Record<string, unknown>[],
+  token: string,
+  maxCampaigns = 5,
+): Promise<Record<string, unknown>[]> {
+  const out: Record<string, unknown>[] = [];
+  for (const c of campaigns.slice(0, maxCampaigns)) {
+    const cid = String(c.id ?? "");
+    if (!cid) continue;
+    const u = new URL(`https://graph.facebook.com/v21.0/${cid}/adsets`);
+    u.searchParams.set("fields", "id,name,campaign_id,targeting");
+    u.searchParams.set("limit", "25");
+    u.searchParams.set("access_token", token);
+    try {
+      const r = await fetch(u.toString());
+      const j = (await r.json()) as {
+        data?: Record<string, unknown>[];
+        error?: { message: string };
+      };
+      if (j.error) {
+        console.warn(
+          `[process-diagnosis] adsets targeting ${cid}: ${j.error.message.slice(0, 120)}`,
+        );
+        continue;
+      }
+      if (j.data?.length) out.push(...j.data);
+    } catch (e) {
+      console.warn(`[process-diagnosis] adsets targeting fetch: ${String(e).slice(0, 120)}`);
+    }
+  }
+  return out.slice(0, 60);
+}
+
 async function fetchTopAdsInsights(
   actId: string,
   token: string,
@@ -297,7 +355,7 @@ async function fetchTopAdsInsights(
   u.searchParams.set("level", "ad");
   u.searchParams.set(
     "fields",
-    "ad_id,ad_name,campaign_name,impressions,clicks,spend,ctr,cpm,actions,action_values",
+    "ad_id,ad_name,campaign_name,impressions,clicks,spend,ctr,cpm,actions,action_values,outbound_clicks,outbound_clicks_ctr,video_3_sec_watched_actions",
   );
   u.searchParams.set("date_preset", "last_30d");
   u.searchParams.set("sort", "spend_descending");
@@ -536,9 +594,16 @@ Deno.serve(async (req) => {
       const _hasAdsInsights =
         Array.isArray(_f?.ads_insights_top) &&
         (_f!.ads_insights_top as unknown[]).length > 0;
+      const _hasAdsetInsights = Array.isArray(_f?.adsets_insights);
+      const _hasAdsetTargeting = Array.isArray(_f?.adsets_targeting_sample);
       const _hasCampaignsEnriched = Array.isArray(_f?.campaigns_enriched);
       const needsEnrichment =
-        !_f || !_hasCampaignInsights || !_hasAdsInsights || !_hasCampaignsEnriched;
+        !_f ||
+        !_hasCampaignInsights ||
+        !_hasAdsInsights ||
+        !_hasAdsetInsights ||
+        !_hasAdsetTargeting ||
+        !_hasCampaignsEnriched;
       if (needsEnrichment) {
         const account_insights = factsForAnalysis?.account_insights
           ? (factsForAnalysis.account_insights as Record<string, unknown>)
@@ -548,10 +613,28 @@ Deno.serve(async (req) => {
           (await fetchCampaigns(actId, token));
         let campaigns_insights: Record<string, unknown>[] = [];
         let ads_insights_top: Record<string, unknown>[] = [];
+        let adsets_insights: Record<string, unknown>[] = [];
+        let adsets_targeting_sample: Record<string, unknown>[] = [];
         try {
           campaigns_insights = await fetchCampaignInsights(actId, token);
         } catch (e) {
           console.warn(`[process-diagnosis] campaign insights falhou: ${String(e).slice(0, 200)}`);
+        }
+        try {
+          adsets_insights = await fetchAdSetInsights(actId, token, 80);
+        } catch (e) {
+          console.warn(`[process-diagnosis] adset insights falhou: ${String(e).slice(0, 200)}`);
+        }
+        try {
+          adsets_targeting_sample = await fetchAdSetsTargetingSample(
+            campaigns.slice(0, 40),
+            token,
+            5,
+          );
+        } catch (e) {
+          console.warn(
+            `[process-diagnosis] adset targeting falhou: ${String(e).slice(0, 200)}`,
+          );
         }
         try {
           ads_insights_top = await fetchTopAdsInsights(actId, token, 25);
@@ -571,6 +654,8 @@ Deno.serve(async (req) => {
           campaigns_enriched,
           objective_spend_mix,
           ads_insights_top: ads_insights_top.slice(0, 25),
+          adsets_insights: adsets_insights.slice(0, 80),
+          adsets_targeting_sample: adsets_targeting_sample.slice(0, 60),
           generated_at: new Date().toISOString(),
         };
         const facts = {

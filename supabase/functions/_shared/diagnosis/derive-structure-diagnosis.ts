@@ -85,6 +85,30 @@ export function deriveStructureDiagnosis(
     parts.push(`${catalogLike.length} campanha(s) com sinal de catálogo/Advantage+ no objective`);
   }
 
+  const adsetsInsights = Array.isArray(facts?.adsets_insights)
+    ? (facts!.adsets_insights as Record<string, unknown>[])
+    : [];
+  if (adsetsInsights.length) {
+    parts.push(`${adsetsInsights.length} conjunto(s) de anúncios com insights no período`);
+  }
+
+  const salesWithSpend = enriched.filter((c) => c.family === "sales" && c.spend > 100);
+  if (salesWithSpend.length >= 2) {
+    const spends = salesWithSpend.map((c) => c.spend).sort((a, b) => a - b);
+    const median = spends[Math.floor(spends.length / 2)] ?? 0;
+    if (median > 0) {
+      const parallel = salesWithSpend.filter(
+        (c) => Math.abs(c.spend - median) / median <= 0.4,
+      );
+      if (parallel.length >= 2) {
+        parts.push(
+          `${parallel.length} campanhas de Vendas com gasto paralelo similar (~${parallel.map((c) => c.name).slice(0, 2).join(", ")})`,
+        );
+        if (status === "good") status = "warning";
+      }
+    }
+  }
+
   return {
     id: "structure",
     title: "Diagnóstico da estrutura",

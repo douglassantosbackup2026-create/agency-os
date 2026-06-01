@@ -106,6 +106,53 @@ npx supabase functions deploy diagnosis-report --project-ref uvuotaxikuxejfeitla
 
 **Reprocessar após v12:** `prompt_version != diagnosis-ecommerce-v12` — banner no relatório até reprocessar.
 
+```bash
+# Reprocessar fila ou um diagnóstico específico (requer CRON_SECRET no .env)
+npm run ops:reprocess-diagnosis
+npm run ops:reprocess-diagnosis -- <diagnosis_uuid>
+```
+
+### QA piloto v12 (1–2 contas)
+
+1. Listar candidatos (relatório antigo ou sem `diagnosis-ecommerce-v12`):
+
+```sql
+SELECT d.id, d.status, dr.prompt_version, d.meta_ad_account_id, d.updated_at
+FROM public.diagnoses d
+JOIN public.diagnosis_reports dr ON dr.diagnosis_id = d.id
+WHERE d.status = 'completed'
+  AND (dr.prompt_version IS DISTINCT FROM 'diagnosis-ecommerce-v12')
+ORDER BY d.updated_at DESC
+LIMIT 5;
+```
+
+2. Reprocessar: `npm run ops:reprocess-diagnosis -- <uuid>` (aguardar `completed`).
+3. Abrir `/diagnostico/<uuid>` e validar: maturidade, card de riscos, vazamento por eixo, 5 capítulos, funil misto (Geo + Meio + Conversão quando aplicável), badges eixo/motor em problemas críticos.
+4. Recarregar sem reprocessar: hidratação deve manter motores determinísticos; narrativa `chapterNarratives` só após passo 2.
+
+**Piloto atual (2026-06-01):** `7e8e3d16-306f-4960-ace3-56de6a3f0b6a` — `facts_json` em v12 com `adsets_insights` e `seniorDerived` no servidor; se a IA falhar (timeout Anthropic / quota OpenAI), a UI v12 ainda exibe motores via hidratação em `diagnosis-report`. Reenfileirar `processing` + cron quando as chaves de IA estiverem OK para narrativa v12 completa.
+
+## Fase 2 — Ad sets (implementado)
+
+- **Fetch:** `adsets_insights` em `process-diagnosis` (`fetchAdSetInsights`, level=adset).
+- **Targeting:** `adsets_targeting_sample` (top 5 campanhas) + `derive-adset-targeting.ts` (custom_audience duplicado na mesma campanha).
+- **Criativo:** `outbound_clicks`, `outbound_clicks_ctr`, `video_3_sec_watched_actions` no fetch de ads + `derive-ad-metrics.ts`.
+- **Públicos:** `derive-adset-audience.ts` — overlap só na mesma campanha (reach rate + freq); `audience.dataAvailable: full` quando há sinais.
+- **Estrutura:** campanhas de Vendas paralelas com gasto similar + contagem de ad sets.
+
+### Calibração de maturidade (Fase 3)
+
+Pesos exportados em `MATURITY_WEIGHTS` (`derive-maturity.ts`): tracking 25%, funnel 15%, creative 20%, health 25%, structure 15%. Para recalibrar: comparar `level` vs. avaliação humana em 10–20 contas, ajustar pesos e reprocessar piloto.
+
+## Deploy Worker (front v12)
+
+```bash
+npx wrangler login
+npm run ops:deploy-worker
+```
+
+Sem deploy do Worker, produção pode servir bundle antigo mesmo com Supabase em v12.
+
 ## Queries operacionais
 
 Diagnósticos presos em `processing` (> 30 min):

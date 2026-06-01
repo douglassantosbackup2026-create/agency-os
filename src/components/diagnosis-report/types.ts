@@ -98,6 +98,8 @@ export type DiagnosisAnalysis = {
     cause?: string;
     consequence?: string;
     financialNote?: string | null;
+    axis?: "structure" | "audience" | "creative" | "sales" | null;
+    engine?: "leak" | "growth" | "risk" | null;
   }[];
   budgetLeaks?: {
     title: string;
@@ -212,6 +214,7 @@ export type GrowthScenarios = {
   aggressiveFormatted: string;
   basisNote: string;
   confidence: "low" | "medium";
+  revenueFormatted?: string | null;
 };
 
 export type SeniorDerived = {

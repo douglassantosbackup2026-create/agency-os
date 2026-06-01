@@ -23,6 +23,11 @@ export function DiagnosisGrowthScenarios({ scenarios }: Props) {
           <span className="growth-scenario-pct">{scenarios.aggressiveFormatted}</span>
         </div>
       </div>
+      {scenarios.revenueFormatted ? (
+        <p className="muted growth-revenue">
+          Receita rastreada no período (referência): {scenarios.revenueFormatted}
+        </p>
+      ) : null}
       <p className="muted growth-confidence">
         Confiança do cenário:{" "}
         {scenarios.confidence === "medium" ? "média" : "baixa"} (indicativo, não garantia).

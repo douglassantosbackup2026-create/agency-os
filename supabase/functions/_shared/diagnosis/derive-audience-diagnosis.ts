@@ -1,5 +1,10 @@
 import { type CampaignEnriched, enrichCampaigns, num } from "./campaign-objective.ts";
 import { deriveAccountObjectiveSummary } from "./derive-analysis.ts";
+import { deriveAdsetOverlapSignals } from "./derive-adset-audience.ts";
+import {
+  findDuplicateAudienceTargeting,
+  summarizeAdsetTargeting,
+} from "./derive-adset-targeting.ts";
 import type { DiagnosticChapter, ChapterStatus } from "./derive-senior-types.ts";
 
 function getEnriched(facts: Record<string, unknown> | null | undefined): CampaignEnriched[] {
@@ -25,6 +30,17 @@ export function deriveAudienceDiagnosis(
   const impressions = num(ins.impressions);
   const reach = num(ins.reach);
   const enriched = getEnriched(facts);
+  const adsetsInsights = Array.isArray(facts?.adsets_insights)
+    ? (facts!.adsets_insights as Record<string, unknown>[])
+    : [];
+  const overlapSignals = deriveAdsetOverlapSignals(adsetsInsights);
+  const targetingRows = summarizeAdsetTargeting(
+    Array.isArray(facts?.adsets_targeting_sample)
+      ? (facts!.adsets_targeting_sample as Record<string, unknown>[])
+      : [],
+  );
+  const targetingDupes = findDuplicateAudienceTargeting(targetingRows);
+  const hasAdsetData = adsetsInsights.length >= 2 || targetingRows.length > 0;
 
   const highFreqCamps = enriched.filter((c) => (c.frequency ?? 0) >= 5);
   const warnFreqCamps = enriched.filter(
@@ -54,6 +70,20 @@ export function deriveAudienceDiagnosis(
       `${highFreqCamps.length} campanha(s) com frequência ≥ 5: ${highFreqCamps.map((c) => c.name).slice(0, 2).join(", ")}`,
     );
   }
+  if (overlapSignals.length) {
+    const o = overlapSignals[0];
+    parts.push(
+      `Ad sets na campanha "${o.campaign_name}": reach rate ${o.reach_rate_pct}% · freq ${o.frequency.toFixed(1).replace(".", ",")} (${o.note})`,
+    );
+    if (!summary.mixed_funnel) status = status === "good" ? "warning" : status;
+  }
+  if (targetingDupes.length) {
+    const d = targetingDupes[0];
+    parts.push(
+      `${d.adset_ids.length} conjuntos na mesma campanha com mesmo custom_audience_id (${d.audience_id.slice(0, 12)}…)`,
+    );
+    if (!summary.mixed_funnel) status = status === "good" ? "warning" : status;
+  }
 
   let headline: string;
   if (summary.mixed_funnel) {
@@ -81,6 +111,11 @@ export function deriveAudienceDiagnosis(
     headline,
     evidence: parts.length ? parts.join(" · ") : "Dados de público limitados ao nível conta/campanha.",
     impactNote: impact,
-    dataAvailable: "partial",
+    dataAvailable:
+      hasAdsetData && (overlapSignals.length || targetingDupes.length)
+        ? "full"
+        : hasAdsetData
+          ? "partial"
+          : "partial",
   };
 }

@@ -23,6 +23,7 @@
     "ops:diagnosis-health": "node scripts/diagnosis-health-check.mjs",
     "ops:diagnosis-secrets": "node scripts/ops-set-diagnosis-secrets.mjs",
     "ops:deploy-worker": "node scripts/deploy-worker-with-env.mjs",
+    "ops:reprocess-diagnosis": "node scripts/ops-reprocess-diagnosis.mjs",
     "ops:set-cron-batch": "node scripts/ops-set-cron-client-batch.mjs",
     "landing:assets": "node scripts/generate-landing-assets.mjs",
     "landing:from-png": "node scripts/process-landing-screenshots.mjs ./landing-raw-png",

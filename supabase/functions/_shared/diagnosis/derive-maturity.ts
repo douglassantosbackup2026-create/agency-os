@@ -1,3 +1,12 @@
+/** Pesos calibráveis — ajustar após planilha QA (ver docs/diagnostico-meta-runbook.md). */
+export const MATURITY_WEIGHTS = {
+  tracking: 0.25,
+  funnel: 0.15,
+  creative: 0.2,
+  health: 0.25,
+  structure: 0.15,
+} as const;
+
 import { type CampaignEnriched, enrichCampaigns, computeSpendMix } from "./campaign-objective.ts";
 import type { CommercialDerived } from "./derive-commercial.ts";
 import { deriveCreativeDependency } from "./derive-creative-diagnosis.ts";
@@ -113,11 +122,11 @@ export function deriveMaturityScore(
   ];
 
   const weighted =
-    trackingScore * 0.25 +
-    funnelScore * 0.15 +
-    creativeScore * 0.2 +
-    healthNorm * 0.25 +
-    diversityScore * 0.15;
+    trackingScore * MATURITY_WEIGHTS.tracking +
+    funnelScore * MATURITY_WEIGHTS.funnel +
+    creativeScore * MATURITY_WEIGHTS.creative +
+    healthNorm * MATURITY_WEIGHTS.health +
+    diversityScore * MATURITY_WEIGHTS.structure;
 
   const level = clampLevel(weighted / 20);
   const label = LABELS[level];

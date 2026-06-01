@@ -17,7 +17,9 @@ import { DiagnosisFinancialBalance } from "@/components/diagnosis-report/Diagnos
 import { DiagnosisFiveChapters } from "@/components/diagnosis-report/DiagnosisFiveChapters";
 import { DiagnosisGrowthScenarios } from "@/components/diagnosis-report/DiagnosisGrowthScenarios";
 import { DiagnosisLeakByAxis } from "@/components/diagnosis-report/DiagnosisLeakByAxis";
+import { DiagnosisIssueCard } from "@/components/diagnosis-report/DiagnosisIssueCard";
 import { DiagnosisMaturityCard } from "@/components/diagnosis-report/DiagnosisMaturityCard";
+import { DiagnosisRisksCard } from "@/components/diagnosis-report/DiagnosisRisksCard";
 import { DiagnosisPrintCover } from "@/components/diagnosis-report/DiagnosisPrintCover";
 import { DiagnosisReportShell } from "@/components/diagnosis-report/DiagnosisReportShell";
 import { DiagnosisTopFindings } from "@/components/diagnosis-report/DiagnosisTopFindings";
@@ -650,6 +652,19 @@ function DiagnosticoReportPage() {
           score={score}
           scoreLabel={analysis.scoreLabel}
           accountLabel={accountPrintLabel}
+          maturityLevel={seniorDerived?.maturity.level}
+          maturityLabel={seniorDerived?.maturity.label}
+          leakTotalFormatted={
+            seniorDerived?.leakByAxis?.length
+              ? seniorDerived.leakByAxis
+                  .reduce((s, i) => s + i.monthlyBrl, 0)
+                  .toLocaleString("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                    maximumFractionDigits: 0,
+                  })
+              : undefined
+          }
         />
 
         {legacyReport && !hasSeniorV12 ? (
@@ -672,6 +687,7 @@ function DiagnosticoReportPage() {
         {hasSeniorV12 && seniorDerived ? (
           <>
             <DiagnosisMaturityCard maturity={seniorDerived.maturity} />
+            <DiagnosisRisksCard risks={seniorDerived.risks} />
             <DiagnosisLeakByAxis items={seniorDerived.leakByAxis} />
             <DiagnosisFiveChapters
               senior={seniorDerived}
@@ -784,29 +800,12 @@ function DiagnosticoReportPage() {
               Causa, consequência e impacto — para você decidir com clareza.
             </p>
             {analysis.criticalIssues.map((i) => (
-              <div key={i.title} className="issue-card issue-card-v9">
-                <div className="issue-icon">⚠️</div>
-                <div className="issue-card-body">
-                  <h3>{i.title}</h3>
-                  <p className="muted" style={{ margin: "0 0 0.5rem" }}>{i.description}</p>
-                  {i.cause ? (
-                    <p className="issue-cause">
-                      <strong>Por quê:</strong> {i.cause}
-                    </p>
-                  ) : null}
-                  {i.consequence ? (
-                    <p className="issue-consequence">
-                      <strong>Impacto:</strong> {i.consequence}
-                    </p>
-                  ) : null}
-                  {i.financialNote ? (
-                    <p className="issue-financial">{i.financialNote}</p>
-                  ) : null}
-                  <span className={`badge ${priorityBadge(i.priority)}`}>
-                    {i.priority}
-                  </span>
-                </div>
-              </div>
+              <DiagnosisIssueCard
+                key={i.title}
+                issue={i}
+                priorityBadge={priorityBadge}
+                axisLabelPt={axisLabelPt}
+              />
             ))}
           </section>
         ) : null}
@@ -894,29 +893,12 @@ function DiagnosticoReportPage() {
               Causa, consequência e impacto — para você decidir com clareza.
             </p>
             {analysis.criticalIssues.map((i) => (
-              <div key={i.title} className="issue-card issue-card-v9">
-                <div className="issue-icon">⚠️</div>
-                <div className="issue-card-body">
-                  <h3>{i.title}</h3>
-                  <p className="muted" style={{ margin: "0 0 0.5rem" }}>{i.description}</p>
-                  {i.cause ? (
-                    <p className="issue-cause">
-                      <strong>Por quê:</strong> {i.cause}
-                    </p>
-                  ) : null}
-                  {i.consequence ? (
-                    <p className="issue-consequence">
-                      <strong>Impacto:</strong> {i.consequence}
-                    </p>
-                  ) : null}
-                  {i.financialNote ? (
-                    <p className="issue-financial">{i.financialNote}</p>
-                  ) : null}
-                  <span className={`badge ${priorityBadge(i.priority)}`}>
-                    {i.priority}
-                  </span>
-                </div>
-              </div>
+              <DiagnosisIssueCard
+                key={i.title}
+                issue={i}
+                priorityBadge={priorityBadge}
+                axisLabelPt={axisLabelPt}
+              />
             ))}
           </section>
         ) : null}

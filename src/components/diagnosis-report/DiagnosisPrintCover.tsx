@@ -2,9 +2,19 @@ type Props = {
   score: number;
   scoreLabel: string;
   accountLabel?: string;
+  maturityLevel?: number;
+  maturityLabel?: string;
+  leakTotalFormatted?: string;
 };
 
-export function DiagnosisPrintCover({ score, scoreLabel, accountLabel }: Props) {
+export function DiagnosisPrintCover({
+  score,
+  scoreLabel,
+  accountLabel,
+  maturityLevel,
+  maturityLabel,
+  leakTotalFormatted,
+}: Props) {
   const dateStr = new Date().toLocaleDateString("pt-BR", {
     day: "2-digit",
     month: "long",
@@ -18,6 +28,17 @@ export function DiagnosisPrintCover({ score, scoreLabel, accountLabel }: Props) 
         <p className="print-cover-period">Período analisado: últimos 30 dias</p>
         {accountLabel ? (
           <p className="print-cover-account">{accountLabel}</p>
+        ) : null}
+        {maturityLevel != null ? (
+          <p className="print-cover-maturity">
+            Maturidade Meta: <strong>{maturityLevel}/5</strong>
+            {maturityLabel ? ` · ${maturityLabel}` : ""}
+          </p>
+        ) : null}
+        {leakTotalFormatted ? (
+          <p className="print-cover-leak">
+            Vazamento estimado por eixo: <strong>{leakTotalFormatted}/mês</strong>
+          </p>
         ) : null}
         <div className="print-cover-score">
           <span className="print-cover-score-num">{score}</span>
