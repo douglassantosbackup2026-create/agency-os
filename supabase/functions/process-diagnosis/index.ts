@@ -675,9 +675,12 @@ Deno.serve(async (req) => {
 
     try {
       // P1 — facts enriquecidos com insights por campanha + top anúncios
-      const needsEnrichment =
-        !factsForAnalysis ||
-        !Array.isArray((factsForAnalysis as Record<string, unknown>).campaigns_insights);
+      const _f = factsForAnalysis as Record<string, unknown> | null;
+      const _hasCampaignInsights = Array.isArray(_f?.campaigns_insights);
+      const _hasAdsInsights =
+        Array.isArray(_f?.ads_insights_top) &&
+        (_f!.ads_insights_top as unknown[]).length > 0;
+      const needsEnrichment = !_f || !_hasCampaignInsights || !_hasAdsInsights;
       if (needsEnrichment) {
         const account_insights = factsForAnalysis?.account_insights
           ? (factsForAnalysis.account_insights as Record<string, unknown>)
