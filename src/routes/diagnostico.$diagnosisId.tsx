@@ -722,11 +722,57 @@ function DiagnosticoReportPage() {
           <button type="button" className="toolbar-btn" onClick={printReport}>
             🖨️ Imprimir / Salvar PDF
           </button>
+          <button
+            type="button"
+            className="toolbar-btn"
+            onClick={() => {
+              setSummaryOpen((v) => !v);
+              if (!summaryOpen) trackEvent("summary_open");
+            }}
+            aria-expanded={summaryOpen}
+          >
+            📤 Resumo executivo
+          </button>
           <button type="button" className="toolbar-btn" onClick={downloadReminder}>
             ⏰ Lembrar em 30 dias
           </button>
           {shareMsg ? <span className="toolbar-msg" role="status">{shareMsg}</span> : null}
         </div>
+
+        {summaryOpen ? (
+          <section className="card summary-panel no-print" aria-label="Resumo executivo">
+            <div className="summary-head">
+              <h2 style={{ margin: 0, fontSize: "1.05rem" }}>Resumo executivo</h2>
+              <button
+                type="button"
+                className="toolbar-btn"
+                onClick={() => setSummaryOpen(false)}
+                aria-label="Fechar resumo"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="section-hint" style={{ marginTop: "0.25rem" }}>
+              Uma página para compartilhar com sócio, gestor ou agência.
+            </p>
+            <pre className="summary-text">{execSummary}</pre>
+            <div className="summary-actions">
+              <button type="button" className="toolbar-btn" onClick={() => void copyExecSummary()}>
+                Copiar texto
+              </button>
+              <button type="button" className="toolbar-btn" onClick={shareSummaryWhatsApp}>
+                WhatsApp
+              </button>
+              <button type="button" className="toolbar-btn" onClick={shareSummaryEmail}>
+                E-mail
+              </button>
+              {summaryMsg ? (
+                <span className="toolbar-msg" role="status">{summaryMsg}</span>
+              ) : null}
+            </div>
+          </section>
+        ) : null}
+
 
 
 
