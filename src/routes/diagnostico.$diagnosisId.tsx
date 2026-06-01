@@ -683,6 +683,17 @@ function DiagnosticoReportPage() {
                     <div>
                       <div className="metric-name">{m.name}</div>
                       <div className="metric-ref">Referência: {m.reference}</div>
+                      {niche && (() => {
+                        const mk = matchMetricKey(m.name);
+                        const range = mk ? niche.ranges[mk] : undefined;
+                        if (!range) return null;
+                        return (
+                          <div className="metric-bench" title={`Faixa típica em ${niche.label}`}>
+                            <span className="metric-bench-tag">{niche.label}</span>{" "}
+                            {formatBenchmark(mk!, range)}
+                          </div>
+                        );
+                      })()}
                     </div>
                     <div>
                       <div className="metric-value">{m.current}</div>
@@ -696,12 +707,24 @@ function DiagnosticoReportPage() {
                 );
               })}
             </div>
+            {niche ? (
+              <p className="section-hint" style={{ marginTop: "0.75rem" }}>
+                Faixas de referência indicativas para <strong>{niche.label}</strong>,
+                baseadas no contexto que você informou.
+              </p>
+            ) : (
+              <p className="section-hint" style={{ marginTop: "0.75rem" }}>
+                Informe seu nicho em <a href="#sec-business">Contexto de negócio</a>{" "}
+                para ver faixas de referência específicas ao seu segmento.
+              </p>
+            )}
             <div className="pain-line">
               Cada métrica fora da referência = real saindo da conta sem
               voltar.
             </div>
           </section>
         ) : null}
+
 
         {analysis.campaignBreakdown?.length ? (
           <section className="card" id="sec-campaigns">
