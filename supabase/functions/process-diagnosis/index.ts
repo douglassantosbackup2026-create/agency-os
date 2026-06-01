@@ -409,7 +409,7 @@ async function runWithFallback(
         console.warn(`[process-diagnosis] ${p.name} validação falhou (${ms}ms)`);
         continue;
       }
-      const normalized = normalizeAnalysis(analysis as Record<string, unknown>);
+      const normalized = normalizeAnalysis(analysis as Record<string, unknown>, facts);
       attempts.push({ provider: p.name, ok: true, ms });
       console.log(`[process-diagnosis] ${p.name} OK (${ms}ms)`);
       return { analysis: normalized, provider: p.name, attempts };
