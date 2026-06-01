@@ -531,17 +531,12 @@ function DiagnosticoReportPage() {
     ? Number((spendMetric.current ?? "").replace(/[^\d.,-]/g, "").replace(",", "."))
     : null;
 
-  // P5 — simulador interativo (sliders)
-  const [simCpa, setSimCpa] = useState(15); // % redução de CPA
-  const [simCtr, setSimCtr] = useState(20); // % aumento de CTR
-  const [simLeak, setSimLeak] = useState(40); // % do vazamento recuperado
-  const [simSpendInput, setSimSpendInput] = useState("");
+  // P5 — simulador interativo (estado declarado no topo)
   const simSpendNum = parseNum(simSpendInput);
   const monthlySpend = observedMonthlySpend || simSpendNum;
 
-  const simulation = useMemo(() => {
+  const simulation = (() => {
     if (!observedRoas || !monthlySpend) return null;
-    // ganho composto (indicativo): CPA puxa direto, CTR meio peso, leak puxa peso alto
     const gain = simCpa / 100 + (simCtr * 0.5) / 100 + (simLeak * 0.7) / 100;
     const newRoas = observedRoas * (1 + gain);
     const baseRevenue = monthlySpend * observedRoas;
@@ -553,34 +548,32 @@ function DiagnosticoReportPage() {
         ? Math.min(100, (extraContribution / contributionAtGoal) * 100)
         : null;
     return { newRoas, extraRevenue, extraContribution, gapPctClosed, baseRevenue };
-  }, [observedRoas, monthlySpend, simCpa, simCtr, simLeak, marginNum, contributionAtGoal]);
+  })();
 
   // P6 — roadmap 30/60/90: agrupa actionPlan pelo campo eta
-  const roadmap = useMemo(() => {
-    const buckets: { short: typeof analysis.actionPlan; mid: typeof analysis.actionPlan; long: typeof analysis.actionPlan } = {
-      short: [],
-      mid: [],
-      long: [],
-    };
+  type PlanItem = { step: number; action: string; impact: string; eta: string };
+  const roadmap: { short: PlanItem[]; mid: PlanItem[]; long: PlanItem[] } = (() => {
+    const buckets = { short: [] as PlanItem[], mid: [] as PlanItem[], long: [] as PlanItem[] };
     (analysis.actionPlan ?? []).forEach((item) => {
       const eta = (item.eta || "").toLowerCase();
-      const days = (() => {
-        const m = eta.match(/(\d+)/);
-        if (!m) return 30;
-        const n = Number(m[1]);
-        if (/h(ora)?/.test(eta)) return Math.ceil(n / 24);
-        if (/dia/.test(eta)) return n;
-        if (/sem/.test(eta)) return n * 7;
-        if (/m[eê]s/.test(eta)) return n * 30;
-        if (/trim/.test(eta)) return n * 90;
-        return n;
-      })();
-      if (days <= 14) buckets.short!.push(item);
-      else if (days <= 45) buckets.mid!.push(item);
-      else buckets.long!.push(item);
+      const m = eta.match(/(\d+)/);
+      const n = m ? Number(m[1]) : 0;
+      let days = 30;
+      if (m) {
+        if (/h(ora)?/.test(eta)) days = Math.ceil(n / 24);
+        else if (/dia/.test(eta)) days = n;
+        else if (/sem/.test(eta)) days = n * 7;
+        else if (/m[eê]s/.test(eta)) days = n * 30;
+        else if (/trim/.test(eta)) days = n * 90;
+        else days = n;
+      }
+      if (days <= 14) buckets.short.push(item);
+      else if (days <= 45) buckets.mid.push(item);
+      else buckets.long.push(item);
     });
     return buckets;
-  }, [analysis.actionPlan]);
+  })();
+
 
 
 
