@@ -1182,6 +1182,129 @@ function DiagnosticoReportPage() {
           ) : null}
         </section>
 
+        <section className="card simulator-card" id="sec-sim">
+          <span className="business-tag">Simulador indicativo</span>
+          <h2>Quanto a correção pode gerar</h2>
+          <p className="section-hint">
+            Ajuste os controles para estimar o impacto de implementar as
+            recomendações. Valores indicativos — não são projeção garantida.
+          </p>
+          {!observedRoas ? (
+            <p className="muted">
+              Precisamos do ROAS observado para simular. Reabra o diagnóstico
+              quando a Meta retornar dados completos.
+            </p>
+          ) : (
+            <>
+              {!observedMonthlySpend ? (
+                <label className="sim-spend">
+                  <span className="muted" style={{ fontSize: "0.85rem" }}>
+                    Gasto mensal médio (R$) — informe para calcular
+                  </span>
+                  <input
+                    className="field-input"
+                    inputMode="numeric"
+                    placeholder="Ex.: 8000"
+                    value={simSpendInput}
+                    onChange={(e) => setSimSpendInput(e.target.value)}
+                  />
+                </label>
+              ) : null}
+
+              <div className="sim-controls">
+                <label className="sim-slider">
+                  <span>
+                    Redução de CPA: <strong>{simCpa}%</strong>
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={50}
+                    step={1}
+                    value={simCpa}
+                    onChange={(e) => setSimCpa(Number(e.target.value))}
+                  />
+                </label>
+                <label className="sim-slider">
+                  <span>
+                    Aumento de CTR: <strong>{simCtr}%</strong>
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={80}
+                    step={1}
+                    value={simCtr}
+                    onChange={(e) => setSimCtr(Number(e.target.value))}
+                  />
+                </label>
+                <label className="sim-slider">
+                  <span>
+                    Recuperação de vazamento: <strong>{simLeak}%</strong>
+                  </span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={100}
+                    step={5}
+                    value={simLeak}
+                    onChange={(e) => setSimLeak(Number(e.target.value))}
+                  />
+                </label>
+              </div>
+
+              {simulation ? (
+                <div className="sim-results">
+                  <div className="sim-stat">
+                    <span className="sim-stat-label">ROAS projetado</span>
+                    <span className="sim-stat-value">
+                      {simulation.newRoas.toFixed(2)}x
+                    </span>
+                    <span className="muted" style={{ fontSize: "0.75rem" }}>
+                      hoje {observedRoas?.toFixed(2)}x
+                    </span>
+                  </div>
+                  <div className="sim-stat">
+                    <span className="sim-stat-label">Receita extra / mês</span>
+                    <span className="sim-stat-value">
+                      +{fmtBRL(Math.max(0, simulation.extraRevenue))}
+                    </span>
+                  </div>
+                  {simulation.extraContribution != null ? (
+                    <div className="sim-stat">
+                      <span className="sim-stat-label">Margem extra / mês</span>
+                      <span className="sim-stat-value">
+                        +{fmtBRL(Math.max(0, simulation.extraContribution))}
+                      </span>
+                      <span className="muted" style={{ fontSize: "0.75rem" }}>
+                        considerando margem informada
+                      </span>
+                    </div>
+                  ) : null}
+                  {simulation.gapPctClosed != null ? (
+                    <div className="sim-stat">
+                      <span className="sim-stat-label">Gap até a meta</span>
+                      <span className="sim-stat-value">
+                        {Math.round(simulation.gapPctClosed)}% fechado
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="muted">
+                  Informe o gasto mensal acima para ver a estimativa.
+                </p>
+              )}
+              <p className="muted" style={{ fontSize: "0.75rem", marginTop: "0.5rem" }}>
+                Cálculo composto e indicativo: CPA tem peso direto, CTR peso
+                médio e recuperação de vazamento peso alto sobre o ROAS atual.
+              </p>
+            </>
+          )}
+        </section>
+
+
+
 
 
         {analysis.improvementScenario?.note ? (
