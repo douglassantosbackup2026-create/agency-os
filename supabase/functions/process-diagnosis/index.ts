@@ -93,12 +93,112 @@ function validateAnalysis(obj: unknown): boolean {
   return true;
 }
 
-function normalizeAnalysis(obj: Record<string, unknown>): Record<string, unknown> {
+// ── Normalização determinística de métricas (P0) ─────────────────────────────
+// Não confiar no status que a IA atribui: recalcular a partir de facts_json
+// com thresholds estáveis. Fonte de verdade do semáforo é o servidor.
+
+type DerivedStatus = "bom" | "atenção" | "alerta" | "sem tracking" | "sem dados";
+
+function _num(v: unknown): number | null {
+  const n = typeof v === "string" ? Number(v) : (v as number);
+  return Number.isFinite(n) ? (n as number) : null;
+}
+
+function _fmtBRL(n: number | null): string {
+  if (n == null) return "—";
+  return `R$ ${n.toFixed(2).replace(".", ",")}`;
+}
+
+function _fmtPct(n: number | null): string {
+  if (n == null) return "—";
+  return `${n.toFixed(2).replace(".", ",")}%`;
+}
+
+function _fmtX(n: number | null): string {
+  if (n == null) return "—";
+  return `${n.toFixed(2).replace(".", ",")}x`;
+}
+
+function _fmtNum(n: number | null, dec = 2): string {
+  if (n == null) return "—";
+  return n.toFixed(dec).replace(".", ",");
+}
+
+function _findActionValue(arr: unknown, regex: RegExp): number | null {
+  if (!Array.isArray(arr)) return null;
+  const hit = arr.find((a) => {
+    const o = a as Record<string, unknown>;
+    return typeof o?.action_type === "string" && regex.test(o.action_type);
+  }) as Record<string, unknown> | undefined;
+  return hit ? _num(hit.value) : null;
+}
+
+function deriveMetricsFromFacts(
+  facts: Record<string, unknown> | null | undefined,
+): {
+  metrics: { name: string; current: string; reference: string; status: DerivedStatus }[];
+  limitations: string[];
+} {
+  const ins = (facts?.account_insights ?? {}) as Record<string, unknown>;
+  const spend = _num(ins.spend);
+  const impressions = _num(ins.impressions);
+  const reach = _num(ins.reach);
+  const frequency = _num(ins.frequency);
+  const ctr = _num(ins.ctr);
+  const cpc = _num(ins.cpc);
+  const cpm = _num(ins.cpm);
+
+  const revenue = _findActionValue(ins.action_values, /purchase|omni_purchase/i);
+  const purchases = _findActionValue(ins.actions, /^purchase$|^omni_purchase$/i);
+  const roas = revenue != null && spend && spend > 0 ? revenue / spend : null;
+  const cpa = purchases != null && purchases > 0 && spend ? spend / purchases : null;
+  const reachRate = reach != null && impressions && impressions > 0 ? reach / impressions : null;
+
+  const limitations: string[] = [];
+  if (roas == null) limitations.push("ROAS não disponível: receita de compra não rastreada nos dados da Meta para este período.");
+  if (cpa == null) limitations.push("CPA não disponível: eventos de compra ausentes nos dados da Meta.");
+
+  const sRoas: DerivedStatus = roas == null ? "sem tracking" : roas >= 3 ? "bom" : roas >= 1.5 ? "atenção" : "alerta";
+  const sCpa: DerivedStatus = cpa == null ? "sem tracking" : "sem dados"; // CPA depende da margem — não classifica sozinho
+  const sCtr: DerivedStatus = ctr == null ? "sem dados" : ctr >= 1.2 ? "bom" : ctr >= 0.8 ? "atenção" : "alerta";
+  const sCpm: DerivedStatus = cpm == null ? "sem dados" : cpm <= 25 ? "bom" : cpm <= 40 ? "atenção" : "alerta";
+  const sCpc: DerivedStatus = cpc == null ? "sem dados" : cpc <= 2.5 ? "bom" : cpc <= 5 ? "atenção" : "alerta";
+  const sFreq: DerivedStatus = frequency == null ? "sem dados" : frequency <= 3.5 ? "bom" : frequency <= 5 ? "atenção" : "alerta";
+  const sReach: DerivedStatus = reachRate == null ? "sem dados" : reachRate >= 0.5 ? "bom" : "atenção";
+
+  return {
+    metrics: [
+      { name: "ROAS", current: roas != null ? _fmtX(roas) : "sem tracking", reference: "> 3x", status: sRoas },
+      { name: "CPA", current: cpa != null ? _fmtBRL(cpa) : "sem tracking", reference: "varia por margem", status: sCpa },
+      { name: "CTR", current: ctr != null ? _fmtPct(ctr) : "—", reference: "> 1,2%", status: sCtr },
+      { name: "CPM", current: cpm != null ? _fmtBRL(cpm) : "—", reference: "< R$ 25", status: sCpm },
+      { name: "CPC", current: cpc != null ? _fmtBRL(cpc) : "—", reference: "< R$ 2,50 topo / < R$ 5 fundo", status: sCpc },
+      { name: "Frequência", current: _fmtNum(frequency), reference: "< 3,5", status: sFreq },
+      { name: "Reach rate", current: reachRate != null ? _fmtPct(reachRate * 100) : "—", reference: "> 50%", status: sReach },
+    ],
+    limitations,
+  };
+}
+
+function normalizeAnalysis(
+  obj: Record<string, unknown>,
+  facts?: Record<string, unknown> | null,
+): Record<string, unknown> {
   if (!Array.isArray(obj.dataLimitations)) obj.dataLimitations = [];
   if (!Array.isArray(obj.metrics)) obj.metrics = [];
   if (!Array.isArray(obj.budgetLeaks)) obj.budgetLeaks = [];
   if (!Array.isArray(obj.opportunities)) obj.opportunities = [];
   if (!Array.isArray(obj.structureNotes)) obj.structureNotes = [];
+  if (!Array.isArray(obj.actionPlan)) obj.actionPlan = [];
+
+  // Fonte de verdade do semáforo: backend determinístico (substitui métricas da IA).
+  const derived = deriveMetricsFromFacts(facts ?? null);
+  obj.metrics = derived.metrics;
+  for (const lim of derived.limitations) {
+    if (!(obj.dataLimitations as string[]).includes(lim)) {
+      (obj.dataLimitations as string[]).push(lim);
+    }
+  }
 
   if (typeof obj.scoreLabel !== "string") {
     const s = obj.score as number;
@@ -154,10 +254,11 @@ async function fetchAccountInsights(
   const u = new URL(`https://graph.facebook.com/v21.0/${actId}/insights`);
   u.searchParams.set(
     "fields",
-    "impressions,clicks,spend,cpc,cpm,ctr,reach,frequency,actions",
+    "impressions,clicks,spend,cpc,cpm,ctr,reach,frequency,actions,action_values",
   );
   u.searchParams.set("date_preset", "last_30d");
   u.searchParams.set("access_token", token);
+
   const r = await fetch(u.toString());
   const j = (await r.json()) as {
     data?: Record<string, unknown>[];
@@ -308,7 +409,7 @@ async function runWithFallback(
         console.warn(`[process-diagnosis] ${p.name} validação falhou (${ms}ms)`);
         continue;
       }
-      const normalized = normalizeAnalysis(analysis as Record<string, unknown>);
+      const normalized = normalizeAnalysis(analysis as Record<string, unknown>, facts);
       attempts.push({ provider: p.name, ok: true, ms });
       console.log(`[process-diagnosis] ${p.name} OK (${ms}ms)`);
       return { analysis: normalized, provider: p.name, attempts };

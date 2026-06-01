@@ -32,6 +32,7 @@ type Analysis = {
   structureNotes?: string[];
   actionPlan?: { step: number; action: string; impact: string; eta: string }[];
   improvementScenario?: { note: string; confidence: string };
+  dataLimitations?: string[];
   disclaimer?: string;
 };
 
@@ -239,14 +240,24 @@ function DiagnosticoReportPage() {
         : "Está bem — mas tem um teto invisível te travando.";
 
   const statusClass = (status: string) => {
-    const s = (status ?? "").toLowerCase();
+    const s = (status ?? "").toLowerCase().trim();
     if (/(mau|bad|baixo|crítico|critico|red|vermelho|low|alerta)/.test(s))
       return "is-bad";
-    if (/(médio|medio|mid|atenção|atencao|warning|amber|amarelo)/.test(s))
+    if (/(médio|medio|mid|atenção|atencao|warning|warn|amber|amarelo)/.test(s))
       return "is-mid";
     if (/(bom|good|ok|verde|green|saudável|saudavel|high)/.test(s))
       return "is-good";
-    return "";
+    return "is-neutral";
+  };
+
+  const statusLabelPt = (status: string) => {
+    const s = (status ?? "").toLowerCase().trim();
+    if (/(mau|bad|baixo|crítico|critico|red|vermelho|low|alerta)/.test(s)) return "Alerta";
+    if (/(médio|medio|mid|atenção|atencao|warning|warn|amber|amarelo)/.test(s)) return "Atenção";
+    if (/(bom|good|ok|verde|green|saudável|saudavel|high)/.test(s)) return "Bom";
+    if (/sem tracking/.test(s)) return "Sem tracking";
+    if (/sem dados/.test(s)) return "Sem dados";
+    return status || "—";
   };
 
   const priorityBadge = (priority: string) => {
@@ -254,6 +265,14 @@ function DiagnosticoReportPage() {
     if (/(alta|high|crítica|critica|urgente)/.test(p)) return "badge-high";
     if (/(média|media|medium|moderada)/.test(p)) return "badge-medium";
     return "badge-low";
+  };
+
+  const confidenceLabelPt = (c: string) => {
+    const s = (c ?? "").toLowerCase().trim();
+    if (s === "high" || s === "alta") return "Alta";
+    if (s === "medium" || s === "média" || s === "media") return "Média";
+    if (s === "low" || s === "baixa") return "Baixa";
+    return c || "—";
   };
 
   return (
@@ -285,32 +304,26 @@ function DiagnosticoReportPage() {
           <p style={{ margin: 0, color: "#334155" }}>{analysis.summary}</p>
         </header>
 
-        {(() => {
-          const rawMetrics = analysis.metrics ?? [];
-          const hasRoas = rawMetrics.some((m) =>
-            /roas/i.test(m.name ?? ""),
-          );
-          const metrics = hasRoas
-            ? rawMetrics
-            : [
-                {
-                  name: "ROAS",
-                  current: "sem tracking",
-                  reference: "> 3x",
-                  status: "bad",
-                },
-                ...rawMetrics,
-              ];
-          return metrics.length ? (
-            <section className="card">
-              <h2>Onde seu dinheiro está agora</h2>
-              <p className="section-hint">
-                Os números reais da sua conta, comparados com a referência
-                que usamos como base.
-              </p>
-              <div className="metric-grid">
-                {metrics.map((m) => (
-                  <div key={m.name} className={`metric-card ${statusClass(m.status)}`}>
+        {analysis.metrics?.length ? (
+          <section className="card">
+            <h2>Onde seu dinheiro está agora</h2>
+            <p className="section-hint">
+              Os números reais da sua conta, comparados com a referência
+              que usamos como base.
+            </p>
+            <div className="metric-grid">
+              {analysis.metrics.map((m) => {
+                const cls = statusClass(m.status);
+                const badgeCls =
+                  cls === "is-bad"
+                    ? "badge-bad"
+                    : cls === "is-mid"
+                      ? "badge-mid"
+                      : cls === "is-good"
+                        ? "badge-good"
+                        : "badge-medium";
+                return (
+                  <div key={m.name} className={`metric-card ${cls}`}>
                     <div>
                       <div className="metric-name">{m.name}</div>
                       <div className="metric-ref">Referência: {m.reference}</div>
@@ -318,29 +331,23 @@ function DiagnosticoReportPage() {
                     <div>
                       <div className="metric-value">{m.current}</div>
                       <div style={{ textAlign: "right", marginTop: "0.25rem" }}>
-                        <span
-                          className={`badge ${
-                            statusClass(m.status) === "is-bad"
-                              ? "badge-bad"
-                              : statusClass(m.status) === "is-mid"
-                                ? "badge-mid"
-                                : "badge-good"
-                          }`}
-                        >
-                          {m.status}
+                        <span className={`badge ${badgeCls}`}>
+                          {statusLabelPt(m.status)}
                         </span>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
-              <div className="pain-line">
-                Cada métrica fora da referência = real saindo da conta sem
-                voltar.
-              </div>
-            </section>
-          ) : null;
-        })()}
+                );
+              })}
+            </div>
+            <div className="pain-line">
+              Cada métrica fora da referência = real saindo da conta sem
+              voltar.
+            </div>
+          </section>
+        ) : null}
+
+
 
         {analysis.criticalIssues?.length ? (
           <section className="card">
@@ -465,6 +472,60 @@ function DiagnosticoReportPage() {
             </ul>
           </section>
         ) : null}
+
+        {analysis.actionPlan?.length ? (
+          <section className="card">
+            <h2>Plano de ação</h2>
+            <p className="section-hint">
+              A sequência sugerida pela análise — ordenada por impacto.
+            </p>
+            <ol className="action-plan">
+              {[...analysis.actionPlan]
+                .sort((a, b) => (a.step ?? 0) - (b.step ?? 0))
+                .map((a) => (
+                  <li key={`${a.step}-${a.action}`} className="action-step">
+                    <div className="action-step-num">{a.step}</div>
+                    <div className="action-step-body">
+                      <div className="action-step-title">{a.action}</div>
+                      <div className="action-step-meta">
+                        <span><strong>Impacto:</strong> {a.impact}</span>
+                        <span><strong>Prazo:</strong> {a.eta}</span>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+            </ol>
+          </section>
+        ) : null}
+
+        {analysis.improvementScenario?.note ? (
+          <section className="card">
+            <h2>Cenário de melhoria</h2>
+            <p style={{ margin: "0 0 0.5rem" }}>
+              {analysis.improvementScenario.note}
+            </p>
+            <span className="badge badge-medium">
+              Confiança: {confidenceLabelPt(analysis.improvementScenario.confidence)}
+            </span>
+          </section>
+        ) : null}
+
+        {analysis.dataLimitations?.length ? (
+          <section className="card">
+            <h2>Limitações dos dados</h2>
+            <p className="section-hint">
+              O que não foi possível observar — para que você saiba o que
+              está, e o que não está, sustentado por dado.
+            </p>
+            <ul style={{ paddingLeft: "1.2rem", margin: 0 }}>
+              {analysis.dataLimitations.map((n) => (
+                <li key={n} style={{ marginBottom: "0.35rem" }}>{n}</li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+
 
         {data.report?.management_cta_eligible ? (
           <section className="card cta-pain">
