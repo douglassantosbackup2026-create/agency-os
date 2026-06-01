@@ -1,64 +1,45 @@
-## Diagnóstico atual
+## Problema
 
-Hoje o relatório já cobre: semáforo de métricas, top 3 prioridades, breakdown por campanha, problemas, vazamentos, oportunidades, criativos, públicos, fundação, plano de ação com checklist, contexto de negócio com break-even, cenário de melhoria, limitações e CTA. P0–P4 fechados.
+O relatório está fazendo duas inferências erradas no card "Sobreposição de Públicos":
 
-O gap que sobrou para "mais resultado" não é cobertura — é **convicção, ação e revisita**. O cliente lê, marca dois itens e some. Abaixo, as melhorias com maior alavanca, ranqueadas por impacto/esforço.
+1. **Decodifica `[GM]` e `[IN]`** como "Gestão Manual" e "Interesse/Inbound" — são apenas nomenclaturas internas da conta, sem esse significado.
+2. **Afirma sobreposição de público** baseando-se no nome / quantidade de campanhas ativas, ignorando que cada campanha tem `objective` diferente (topo / meio / fundo de funil).
 
----
+O prompt `diagnosis-ecommerce-v3` já tem a regra #7 proibindo decodificar nomenclaturas, mas não tem regra explícita sobre **quando** é legítimo afirmar sobreposição. O modelo continua escorregando.
 
-## P5 — Convicção (faz o cliente acreditar e agir)
+## Mudanças propostas
 
-**1. Simulador de impacto interativo** (alto impacto, médio esforço)
-Sliders no card de cenário: "se eu reduzir CPA em X%", "se eu subir CTR para Y%", "se eu cortar Z% do budget que vaza". Cálculo em tempo real → ROAS projetado, receita extra/mês, payback. Usa `business_context` (ticket, margem, meta) que já temos. Transforma o número estático em decisão.
+Editar apenas `SYSTEM_PROMPT` em `supabase/functions/process-diagnosis/index.ts`. Sem alteração de schema, código TS, UI ou banco.
 
-**2. Benchmarks por nicho** (alto impacto, médio esforço)
-No card de métricas, ao lado de cada KPI, mostrar faixa de referência **do nicho informado** (ecommerce moda, infoproduto, serviço local etc.). Tabela hard-coded por categoria + fonte/disclaimer. Hoje o cliente vê "CTR 0,9%" e não sabe se é ruim; com benchmark vê "0,9% vs mediana 1,4% do seu segmento".
+### 1. Reforçar a regra #7 (decodificação de nomes)
 
-**3. Saúde criativa / fadiga** (alto impacto, baixo esforço)
-Card de criativos hoje só lista best/worst. Adicionar:
-- Score de fadiga por criativo (frequência × queda de CTR ao longo do tempo).
-- Alerta: "3 dos 5 criativos ativos passaram do ponto de saturação."
-Requer expandir o JSON gerado pelo `process-diagnosis` com `creativeHealth[]`.
+Tornar a proibição mais agressiva e explícita sobre o efeito em qualquer campo:
 
----
+- Banir parafrasear o significado de prefixos/sufixos em **qualquer** campo (`summary`, `criticalIssues.description`, `audiencesSummary.*`, `actionPlan.action`, `structureNotes`, etc.).
+- Permitido: citar o nome cru (rótulo opaco) ou agrupar por padrão sintático ("4 campanhas começam com `[GM]`"). Proibido: atribuir semântica ("provável Gestão Manual", "indica top/fundo de funil", "sugere estratégia X").
+- Listar exemplos de violações típicas para o modelo evitar.
 
-## P6 — Ação (transforma plano em execução)
+### 2. Nova regra — quando afirmar sobreposição de público
 
-**4. Roadmap 30/60/90 dias** (médio impacto, baixo esforço)
-Reagrupar o `actionPlan` em três colunas/abas por horizonte (semana 1–2 / mês 1 / mês 2–3) usando o campo `eta` que já existe. Cliente vê a sequência, não uma lista plana de 8 itens.
+Adicionar bloco dedicado:
 
-**5. "Como executar" embutido por item** (alto impacto, médio esforço)
-Cada passo do plano abre um drawer com:
-- Passo-a-passo (3–6 linhas) específico da Meta (ex.: "Ads Manager → Conjuntos → filtrar por freq > 3 → desativar").
-- Templates prontos quando aplicável (copy, segmentação, estrutura de campanha).
-Reduz a fricção entre "entendi" e "fiz".
+- Só afirmar sobreposição quando houver **evidência observada** em `facts_json`: reach rate < 50%, frequência ≥ 5, ou mesma `targeting`/`saved_audience_id`/interesses sobrepostos.
+- **Campanhas com `objective` diferente** (ex.: `OUTCOME_AWARENESS` vs `OUTCOME_SALES`, `REACH` vs `CONVERSIONS`) **não constituem sobreposição** por padrão — são fases de funil distintas. Tratar como sinal contra, não a favor.
+- Sem dado de targeting/saved audience nos facts, registrar a limitação em `dataLimitations` e **não** levantar a hipótese como problema crítico.
+- Se levantar mesmo assim (ex.: reach rate baixo confirmado), descrever a evidência numérica concreta, sem inferir intenção a partir de nomes.
 
-**6. Anti-padrões — "O que NÃO fazer agora"** (médio impacto, baixo esforço)
-Card curto com 3–5 armadilhas detectadas (ex.: "Não suba budget em campanhas com CPA acima da meta", "Não duplique criativo fatigado"). Previne danos enquanto o cliente age.
+### 3. Bumpar versão do prompt
 
----
+Atualizar `PROMPT_VERSION` para `diagnosis-ecommerce-v4` para invalidar cache / rastrear qual versão gerou cada relatório.
 
-## P7 — Revisita e captura recorrente
+## Fora do escopo
 
-**7. Re-diagnóstico com delta** (alto impacto, médio esforço)
-Botão "Rodar novo diagnóstico" que reaproveita a conexão Meta. Quando existir um diagnóstico anterior do mesmo usuário, mostrar **delta por métrica** (ROAS +0,4, CPA −18%, score 47→62). Cria ciclo mensal e prova de valor.
+- Schema do JSON de saída (mantém igual).
+- Frontend (`diagnostico.$diagnosisId.tsx`) — apenas consome.
+- Funções `diagnosis-report`, `diagnosis-context`, `process-diagnosis` normalização determinística.
+- Migrations.
 
-**8. Resumo executivo enviável** (médio impacto, baixo esforço)
-Botão "Enviar resumo para meu e-mail / WhatsApp" com 1 página: score, top 3, ROAS gap, próximo passo. Útil para o cliente compartilhar com sócio sem mandar o relatório inteiro.
+## Validação
 
-**9. Link de leitura para sócio/agência** (baixo impacto, baixo esforço)
-Variante do link atual com escopo "read-only" (sem CTA de gestão, sem formulário). Aumenta circulação interna.
-
----
-
-## Recomendação de execução
-
-Se for fazer só um lote agora, o trio com melhor retorno é:
-
-- **#1 Simulador de impacto** — muda a percepção de valor do relatório inteiro.
-- **#2 Benchmarks por nicho** — dá contexto ao semáforo, que hoje é absoluto.
-- **#4 Roadmap 30/60/90** — empurra para execução sem reescrever conteúdo.
-
-Tudo isso é frontend + pequenos ajustes no JSON do `process-diagnosis`. Sem mudanças de schema.
-
-Quer que eu detalhe um destes três em plano de implementação, ou prefere outro recorte (ex.: ir para re-diagnóstico/delta, que abre a porta de receita recorrente)?
+- Após o deploy do edge function, rodar um novo diagnóstico na mesma conta e conferir o card de Públicos: não deve mais decodificar `[GM]`/`[IN]`, e só deve afirmar sobreposição com número observado (reach rate ou frequência).
+- Diagnósticos antigos no banco mantêm o texto atual — apenas novos rodam com a v4.
