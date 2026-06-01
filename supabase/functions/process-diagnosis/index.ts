@@ -158,8 +158,30 @@ function deriveMetricsFromFacts(
   const cpc = _num(ins.cpc);
   const cpm = _num(ins.cpm);
 
-  const revenue = _findActionValue(ins.action_values, /purchase|omni_purchase/i);
-  const purchases = _findActionValue(ins.actions, /^purchase$|^omni_purchase$/i);
+  let revenue = _findActionValue(ins.action_values, /^purchase$|^omni_purchase$/i);
+  let purchases = _findActionValue(ins.actions, /^purchase$|^omni_purchase$/i);
+
+  // Fallback: somar a partir de campaigns_insights quando o nível conta não traz action_values
+  const campsList = Array.isArray(facts?.campaigns_insights)
+    ? (facts!.campaigns_insights as Record<string, unknown>[])
+    : [];
+  if (revenue == null && campsList.length > 0) {
+    let sum = 0; let any = false;
+    for (const c of campsList) {
+      const r = _findActionValue(c.action_values, /^purchase$|^omni_purchase$/i);
+      if (r != null) { sum += r; any = true; }
+    }
+    if (any) revenue = sum;
+  }
+  if (purchases == null && campsList.length > 0) {
+    let sum = 0; let any = false;
+    for (const c of campsList) {
+      const p = _findActionValue(c.actions, /^purchase$|^omni_purchase$/i);
+      if (p != null) { sum += p; any = true; }
+    }
+    if (any) purchases = sum;
+  }
+
   const roas = revenue != null && spend && spend > 0 ? revenue / spend : null;
   const cpa = purchases != null && purchases > 0 && spend ? spend / purchases : null;
   const reachRate = reach != null && impressions && impressions > 0 ? reach / impressions : null;
