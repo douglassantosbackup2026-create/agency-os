@@ -90,6 +90,11 @@ function DiagnosticoReportPage() {
   const [ctxError, setCtxError] = useState<string | null>(null);
   const [doneSteps, setDoneSteps] = useState<Record<string, boolean>>({});
   const [shareMsg, setShareMsg] = useState<string | null>(null);
+  const [simCpa, setSimCpa] = useState(15);
+  const [simCtr, setSimCtr] = useState(20);
+  const [simLeak, setSimLeak] = useState(40);
+  const [simSpendInput, setSimSpendInput] = useState("");
+
   const [data, setData] = useState<{
     diagnosis?: {
       status?: string;
