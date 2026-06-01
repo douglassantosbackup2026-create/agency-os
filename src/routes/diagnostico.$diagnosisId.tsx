@@ -362,6 +362,49 @@ function DiagnosticoReportPage() {
 
         {analysis.metrics?.length ? (
           <section className="card">
+          <p style={{ margin: 0, color: "#334155" }}>{analysis.summary}</p>
+        </header>
+
+        {tocItems.length > 1 ? (
+          <nav className="report-toc" aria-label="Índice do relatório">
+            {tocItems.map((it) => (
+              <a key={it.id} href={`#${it.id}`} className="report-toc-link">
+                {it.label}
+              </a>
+            ))}
+          </nav>
+        ) : null}
+
+        {topPriorities.length ? (
+          <section className="card top-priorities" id="sec-top">
+            <h2>Top 3 prioridades</h2>
+            <p className="section-hint">
+              O que tratar primeiro, com base no impacto identificado.
+            </p>
+            <ol className="top-priorities-list">
+              {topPriorities.map((p, idx) => (
+                <li key={`${idx}-${p.title}`} className="top-priority-item">
+                  <div className="top-priority-num">{idx + 1}</div>
+                  <div className="top-priority-body">
+                    <div className="top-priority-title">{p.title}</div>
+                    <p className="muted" style={{ margin: "0.25rem 0 0.4rem" }}>
+                      {p.description}
+                    </p>
+                    <div className="top-priority-meta">
+                      <span className={`badge ${priorityBadge(p.meta)}`}>{p.meta}</span>
+                      <a href={p.href} className="top-priority-link">
+                        Ver detalhe →
+                      </a>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </section>
+        ) : null}
+
+        {analysis.metrics?.length ? (
+          <section className="card" id="sec-metrics">
             <h2>Onde seu dinheiro está agora</h2>
             <p className="section-hint">
               Os números reais da sua conta, comparados com a referência
