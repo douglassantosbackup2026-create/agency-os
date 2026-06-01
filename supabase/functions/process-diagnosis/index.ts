@@ -4,7 +4,7 @@ import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 import { diagnosisAiBudgetExceeded } from "../_shared/ai-budget.ts";
 import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 
-const PROMPT_VERSION = "diagnosis-ecommerce-v5";
+const PROMPT_VERSION = "diagnosis-ecommerce-v6";
 const AI_TIMEOUT_MS = 60_000;
 
 const SYSTEM_PROMPT = `És um auditor sênior de Meta Ads especializado em e-commerce brasileiro, com foco em eficiência de verba e escalabilidade. Respondes APENAS em PT-BR e APENAS com JSON válido (sem markdown, sem texto fora do JSON). Valores monetários sempre em BRL (a menos que facts.account_insights indique outra moeda).
@@ -21,6 +21,8 @@ const SYSTEM_PROMPT = `És um auditor sênior de Meta Ads especializado em e-com
 8. SOBREPOSIÇÃO DE PÚBLICOS só pode ser afirmada com EVIDÊNCIA OBSERVADA em facts_json. Critérios válidos: reach rate (reach/impressions) < 50%, frequência ≥ 5 sustentada, ou mesmo saved_audience_id / mesma combinação de targeting (interesses, geo, idade) em conjuntos diferentes. PROIBIDO inferir sobreposição a partir de: quantidade de campanhas ativas, nomes/prefixos parecidos, número de conjuntos por campanha, ou simples coexistência de campanhas. Campanhas com objective DIFERENTE (ex.: OUTCOME_AWARENESS vs OUTCOME_SALES, REACH vs CONVERSIONS, OUTCOME_TRAFFIC vs OUTCOME_LEADS) são fases de funil distintas e NÃO constituem sobreposição por padrão — trata como sinal contra. Sem dado de targeting/saved audience e sem reach rate/frequência problemáticos, NÃO levantes sobreposição como problema crítico; em vez disso, regista a limitação em dataLimitations ("Sem visibilidade de targeting/saved audiences para confirmar ou descartar sobreposição"). Se levantares, descreve a evidência numérica concreta (ex.: "reach rate 38% com frequência 5,2 em 30d").
 
 9. TERMINOLOGIA DO META ADS MANAGER (PROIBIDO usar ações que não existem na UI atual). O Meta removeu o status "Arquivar/Archive" do Ads Manager — hoje só existem três status: **Ativa**, **Pausada** e **Excluída**. NUNCA recomendes "arquivar campanha/conjunto/anúncio". Para limpeza de campanhas pausadas antigas, use: "Excluir campanhas pausadas há mais de X dias" ou "Aplicar filtro salvo para ocultar pausadas antigas da visualização". Também não use jargões inexistentes como "modo rascunho", "snooze", "hibernar". Ações válidas no Ads Manager: ativar, pausar, excluir, duplicar, editar orçamento, editar segmentação, criar regras automatizadas, aplicar filtros salvos, mover para outra conta (via Business Manager). Em campanhas Advantage+ Shopping, lembra que muitos controles de segmentação/posicionamento são automáticos — não recomendes ajustes manuais que a UI não permite nesse tipo de campanha.
+
+10. CÁLCULO DE ROAS E RECEITA (CRÍTICO — fonte única de verdade). Para QUALQUER campanha citada em summary, criticalIssues, budgetLeaks, opportunities ou actionPlan, usa EXCLUSIVAMENTE os valores de ROAS, receita, gasto, CTR, CPM e frequência presentes em facts.campaigns_insights[].action_values (procura action_type "purchase" ou "omni_purchase" para receita) e em facts.campaigns_insights[].spend para o gasto. ROAS de campanha = receita / spend. NUNCA inventes, arredondes para baixo, dividas por 10, nem confundas receita com gasto. Se a campanha aparece em campaigns_insights com receita > 0, o ROAS DEVE refletir esse cálculo exato. PROIBIDO afirmar "ROAS 0,5x" se receita/spend = 4,95 nos dados. Antes de citar qualquer número em texto livre, confere com o valor derivado nos facts. Se faltar action_values na campanha, escreve "sem receita rastreada" — não chutes. O mesmo vale para o nível conta: ROAS conta = soma(receita campanhas) / soma(spend campanhas) quando account_insights.action_values estiver vazio.
 
 ## BENCHMARKS BR E-COMMERCE (referência, nunca garantia)
 - CTR feed/display: > 1,2% saudável (ok); 0,8%–1,2% atenção (warn); < 0,8% alerta (bad)
@@ -158,8 +160,30 @@ function deriveMetricsFromFacts(
   const cpc = _num(ins.cpc);
   const cpm = _num(ins.cpm);
 
-  const revenue = _findActionValue(ins.action_values, /purchase|omni_purchase/i);
-  const purchases = _findActionValue(ins.actions, /^purchase$|^omni_purchase$/i);
+  let revenue = _findActionValue(ins.action_values, /^purchase$|^omni_purchase$/i);
+  let purchases = _findActionValue(ins.actions, /^purchase$|^omni_purchase$/i);
+
+  // Fallback: somar a partir de campaigns_insights quando o nível conta não traz action_values
+  const campsList = Array.isArray(facts?.campaigns_insights)
+    ? (facts!.campaigns_insights as Record<string, unknown>[])
+    : [];
+  if (revenue == null && campsList.length > 0) {
+    let sum = 0; let any = false;
+    for (const c of campsList) {
+      const r = _findActionValue(c.action_values, /^purchase$|^omni_purchase$/i);
+      if (r != null) { sum += r; any = true; }
+    }
+    if (any) revenue = sum;
+  }
+  if (purchases == null && campsList.length > 0) {
+    let sum = 0; let any = false;
+    for (const c of campsList) {
+      const p = _findActionValue(c.actions, /^purchase$|^omni_purchase$/i);
+      if (p != null) { sum += p; any = true; }
+    }
+    if (any) purchases = sum;
+  }
+
   const roas = revenue != null && spend && spend > 0 ? revenue / spend : null;
   const cpa = purchases != null && purchases > 0 && spend ? spend / purchases : null;
   const reachRate = reach != null && impressions && impressions > 0 ? reach / impressions : null;
