@@ -47,6 +47,27 @@ export function deriveAudienceDiagnosis(
     (c) => c.frequency != null && c.frequency >= 3.5 && c.frequency < 5,
   );
 
+  // Check learning fail status — high frequency may be caused by learning fail, not true saturation
+  const adsetLearningStatus = Array.isArray(facts?.adset_learning_status)
+    ? (facts!.adset_learning_status as Record<string, unknown>[])
+    : [];
+  const learningFailAdsets = adsetLearningStatus.filter(
+    (als) => String(als.learning_status ?? "") === "learning_fail",
+  );
+  let learningFailSpend = 0;
+  let totalAdsetSpend = 0;
+  for (const a of adsetsInsights) {
+    const spend = num(a.spend as unknown) ?? 0;
+    totalAdsetSpend += spend;
+    const id = String(a.adset_id ?? "");
+    if (learningFailAdsets.some((lf) => String(lf.adset_id) === id)) {
+      learningFailSpend += spend;
+    }
+  }
+  const learningFailIsMajorCause =
+    learningFailAdsets.length > 0 &&
+    (totalAdsetSpend === 0 || learningFailSpend / totalAdsetSpend >= 0.25);
+
   let status: ChapterStatus = "good";
   if (accountFreq != null && accountFreq >= 5) status = "critical";
   else if (highFreqCamps.length > 0 || (accountFreq != null && accountFreq >= 3.5)) {
@@ -84,9 +105,27 @@ export function deriveAudienceDiagnosis(
     );
     if (!summary.mixed_funnel) status = status === "good" ? "warning" : status;
   }
+  if (learningFailAdsets.length > 0) {
+    const failedNames = learningFailAdsets.slice(0, 3).map((a) => String(a.adset_name ?? "")).filter(Boolean);
+    const reasons = learningFailAdsets
+      .filter((a) => a.learning_limited_reason)
+      .map((a) => String(a.learning_limited_reason));
+    const reasonNote = reasons.length > 0 ? ` · motivo: ${reasons[0]}` : "";
+    parts.push(
+      `${learningFailAdsets.length} conjunto(s) em learning fail${failedNames.length ? `: ${failedNames.join(", ")}` : ""}${reasonNote}`,
+    );
+  }
 
   let headline: string;
-  if (summary.mixed_funnel) {
+  if (accountFreq != null && accountFreq >= 3.5 && learningFailIsMajorCause) {
+    const reason = String(learningFailAdsets[0]?.learning_limited_reason ?? "");
+    const reasonNote = reason === "budget"
+      ? "Remédio: aumentar budget ou mudar evento de otimização, NÃO expandir audiência."
+      : reason === "audience"
+        ? "Remédio: ampliar público ou mudar estratégia de lance."
+        : "Remédio: verificar budget, evento de otimização e estrutura dos conjuntos.";
+    headline = `Frequência elevada causada por learning fail (algoritmo sem otimizar) — não é saturação de público. ${reasonNote}`;
+  } else if (summary.mixed_funnel) {
     headline =
       status === "good"
         ? "Funil misto com objetivos distintos — isso não indica sobreposição de público entre campanhas."
@@ -102,7 +141,9 @@ export function deriveAudienceDiagnosis(
   const impact =
     status === "good"
       ? null
-      : "Público vendo o mesmo anúncio repetidamente tende a elevar custo e reduzir resposta.";
+      : learningFailIsMajorCause
+        ? "O algoritmo não conseguiu aprender porque não recebeu eventos de conversão suficientes. Expandir audiência nesse estado piora a situação — o algoritmo precisa de mais sinais, não de mais público."
+        : "Público vendo o mesmo anúncio repetidamente tende a elevar custo e reduzir resposta.";
 
   return {
     id: "audience",

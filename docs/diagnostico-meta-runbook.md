@@ -132,6 +132,34 @@ LIMIT 5;
 
 **Piloto atual (2026-06-01):** `7e8e3d16-306f-4960-ace3-56de6a3f0b6a` — `facts_json` em v12 com `adsets_insights` e `seniorDerived` no servidor; se a IA falhar (timeout Anthropic / quota OpenAI), a UI v12 ainda exibe motores via hidratação em `diagnosis-report`. Reenfileirar `processing` + cron quando as chaves de IA estiverem OK para narrativa v12 completa.
 
+## Analista v16 — Páprika (consultor + 7 blocos)
+
+- **Prompt:** `diagnosis-ecommerce-v16` — regras em `v16-paprika-rules.ts`; doc em `diagnostico-meta/prompts/diagnosis-ecommerce-paprika-v1.md`.
+- **facts_json:** `consultative_derived`, `account_financial_gap`, `delivery_summary`, `conversion_funnel`, `adset_bleed_ranking`, `adset_learning_status` (com `delivery_substatus_pt`), `ad_video_diagnostics`, `niche_context`, `account_meta`.
+- **Nicho:** formulário `business_context` → heurística campanhas/conta → `account_meta.vertical` → `ecom_geral`. Benchmarks tiers em `niche-benchmarks-v1.ts`.
+- **UI (apresentação):** ordem Hero → Impacto R$ → Entrega → Resumo KPI → Meta Sênior → Funil → Criativos → Problemas → Plano.
+- **Fetch extra:** `fetchAdAccountMeta`, `fetchAdsetInsightsRich` (actions, purchase_roas, frequency).
+
+```bash
+npm test -- supabase/functions/_shared/diagnosis/derive-paprika-v16.test.ts
+npx supabase functions deploy process-diagnosis diagnosis-report --project-ref uvuotaxikuxejfeitlaw
+npm run ops:deploy-worker
+```
+
+**Reprocessar após v16:** `prompt_version IS DISTINCT FROM 'diagnosis-ecommerce-v16'`.
+
+### QA checklist v16 (Páprika)
+
+1. Bloco 1 abre com gap em R$ (`account_financial_gap`) quando há spend de Vendas.
+2. Learning fail nos ad sets de maior gasto — narrativa NÃO diz "saturação" sem `learning_status=active`.
+3. Funil checkout &lt;35% gera issue high sobre site (fora do Meta).
+4. Winner sub-investido aparece em criativos + actionPlan[0] após reprocessar IA.
+5. Campanha awareness (Geo) sem crítica de ROAS/CTR baixo.
+6. Cada problema cita ad set/campanha + valor em R$.
+7. `consultative_derived.qaChecklist` coerente no `facts_json`.
+8. Banner legado some quando `prompt_version = v16`.
+9. Testes Vitest Páprika passam.
+
 ## Analista v13 (relator → consultor)
 
 - **Prompt:** `diagnosis-ecommerce-v13` — `hypothesis_seeds`, `business_context`, `business_hints`, few-shots consultivos; `chapterNarratives` obrigatório (5 capítulos).

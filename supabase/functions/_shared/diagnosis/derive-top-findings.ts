@@ -192,6 +192,42 @@ function wasteLineFallback(
   };
 }
 
+type AdsetBleedRowFacts = {
+  adsetName?: string;
+  campaignName?: string;
+  bleedBrl?: number;
+  bleedFormatted?: string;
+  roasFormatted?: string;
+};
+
+function bleedAdsetTopFinding(
+  facts: Record<string, unknown> | null | undefined,
+): TopFinding | null {
+  const ranking = facts?.adset_bleed_ranking;
+  if (!Array.isArray(ranking) || ranking.length === 0) return null;
+  const top = ranking[0] as AdsetBleedRowFacts;
+  const bleedBrl = typeof top.bleedBrl === "number" ? top.bleedBrl : 0;
+  if (bleedBrl < 50) return null;
+  const adsetName = String(top.adsetName ?? "Conjunto de anúncios");
+  const campaignName = String(top.campaignName ?? "");
+  const roasFmt = String(top.roasFormatted ?? "—");
+  const severity: TopFindingSeverity = bleedBrl >= 500 ? "critical" : "warning";
+  const shortName = adsetName.length > 42 ? `${adsetName.slice(0, 39)}…` : adsetName;
+  return {
+    rank: 0,
+    severity,
+    campaignName: adsetName,
+    objectiveFamily: campaignName || "conjunto",
+    kpiStatus: "alerta",
+    monthlyImpactBrl: bleedBrl,
+    monthlyImpactFormatted: top.bleedFormatted ?? fmtBRL(bleedBrl),
+    headline: `${shortName} — ~${fmtBRL(bleedBrl)}/mês abaixo do ROAS do nicho`,
+    actionHint:
+      "Reduzir verba, pausar ou reestruturar público e criativo neste conjunto antes de escalar.",
+    evidence: `ROAS ${roasFmt}${campaignName ? ` · campanha ${campaignName}` : ""}`,
+  };
+}
+
 function paretoFallback(
   waste: WasteBreakdown,
   usedNames: Set<string>,
@@ -221,6 +257,12 @@ export function deriveTopFindings(
   const candidates = campaignCandidates(facts);
   const usedNames = new Set<string>();
   const findings: TopFinding[] = [];
+
+  const bleedLead = bleedAdsetTopFinding(facts);
+  if (bleedLead) {
+    findings.push({ ...bleedLead, rank: 1 });
+    usedNames.add(bleedLead.campaignName);
+  }
 
   for (const cand of candidates) {
     if (findings.length >= 3) break;

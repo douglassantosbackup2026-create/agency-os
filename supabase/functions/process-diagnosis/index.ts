@@ -13,11 +13,12 @@ import {
 import { buildCommercialDerived } from "../_shared/diagnosis/derive-commercial.ts";
 import { recordDiagnosisFollowup } from "../_shared/diagnosis/record-diagnosis-followup.ts";
 import { V13_CONSULTATIVE_EXAMPLES } from "../_shared/diagnosis/v13-consultative-examples.ts";
+import { V16_PAPRIKA_RULES } from "../_shared/diagnosis/v16-paprika-rules.ts";
 import {
   enrichFactsWithMetaSeniorFetch,
 } from "../_shared/diagnosis/derive-meta-senior.ts";
 
-const PROMPT_VERSION = "diagnosis-ecommerce-v14";
+const PROMPT_VERSION = "diagnosis-ecommerce-v16";
 const AI_TIMEOUT_MS = 60_000;
 
 const SYSTEM_PROMPT = `És um auditor sênior de Meta Ads especializado em e-commerce brasileiro, com foco em eficiência de verba e escalabilidade. Respondes APENAS em PT-BR e APENAS com JSON válido (sem markdown, sem texto fora do JSON). Valores monetários sempre em BRL (a menos que facts.account_insights indique outra moeda).
@@ -119,6 +120,41 @@ Tom: consultivo e persuasivo para dono de e-commerce — traduz jargão ("sem tr
 51. funnelHealth: não contradiga status (critical/attention/ok); opportunityScore é indicativo (35–95).
 52. PROIBIDO inventar trend de ROAS/CPR na conta se meta_senior não trouxer — use adsetTrends (CTR) apenas.
 
+## LEARNING STATUS E FASE DE APRENDIZADO (v15 — CRÍTICO)
+53. Antes de diagnosticar frequência alta ou "saturação de público", leia adset_learning_status[] em facts_json. Se o conjunto com maior gasto tem learning_status = "learning_fail":
+    - O diagnóstico CORRETO é "learning fail" — NÃO saturação de público — são problemas diferentes com remédios opostos
+    - learning_fail + reason=budget: remédio é aumentar budget OU mudar evento de otimização (purchase → ATC/checkout) OU consolidar ad sets. NÃO é expandir audiência.
+    - learning_fail + reason=audience: remédio é ampliar público OU mudar bid strategy
+    - PROIBIDO: recomendar "expandir audiência" como solução principal quando learning_status = "learning_fail" com reason=budget — isso piora a situação
+    - PROIBIDO: escrever criticalIssue de "saturação de público" baseado apenas em frequência alta quando learning_fail estiver presente nos conjuntos de maior gasto
+    - Saturação real (sem learning_fail): frequência ≥ 5 em conjuntos com learning_status = "active"
+    - Quando citar frequência alta, sempre cite o learning_status do(s) conjunto(s) afetado(s) e o motivo específico
+
+## FUNIL DE CONVERSÃO (v15 — CRÍTICO)
+54. Se facts_json.conversion_funnel existir com dados (purchase > 0 e checkout > 0):
+    - OBRIGATÓRIO: construir o funil na análise: LPV → ATC (x%) → Checkout iniciado (x%) → Compra (x%)
+    - Se conversion_funnel.bottleneck = "checkout": o PRIMEIRO criticalIssue com priority high DEVE ser sobre o abandono de checkout no site
+    - Texto obrigatório quando bottleneck = "checkout": "O Meta está entregando usuários interessados. O gargalo está no site/checkout — nenhuma otimização de anúncio resolve isso sozinha."
+    - PROIBIDO quando bottleneck = "checkout": recomendar apenas otimizações de campanha sem mencionar o problema de checkout
+    - Incluir cálculo de impacto: "Com taxa de finalização de 50%, seriam [Y] compras vs [X] atuais — diferença de [R$]/mês" usando conversion_funnel.revenueAtRiskMonthlyBrl quando disponível
+    - Se bottleneck = "atc": problema está na página de produto / pricing / frete visível
+    - Se bottleneck = "lpv": desalinhamento criativo/landing page — o anúncio promete algo que a página não entrega
+55. PROIBIDO: diagnosticar "anúncios ruins" como causa principal de ROAS baixo quando conversion_funnel.bottleneck = "checkout" — a campanha está funcionando, o problema está fora do Meta.
+
+## CRIATIVO WINNER SUB-INVESTIDO (v15)
+56. Se facts_json.adset_winner_underinvested existir:
+    - OBRIGATÓRIO: o primeiro item do actionPlan deve ser isolar esse criativo em ad set dedicado com budget exclusivo
+    - OBRIGATÓRIO: incluir criticalIssue citando adset_winner_underinvested.adName, roas e spendNote
+    - PROIBIDO: recomendar apenas "testar novos criativos" sem antes endereçar o winner sub-investido
+    - Ação concreta: "Criar conjunto dedicado com R$100–150/dia exclusivo para [adName], sem compartilhar com criativos de ROAS baixo"
+    - Causa: o criativo vencedor está sendo sufocado por outros criativos piores no mesmo conjunto
+57. Se ads em ads_insights_top têm video_p25_watched_actions disponível:
+    - Calcular retenção: (p25 / 3sec_count) para identificar problema no hook
+    - Se (p25 / 3sec) < 15%: o hook dos primeiros 3s não está funcionando — o problema não é o formato, é a abertura
+    - Citar a taxa de retenção específica quando diagnosticar criativos de vídeo
+
+${V16_PAPRIKA_RULES}
+
 ## SCHEMA DE SAÍDA (JSON estrito, todos os campos obrigatórios)
 {
   "score": number,
@@ -212,7 +248,37 @@ function buildUserPrompt(facts: Record<string, unknown>): string {
         funnelHealth: (metaSenior as { funnelHealth?: unknown }).funnelHealth,
       }
     : null;
+  const consultative = facts.consultative_derived;
+  const consultSlice = consultative
+    ? {
+        nicheContext: (consultative as { nicheContext?: unknown }).nicheContext,
+        accountFinancialGap: (consultative as { accountFinancialGap?: unknown })
+          .accountFinancialGap,
+        deliverySummary: (consultative as { deliverySummary?: unknown }).deliverySummary,
+        conversionFunnel: (consultative as { conversionFunnel?: unknown }).conversionFunnel,
+        adsetBleedRanking: (consultative as { adsetBleedRanking?: unknown }).adsetBleedRanking,
+        winnerUnderinvested: (consultative as { winnerUnderinvested?: unknown })
+          .winnerUnderinvested,
+        adVideoDiagnostics: (consultative as { adVideoDiagnostics?: unknown })
+          .adVideoDiagnostics,
+        qaChecklist: (consultative as { qaChecklist?: unknown }).qaChecklist,
+      }
+    : facts.account_financial_gap
+      ? {
+          accountFinancialGap: facts.account_financial_gap,
+          deliverySummary: facts.delivery_summary,
+          conversionFunnel: facts.conversion_funnel,
+          adsetLearningStatus: facts.adset_learning_status,
+          adsetBleedRanking: facts.adset_bleed_ranking,
+          winnerUnderinvested: facts.adset_winner_underinvested,
+          adVideoDiagnostics: facts.ad_video_diagnostics,
+          nicheContext: facts.niche_context,
+        }
+      : null;
   return [
+    "consultative_derived (v16 Páprika — fonte única blocos 1–5; não invente R$):",
+    consultSlice ? JSON.stringify(consultSlice).slice(0, 22000) : "(indisponível)",
+    "",
     "funnel_guidance (REGRAS OBRIGATÓRIAS — funil misto NÃO é sobreposição; ROAS só em Vendas):",
     JSON.stringify(guidance).slice(0, 8000),
     "",
@@ -354,7 +420,7 @@ async function fetchAdSetInsights(
   u.searchParams.set("level", "adset");
   u.searchParams.set(
     "fields",
-    "adset_id,adset_name,campaign_id,campaign_name,impressions,reach,frequency,spend,ctr,inline_link_clicks",
+    "adset_id,adset_name,campaign_id,campaign_name,impressions,reach,frequency,spend,ctr,inline_link_clicks,cpm,cpc,actions,action_values,cost_per_result,purchase_roas",
   );
   u.searchParams.set("date_preset", "last_30d");
   u.searchParams.set("limit", String(limit));
@@ -411,7 +477,7 @@ async function fetchTopAdsInsights(
   u.searchParams.set("level", "ad");
   u.searchParams.set(
     "fields",
-    "ad_id,ad_name,campaign_name,impressions,clicks,spend,ctr,cpm,actions,action_values,outbound_clicks,outbound_clicks_ctr,video_3_sec_watched_actions",
+    "ad_id,ad_name,campaign_name,impressions,clicks,spend,ctr,cpm,actions,action_values,outbound_clicks,outbound_clicks_ctr,video_3_sec_watched_actions,video_p25_watched_actions,video_p50_watched_actions,video_p75_watched_actions,video_p100_watched_actions",
   );
   u.searchParams.set("date_preset", "last_30d");
   u.searchParams.set("sort", "spend_descending");
@@ -728,9 +794,15 @@ Deno.serve(async (req) => {
       }
 
       if (factsForAnalysis && token) {
+        const hasLearningData =
+          Array.isArray(factsForAnalysis.adsets_config) &&
+          (factsForAnalysis.adsets_config as Record<string, unknown>[]).some(
+            (a) => "learning_stage_info" in (a as Record<string, unknown>),
+          );
         const needsMetaSenior =
           !factsForAnalysis.meta_senior ||
-          !Array.isArray(factsForAnalysis.ads_insights_auction);
+          !Array.isArray(factsForAnalysis.ads_insights_auction) ||
+          !hasLearningData;
         if (needsMetaSenior) {
           try {
             await enrichFactsWithMetaSeniorFetch(factsForAnalysis, actId, token);

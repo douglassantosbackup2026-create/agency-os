@@ -441,3 +441,35 @@
 .diagnosis-funnel.diagnosis-layout-wide .meta-funnel-grid {
   margin-top: 0.5rem;
 }
+
+.diagnosis-funnel.diagnosis-layout-wide .funnel-steps-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 0.75rem;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .funnel-step-card {
+  flex: 1 1 140px;
+  padding: 0.75rem;
+  border: 1px solid var(--diag-border, #e2e8f0);
+  border-radius: 8px;
+  background: #fafafa;
+  position: relative;
+}
+
+.diagnosis-funnel.diagnosis-layout-wide .funnel-arrow {
+  display: none;
+}
+
+@media (min-width: 720px) {
+  .diagnosis-funnel.diagnosis-layout-wide .funnel-step-card .funnel-arrow {
+    display: block;
+    position: absolute;
+    right: -0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--diag-muted, #94a3b8);
+    font-size: 1.1rem;
+  }
+}

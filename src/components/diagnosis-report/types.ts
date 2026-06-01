@@ -165,6 +165,7 @@ export type DiagnosisAnalysis = {
   disclaimer?: string;
   seniorDerived?: SeniorDerived;
   metaSenior?: MetaSeniorDerived;
+  consultativeDerived?: ConsultativeDerived;
   maturity?: MaturityScore;
   leakByAxis?: LeakByAxisItem[];
   growthScenarios?: GrowthScenarios;
@@ -285,6 +286,80 @@ export type MetaSeniorDerived = {
     primaryObjectiveLabel: string;
     anomalyCount: number;
   };
+};
+
+export type AccountFinancialGap = {
+  periodLabel: string;
+  investedFormatted: string;
+  revenueActualFormatted: string;
+  roasActualFormatted: string;
+  roasReferenceFormatted: string;
+  revenuePotentialFormatted: string;
+  gapMonthlyFormatted: string;
+  gapAnnualFormatted: string;
+  nicheLabel: string;
+  headlinePt: string;
+  gapMonthlyBrl: number;
+};
+
+export type DeliverySummary = {
+  totalAdsets: number;
+  pctSpendNonOptimized: number;
+  spendNonOptimizedFormatted: string;
+  estimatedDailyBlindSpendFormatted: string;
+  summaryPt: string;
+  byStatus: Record<string, number>;
+};
+
+export type ConversionFunnelView = {
+  lpv: number;
+  atc: number;
+  checkout: number;
+  purchase: number;
+  atcRate: number | null;
+  checkoutRate: number | null;
+  purchaseRate: number | null;
+  bottleneck: string;
+  bottleneckLabel: string;
+  revenueAtRiskMonthlyBrl: number | null;
+};
+
+export type AdsetBleedRow = {
+  adsetName: string;
+  campaignName: string;
+  bleedFormatted: string;
+  bleedBrl: number;
+  roasFormatted: string;
+  spendFormatted: string;
+  learningStatus?: string;
+};
+
+export type AdVideoDiagnostic = {
+  adName: string;
+  campaignName: string;
+  roas: number | null;
+  hookRatePct: number | null;
+  diagnosisPt: string;
+  isBestCandidate: boolean;
+  isWorstCandidate: boolean;
+  pauseCandidate?: boolean;
+};
+
+export type WinnerUnderinvested = {
+  adName: string;
+  roas: number;
+  spendNote: string;
+  campaignName: string;
+};
+
+export type ConsultativeDerived = {
+  nicheContext?: { nicheLabel: string; source: string };
+  accountFinancialGap?: AccountFinancialGap | null;
+  deliverySummary?: DeliverySummary | null;
+  conversionFunnel?: ConversionFunnelView | null;
+  adsetBleedRanking?: AdsetBleedRow[];
+  winnerUnderinvested?: WinnerUnderinvested | null;
+  adVideoDiagnostics?: AdVideoDiagnostic[];
 };
 
 export type SeniorDerived = {

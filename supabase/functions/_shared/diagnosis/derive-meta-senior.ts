@@ -1,8 +1,10 @@
 import {
   dateRangeDaysAgo,
   fetchAccountRecommendations,
+  fetchAdAccountMeta,
   fetchAdsAuctionInsights,
   fetchAdsetInsightsForRange,
+  fetchAdsetInsightsRich,
   fetchAdsetsConfig,
 } from "../meta-diagnosis-fetch.ts";
 import { deriveAdsetPerformanceTrends } from "./derive-adset-performance-trends.ts";
@@ -23,6 +25,19 @@ export async function enrichFactsWithMetaSeniorFetch(
 ): Promise<void> {
   const current = dateRangeDaysAgo(0, 30);
   const previous = dateRangeDaysAgo(30, 30);
+
+  try {
+    facts.account_meta = await fetchAdAccountMeta(actId, token);
+  } catch (e) {
+    console.warn(`[meta-senior] account meta: ${String(e).slice(0, 120)}`);
+  }
+
+  try {
+    const rich = await fetchAdsetInsightsRich(actId, token, 80);
+    if (rich.length) facts.adsets_insights = rich;
+  } catch (e) {
+    console.warn(`[meta-senior] adset insights rich: ${String(e).slice(0, 120)}`);
+  }
 
   try {
     facts.ads_insights_auction = await fetchAdsAuctionInsights(actId, token, 40);

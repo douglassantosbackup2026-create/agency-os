@@ -1,42 +1,58 @@
-// P5 — Benchmarks de referência por nicho.
-// Faixas indicativas, baseadas em medianas observadas em contas pequenas/médias
-// no Brasil. Servem como contexto — não substituem a meta da operação.
+// P5 — Benchmarks de referência por nicho (Páprika v1 tiers — faixa "bom").
+// Faixas alinhadas a supabase/functions/_shared/diagnosis/niche-benchmarks-v1.ts
 
 export type BenchmarkRange = [number, number];
 
+export type BenchmarkTierKey = "ruim" | "atencao" | "bom" | "excelente";
+
+export const BENCHMARK_TIER_LABELS: Record<BenchmarkTierKey, string> = {
+  ruim: "Ruim",
+  atencao: "Atenção",
+  bom: "Bom",
+  excelente: "Excelente",
+};
+
 export type NicheBenchmarks = {
   label: string;
-  // chaves correspondem a métricas do relatório (case-insensitive contains).
   ranges: Partial<{
     roas: BenchmarkRange;
-    ctr: BenchmarkRange; // em %
-    cpm: BenchmarkRange; // em R$
-    cpc: BenchmarkRange; // em R$
-    cpa: BenchmarkRange; // em R$
+    ctr: BenchmarkRange;
+    cpm: BenchmarkRange;
+    cpc: BenchmarkRange;
+    cpa: BenchmarkRange;
     frequencia: BenchmarkRange;
   }>;
 };
 
+/** Faixas "bom" do NICHE_BENCHMARKS_V1 (servidor). */
 export const NICHE_BENCHMARKS: Record<string, NicheBenchmarks> = {
   ecom_moda: {
-    label: "E-commerce de moda",
-    ranges: {
-      roas: [2.0, 4.0],
-      ctr: [1.2, 2.2],
-      cpm: [15, 35],
-      cpc: [0.6, 1.8],
-      frequencia: [1.5, 3.0],
-    },
+    label: "Moda e acessórios",
+    ranges: { roas: [6, 9], ctr: [2, 4], cpm: [20, 40], frequencia: [2, 3] },
+  },
+  ecom_beleza: {
+    label: "Beleza e cosméticos",
+    ranges: { roas: [8, 12], ctr: [2.5, 5], cpm: [15, 30], frequencia: [2, 3] },
+  },
+  ecom_casa: {
+    label: "Casa e decoração",
+    ranges: { roas: [7, 10], ctr: [1.5, 3], cpm: [18, 35], frequencia: [2, 3] },
+  },
+  ecom_eletronicos: {
+    label: "Eletrônicos e tecnologia",
+    ranges: { roas: [10, 15], ctr: [1, 2], cpm: [20, 40], frequencia: [1.5, 2] },
+  },
+  ecom_esportes: {
+    label: "Esportes e fitness",
+    ranges: { roas: [7, 11], ctr: [2, 4], cpm: [14, 28], frequencia: [2, 3] },
+  },
+  ecom_alimentos: {
+    label: "Alimentos, bebidas e suplementos",
+    ranges: { roas: [10, 15], ctr: [2, 4], cpm: [12, 25], frequencia: [2, 3] },
   },
   ecom_geral: {
     label: "E-commerce geral",
-    ranges: {
-      roas: [2.5, 5.0],
-      ctr: [1.0, 2.0],
-      cpm: [18, 40],
-      cpc: [0.8, 2.2],
-      frequencia: [1.5, 3.0],
-    },
+    ranges: { roas: [5, 8], ctr: [2, 3.5], cpm: [18, 35], frequencia: [2, 3] },
   },
   infoproduto: {
     label: "Infoproduto / curso",
@@ -75,14 +91,22 @@ export const NICHE_BENCHMARKS: Record<string, NicheBenchmarks> = {
 export function matchNicheKey(text: string | null | undefined): string | null {
   if (!text) return null;
   const t = text.toLowerCase();
-  if (/(moda|roupa|vestu|calçad|sapato|acess[oó]rio)/.test(t)) return "ecom_moda";
-  if (/(info\s*produto|curso|mentoria|ebook|treinamento|coach)/.test(t))
+  if (/(moda|roupa|vestu|calçad|sapato|acess[oó]rio|tricot|paprika|páprika)/.test(t)) {
+    return "ecom_moda";
+  }
+  if (/(beleza|cosm[eé]tic|skincare|maquiagem)/.test(t)) return "ecom_beleza";
+  if (/(casa|decora|móvel|mobili)/.test(t)) return "ecom_casa";
+  if (/(eletr[oô]nic|tech|celular|gadget)/.test(t)) return "ecom_eletronicos";
+  if (/(esporte|fitness|suplemento|academia)/.test(t)) return "ecom_esportes";
+  if (/(aliment|bebida|comida|nutri)/.test(t)) return "ecom_alimentos";
+  if (/(info\s*produto|curso|mentoria|ebook|treinamento|coach)/.test(t)) {
     return "infoproduto";
+  }
   if (/(b2b|lead|saas|software|consultoria|empresa)/.test(t)) return "b2b";
-  if (/(local|cl[ií]nica|barbearia|sal[aã]o|est[eé]tica|odonto|advog|imobili|restaurante)/.test(t))
+  if (/(local|cl[ií]nica|barbearia|sal[aã]o|est[eé]tica|odonto|advog|imobili|restaurante)/.test(t)) {
     return "servico_local";
-  if (/(loja|ecom|e-?commerce|shop|marketplace|cosm[eé]tic|beleza|suplement)/.test(t))
-    return "ecom_geral";
+  }
+  if (/(loja|ecom|e-?commerce|shop|marketplace)/.test(t)) return "ecom_geral";
   return null;
 }
 
@@ -106,6 +130,5 @@ export function formatBenchmark(
   if (key === "ctr") return `${a.toFixed(1)}–${b.toFixed(1)}%`;
   if (key === "roas" || key === "frequencia")
     return `${a.toFixed(1)}–${b.toFixed(1)}`;
-  // moeda
   return `R$ ${a}–${b}`;
 }

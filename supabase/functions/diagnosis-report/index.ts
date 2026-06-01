@@ -7,6 +7,7 @@ import { assertDiagnosisSecret } from "../_shared/diagnosis/validate-diagnosis-a
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
 import {
+  attachCommercialToFacts,
   mergeBusinessContextIntoFacts,
   normalizeAnalysisV2,
 } from "../_shared/diagnosis/derive-analysis.ts";
@@ -58,6 +59,7 @@ Deno.serve(async (req) => {
       diag?.business_context as Record<string, unknown> | null | undefined,
     );
     attachMetaSeniorToFacts(factsForNormalize);
+    attachCommercialToFacts(factsForNormalize);
     analysisJson = normalizeAnalysisV2(
       { ...(analysisJson as Record<string, unknown>) },
       factsForNormalize,

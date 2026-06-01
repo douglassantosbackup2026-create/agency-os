@@ -13,10 +13,21 @@ import {
 import { deriveFinancialBalance, type FinancialBalance } from "./derive-financial-balance.ts";
 import { deriveTopFindings, type TopFinding } from "./derive-top-findings.ts";
 import { buildSeniorDerived, type SeniorDerived } from "./derive-senior.ts";
+import {
+  classifyTier,
+  formatTierGapNote,
+  NICHE_BENCHMARKS_V1,
+  type BenchmarkTier,
+} from "./niche-benchmarks-v1.ts";
 
 export type NicheBenchmarkKey =
   | "ecom_geral"
   | "ecom_moda"
+  | "ecom_beleza"
+  | "ecom_casa"
+  | "ecom_eletronicos"
+  | "ecom_esportes"
+  | "ecom_alimentos"
   | "infoproduto"
   | "servico_local"
   | "b2b";
@@ -74,10 +85,18 @@ function getEnriched(facts: Record<string, unknown> | null | undefined): Campaig
 export function matchNicheFromContext(niche: string | null | undefined): NicheBenchmarkKey {
   if (!niche) return "ecom_geral";
   const t = niche.toLowerCase();
-  if (/(moda|roupa|vestu|calçad|sapato)/.test(t)) return "ecom_moda";
+  if (/(moda|roupa|vestu|calçad|sapato|acess[oó]rio|tricot|paprika|páprika)/.test(t)) {
+    return "ecom_moda";
+  }
+  if (/(beleza|cosm[eé]tic|skincare|maquiagem)/.test(t)) return "ecom_beleza";
+  if (/(casa|decora|móvel|mobili)/.test(t)) return "ecom_casa";
+  if (/(eletr[oô]nic|tech|celular|gadget)/.test(t)) return "ecom_eletronicos";
+  if (/(esporte|fitness|suplemento|academia)/.test(t)) return "ecom_esportes";
+  if (/(aliment|bebida|comida|nutri)/.test(t)) return "ecom_alimentos";
   if (/(info\s*produto|curso|mentoria|ebook)/.test(t)) return "infoproduto";
   if (/(b2b|lead|saas|software|consultoria)/.test(t)) return "b2b";
   if (/(local|cl[ií]nica|barbearia|sal[aã]o|odonto)/.test(t)) return "servico_local";
+  if (/(loja|ecom|e-?commerce|shop|marketplace)/.test(t)) return "ecom_geral";
   return "ecom_geral";
 }
 
@@ -315,11 +334,49 @@ export type BenchmarkComparison = {
   gaps: BenchmarkGap[];
 };
 
+function tierToStatus(tier: BenchmarkTier): "below" | "within" | "above" {
+  if (tier === "ruim") return "below";
+  if (tier === "atencao") return "within";
+  return "above";
+}
+
+function pushTierGap(
+  gaps: BenchmarkGap[],
+  nicheKey: string,
+  metricLabel: string,
+  current: number,
+  currentFormatted: string,
+  metricKey: "roas" | "cpm" | "ctrConversion" | "frequencia",
+  formatRef: (n: number) => string,
+): void {
+  const v1 = NICHE_BENCHMARKS_V1[nicheKey] ?? NICHE_BENCHMARKS_V1.ecom_geral;
+  const m = v1[metricKey];
+  if (!m) return;
+  const tier = classifyTier(current, m);
+  const [lo, hi] = m.bom;
+  const status = tierToStatus(tier);
+  const delta = gapDelta(current, lo, hi, m.higherIsBetter);
+  const gapNote =
+    formatTierGapNote(metricLabel, current, nicheKey, metricKey, formatRef) ||
+    (status === "below"
+      ? `${metricLabel} abaixo do mínimo saudável do nicho.`
+      : `${metricLabel} na faixa de referência (${tier}).`);
+  gaps.push({
+    metric: metricLabel,
+    current: currentFormatted,
+    reference: `${formatRef(lo)}–${formatRef(hi)} (bom)`,
+    status,
+    gapNote,
+    isBad: tier === "ruim" || tier === "atencao",
+    ...delta,
+  });
+}
+
 export function deriveBenchmarkGaps(
   facts: Record<string, unknown> | null | undefined,
   nicheKey: NicheBenchmarkKey = "ecom_geral",
 ): BenchmarkComparison {
-  const bench = NICHE_BENCHMARKS[nicheKey];
+  const v1 = NICHE_BENCHMARKS_V1[nicheKey] ?? NICHE_BENCHMARKS_V1.ecom_geral;
   const economics = deriveAccountEconomics(facts);
   const ins = (facts?.account_insights ?? {}) as Record<string, unknown>;
   const ctr = num(ins.ctr);
@@ -327,82 +384,55 @@ export function deriveBenchmarkGaps(
   const frequency = num(ins.frequency);
   const gaps: BenchmarkGap[] = [];
 
-  const roasRange = bench.ranges.roas;
-  if (roasRange && economics.roasSales != null) {
-    const [lo, hi] = roasRange;
-    const status =
-      economics.roasSales >= hi ? "above" : economics.roasSales >= lo ? "within" : "below";
-    const delta = gapDelta(economics.roasSales, lo, hi, true);
-    gaps.push({
-      metric: "ROAS (Vendas)",
-      current: economics.roasFormatted,
-      reference: `${lo.toFixed(1)}–${hi.toFixed(1)}x`,
-      status,
-      gapNote:
-        status === "below"
-          ? `Abaixo da faixa típica do nicho — há espaço para ganho de eficiência.`
-          : status === "above"
-            ? `Acima da média observada em contas similares.`
-            : `Dentro da faixa de referência do nicho.`,
-      ...delta,
-    });
+  if (v1.roas && economics.roasSales != null) {
+    pushTierGap(
+      gaps,
+      nicheKey,
+      "ROAS (Vendas)",
+      economics.roasSales,
+      economics.roasFormatted,
+      "roas",
+      (n) => `${n.toFixed(1).replace(".", ",")}x`,
+    );
   }
 
-  const ctrRange = bench.ranges.ctr;
-  if (ctrRange && ctr != null) {
-    const [lo, hi] = ctrRange;
-    const status = ctr >= hi ? "above" : ctr >= lo ? "within" : "below";
-    const delta = gapDelta(ctr, lo, hi, true);
-    gaps.push({
-      metric: "CTR (conta)",
-      current: `${ctr.toFixed(2).replace(".", ",")}%`,
-      reference: `${lo.toFixed(1)}–${hi.toFixed(1)}%`,
-      status,
-      gapNote:
-        status === "below"
-          ? `CTR abaixo do típico — criativos ou segmentação podem estar limitando cliques.`
-          : `CTR na faixa esperada para o nicho.`,
-      ...delta,
-    });
+  if (v1.ctrConversion && ctr != null) {
+    pushTierGap(
+      gaps,
+      nicheKey,
+      "CTR (conta)",
+      ctr,
+      `${ctr.toFixed(2).replace(".", ",")}%`,
+      "ctrConversion",
+      (n) => `${n.toFixed(2).replace(".", ",")}%`,
+    );
   }
 
-  const cpmRange = bench.ranges.cpm;
-  if (cpmRange && cpm != null) {
-    const [lo, hi] = cpmRange;
-    const status = cpm <= lo ? "above" : cpm <= hi ? "within" : "below";
-    const delta = gapDelta(cpm, lo, hi, false);
-    gaps.push({
-      metric: "CPM (conta)",
-      current: fmtBRLPrecise(cpm),
-      reference: `R$ ${lo}–${hi}`,
-      status,
-      gapNote:
-        status === "below"
-          ? `CPM acima da faixa — leilão ou público pode estar caro.`
-          : `CPM competitivo para o nicho.`,
-      ...delta,
-    });
+  if (v1.cpm && cpm != null) {
+    pushTierGap(
+      gaps,
+      nicheKey,
+      "CPM (conta)",
+      cpm,
+      fmtBRLPrecise(cpm),
+      "cpm",
+      (n) => fmtBRLPrecise(n),
+    );
   }
 
-  const freqRange = bench.ranges.frequencia;
-  if (freqRange && frequency != null) {
-    const [lo, hi] = freqRange;
-    const status = frequency <= hi ? "within" : "below";
-    const delta = gapDelta(frequency, lo, hi, false);
-    gaps.push({
-      metric: "Frequência (30d)",
-      current: frequency.toFixed(1).replace(".", ","),
-      reference: `${lo.toFixed(1)}–${hi.toFixed(1)}`,
-      status,
-      gapNote:
-        status === "below"
-          ? `Frequência alta — risco de saturação de público.`
-          : `Frequência controlada.`,
-      ...delta,
-    });
+  if (v1.frequencia && frequency != null) {
+    pushTierGap(
+      gaps,
+      nicheKey,
+      "Frequência (30d)",
+      frequency,
+      frequency.toFixed(1).replace(".", ","),
+      "frequencia",
+      (n) => n.toFixed(1).replace(".", ","),
+    );
   }
 
-  return { nicheKey, nicheLabel: bench.label, gaps };
+  return { nicheKey, nicheLabel: v1.label, gaps };
 }
 
 export type ScorePillar = {
@@ -543,8 +573,11 @@ export type CommercialDerived = {
 export function buildCommercialDerived(
   facts: Record<string, unknown> | null | undefined,
 ): CommercialDerived {
+  const nicheFromFacts = facts?.niche_context as { nicheKey?: string } | undefined;
   const ctx = facts?.business_context as { niche?: string } | undefined;
-  const nicheKey = matchNicheFromContext(ctx?.niche ?? null);
+  const nicheKey =
+    (nicheFromFacts?.nicheKey as NicheBenchmarkKey | undefined) ??
+    matchNicheFromContext(ctx?.niche ?? null);
   const economics = deriveAccountEconomics(facts);
   const waste = deriveWasteBreakdown(facts);
   const recovery = deriveRecoveryScenarios(waste, economics, facts);

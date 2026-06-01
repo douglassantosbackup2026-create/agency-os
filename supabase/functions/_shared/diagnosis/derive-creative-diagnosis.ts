@@ -67,6 +67,7 @@ export function deriveCreativeDiagnosis(
     : [];
   const dep = deriveCreativeDependency(facts);
   const ctrGap = benchmark?.gaps.find((g) => /ctr/i.test(g.metric));
+  const winner = (facts?.adset_winner_underinvested as Record<string, unknown> | undefined) ?? null;
 
   let status: ChapterStatus = "info";
   if (!ads.length) {
@@ -81,12 +82,19 @@ export function deriveCreativeDiagnosis(
     };
   }
 
-  if (dep?.isHighDependency) status = "critical";
+  if (winner) status = "critical";
+  else if (dep?.isHighDependency) status = "critical";
   else if (ctrGap?.isBad) status = "warning";
   else if (dep && dep.topAdSpendSharePct >= 35) status = "warning";
   else status = "good";
 
   const parts: string[] = [`${ads.length} anúncios no top por gasto`];
+  if (winner) {
+    const winnerRoas = num(winner.roas as unknown);
+    parts.push(
+      `Winner sub-investido: "${String(winner.adName ?? "")}" ROAS ${winnerRoas?.toFixed(1)}× com apenas ${String(winner.spendNote ?? "")}`,
+    );
+  }
   if (dep) {
     parts.push(
       `Maior anúncio concentra ${dep.topAdSpendSharePct}% do gasto analisado`,
@@ -103,7 +111,10 @@ export function deriveCreativeDiagnosis(
   if (adSignals?.note) parts.push(adSignals.note);
 
   let headline: string;
-  if (dep?.isHighDependency && dep.topAdPurchaseSharePct != null) {
+  if (winner) {
+    const winnerRoas = num(winner.roas as unknown);
+    headline = `Criativo com ROAS ${winnerRoas?.toFixed(1)}× recebendo apenas ${String(winner.spendNote ?? "")} — isolamento e escala são a prioridade #1.`;
+  } else if (dep?.isHighDependency && dep.topAdPurchaseSharePct != null) {
     headline = `Dependência de criativo: 1 anúncio concentra ~${dep.topAdPurchaseSharePct}% das compras — risco alto se saturar.`;
   } else if (dep?.isHighDependency) {
     headline = `Dependência de criativo: ${dep.topAdSpendSharePct}% do gasto em um único anúncio.`;
@@ -120,11 +131,13 @@ export function deriveCreativeDiagnosis(
     headline,
     evidence: parts.join(" · "),
     impactNote:
-      status === "critical"
-        ? "70% do resultado costuma vir de criativos — concentração eleva risco operacional."
-        : ctrGap?.isBad
-          ? "CTR baixo costuma preceder aumento de CPM e queda de eficiência."
-          : null,
+      winner
+        ? `Criativo winner sendo sufocado por outros com ROAS baixo no mesmo conjunto. Isolar em conjunto dedicado é a ação de maior impacto disponível.`
+        : status === "critical"
+          ? "70% do resultado costuma vir de criativos — concentração eleva risco operacional."
+          : ctrGap?.isBad
+            ? "CTR baixo costuma preceder aumento de CPM e queda de eficiência."
+            : null,
     dataAvailable: ads.length >= 3 ? "full" : "partial",
   };
 }

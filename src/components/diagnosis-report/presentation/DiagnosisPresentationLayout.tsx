@@ -1,12 +1,17 @@
 import { useMemo } from "react";
 import { buildRoadmapFromActionPlan } from "@/lib/diagnosis-roadmap";
 import type {
+  ConsultativeDerived,
   DiagnosisAnalysis,
   FinancialBalance,
   MetaSeniorDerived,
   SeniorDerived,
   TopFinding,
 } from "../types";
+import { DiagnosisConversionFunnelBlock } from "./DiagnosisConversionFunnelBlock";
+import { DiagnosisCreativesWinnerBlock } from "./DiagnosisCreativesWinnerBlock";
+import { DiagnosisDeliveryStatusBlock } from "./DiagnosisDeliveryStatusBlock";
+import { DiagnosisFinancialGapBlock } from "./DiagnosisFinancialGapBlock";
 import { DiagnosisAccountHealthStrip } from "./DiagnosisAccountHealthStrip";
 import { DiagnosisAudienceTrends } from "./DiagnosisAudienceTrends";
 import { DiagnosisCreativeAuctionGrid } from "./DiagnosisCreativeAuctionGrid";
@@ -27,6 +32,7 @@ import { DiagnosisRoadmapTimeline } from "./DiagnosisRoadmapTimeline";
 type Props = {
   analysis: DiagnosisAnalysis;
   metaSenior?: MetaSeniorDerived | null;
+  consultative?: ConsultativeDerived | null;
   seniorDerived: SeniorDerived | null;
   financialBalance: FinancialBalance | null;
   topFindings: TopFinding[];
@@ -45,6 +51,7 @@ type Props = {
 export function DiagnosisPresentationLayout({
   analysis,
   metaSenior = null,
+  consultative = null,
   seniorDerived,
   financialBalance,
   topFindings,
@@ -103,11 +110,15 @@ export function DiagnosisPresentationLayout({
       metaSenior?.recommendations?.length,
   );
 
+  const c = consultative ?? analysis.consultativeDerived ?? null;
+
   const navItems = useMemo(() => {
     const items: PresentationNavItem[] = [
       { id: "veredito", label: "Veredito" },
-      { id: "resumo-executivo", label: "Resumo" },
     ];
+    if (c?.accountFinancialGap) items.push({ id: "bloco-impacto", label: "Impacto R$" });
+    if (c?.deliverySummary) items.push({ id: "bloco-entrega", label: "Entrega" });
+    items.push({ id: "resumo-executivo", label: "Resumo" });
     if (hasMetaSenior) {
       items.push({ id: "sec-account-health", label: "Meta" });
       if (metaSenior?.auctionDiagnostics?.length) {
@@ -123,6 +134,10 @@ export function DiagnosisPresentationLayout({
         items.push({ id: "sec-funnel", label: "Funil" });
       }
     }
+    if (c?.conversionFunnel) items.push({ id: "bloco-funil", label: "Funil" });
+    if (c?.winnerUnderinvested || (c?.adVideoDiagnostics?.length ?? 0) > 0) {
+      items.push({ id: "bloco-criativos", label: "Criativos" });
+    }
     if (hasIssues) items.push({ id: "sec-issues", label: "Problemas" });
     if (hasLeak) items.push({ id: "vazamentos", label: "Vazamentos" });
     if (hasOpportunities) items.push({ id: "crescimento", label: "Oportunidades" });
@@ -130,7 +145,7 @@ export function DiagnosisPresentationLayout({
     items.push({ id: "sec-footer-cta", label: "Próximo passo" });
     items.push({ id: "sec-technical", label: "Anexo técnico" });
     return items;
-  }, [hasIssues, hasLeak, hasMetaSenior, hasOpportunities, hasRoadmap, metaSenior]);
+  }, [c, hasIssues, hasLeak, hasMetaSenior, hasOpportunities, hasRoadmap, metaSenior]);
 
   const economicsSingle = hasLeak !== hasOpportunities;
 
@@ -150,6 +165,14 @@ export function DiagnosisPresentationLayout({
 
       <DiagnosisPresentationNav items={navItems} />
 
+      {c?.accountFinancialGap ? (
+        <DiagnosisFinancialGapBlock gap={c.accountFinancialGap} />
+      ) : null}
+
+      {c?.deliverySummary ? (
+        <DiagnosisDeliveryStatusBlock summary={c.deliverySummary} />
+      ) : null}
+
       <DiagnosisExecutiveStrip
         balance={financialBalance}
         analysis={analysis}
@@ -164,6 +187,17 @@ export function DiagnosisPresentationLayout({
           <DiagnosisPriorityRecommendations items={metaSenior.recommendations} />
           <DiagnosisFunnelHealth rows={metaSenior.funnelHealth} />
         </>
+      ) : null}
+
+      {c?.conversionFunnel ? (
+        <DiagnosisConversionFunnelBlock funnel={c.conversionFunnel} />
+      ) : null}
+
+      {c?.winnerUnderinvested || (c?.adVideoDiagnostics?.length ?? 0) > 0 ? (
+        <DiagnosisCreativesWinnerBlock
+          winner={c?.winnerUnderinvested}
+          videos={c?.adVideoDiagnostics ?? []}
+        />
       ) : null}
 
       {hasIssues ? (

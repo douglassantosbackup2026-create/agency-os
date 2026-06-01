@@ -58,6 +58,42 @@ export async function fetchAdsAuctionInsights(
   return j.data ?? [];
 }
 
+const ADSET_INSIGHT_FIELDS_RICH =
+  "adset_id,adset_name,campaign_id,campaign_name,impressions,clicks,spend,ctr,reach,frequency,cpm,cpc,actions,action_values,cost_per_result,purchase_roas";
+
+export async function fetchAdAccountMeta(
+  actId: string,
+  token: string,
+): Promise<Record<string, unknown>> {
+  const u = new URL(`https://graph.facebook.com/v21.0/${actId}`);
+  u.searchParams.set(
+    "fields",
+    "account_status,currency,timezone_name,name,business_name,vertical",
+  );
+  u.searchParams.set("access_token", token);
+  try {
+    return await graphGet<Record<string, unknown>>(u);
+  } catch {
+    return {};
+  }
+}
+
+/** Insights ad set 30d com métricas de conversão (Páprika v16). */
+export async function fetchAdsetInsightsRich(
+  actId: string,
+  token: string,
+  limit = 80,
+): Promise<Record<string, unknown>[]> {
+  const u = new URL(`https://graph.facebook.com/v21.0/${actId}/insights`);
+  u.searchParams.set("level", "adset");
+  u.searchParams.set("fields", ADSET_INSIGHT_FIELDS_RICH);
+  u.searchParams.set("date_preset", "last_30d");
+  u.searchParams.set("limit", String(limit));
+  u.searchParams.set("access_token", token);
+  const j = await graphGet<{ data?: Record<string, unknown>[] }>(u);
+  return j.data ?? [];
+}
+
 export async function fetchAdsetInsightsForRange(
   actId: string,
   token: string,
@@ -69,7 +105,7 @@ export async function fetchAdsetInsightsForRange(
   u.searchParams.set("level", "adset");
   u.searchParams.set(
     "fields",
-    "adset_id,adset_name,campaign_id,campaign_name,impressions,clicks,spend,ctr,reach,frequency",
+    ADSET_INSIGHT_FIELDS_RICH,
   );
   u.searchParams.set(
     "time_range",
@@ -89,7 +125,7 @@ export async function fetchAdsetsConfig(
   const u = new URL(`https://graph.facebook.com/v21.0/${actId}/adsets`);
   u.searchParams.set(
     "fields",
-    "id,name,campaign_id,status,targeting,optimization_goal,promoted_object,is_dynamic_creative",
+    "id,name,campaign_id,status,effective_status,targeting,optimization_goal,promoted_object,is_dynamic_creative,learning_stage_info,issues_info,daily_budget,lifetime_budget,bid_strategy",
   );
   u.searchParams.set("limit", String(limit));
   u.searchParams.set("access_token", token);

@@ -28,6 +28,7 @@ import { deriveHypothesisSeeds } from "./derive-hypothesis-seeds.ts";
 import { buildSeniorDerived } from "./derive-senior.ts";
 import type { SeniorDerived } from "./derive-senior-types.ts";
 import { attachMetaSeniorToFacts } from "./derive-meta-senior.ts";
+import { buildConsultativeDerived } from "./derive-consultative-blocks.ts";
 
 export type { DerivedStatus };
 
@@ -368,7 +369,8 @@ export function deriveBestWorstAdsV2(
   }
 
   const totalSpend = list.reduce((s, a) => s + (num(a.spend) ?? 0), 0);
-  const minSpend = Math.max(50, totalSpend * 0.02);
+  // Lower threshold so high-ROAS but low-spend winners are not excluded
+  const minSpend = Math.max(30, totalSpend * 0.01);
 
   type Scored = {
     name: string;
@@ -575,6 +577,11 @@ export function normalizeAnalysisV2(
     obj.metaSenior = metaSenior;
   }
 
+  const consultative = facts?.consultative_derived;
+  if (consultative && typeof consultative === "object") {
+    obj.consultativeDerived = consultative;
+  }
+
   const seeds =
     (Array.isArray(facts?.hypothesis_seeds)
       ? (facts!.hypothesis_seeds as ReturnType<typeof deriveHypothesisSeeds>)
@@ -717,6 +724,241 @@ function enrichCriticalIssuesWithHypothesis(
   }
 }
 
+// ── Funil de Conversão ────────────────────────────────────────────────────────
+
+const LPV_PATTERNS = [/^landing_page_view$/i];
+const ATC_PATTERNS = [
+  /^add_to_cart$/i,
+  /offsite_conversion\.fb_pixel_add_to_cart/i,
+  /fb_pixel_add_to_cart/i,
+];
+const CHECKOUT_PATTERNS = [
+  /^initiate_checkout$/i,
+  /offsite_conversion\.fb_pixel_initiate_checkout/i,
+  /fb_pixel_initiate_checkout/i,
+];
+const PURCHASE_PATTERNS = [
+  /^purchase$/i,
+  /^omni_purchase$/i,
+  /offsite_conversion\.fb_pixel_purchase/i,
+];
+
+function extractFunnelActionCount(actions: unknown, patterns: RegExp[]): number {
+  if (!Array.isArray(actions)) return 0;
+  let total = 0;
+  for (const a of actions as Record<string, unknown>[]) {
+    const t = String(a.action_type ?? "");
+    if (patterns.some((p) => p.test(t))) {
+      total += num(a.value) ?? 0;
+    }
+  }
+  return total;
+}
+
+export type ConversionFunnel = {
+  lpv: number;
+  atc: number;
+  checkout: number;
+  purchase: number;
+  atcRate: number | null;
+  checkoutRate: number | null;
+  purchaseRate: number | null;
+  bottleneck: "lpv" | "atc" | "checkout" | "none" | "insufficient_data";
+  bottleneckLabel: string;
+  revenueAtRiskMonthlyBrl: number | null;
+};
+
+export function deriveFunnelAnalysis(
+  facts: Record<string, unknown> | null | undefined,
+): ConversionFunnel | null {
+  const campaignInsights = Array.isArray(facts?.campaigns_insights)
+    ? (facts!.campaigns_insights as Record<string, unknown>[])
+    : [];
+  const enriched = getEnriched(facts);
+  const salesIds = new Set(
+    enriched.filter((c) => c.family === "sales").map((c) => c.campaign_id),
+  );
+  if (salesIds.size === 0) return null;
+
+  let lpv = 0, atc = 0, checkout = 0, purchase = 0;
+  for (const ci of campaignInsights) {
+    if (!salesIds.has(String(ci.campaign_id ?? ""))) continue;
+    const actions = ci.actions;
+    lpv += extractFunnelActionCount(actions, LPV_PATTERNS);
+    atc += extractFunnelActionCount(actions, ATC_PATTERNS);
+    checkout += extractFunnelActionCount(actions, CHECKOUT_PATTERNS);
+    purchase += extractFunnelActionCount(actions, PURCHASE_PATTERNS);
+  }
+
+  if (purchase === 0 && checkout === 0) return null;
+
+  const atcRate = lpv > 0 && atc > 0 ? (atc / lpv) * 100 : null;
+  const checkoutRate = atc > 0 && checkout > 0 ? (checkout / atc) * 100 : null;
+  const purchaseRate = checkout > 0 && purchase > 0 ? (purchase / checkout) * 100 : null;
+
+  let bottleneck: ConversionFunnel["bottleneck"] = "none";
+  let bottleneckLabel = "Funil sem gargalo identificado no período.";
+
+  if (purchaseRate != null && purchaseRate < 35 && checkout >= 10) {
+    bottleneck = "checkout";
+    bottleneckLabel = `Alta taxa de abandono no checkout: ${purchaseRate.toFixed(0)}% finalizam (referência saudável: 50–65% em moda BR).`;
+  } else if (checkoutRate != null && checkoutRate < 20 && atc >= 20) {
+    bottleneck = "atc";
+    bottleneckLabel = `Alta taxa de abandono de carrinho: ${checkoutRate.toFixed(0)}% avançam ao checkout.`;
+  } else if (atcRate != null && atcRate < 3 && lpv >= 100) {
+    bottleneck = "lpv";
+    bottleneckLabel = `Taxa de ATC baixa: ${atcRate.toFixed(1)}% dos visitantes adicionam ao carrinho.`;
+  } else if (purchase > 0 && checkout === 0 && atc === 0 && lpv === 0) {
+    bottleneck = "insufficient_data";
+    bottleneckLabel = "Dados insuficientes para análise completa do funil (apenas compras rastreadas).";
+  }
+
+  let revenueAtRiskMonthlyBrl: number | null = null;
+  if (bottleneck === "checkout" && purchase > 0 && checkout > 0) {
+    let totalRevenue = 0;
+    for (const c of enriched) {
+      if (c.family === "sales" && c.roas != null) totalRevenue += c.roas * c.spend;
+    }
+    if (totalRevenue > 0) {
+      const avgOrderValue = totalRevenue / purchase;
+      const expectedAt50pct = checkout * 0.5;
+      const additional = Math.max(0, expectedAt50pct - purchase);
+      revenueAtRiskMonthlyBrl = Math.round(additional * avgOrderValue);
+    }
+  }
+
+  return { lpv, atc, checkout, purchase, atcRate, checkoutRate, purchaseRate, bottleneck, bottleneckLabel, revenueAtRiskMonthlyBrl };
+}
+
+// ── Learning Status dos Ad Sets ───────────────────────────────────────────────
+
+export type AdsetLearningStatus = {
+  adset_id: string;
+  adset_name: string;
+  learning_status: "learning" | "learning_fail" | "active" | "off" | "unknown";
+  learning_limited_reason: "budget" | "audience" | "conversion_window" | "low_bid" | null;
+  days_in_learning: number | null;
+  has_issues: boolean;
+  issues_summary: string[];
+  delivery_substatus_pt?: string;
+};
+
+function classifyLearningStage(
+  learningStageInfo: Record<string, unknown> | null | undefined,
+  issuesInfo: Record<string, unknown>[] | null | undefined,
+): Pick<AdsetLearningStatus, "learning_status" | "learning_limited_reason" | "days_in_learning"> {
+  if (!learningStageInfo) return { learning_status: "unknown", learning_limited_reason: null, days_in_learning: null };
+  const raw = String(learningStageInfo.status ?? "").toUpperCase();
+  const days = num(learningStageInfo.days_in_learning_phase);
+  if (raw === "LEARNING") return { learning_status: "learning", learning_limited_reason: null, days_in_learning: days };
+  if (raw === "EXITED") return { learning_status: "active", learning_limited_reason: null, days_in_learning: days };
+  if (raw === "OFF") return { learning_status: "off", learning_limited_reason: null, days_in_learning: days };
+  if (raw === "LEARNING_LIMITED") {
+    const summaries = (issuesInfo ?? []).map((i) => String(i.error_summary ?? "").toLowerCase());
+    let reason: AdsetLearningStatus["learning_limited_reason"] = null;
+    if (summaries.some((s) => s.includes("budget"))) reason = "budget";
+    else if (summaries.some((s) => s.includes("audience") || s.includes("narrow"))) reason = "audience";
+    else if (summaries.some((s) => s.includes("attribution") || s.includes("window"))) reason = "conversion_window";
+    else if (summaries.some((s) => s.includes("bid") || s.includes("cost cap"))) reason = "low_bid";
+    return { learning_status: "learning_fail", learning_limited_reason: reason, days_in_learning: days };
+  }
+  return { learning_status: "unknown", learning_limited_reason: null, days_in_learning: null };
+}
+
+export function deriveAdsetLearningStatus(
+  facts: Record<string, unknown> | null | undefined,
+): AdsetLearningStatus[] {
+  const config = Array.isArray(facts?.adsets_config)
+    ? (facts!.adsets_config as Record<string, unknown>[])
+    : [];
+  const result: AdsetLearningStatus[] = [];
+  for (const a of config) {
+    const adset_id = String(a.id ?? "");
+    if (!adset_id) continue;
+    const learningStage = (a.learning_stage_info as Record<string, unknown> | undefined) ?? null;
+    const issuesArr = Array.isArray(a.issues_info)
+      ? (a.issues_info as Record<string, unknown>[])
+      : null;
+    const { learning_status, learning_limited_reason, days_in_learning } = classifyLearningStage(learningStage, issuesArr);
+    result.push({
+      adset_id,
+      adset_name: String(a.name ?? ""),
+      learning_status,
+      learning_limited_reason,
+      days_in_learning,
+      has_issues: (issuesArr?.length ?? 0) > 0,
+      issues_summary: issuesArr ? issuesArr.map((i) => String(i.error_summary ?? "")).filter(Boolean) : [],
+    });
+  }
+  return result;
+}
+
+// ── Winner Sub-Investido ──────────────────────────────────────────────────────
+
+export type WinnerUnderinvested = {
+  adId: string;
+  adName: string;
+  roas: number;
+  spend: number;
+  campaignName: string;
+  campaignRoas: number | null;
+  spendPct: number;
+  spendNote: string;
+};
+
+export function deriveWinnerUnderinvested(
+  facts: Record<string, unknown> | null | undefined,
+): WinnerUnderinvested | null {
+  const ads = Array.isArray(facts?.ads_insights_top)
+    ? (facts!.ads_insights_top as Record<string, unknown>[])
+    : [];
+  if (ads.length < 2) return null;
+
+  const enriched = getEnriched(facts);
+  const salesByCampaignName = new Map<string, CampaignEnriched>();
+  for (const c of enriched) {
+    if (c.family === "sales") salesByCampaignName.set(c.name, c);
+  }
+
+  type ScoredAd = {
+    adId: string; adName: string; spend: number;
+    roas: number; campaignName: string;
+    campaignRoas: number | null; campaignSpend: number;
+  };
+
+  const salesAds: ScoredAd[] = [];
+  for (const a of ads) {
+    const spend = num(a.spend) ?? 0;
+    if (spend < 30) continue;
+    const roas = computeRoas(a.action_values, spend);
+    if (roas == null || roas <= 0) continue;
+    const campaignName = String(a.campaign_name ?? "");
+    const campaign = salesByCampaignName.get(campaignName);
+    if (!campaign) continue;
+    salesAds.push({ adId: String(a.ad_id ?? ""), adName: String(a.ad_name ?? ""), spend, roas, campaignName, campaignRoas: campaign.roas, campaignSpend: campaign.spend });
+  }
+
+  if (salesAds.length < 2) return null;
+
+  const sorted = [...salesAds].sort((a, b) => b.roas - a.roas);
+  const best = sorted[0];
+  const spendPct = best.campaignSpend > 0 ? Math.round((best.spend / best.campaignSpend) * 1000) / 10 : 0;
+  const campaignRoas = best.campaignRoas ?? 0;
+  const isOutlierRoas = campaignRoas > 0 ? best.roas >= campaignRoas * 2.5 : best.roas >= 5;
+  if (!isOutlierRoas || spendPct >= 20) return null;
+
+  return {
+    adId: best.adId,
+    adName: best.adName.slice(0, 80),
+    roas: Math.round(best.roas * 100) / 100,
+    spend: best.spend,
+    campaignName: best.campaignName,
+    campaignRoas: best.campaignRoas,
+    spendPct,
+    spendNote: `R$${best.spend.toFixed(0)} (${spendPct}% do budget da campanha)`,
+  };
+}
+
 export function mergeBusinessContextIntoFacts(
   facts: Record<string, unknown>,
   businessContext: Record<string, unknown> | null | undefined,
@@ -731,6 +973,16 @@ export function attachCommercialToFacts(
 ): Record<string, unknown> {
   attachMetaSeniorToFacts(facts);
   facts.funnel_guidance = deriveFunnelGuidanceForAi(facts);
+
+  const bizCtx = facts.business_context as Record<string, unknown> | undefined;
+  buildConsultativeDerived(facts, bizCtx);
+
+  const funnel = deriveFunnelAnalysis(facts);
+  if (funnel) facts.conversion_funnel = funnel;
+
+  const winner = deriveWinnerUnderinvested(facts);
+  if (winner) facts.adset_winner_underinvested = winner;
+
   const commercial = buildCommercialDerived(facts);
   const scoreDerived = deriveScoreV2(facts);
   commercial.seniorDerived = buildSeniorDerived(facts, commercial, scoreDerived.score);

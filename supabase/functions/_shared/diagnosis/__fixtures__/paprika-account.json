@@ -1,0 +1,81 @@
+{
+  "account_insights": { "spend": "9039", "actions": [], "action_values": [] },
+  "account_meta": { "name": "Páprika", "currency": "BRL", "account_status": 1 },
+  "business_context": { "niche": "moda e acessórios" },
+  "campaigns_sample": [
+    { "id": "c1", "name": "[GM] Conversão", "objective": "OUTCOME_SALES", "status": "ACTIVE" },
+    { "id": "c2", "name": "[GM] Geo", "objective": "OUTCOME_AWARENESS", "status": "ACTIVE" }
+  ],
+  "campaigns_insights": [
+    {
+      "campaign_id": "c1",
+      "spend": "6000",
+      "actions": [
+        { "action_type": "landing_page_view", "value": "2000" },
+        { "action_type": "add_to_cart", "value": "80" },
+        { "action_type": "initiate_checkout", "value": "138" },
+        { "action_type": "purchase", "value": "30" }
+      ],
+      "action_values": [{ "action_type": "purchase", "value": "29700" }]
+    },
+    {
+      "campaign_id": "c2",
+      "spend": "752",
+      "impressions": "616000",
+      "reach": "239480",
+      "ctr": "0.05",
+      "actions": [{ "action_type": "reach", "value": "239480" }]
+    }
+  ],
+  "adsets_config": [
+    {
+      "id": "as1",
+      "name": "Geral",
+      "campaign_id": "c1",
+      "learning_stage_info": { "status": "LEARNING_LIMITED", "days_in_learning_phase": 12 },
+      "issues_info": [{ "error_summary": "Ad set budget is too low" }]
+    },
+    {
+      "id": "as2",
+      "name": "RMK",
+      "campaign_id": "c1",
+      "learning_stage_info": { "status": "LEARNING_LIMITED" },
+      "issues_info": [{ "error_summary": "budget limited learning" }]
+    }
+  ],
+  "adsets_insights": [
+    {
+      "adset_id": "as1",
+      "adset_name": "Geral",
+      "campaign_id": "c1",
+      "campaign_name": "Conversão",
+      "spend": "4000",
+      "frequency": "6.17",
+      "purchase_roas": [{ "value": "2.33" }]
+    },
+    {
+      "adset_id": "as2",
+      "adset_name": "RMK",
+      "campaign_id": "c1",
+      "spend": "2039",
+      "frequency": "5.8",
+      "purchase_roas": [{ "value": "3.1" }]
+    }
+  ],
+  "ads_insights_top": [
+    {
+      "ad_id": "ad1",
+      "ad_name": "Mantas de Tricot Carrossel",
+      "campaign_name": "Conversão",
+      "spend": "206",
+      "action_values": [{ "action_type": "purchase", "value": "3094" }]
+    },
+    {
+      "ad_id": "ad2",
+      "ad_name": "Estático Feed Promo",
+      "campaign_name": "Conversão",
+      "spend": "800",
+      "action_values": [{ "action_type": "purchase", "value": "400" }]
+    }
+  ]
+}

@@ -664,8 +664,8 @@ function DiagnosticoReportPage() {
 
         {legacyReport ? (
           <p className="legacy-report-banner no-print" role="status">
-            Relatório gerado antes da versão Analista v14 — reprocessar a análise para
-            leilão Meta, tendências de CTR e recomendações estruturais.
+            Relatório gerado antes da versão Analista v16 (Páprika) — reprocessar para
+            gap financeiro por nicho, status de entrega e funil checkout.
           </p>
         ) : null}
 
@@ -685,6 +685,7 @@ function DiagnosticoReportPage() {
         <DiagnosisPresentationLayout
           analysis={analysis}
           metaSenior={analysis.metaSenior ?? null}
+          consultative={analysis.consultativeDerived ?? null}
           seniorDerived={seniorDerived}
           financialBalance={financialBalance}
           topFindings={topFindings}
