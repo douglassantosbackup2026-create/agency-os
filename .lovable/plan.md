@@ -1,94 +1,64 @@
-# Redesign página completa do diagnóstico (gatilho mental da dor)
+## Diagnóstico atual
 
-Ficheiro: `src/routes/diagnostico.$diagnosisId.tsx` + `src/styles/diagnosis.css`
+Hoje o relatório já cobre: semáforo de métricas, top 3 prioridades, breakdown por campanha, problemas, vazamentos, oportunidades, criativos, públicos, fundação, plano de ação com checklist, contexto de negócio com break-even, cenário de melhoria, limitações e CTA. P0–P4 fechados.
 
-Reescrever copy e UI de TODAS as secções do relatório com o gatilho da dor — em cada bloco, primeiro nomear o custo concreto (dinheiro queimado, leads perdidos, tempo desperdiçado) e depois mostrar os dados/solução. Fechar com CTA de gestão como saída natural da dor acumulada ao longo do relatório.
+O gap que sobrou para "mais resultado" não é cobertura — é **convicção, ação e revisita**. O cliente lê, marca dois itens e some. Abaixo, as melhorias com maior alavanca, ranqueadas por impacto/esforço.
 
-## Estrutura nova da página
+---
 
-### 1. Header (hero do relatório)
-- **Atual:** "Diagnóstico Meta Ads" + score + label + summary
-- **Novo:** chip "Diagnóstico Meta Ads", título grande com o score, label, e abaixo uma frase de dor calibrada ao score:
-  - score < 40: "A tua conta está a sangrar dinheiro todos os dias."
-  - 40-69: "Estás a deixar resultados em cima da mesa — e nem sabes quanto."
-  - ≥ 70: "Estás bem — mas há um tecto invisível a travar-te."
-- Mostrar `summary` como subtítulo
+## P5 — Convicção (faz o cliente acreditar e agir)
 
-### 2. Métricas
-- Headline: "Onde o teu dinheiro está agora"
-- Cada métrica em cartão próprio (não linha simples): nome, valor actual destacado, vs referência, badge de status colorida (vermelho/âmbar/verde) consoante `status`
-- Linha de dor por baixo do grupo: "Cada métrica vermelha = euros que saem da conta sem voltar."
+**1. Simulador de impacto interativo** (alto impacto, médio esforço)
+Sliders no card de cenário: "se eu reduzir CPA em X%", "se eu subir CTR para Y%", "se eu cortar Z% do budget que vaza". Cálculo em tempo real → ROAS projetado, receita extra/mês, payback. Usa `business_context` (ticket, margem, meta) que já temos. Transforma o número estático em decisão.
 
-### 3. Problemas críticos
-- Headline: "Os 3 buracos no teu funil"
-- Cartões mais densos: ícone ⚠, título, descrição, badge de prioridade
-- Sub-copy de dor antes da lista: "Cada um destes pontos está activo agora — enquanto lês isto."
+**2. Benchmarks por nicho** (alto impacto, médio esforço)
+No card de métricas, ao lado de cada KPI, mostrar faixa de referência **do nicho informado** (ecommerce moda, infoproduto, serviço local etc.). Tabela hard-coded por categoria + fonte/disclaimer. Hoje o cliente vê "CTR 0,9%" e não sabe se é ruim; com benchmark vê "0,9% vs mediana 1,4% do seu segmento".
 
-### 4. Vazamentos de budget
-- Headline: "Quanto estás a queimar por mês"
-- Cada vazamento como cartão com cifrão grande à esquerda (ícone 💸), título, estimativa, hint
-- Reforço: "Soma estimada acima — é o custo de não corrigir."
+**3. Saúde criativa / fadiga** (alto impacto, baixo esforço)
+Card de criativos hoje só lista best/worst. Adicionar:
+- Score de fadiga por criativo (frequência × queda de CTR ao longo do tempo).
+- Alerta: "3 dos 5 criativos ativos passaram do ponto de saturação."
+Requer expandir o JSON gerado pelo `process-diagnosis` com `creativeHealth[]`.
 
-### 5. Oportunidades
-- Headline: "O que estás a deixar na mesa"
-- Cartões com ícone 📈, complexidade como badge
-- Inverter framing: cada oportunidade descrita como perda actual, não ganho futuro
+---
 
-### 6. Criativos
-- Headline: "Criativos: o que vende e o que queima"
-- Duas colunas lado-a-lado (mobile: empilhadas): "✅ Melhor" verde / "❌ Pior" vermelho
-- Recomendação como faixa destacada por baixo
+## P6 — Ação (transforma plano em execução)
 
-### 7. Públicos
-- Headline: "Estás a falar com as pessoas erradas?"
-- Segmentação como parágrafo destacado, notas como lista com ícones
+**4. Roadmap 30/60/90 dias** (médio impacto, baixo esforço)
+Reagrupar o `actionPlan` em três colunas/abas por horizonte (semana 1–2 / mês 1 / mês 2–3) usando o campo `eta` que já existe. Cliente vê a sequência, não uma lista plana de 8 itens.
 
-### 8. Estrutura da conta
-- Headline: "A fundação está partida"
-- Lista com ícones de check/x
+**5. "Como executar" embutido por item** (alto impacto, médio esforço)
+Cada passo do plano abre um drawer com:
+- Passo-a-passo (3–6 linhas) específico da Meta (ex.: "Ads Manager → Conjuntos → filtrar por freq > 3 → desativar").
+- Templates prontos quando aplicável (copy, segmentação, estrutura de campanha).
+Reduz a fricção entre "entendi" e "fiz".
 
-### 9. Plano de acção
-- Headline: "O caminho — se quisesses fazer sozinho"
-- Timeline visual: número grande, acção, impacto, ETA
-- Sub-copy de dor: "São X semanas de execução técnica. Tempo em que continuas a queimar budget."
+**6. Anti-padrões — "O que NÃO fazer agora"** (médio impacto, baixo esforço)
+Card curto com 3–5 armadilhas detectadas (ex.: "Não suba budget em campanhas com CPA acima da meta", "Não duplique criativo fatigado"). Previne danos enquanto o cliente age.
 
-### 10. Cenário de melhoria
-- Headline: "Onde podes estar em 30 dias"
-- Destacar valor com tipografia grande, confiança como badge
+---
 
-### 11. Gestão de tráfego (CTA final — clímax)
-- Headline: "Cada dia parado custa-te dinheiro"
-- Sub-headline: "O diagnóstico acima mostra exactamente onde estás a queimar budget. Enquanto não corriges, três coisas continuam a acontecer todos os dias:"
-- 3 bullets de dor:
-  - 🔥 Budget queimado em criativos e públicos errados
-  - 📉 Leads que o concorrente apanha porque o teu CPA está acima do mercado
-  - ⏰ Cada semana sozinho = mais um mês de resultados adiados
-- Ponte: "Podes continuar a tentar sozinho — ou deixar a nossa equipa executar o plano em 7 dias."
-- Form (mantido: nome da loja, site, instagram) com intro "Últimos 3 campos antes de começarmos:"
-- CTA: "Parar de queimar budget — R$ 1.997"
-- Microcopy: "Pagamento único · Sem mensalidade · Execução em 48h"
-- Linha de prova: "Equipa certificada · Relatório semanal · Cancelas quando quiseres"
+## P7 — Revisita e captura recorrente
 
-## UX / UI global
+**7. Re-diagnóstico com delta** (alto impacto, médio esforço)
+Botão "Rodar novo diagnóstico" que reaproveita a conexão Meta. Quando existir um diagnóstico anterior do mesmo usuário, mostrar **delta por métrica** (ROAS +0,4, CPA −18%, score 47→62). Cria ciclo mensal e prova de valor.
 
-- Sistema de cores semântico em `diagnosis.css`:
-  - vermelho/âmbar para dor, verde para ganho, azul neutro para info
-  - badges de status (high/medium/low, bom/médio/mau) com cores consistentes
-- Cartões com mais hierarquia: título grande, espaçamento generoso, divisores subtis
-- Score do header: número gigante (~80px), barra de progresso colorida por baixo
-- Secção "Gestão de tráfego": fundo destacado (gradiente quente subtil), borda âmbar em vez de azul, selo "Recomendado pela análise"
-- Tipografia: aumentar peso/tamanho de headlines de secção; sub-headlines de dor em itálico ou cor de acento
-- Responsivo: tudo continua a funcionar em mobile (grids colapsam para coluna única)
-- Manter container e estrutura de `.diagnosis-funnel` / `.card` existentes; adicionar novas classes utilitárias (`.pain-line`, `.metric-card`, `.leak-card`, `.timeline-step`, `.cta-pain` etc.)
+**8. Resumo executivo enviável** (médio impacto, baixo esforço)
+Botão "Enviar resumo para meu e-mail / WhatsApp" com 1 página: score, top 3, ROAS gap, próximo passo. Útil para o cliente compartilhar com sócio sem mandar o relatório inteiro.
 
-## Lógica preservada (sem alterações)
+**9. Link de leitura para sócio/agência** (baixo impacto, baixo esforço)
+Variante do link atual com escopo "read-only" (sem CTA de gestão, sem formulário). Aumenta circulação interna.
 
-- Todos os hooks, fetch, tracking (`diagnosis-track`, `diagnosis-report`)
-- Estados: link incompleto, processing, failed, sem analysis, managementPaid, gestaoCheckout=falha/pending
-- Form validation e fluxo de checkout Mercado Pago
-- Link WhatsApp pós-pagamento
-- Rota, search params, meta robots noindex
+---
 
-## Fora de scope
-- Backend, edge functions, schema
-- Outras páginas (obrigado, gestao-obrigado, etc.)
+## Recomendação de execução
+
+Se for fazer só um lote agora, o trio com melhor retorno é:
+
+- **#1 Simulador de impacto** — muda a percepção de valor do relatório inteiro.
+- **#2 Benchmarks por nicho** — dá contexto ao semáforo, que hoje é absoluto.
+- **#4 Roadmap 30/60/90** — empurra para execução sem reescrever conteúdo.
+
+Tudo isso é frontend + pequenos ajustes no JSON do `process-diagnosis`. Sem mudanças de schema.
+
+Quer que eu detalhe um destes três em plano de implementação, ou prefere outro recorte (ex.: ir para re-diagnóstico/delta, que abre a porta de receita recorrente)?
