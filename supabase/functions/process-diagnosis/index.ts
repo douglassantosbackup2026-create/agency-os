@@ -285,6 +285,54 @@ async function fetchCampaigns(
   return j.data ?? [];
 }
 
+// P1 — Profundidade analítica: insights por campanha (últimos 30d)
+async function fetchCampaignInsights(
+  actId: string,
+  token: string,
+): Promise<Record<string, unknown>[]> {
+  const u = new URL(`https://graph.facebook.com/v21.0/${actId}/insights`);
+  u.searchParams.set("level", "campaign");
+  u.searchParams.set(
+    "fields",
+    "campaign_id,campaign_name,impressions,clicks,spend,cpc,cpm,ctr,reach,frequency,actions,action_values",
+  );
+  u.searchParams.set("date_preset", "last_30d");
+  u.searchParams.set("limit", "100");
+  u.searchParams.set("access_token", token);
+  const r = await fetch(u.toString());
+  const j = (await r.json()) as {
+    data?: Record<string, unknown>[];
+    error?: { message: string };
+  };
+  if (j.error) throw new Error(j.error.message);
+  return j.data ?? [];
+}
+
+// P1 — Insights por anúncio (top spenders) com criativo
+async function fetchTopAdsInsights(
+  actId: string,
+  token: string,
+  limit = 25,
+): Promise<Record<string, unknown>[]> {
+  const u = new URL(`https://graph.facebook.com/v21.0/${actId}/insights`);
+  u.searchParams.set("level", "ad");
+  u.searchParams.set(
+    "fields",
+    "ad_id,ad_name,campaign_name,impressions,clicks,spend,ctr,cpm,actions,action_values",
+  );
+  u.searchParams.set("date_preset", "last_30d");
+  u.searchParams.set("sort", "spend_descending");
+  u.searchParams.set("limit", String(limit));
+  u.searchParams.set("access_token", token);
+  const r = await fetch(u.toString());
+  const j = (await r.json()) as {
+    data?: Record<string, unknown>[];
+    error?: { message: string };
+  };
+  if (j.error) throw new Error(j.error.message);
+  return j.data ?? [];
+}
+
 // ── AI Providers ─────────────────────────────────────────────────────────────
 
 async function callAnthropic(facts: Record<string, unknown>): Promise<unknown> {
