@@ -180,6 +180,107 @@ function deriveMetricsFromFacts(
   };
 }
 
+// P1 — Breakdown determinístico por campanha (top por gasto)
+type CampaignBreakdownRow = {
+  name: string;
+  spend: string;
+  roas: string;
+  ctr: string;
+  cpm: string;
+  frequency: string;
+  status: DerivedStatus;
+};
+
+function deriveCampaignBreakdown(
+  facts: Record<string, unknown> | null | undefined,
+): { rows: CampaignBreakdownRow[]; totalSpend: number } {
+  const list = Array.isArray(facts?.campaigns_insights)
+    ? (facts!.campaigns_insights as Record<string, unknown>[])
+    : [];
+  const enriched = list.map((c) => {
+    const spend = _num(c.spend) ?? 0;
+    const ctr = _num(c.ctr);
+    const cpm = _num(c.cpm);
+    const frequency = _num(c.frequency);
+    const revenue = _findActionValue(c.action_values, /purchase|omni_purchase/i);
+    const roas = revenue != null && spend > 0 ? revenue / spend : null;
+    const sRoas: DerivedStatus =
+      roas == null ? "sem tracking" : roas >= 3 ? "bom" : roas >= 1.5 ? "atenção" : "alerta";
+    return {
+      name: String(c.campaign_name ?? c.campaign_id ?? "campanha"),
+      spendNum: spend,
+      spend: _fmtBRL(spend),
+      roas: roas != null ? _fmtX(roas) : "sem tracking",
+      ctr: _fmtPct(ctr),
+      cpm: _fmtBRL(cpm),
+      frequency: _fmtNum(frequency),
+      status: sRoas,
+    };
+  });
+  enriched.sort((a, b) => b.spendNum - a.spendNum);
+  const totalSpend = enriched.reduce((s, r) => s + r.spendNum, 0);
+  return {
+    rows: enriched.slice(0, 8).map(({ spendNum: _s, ...rest }) => rest),
+    totalSpend,
+  };
+}
+
+// P1 — Melhor / pior anúncio com base em ROAS (fallback CTR), com mínimo de gasto
+function deriveBestWorstAds(
+  facts: Record<string, unknown> | null | undefined,
+): { best: string | null; worst: string | null } {
+  const list = Array.isArray(facts?.ads_insights_top)
+    ? (facts!.ads_insights_top as Record<string, unknown>[])
+    : [];
+  if (list.length === 0) return { best: null, worst: null };
+  const totalSpend = list.reduce((s, a) => s + (_num(a.spend) ?? 0), 0);
+  const minSpend = Math.max(50, totalSpend * 0.02); // 2% do gasto ou R$50
+  type Scored = {
+    name: string;
+    campaign: string;
+    spend: number;
+    ctr: number | null;
+    roas: number | null;
+  };
+  const scored: Scored[] = list.map((a) => {
+    const spend = _num(a.spend) ?? 0;
+    const revenue = _findActionValue(a.action_values, /purchase|omni_purchase/i);
+    return {
+      name: String(a.ad_name ?? a.ad_id ?? "anúncio"),
+      campaign: String(a.campaign_name ?? ""),
+      spend,
+      ctr: _num(a.ctr),
+      roas: revenue != null && spend > 0 ? revenue / spend : null,
+    };
+  });
+  const eligible = scored.filter((a) => a.spend >= minSpend);
+  const pool = eligible.length >= 2 ? eligible : scored;
+  const withRoas = pool.filter((a) => a.roas != null);
+  let best: Scored | null = null;
+  let worst: Scored | null = null;
+  if (withRoas.length >= 2) {
+    best = [...withRoas].sort((a, b) => (b.roas! - a.roas!))[0];
+    worst = [...withRoas].sort((a, b) => (a.roas! - b.roas!))[0];
+  } else {
+    const withCtr = pool.filter((a) => a.ctr != null);
+    if (withCtr.length >= 2) {
+      best = [...withCtr].sort((a, b) => (b.ctr! - a.ctr!))[0];
+      worst = [...withCtr].sort((a, b) => (a.ctr! - b.ctr!))[0];
+    }
+  }
+  const fmt = (a: Scored | null) => {
+    if (!a) return null;
+    const parts: string[] = [a.name];
+    if (a.campaign) parts.push(`(${a.campaign})`);
+    const metr: string[] = [];
+    if (a.roas != null) metr.push(`ROAS ${_fmtX(a.roas)}`);
+    if (a.ctr != null) metr.push(`CTR ${_fmtPct(a.ctr)}`);
+    metr.push(`gasto ${_fmtBRL(a.spend)}`);
+    return `${parts.join(" ")} — ${metr.join(" · ")}`;
+  };
+  return { best: fmt(best), worst: fmt(worst) };
+}
+
 function normalizeAnalysis(
   obj: Record<string, unknown>,
   facts?: Record<string, unknown> | null,
@@ -200,19 +301,35 @@ function normalizeAnalysis(
     }
   }
 
+  // P1 — campaign breakdown determinístico
+  const cb = deriveCampaignBreakdown(facts ?? null);
+  obj.campaignBreakdown = cb.rows;
+  if (cb.rows.length === 0) {
+    (obj.dataLimitations as string[]).push(
+      "Breakdown por campanha indisponível: a Meta não retornou insights ao nível de campanha para o período.",
+    );
+  }
+
+  // P1 — melhor / pior criativo determinístico (sobrescreve IA se houver dados reais)
+  const bw = deriveBestWorstAds(facts ?? null);
+  const prevCreatives = (obj.creativesSummary as Record<string, unknown> | undefined) ?? {};
+  obj.creativesSummary = {
+    best: bw.best ?? (prevCreatives.best as string | null) ?? null,
+    worst: bw.worst ?? (prevCreatives.worst as string | null) ?? null,
+    recommendation:
+      (prevCreatives.recommendation as string | undefined) ??
+      "Concentrar verba nos anúncios com melhor ROAS e pausar os de pior performance.",
+  };
+  if (!bw.best && !bw.worst) {
+    (obj.dataLimitations as string[]).push(
+      "Análise de criativos limitada: insights ao nível de anúncio não disponíveis ou insuficientes no período.",
+    );
+  }
+
   if (typeof obj.scoreLabel !== "string") {
     const s = obj.score as number;
     obj.scoreLabel =
       s >= 90 ? "Excelente" : s >= 70 ? "Bom" : s >= 50 ? "Regular" : s >= 30 ? "Crítico" : "Emergência";
-  }
-
-  if (!obj.creativesSummary || typeof obj.creativesSummary !== "object") {
-    obj.creativesSummary = {
-      best: null,
-      worst: null,
-      recommendation: "Dados insuficientes para análise de criativos no nível de anúncio.",
-    };
-    (obj.dataLimitations as string[]).push("Criativos por anúncio não disponíveis nos dados desta versão.");
   }
 
   if (!obj.audiencesSummary || typeof obj.audiencesSummary !== "object") {
