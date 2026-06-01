@@ -12,6 +12,7 @@ import {
 } from "./campaign-objective.ts";
 import { deriveFinancialBalance, type FinancialBalance } from "./derive-financial-balance.ts";
 import { deriveTopFindings, type TopFinding } from "./derive-top-findings.ts";
+import { buildSeniorDerived, type SeniorDerived } from "./derive-senior.ts";
 
 export type NicheBenchmarkKey =
   | "ecom_geral"
@@ -536,6 +537,7 @@ export type CommercialDerived = {
   storyExecutive: StoryExecutive;
   topFindings: TopFinding[];
   financialBalance: FinancialBalance;
+  seniorDerived?: SeniorDerived;
 };
 
 export function buildCommercialDerived(
@@ -593,6 +595,10 @@ export function commercialToAnalysisFields(
     benchmarkComparison: commercial.benchmarkComparison,
     topFindings: commercial.topFindings,
     financialBalance: commercial.financialBalance,
+    seniorDerived: commercial.seniorDerived,
+    maturity: commercial.seniorDerived?.maturity,
+    leakByAxis: commercial.seniorDerived?.leakByAxis,
+    growthScenarios: commercial.seniorDerived?.growthScenarios,
   };
 }
 

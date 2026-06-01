@@ -12,9 +12,12 @@ import {
   matchNicheKey,
 } from "@/lib/diagnosis-benchmarks";
 import { useManagementCheckout } from "@/hooks/use-management-checkout";
-import { DiagnosisAuthoritySection } from "@/components/diagnosis-report/DiagnosisAuthoritySection";
 import { DiagnosisBenchmarkMetrics } from "@/components/diagnosis-report/DiagnosisBenchmarkMetrics";
 import { DiagnosisFinancialBalance } from "@/components/diagnosis-report/DiagnosisFinancialBalance";
+import { DiagnosisFiveChapters } from "@/components/diagnosis-report/DiagnosisFiveChapters";
+import { DiagnosisGrowthScenarios } from "@/components/diagnosis-report/DiagnosisGrowthScenarios";
+import { DiagnosisLeakByAxis } from "@/components/diagnosis-report/DiagnosisLeakByAxis";
+import { DiagnosisMaturityCard } from "@/components/diagnosis-report/DiagnosisMaturityCard";
 import { DiagnosisPrintCover } from "@/components/diagnosis-report/DiagnosisPrintCover";
 import { DiagnosisReportShell } from "@/components/diagnosis-report/DiagnosisReportShell";
 import { DiagnosisTopFindings } from "@/components/diagnosis-report/DiagnosisTopFindings";
@@ -63,21 +66,8 @@ function DiagnosticoReportPage() {
   const [businessName, setBusinessName] = useState("");
   const [website, setWebsite] = useState("");
   const [instagram, setInstagram] = useState("");
-  const [ctxNiche, setCtxNiche] = useState("");
-  const [ctxTicket, setCtxTicket] = useState("");
-  const [ctxMargin, setCtxMargin] = useState("");
-  const [ctxGoal, setCtxGoal] = useState("");
-  const [ctxNotes, setCtxNotes] = useState("");
-  const [ctxOpen, setCtxOpen] = useState(false);
-  const [ctxSaving, setCtxSaving] = useState(false);
-  const [ctxSavedAt, setCtxSavedAt] = useState<string | null>(null);
-  const [ctxError, setCtxError] = useState<string | null>(null);
   const [doneSteps, setDoneSteps] = useState<Record<string, boolean>>({});
   const [shareMsg, setShareMsg] = useState<string | null>(null);
-  const [simCpa, setSimCpa] = useState(15);
-  const [simCtr, setSimCtr] = useState(20);
-  const [simLeak, setSimLeak] = useState(40);
-  const [simSpendInput, setSimSpendInput] = useState("");
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [summaryMsg, setSummaryMsg] = useState<string | null>(null);
   const [scoreLegendOpen, setScoreLegendOpen] = useState(false);
@@ -159,28 +149,10 @@ function DiagnosticoReportPage() {
     [analysis],
   );
   const legacyReport = isLegacyReport(reportPromptVersion);
-
-  useEffect(() => {
-    if (!savedContext) return;
-    setCtxNiche(savedContext.niche ?? "");
-    setCtxTicket(savedContext.avg_ticket_brl != null ? String(savedContext.avg_ticket_brl) : "");
-    setCtxMargin(savedContext.margin_pct != null ? String(savedContext.margin_pct) : "");
-    setCtxGoal(savedContext.monthly_goal_brl != null ? String(savedContext.monthly_goal_brl) : "");
-    setCtxNotes(savedContext.notes ?? "");
-    setCtxSavedAt(savedContext.saved_at ?? null);
-  }, [savedContext]);
-
-  useEffect(() => {
-    const loss = data?.report?.analysis_json?.financialImpact?.lossMonthlyBrl;
-    const rec =
-      data?.report?.analysis_json?.financialImpact?.recoveryConservativeBrl;
-    if (loss && loss > 0 && rec != null && rec > 0) {
-      setSimLeak(Math.min(100, Math.max(15, Math.round((rec / loss) * 100))));
-    }
-  }, [
-    data?.report?.analysis_json?.financialImpact?.lossMonthlyBrl,
-    data?.report?.analysis_json?.financialImpact?.recoveryConservativeBrl,
-  ]);
+  const seniorDerived = analysis?.seniorDerived ?? null;
+  const hasSeniorV12 = !!(
+    seniorDerived?.maturity && seniorDerived.diagnostics?.structure
+  );
 
   async function trackCta() {
     if (!s) return;
@@ -285,43 +257,6 @@ function DiagnosticoReportPage() {
     URL.revokeObjectURL(a.href);
   }
 
-
-  async function saveBusinessContext() {
-    if (!s) return;
-    setCtxError(null);
-    setCtxSaving(true);
-    try {
-      const res = await invokeDiagnosisFunction("diagnosis-context", {
-        method: "POST",
-        body: JSON.stringify({
-          diagnosis_id: diagnosisId,
-          secret_slug: s,
-          context: {
-            niche: ctxNiche.trim() || null,
-            avg_ticket_brl: ctxTicket || null,
-            margin_pct: ctxMargin || null,
-            monthly_goal_brl: ctxGoal || null,
-            notes: ctxNotes.trim() || null,
-          },
-        }),
-      });
-      const j = (await res.json()) as { ok?: boolean; error?: string; context?: BusinessContext };
-      if (!res.ok || !j.ok) throw new Error(j.error ?? "Falha ao salvar");
-      setCtxSavedAt(j.context?.saved_at ?? new Date().toISOString());
-      setData((d) =>
-        d
-          ? {
-              ...d,
-              diagnosis: { ...d.diagnosis, business_context: j.context ?? null },
-            }
-          : d,
-      );
-    } catch (e) {
-      setCtxError(e instanceof Error ? e.message : "Erro");
-    } finally {
-      setCtxSaving(false);
-    }
-  }
 
   const managementPaid = data?.diagnosis?.management_status === "paid";
   const whatsappGestaoLink = useMemo(() => {
@@ -453,6 +388,18 @@ function DiagnosticoReportPage() {
     return status || "—";
   };
 
+  const axisLabelPt = (axis: string) => {
+    const map: Record<string, string> = {
+      structure: "Estrutura",
+      audience: "Públicos",
+      creative: "Criativo",
+      sales: "Vendas",
+      scale: "Escala",
+      financial: "Financeiro",
+    };
+    return map[axis] ?? axis;
+  };
+
   const priorityBadge = (priority: string) => {
     const p = (priority ?? "").toLowerCase();
     if (/(alta|high|crítica|critica|urgente)/.test(p)) return "badge-high";
@@ -521,10 +468,20 @@ function DiagnosticoReportPage() {
   const tocItems: { id: string; label: string }[] = [];
   tocItems.push({ id: "veredito", label: "Veredito" });
   if (topFindings.length) tocItems.push({ id: "achados", label: "Achados" });
-  if (financialBalance) tocItems.push({ id: "financeiro", label: "Balanço" });
+  if (hasSeniorV12) {
+    tocItems.push({ id: "maturidade", label: "Maturidade" });
+    if (seniorDerived?.leakByAxis?.length) {
+      tocItems.push({ id: "vazamentos", label: "Vazamentos" });
+    }
+    tocItems.push({ id: "capitulos", label: "5 diagnósticos" });
+    tocItems.push({ id: "crescimento", label: "Crescimento" });
+  } else if (financialBalance) {
+    tocItems.push({ id: "financeiro", label: "Balanço" });
+  }
   if (serverBenchmarks.length) tocItems.push({ id: "benchmark", label: "Mercado" });
-  tocItems.push({ id: "sec-authority", label: "Quem assina" });
-  if (topPriorities.length) tocItems.push({ id: "sec-top", label: "Top 3 prioridades" });
+  if (!hasSeniorV12 && topPriorities.length) {
+    tocItems.push({ id: "sec-top", label: "Top 3 prioridades" });
+  }
   if (hasObjectiveV2) tocItems.push({ id: "sec-funnel", label: "Funil" });
   if (analysis.metrics?.length) tocItems.push({ id: "sec-metrics", label: "Métricas" });
   if (analysis.campaignBreakdown?.length) tocItems.push({ id: "sec-campaigns", label: "Campanhas" });
@@ -537,63 +494,10 @@ function DiagnosticoReportPage() {
   if (analysis.structureNotes?.length) tocItems.push({ id: "sec-structure", label: "Fundação" });
   if (analysis.actionPlan?.length) tocItems.push({ id: "sec-plan", label: "Plano de ação" });
   if (analysis.actionPlan?.length) tocItems.push({ id: "sec-roadmap", label: "Roadmap 30/60/90" });
-  tocItems.push({ id: "sec-business", label: "Negócio" });
-  tocItems.push({ id: "sec-sim", label: "Simulador" });
   if (analysis.improvementScenario?.note) tocItems.push({ id: "sec-scenario", label: "Cenário" });
 
   if (analysis.dataLimitations?.length) tocItems.push({ id: "sec-limits", label: "Limitações" });
   if (data.report?.management_cta_eligible) tocItems.push({ id: "sec-cta", label: "Próximo passo" });
-
-  const parseNum = (v: string): number | null => {
-    if (!v) return null;
-    const n = Number(v.replace(/[^\d.,-]/g, "").replace(",", "."));
-    return Number.isFinite(n) ? n : null;
-  };
-  const ticketNum = parseNum(ctxTicket);
-  const marginNum = parseNum(ctxMargin);
-  const goalNum = parseNum(ctxGoal);
-  const fmtBRL = (n: number) =>
-    n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-  const fmtInt = (n: number) => Math.round(n).toLocaleString("pt-BR");
-
-  const observedRoasMetric = analysis.metrics?.find((m) => /roas/i.test(m.name));
-  const observedRoas = observedRoasMetric
-    ? Number((observedRoasMetric.current ?? "").replace(/[^\d.,-]/g, "").replace(",", "."))
-    : null;
-
-  const breakevenRoas = marginNum && marginNum > 0 ? 100 / marginNum : null;
-  const salesNeeded = goalNum && ticketNum && ticketNum > 0 ? goalNum / ticketNum : null;
-  const contributionAtGoal = goalNum && marginNum ? (goalNum * marginNum) / 100 : null;
-  const roasGap = observedRoas && breakevenRoas ? observedRoas - breakevenRoas : null;
-  const hasInterpretation =
-    Boolean(savedContext) && (breakevenRoas || salesNeeded || contributionAtGoal);
-
-  // P5 — gasto mensal estimado a partir das métricas (procura "Investimento", "Gasto" etc.)
-  const spendMetric = analysis.metrics?.find((m) =>
-    /investimento|gasto|spend|orç|invest/i.test(m.name),
-  );
-  const observedMonthlySpend = spendMetric
-    ? Number((spendMetric.current ?? "").replace(/[^\d.,-]/g, "").replace(",", "."))
-    : null;
-
-  // P5 — simulador interativo (estado declarado no topo)
-  const simSpendNum = parseNum(simSpendInput);
-  const monthlySpend = observedMonthlySpend || simSpendNum;
-
-  const simulation = (() => {
-    if (!observedRoas || !monthlySpend) return null;
-    const gain = simCpa / 100 + (simCtr * 0.5) / 100 + (simLeak * 0.7) / 100;
-    const newRoas = observedRoas * (1 + gain);
-    const baseRevenue = monthlySpend * observedRoas;
-    const newRevenue = monthlySpend * newRoas;
-    const extraRevenue = newRevenue - baseRevenue;
-    const extraContribution = marginNum ? (extraRevenue * marginNum) / 100 : null;
-    const gapPctClosed =
-      contributionAtGoal && extraContribution
-        ? Math.min(100, (extraContribution / contributionAtGoal) * 100)
-        : null;
-    return { newRoas, extraRevenue, extraContribution, gapPctClosed, baseRevenue };
-  })();
 
   // P6 — roadmap 30/60/90: agrupa actionPlan pelo campo eta
   type PlanItem = { step: number; action: string; impact: string; eta: string };
@@ -650,12 +554,6 @@ function DiagnosticoReportPage() {
         reason: "Há métricas sem tracking. Corrigir mensuração antes de pausar campanhas evita falsos negativos.",
       });
     }
-    if (roasGap != null && roasGap < 0) {
-      out.push({
-        title: "Não escalar antes de fechar break-even",
-        reason: `ROAS observado está ${Math.abs(roasGap).toFixed(2)}x abaixo do ponto de equilíbrio. Escalar amplia o prejuízo unitário.`,
-      });
-    }
     if ((analysis.budgetLeaks ?? []).length >= 2) {
       out.push({
         title: "Não focar só em criativo",
@@ -692,11 +590,6 @@ function DiagnosticoReportPage() {
       lines.push("Top 3 prioridades:");
       topPriorities.forEach((p, i) => lines.push(`${i + 1}. ${p.title}`));
       lines.push("");
-    }
-    if (roasGap != null) {
-      lines.push(
-        `ROAS observado vs equilíbrio: ${roasGap >= 0 ? "+" : ""}${roasGap.toFixed(2)}x`,
-      );
     }
     if ((analysis.budgetLeaks ?? []).length) {
       lines.push(`Vazamentos identificados: ${analysis.budgetLeaks!.length}`);
@@ -759,10 +652,10 @@ function DiagnosticoReportPage() {
           accountLabel={accountPrintLabel}
         />
 
-        {legacyReport && !analysis.topFindings?.length ? (
+        {legacyReport && !hasSeniorV12 ? (
           <p className="legacy-report-banner no-print" role="status">
-            Relatório gerado antes da versão premium — reprocessar a análise para
-            achados por campanha com valores exatos.
+            Relatório gerado antes da versão Analista Sênior (v12) — reprocessar a
+            análise para maturidade, vazamentos por eixo e os 5 capítulos de diagnóstico.
           </p>
         ) : null}
 
@@ -776,7 +669,18 @@ function DiagnosticoReportPage() {
 
         <DiagnosisTopFindings findings={topFindings} />
 
-        {financialBalance ? (
+        {hasSeniorV12 && seniorDerived ? (
+          <>
+            <DiagnosisMaturityCard maturity={seniorDerived.maturity} />
+            <DiagnosisLeakByAxis items={seniorDerived.leakByAxis} />
+            <DiagnosisFiveChapters
+              senior={seniorDerived}
+              narratives={analysis.chapterNarratives}
+              financialBalance={financialBalance}
+            />
+            <DiagnosisGrowthScenarios scenarios={seniorDerived.growthScenarios} />
+          </>
+        ) : financialBalance ? (
           <DiagnosisFinancialBalance balance={financialBalance} />
         ) : null}
 
@@ -786,8 +690,6 @@ function DiagnosticoReportPage() {
             gaps={serverBenchmarks}
           />
         ) : null}
-
-        <DiagnosisAuthoritySection />
 
         <section className="card summary-brief" id="sec-summary-text">
           <p className="muted" style={{ margin: 0 }}>{analysis.summary}</p>
@@ -847,7 +749,7 @@ function DiagnosticoReportPage() {
           </nav>
         ) : null}
 
-        {topPriorities.length ? (
+        {!hasSeniorV12 && topPriorities.length ? (
           <section className="card top-priorities" id="sec-top">
             <h2>Top 3 prioridades</h2>
             <p className="section-hint">
@@ -875,7 +777,7 @@ function DiagnosticoReportPage() {
           </section>
         ) : null}
 
-        {analysis.criticalIssues?.length ? (
+        {!hasSeniorV12 && analysis.criticalIssues?.length ? (
           <section className="card" id="sec-issues">
             <h2>O que está travando seu resultado</h2>
             <p className="section-hint">
@@ -909,7 +811,7 @@ function DiagnosticoReportPage() {
           </section>
         ) : null}
 
-        {analysis.budgetLeaks?.length ? (
+        {!hasSeniorV12 && analysis.budgetLeaks?.length ? (
           <section className="card" id="sec-leaks">
             <h2>Quanto isso custa por mês</h2>
             <p className="section-hint">
@@ -938,7 +840,7 @@ function DiagnosticoReportPage() {
           </section>
         ) : null}
 
-        {antiPatterns.length ? (
+        {!hasSeniorV12 && antiPatterns.length ? (
           <section className="card anti-card" id="sec-anti">
             <h2>O que NÃO fazer agora</h2>
             <p className="section-hint">
@@ -958,7 +860,7 @@ function DiagnosticoReportPage() {
           </section>
         ) : null}
 
-        {analysis.opportunities?.length ? (
+        {!hasSeniorV12 && analysis.opportunities?.length ? (
           <section className="card" id="sec-opps">
             <h2>Potencial de ganho</h2>
             <p className="section-hint">
@@ -979,9 +881,104 @@ function DiagnosticoReportPage() {
 
         <details className="card technical-details-block" id="sec-technical">
           <summary className="technical-details-summary">
-            Detalhe técnico — campanhas, métricas e estrutura
+            {hasSeniorV12
+              ? "Anexo técnico — problemas, campanhas, plano de ação e métricas"
+              : "Detalhe técnico — campanhas, métricas e estrutura"}
           </summary>
           <div className="technical-details-inner">
+
+        {hasSeniorV12 && analysis.criticalIssues?.length ? (
+          <section className="card technical-inner-card" id="sec-issues">
+            <h2>O que está travando seu resultado</h2>
+            <p className="section-hint">
+              Causa, consequência e impacto — para você decidir com clareza.
+            </p>
+            {analysis.criticalIssues.map((i) => (
+              <div key={i.title} className="issue-card issue-card-v9">
+                <div className="issue-icon">⚠️</div>
+                <div className="issue-card-body">
+                  <h3>{i.title}</h3>
+                  <p className="muted" style={{ margin: "0 0 0.5rem" }}>{i.description}</p>
+                  {i.cause ? (
+                    <p className="issue-cause">
+                      <strong>Por quê:</strong> {i.cause}
+                    </p>
+                  ) : null}
+                  {i.consequence ? (
+                    <p className="issue-consequence">
+                      <strong>Impacto:</strong> {i.consequence}
+                    </p>
+                  ) : null}
+                  {i.financialNote ? (
+                    <p className="issue-financial">{i.financialNote}</p>
+                  ) : null}
+                  <span className={`badge ${priorityBadge(i.priority)}`}>
+                    {i.priority}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </section>
+        ) : null}
+
+        {hasSeniorV12 && analysis.budgetLeaks?.length ? (
+          <section className="card technical-inner-card" id="sec-leaks">
+            <h2>Quanto isso custa por mês</h2>
+            <p className="section-hint">
+              Valores indicativos com base nos dados da sua conta (últimos 30 dias).
+            </p>
+            {analysis.budgetLeaks.map((b) => (
+              <div key={b.title} className="leak-card">
+                <div className="leak-icon">💸</div>
+                <div>
+                  <h3>{b.title}</h3>
+                  {b.monthlyBrl != null && b.monthlyBrl > 0 ? (
+                    <p className="leak-amount">
+                      ~{b.monthlyBrl.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}/mês
+                    </p>
+                  ) : null}
+                  <p style={{ margin: "0 0 0.35rem", fontWeight: 600, color: "#991b1b" }}>
+                    {b.estimateNote}
+                  </p>
+                  <p className="muted" style={{ margin: 0 }}>{b.hint}</p>
+                </div>
+              </div>
+            ))}
+          </section>
+        ) : null}
+
+        {hasSeniorV12 && antiPatterns.length ? (
+          <section className="card technical-inner-card anti-card" id="sec-anti">
+            <h2>O que NÃO fazer agora</h2>
+            <ul className="anti-list">
+              {antiPatterns.map((a) => (
+                <li key={a.title} className="anti-item">
+                  <span className="anti-icon" aria-hidden>🚫</span>
+                  <div>
+                    <div className="anti-title">{a.title}</div>
+                    <p className="muted" style={{ margin: "0.15rem 0 0" }}>{a.reason}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {hasSeniorV12 && analysis.opportunities?.length ? (
+          <section className="card technical-inner-card" id="sec-opps">
+            <h2>Potencial de ganho</h2>
+            {analysis.opportunities.map((o) => (
+              <div key={o.title} className="opp-card">
+                <div className="opp-icon">📈</div>
+                <div>
+                  <h3>{o.title}</h3>
+                  <p className="muted" style={{ margin: 0 }}>{o.potentialNote}</p>
+                </div>
+                <span className="badge badge-medium">{o.complexity}</span>
+              </div>
+            ))}
+          </section>
+        ) : null}
 
         {hasObjectiveV2 && analysis.accountObjectiveSummary ? (
           <section className="card technical-inner-card" id="sec-funnel">
@@ -1070,8 +1067,7 @@ function DiagnosticoReportPage() {
               </p>
             ) : (
               <p className="section-hint" style={{ marginTop: "0.75rem" }}>
-                Faixas de referência para <strong>{niche.label}</strong> (padrão).
-                Refine em <a href="#sec-business">Contexto de negócio</a> para outro segmento.
+                Faixas de referência indicativas para <strong>{niche.label}</strong> (padrão e-commerce).
               </p>
             )}
             <div className="pain-line">
@@ -1278,10 +1274,105 @@ function DiagnosticoReportPage() {
           </section>
         ) : null}
 
+        {hasSeniorV12 && analysis.actionPlan?.length ? (() => {
+          const planItems = [...analysis.actionPlan].sort(
+            (a, b) => (a.step ?? 0) - (b.step ?? 0),
+          );
+          const doneCount = planItems.filter(
+            (a) => doneSteps[`${a.step}-${a.action}`],
+          ).length;
+          const pct = Math.round((doneCount / planItems.length) * 100);
+          return (
+            <section className="card technical-inner-card" id="sec-plan">
+              <h2>Plano de ação</h2>
+              <p className="section-hint">
+                A sequência sugerida pela análise — ordenada por impacto.
+              </p>
+              <div className="plan-progress no-print" aria-label="Progresso do plano">
+                <div className="plan-progress-bar">
+                  <span style={{ width: `${pct}%` }} />
+                </div>
+                <span className="plan-progress-label">
+                  {doneCount}/{planItems.length} concluídos · {pct}%
+                </span>
+              </div>
+              <ol className="action-plan">
+                {planItems.map((a) => {
+                  const key = `${a.step}-${a.action}`;
+                  const done = !!doneSteps[key];
+                  return (
+                    <li
+                      key={key}
+                      className={`action-step${done ? " action-step-done" : ""}`}
+                    >
+                      <label className="action-step-check no-print">
+                        <input
+                          type="checkbox"
+                          checked={done}
+                          onChange={() => toggleStep(key)}
+                          aria-label={`Marcar passo ${a.step} como concluído`}
+                        />
+                      </label>
+                      <div className="action-step-num">{a.step}</div>
+                      <div className="action-step-body">
+                        <div className="action-step-title">{a.action}</div>
+                        <div className="action-step-meta">
+                          {"relatedAxis" in a && a.relatedAxis ? (
+                            <span className="badge badge-medium action-axis-badge">
+                              {axisLabelPt(String(a.relatedAxis))}
+                            </span>
+                          ) : null}
+                          <span><strong>Impacto:</strong> {a.impact}</span>
+                          <span><strong>Prazo:</strong> {a.eta}</span>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            </section>
+          );
+        })() : null}
+
+        {hasSeniorV12 && analysis.actionPlan?.length ? (
+          <section className="card technical-inner-card" id="sec-roadmap">
+            <h2>Roadmap 30 / 60 / 90 dias</h2>
+            <div className="roadmap-grid">
+              {([
+                { key: "short", title: "0–14 dias", subtitle: "Quick wins", items: roadmap.short },
+                { key: "mid", title: "15–45 dias", subtitle: "Otimização", items: roadmap.mid },
+                { key: "long", title: "46–90 dias", subtitle: "Estrutura", items: roadmap.long },
+              ] as const).map((col) => (
+                <div key={col.key} className={`roadmap-col roadmap-${col.key}`}>
+                  <div className="roadmap-head">
+                    <span className="roadmap-title">{col.title}</span>
+                    <span className="roadmap-sub">{col.subtitle}</span>
+                  </div>
+                  {col.items && col.items.length ? (
+                    <ul className="roadmap-list">
+                      {col.items.map((a) => (
+                        <li key={`${col.key}-${a.step}-${a.action}`}>
+                          <span className="roadmap-step">#{a.step}</span>
+                          <span className="roadmap-action">{a.action}</span>
+                          <span className="roadmap-eta muted">{a.eta}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
+                      Nada nesta janela.
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
           </div>
         </details>
 
-        {analysis.actionPlan?.length ? (() => {
+        {!hasSeniorV12 && analysis.actionPlan?.length ? (() => {
           const planItems = [...analysis.actionPlan].sort(
             (a, b) => (a.step ?? 0) - (b.step ?? 0),
           );
@@ -1325,6 +1416,11 @@ function DiagnosticoReportPage() {
                       <div className="action-step-body">
                         <div className="action-step-title">{a.action}</div>
                         <div className="action-step-meta">
+                          {"relatedAxis" in a && a.relatedAxis ? (
+                            <span className="badge badge-medium action-axis-badge">
+                              {axisLabelPt(String(a.relatedAxis))}
+                            </span>
+                          ) : null}
                           <span><strong>Impacto:</strong> {a.impact}</span>
                           <span><strong>Prazo:</strong> {a.eta}</span>
                         </div>
@@ -1337,7 +1433,7 @@ function DiagnosticoReportPage() {
           );
         })() : null}
 
-        {analysis.actionPlan?.length ? (
+        {!hasSeniorV12 && analysis.actionPlan?.length ? (
           <section className="card" id="sec-roadmap">
             <h2>Roadmap 30 / 60 / 90 dias</h2>
             <p className="section-hint">
@@ -1375,305 +1471,6 @@ function DiagnosticoReportPage() {
             </div>
           </section>
         ) : null}
-
-
-
-
-        <section className="card business-card" id="sec-business">
-          <span className="business-tag">Interpretação contextual · informado por você</span>
-          <h2>Contexto de negócio</h2>
-          <p className="section-hint">
-            Opcional. Use para gerar uma leitura econômica do que os dados da
-            Meta significam para a sua operação. Não substitui métricas
-            observadas — apenas as traduz para o seu cenário.
-          </p>
-
-          {savedContext && !ctxOpen ? (
-            <div className="business-summary">
-              <ul>
-                {savedContext.niche ? <li><strong>Nicho:</strong> {savedContext.niche}</li> : null}
-                {savedContext.avg_ticket_brl != null ? (
-                  <li><strong>Ticket médio:</strong> {fmtBRL(Number(savedContext.avg_ticket_brl))}</li>
-                ) : null}
-                {savedContext.margin_pct != null ? (
-                  <li><strong>Margem líquida:</strong> {savedContext.margin_pct}%</li>
-                ) : null}
-                {savedContext.monthly_goal_brl != null ? (
-                  <li><strong>Meta mensal:</strong> {fmtBRL(Number(savedContext.monthly_goal_brl))}</li>
-                ) : null}
-                {savedContext.notes ? <li><strong>Notas:</strong> {savedContext.notes}</li> : null}
-              </ul>
-              <button
-                type="button"
-                className="btn btn-outline"
-                onClick={() => setCtxOpen(true)}
-              >
-                Editar contexto
-              </button>
-            </div>
-          ) : (
-            <div className="business-form">
-              <div className="business-grid">
-                <label>
-                  <span className="muted" style={{ fontSize: "0.85rem" }}>Nicho / segmento</span>
-                  <input
-                    className="field-input"
-                    value={ctxNiche}
-                    onChange={(e) => setCtxNiche(e.target.value)}
-                    maxLength={120}
-                    placeholder="Ex.: moda feminina, suplementos"
-                  />
-                </label>
-                <label>
-                  <span className="muted" style={{ fontSize: "0.85rem" }}>Ticket médio (R$)</span>
-                  <input
-                    className="field-input"
-                    inputMode="decimal"
-                    value={ctxTicket}
-                    onChange={(e) => setCtxTicket(e.target.value)}
-                    placeholder="Ex.: 180"
-                  />
-                </label>
-                <label>
-                  <span className="muted" style={{ fontSize: "0.85rem" }}>Margem líquida (%)</span>
-                  <input
-                    className="field-input"
-                    inputMode="decimal"
-                    value={ctxMargin}
-                    onChange={(e) => setCtxMargin(e.target.value)}
-                    placeholder="Ex.: 30"
-                  />
-                </label>
-                <label>
-                  <span className="muted" style={{ fontSize: "0.85rem" }}>Meta de faturamento mensal (R$)</span>
-                  <input
-                    className="field-input"
-                    inputMode="decimal"
-                    value={ctxGoal}
-                    onChange={(e) => setCtxGoal(e.target.value)}
-                    placeholder="Ex.: 100000"
-                  />
-                </label>
-              </div>
-              <label style={{ display: "grid", gap: "0.25rem", marginTop: "0.65rem" }}>
-                <span className="muted" style={{ fontSize: "0.85rem" }}>Observações (opcional)</span>
-                <textarea
-                  className="field-input"
-                  rows={2}
-                  maxLength={600}
-                  value={ctxNotes}
-                  onChange={(e) => setCtxNotes(e.target.value)}
-                  placeholder="Sazonalidade, lançamentos, contexto relevante"
-                />
-              </label>
-              {ctxError ? (
-                <p style={{ color: "#b91c1c", marginTop: "0.5rem" }}>{ctxError}</p>
-              ) : null}
-              <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  disabled={ctxSaving}
-                  onClick={() => void saveBusinessContext().then(() => setCtxOpen(false))}
-                >
-                  {ctxSaving ? "Salvando…" : savedContext ? "Atualizar contexto" : "Salvar contexto"}
-                </button>
-                {savedContext ? (
-                  <button
-                    type="button"
-                    className="btn btn-outline"
-                    onClick={() => setCtxOpen(false)}
-                    disabled={ctxSaving}
-                  >
-                    Cancelar
-                  </button>
-                ) : null}
-              </div>
-              {ctxSavedAt && !ctxSaving ? (
-                <p className="muted" style={{ fontSize: "0.8rem", marginTop: "0.5rem" }}>
-                  Salvo em {new Date(ctxSavedAt).toLocaleString("pt-BR")}.
-                </p>
-              ) : null}
-            </div>
-          )}
-
-          {hasInterpretation ? (
-            <div className="business-interpretation">
-              <div className="business-interpretation-header">
-                <h3>Interpretação de negócio</h3>
-                <span className="badge badge-medium">Inferência contextual</span>
-              </div>
-              <p className="muted" style={{ marginTop: 0 }}>
-                Cálculos baseados no que você informou acima. Não são dados
-                observados na Meta — são uma tradução econômica do cenário.
-              </p>
-              <div className="business-stats">
-                {breakevenRoas ? (
-                  <div className="business-stat">
-                    <div className="business-stat-label">ROAS de equilíbrio</div>
-                    <div className="business-stat-value">{breakevenRoas.toFixed(2)}x</div>
-                    <div className="business-stat-hint">
-                      Abaixo disso, mídia paga consome margem.
-                    </div>
-                  </div>
-                ) : null}
-                {roasGap != null ? (
-                  <div className={`business-stat ${roasGap < 0 ? "is-bad" : "is-good"}`}>
-                    <div className="business-stat-label">Gap vs. ROAS observado</div>
-                    <div className="business-stat-value">
-                      {roasGap >= 0 ? "+" : ""}{roasGap.toFixed(2)}x
-                    </div>
-                    <div className="business-stat-hint">
-                      {roasGap >= 0
-                        ? "Mídia está cobrindo a margem."
-                        : "Mídia ainda não paga a operação."}
-                    </div>
-                  </div>
-                ) : null}
-                {salesNeeded ? (
-                  <div className="business-stat">
-                    <div className="business-stat-label">Vendas/mês p/ meta</div>
-                    <div className="business-stat-value">{fmtInt(salesNeeded)}</div>
-                    <div className="business-stat-hint">
-                      No ticket médio informado.
-                    </div>
-                  </div>
-                ) : null}
-                {contributionAtGoal ? (
-                  <div className="business-stat">
-                    <div className="business-stat-label">Margem na meta</div>
-                    <div className="business-stat-value">{fmtBRL(contributionAtGoal)}</div>
-                    <div className="business-stat-hint">
-                      Contribuição bruta projetada.
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
-        </section>
-
-        <section className="card simulator-card" id="sec-sim">
-          <span className="business-tag">Simulador indicativo</span>
-          <h2>Quanto a correção pode gerar</h2>
-          <p className="section-hint">
-            Ajuste os controles para estimar o impacto de implementar as
-            recomendações. Valores indicativos — não são projeção garantida.
-          </p>
-          {!observedRoas ? (
-            <p className="muted">
-              Precisamos do ROAS observado para simular. Reabra o diagnóstico
-              quando a Meta retornar dados completos.
-            </p>
-          ) : (
-            <>
-              {!observedMonthlySpend ? (
-                <label className="sim-spend">
-                  <span className="muted" style={{ fontSize: "0.85rem" }}>
-                    Gasto mensal médio (R$) — informe para calcular
-                  </span>
-                  <input
-                    className="field-input"
-                    inputMode="numeric"
-                    placeholder="Ex.: 8000"
-                    value={simSpendInput}
-                    onChange={(e) => setSimSpendInput(e.target.value)}
-                  />
-                </label>
-              ) : null}
-
-              <div className="sim-controls">
-                <label className="sim-slider">
-                  <span>
-                    Redução de CPA: <strong>{simCpa}%</strong>
-                  </span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={50}
-                    step={1}
-                    value={simCpa}
-                    onChange={(e) => setSimCpa(Number(e.target.value))}
-                  />
-                </label>
-                <label className="sim-slider">
-                  <span>
-                    Aumento de CTR: <strong>{simCtr}%</strong>
-                  </span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={80}
-                    step={1}
-                    value={simCtr}
-                    onChange={(e) => setSimCtr(Number(e.target.value))}
-                  />
-                </label>
-                <label className="sim-slider">
-                  <span>
-                    Recuperação de vazamento: <strong>{simLeak}%</strong>
-                  </span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    step={5}
-                    value={simLeak}
-                    onChange={(e) => setSimLeak(Number(e.target.value))}
-                  />
-                </label>
-              </div>
-
-              {simulation ? (
-                <div className="sim-results">
-                  <div className="sim-stat">
-                    <span className="sim-stat-label">ROAS projetado</span>
-                    <span className="sim-stat-value">
-                      {simulation.newRoas.toFixed(2)}x
-                    </span>
-                    <span className="muted" style={{ fontSize: "0.75rem" }}>
-                      hoje {observedRoas?.toFixed(2)}x
-                    </span>
-                  </div>
-                  <div className="sim-stat">
-                    <span className="sim-stat-label">Receita extra / mês</span>
-                    <span className="sim-stat-value">
-                      +{fmtBRL(Math.max(0, simulation.extraRevenue))}
-                    </span>
-                  </div>
-                  {simulation.extraContribution != null ? (
-                    <div className="sim-stat">
-                      <span className="sim-stat-label">Margem extra / mês</span>
-                      <span className="sim-stat-value">
-                        +{fmtBRL(Math.max(0, simulation.extraContribution))}
-                      </span>
-                      <span className="muted" style={{ fontSize: "0.75rem" }}>
-                        considerando margem informada
-                      </span>
-                    </div>
-                  ) : null}
-                  {simulation.gapPctClosed != null ? (
-                    <div className="sim-stat">
-                      <span className="sim-stat-label">Gap até a meta</span>
-                      <span className="sim-stat-value">
-                        {Math.round(simulation.gapPctClosed)}% fechado
-                      </span>
-                    </div>
-                  ) : null}
-                </div>
-              ) : (
-                <p className="muted">
-                  Informe o gasto mensal acima para ver a estimativa.
-                </p>
-              )}
-              <p className="muted" style={{ fontSize: "0.75rem", marginTop: "0.5rem" }}>
-                Cálculo composto e indicativo: CPA tem peso direto, CTR peso
-                médio e recuperação de vazamento peso alto sobre o ROAS atual.
-              </p>
-            </>
-          )}
-        </section>
-
 
 
 

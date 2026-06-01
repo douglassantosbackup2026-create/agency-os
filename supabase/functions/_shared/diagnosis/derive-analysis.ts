@@ -16,6 +16,7 @@ import {
   buildCommercialDerived,
   commercialToAnalysisFields,
 } from "./derive-commercial.ts";
+import { buildSeniorDerived } from "./derive-senior.ts";
 
 export type { DerivedStatus };
 
@@ -422,6 +423,67 @@ export function buildFactsEnrichment(
   return { campaigns_enriched, objective_spend_mix };
 }
 
+/** Orientação injetada no prompt da IA — evita falso positivo de sobreposição e ROAS em não-Vendas. */
+export type FunnelGuidanceForAi = {
+  mixed_funnel: boolean;
+  objective_families_present: string[];
+  campaign_count: number;
+  overlap_between_objectives_is_normal: boolean;
+  mandatory_rules_pt: string[];
+};
+
+export function deriveFunnelGuidanceForAi(
+  facts: Record<string, unknown> | null | undefined,
+): FunnelGuidanceForAi {
+  const summary = deriveAccountObjectiveSummary(facts);
+  const enriched = getEnriched(facts);
+  const families = summary.by_family.map((f) => f.label);
+  const rules: string[] = [];
+
+  rules.push(
+    "Fonte de verdade do objetivo: campaigns_enriched[].objective_raw e family_label_pt — NUNCA o nome da campanha ([GM], Geo, Meio, etc.).",
+  );
+  rules.push(
+    "ROAS, receita e compras aplicam-se SOMENTE a campanhas family=sales com pixel de compra. Demais famílias: avaliar primary_result.label_pt, count e cost_per_result.",
+  );
+  rules.push(
+    "PROIBIDO criticalIssue, budgetLeak ou actionPlan que critique 'falta de vendas/ROAS' em campanha cujo family não seja sales.",
+  );
+  rules.push(
+    "budgetLeaks por ROAS baixo: apenas campanhas de Vendas com roas numérico em campaigns_enriched; nunca awareness/traffic/leads.",
+  );
+
+  if (summary.mixed_funnel) {
+    rules.push(
+      `FUNIL MISTO DETECTADO (${families.join(" + ")}): várias campanhas com objetivos Meta DIFERENTES coexistindo é estratégia normal de funil — NÃO é sobreposição de público nem canibalização.`,
+    );
+    rules.push(
+      "PROIBIDO afirmar 'sobreposição de públicos', 'canibalização' ou '% de overlap' só porque existem 2+ campanhas ativas, nomes parecidos ou gasto dividido entre Geo/Meio/Conversão.",
+    );
+    rules.push(
+      "Sobre sobreposição: só se reach/impressions < 50% ou frequência ≥ 5 na MESMA campanha/conjunto, ou saved_audience_id/targeting idêntico comprovado — nunca 'entre campanhas de objetivos diferentes'.",
+    );
+    rules.push(
+      "audiencesSummary: descreva o mix por objetivo (ex.: % em Reconhecimento vs Vendas); se não houver targeting granular, limite-se a dataLimitations — sem alarme de overlap.",
+    );
+    rules.push(
+      "Pontos fortes em executiveSummary podem incluir funil completo (topo + meio + fundo) quando as campanhas não-sales tiverem kpi_status bom ou atenção aceitável.",
+    );
+  } else {
+    rules.push(
+      "Conta com um único tipo de objetivo dominante — ainda assim, sobreposição exige evidência numérica; não inferir só por múltiplos conjuntos.",
+    );
+  }
+
+  return {
+    mixed_funnel: summary.mixed_funnel,
+    objective_families_present: families,
+    campaign_count: enriched.length,
+    overlap_between_objectives_is_normal: summary.mixed_funnel,
+    mandatory_rules_pt: rules,
+  };
+}
+
 export function normalizeAnalysisV2(
   obj: Record<string, unknown>,
   facts?: Record<string, unknown> | null,
@@ -488,8 +550,18 @@ export function normalizeAnalysisV2(
   }
 
   const commercial = buildCommercialDerived(facts ?? null);
+  commercial.seniorDerived = buildSeniorDerived(
+    facts ?? null,
+    commercial,
+    scoreDerived.score,
+  );
   const commercialFields = commercialToAnalysisFields(commercial);
   Object.assign(obj, commercialFields);
+
+  const plan = obj.actionPlan as Record<string, unknown>[];
+  for (const step of plan) {
+    if (!step.engine) step.engine = "action";
+  }
 
   if (typeof obj.narrativeHook !== "string" || !String(obj.narrativeHook).trim()) {
     obj.narrativeHook = commercial.storyExecutive.headline;
@@ -507,6 +579,7 @@ export function normalizeAnalysisV2(
       oneLiner: commercial.recovery.basisNote,
     };
   }
+  if (!Array.isArray(obj.criticalIssues)) obj.criticalIssues = [];
   const issues = obj.criticalIssues as Record<string, unknown>[];
   for (const issue of issues) {
     if (typeof issue.cause !== "string" || !issue.cause.trim()) {
@@ -537,6 +610,11 @@ export function normalizeAnalysisV2(
 export function attachCommercialToFacts(
   facts: Record<string, unknown>,
 ): Record<string, unknown> {
-  facts.commercial_derived = buildCommercialDerived(facts);
+  facts.funnel_guidance = deriveFunnelGuidanceForAi(facts);
+  const commercial = buildCommercialDerived(facts);
+  const scoreDerived = deriveScoreV2(facts);
+  commercial.seniorDerived = buildSeniorDerived(facts, commercial, scoreDerived.score);
+  facts.commercial_derived = commercial;
+  facts.senior_derived = commercial.seniorDerived;
   return facts;
 }

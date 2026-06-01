@@ -113,7 +113,14 @@ export type DiagnosisAnalysis = {
   creativesSummary?: { best: string | null; worst: string | null; recommendation: string };
   audiencesSummary?: { segmentation: string; notes: string[] };
   structureNotes?: string[];
-  actionPlan?: { step: number; action: string; impact: string; eta: string }[];
+  actionPlan?: {
+    step: number;
+    action: string;
+    impact: string;
+    eta: string;
+    engine?: string;
+    relatedAxis?: string;
+  }[];
   improvementScenario?: { note: string; confidence: string };
   campaignBreakdown?: {
     name: string;
@@ -153,4 +160,75 @@ export type DiagnosisAnalysis = {
   }[];
   dataLimitations?: string[];
   disclaimer?: string;
+  seniorDerived?: SeniorDerived;
+  maturity?: MaturityScore;
+  leakByAxis?: LeakByAxisItem[];
+  growthScenarios?: GrowthScenarios;
+  chapterNarratives?: ChapterNarratives;
+};
+
+export type ChapterStatus = "good" | "warning" | "critical" | "info" | "na";
+
+export type DiagnosticChapter = {
+  id: "structure" | "audience" | "creative" | "scale" | "financial";
+  title: string;
+  status: ChapterStatus;
+  headline: string;
+  evidence: string;
+  impactNote: string | null;
+  dataAvailable: "full" | "partial" | "none";
+};
+
+export type MaturityPillar = {
+  id: string;
+  label: string;
+  score: number;
+  detail: string;
+};
+
+export type MaturityScore = {
+  level: 1 | 2 | 3 | 4 | 5;
+  label: string;
+  summary: string;
+  pillars: MaturityPillar[];
+};
+
+export type LeakByAxisItem = {
+  axis: "structure" | "audience" | "creative" | "sales";
+  axisLabel: string;
+  monthlyBrl: number;
+  monthlyFormatted: string;
+  severity: "critical" | "warning" | "info";
+  headline: string;
+  evidence: string;
+};
+
+export type GrowthScenarios = {
+  conservativePct: number;
+  probablePct: number;
+  aggressivePct: number;
+  conservativeFormatted: string;
+  probableFormatted: string;
+  aggressiveFormatted: string;
+  basisNote: string;
+  confidence: "low" | "medium";
+};
+
+export type SeniorDerived = {
+  maturity: MaturityScore;
+  leakByAxis: LeakByAxisItem[];
+  growthScenarios: GrowthScenarios;
+  diagnostics: Record<
+    "structure" | "audience" | "creative" | "scale" | "financial",
+    DiagnosticChapter
+  >;
+  risks: { id: string; title: string; severity: string; evidence: string }[];
+};
+
+export type ChapterNarratives = {
+  structure?: string | null;
+  audience?: string | null;
+  creative?: string | null;
+  scale?: string | null;
+  financial?: string | null;
 };

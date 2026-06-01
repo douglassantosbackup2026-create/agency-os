@@ -79,9 +79,9 @@ function formatBrl(n: number): string {
   return `R$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
-export const PROMPT_VERSION_V10 = "diagnosis-ecommerce-v10";
+export const PROMPT_VERSION_CURRENT = "diagnosis-ecommerce-v12";
 
 export function isLegacyReport(promptVersion: string | null | undefined): boolean {
   if (!promptVersion) return true;
-  return promptVersion !== PROMPT_VERSION_V10;
+  return promptVersion !== PROMPT_VERSION_CURRENT;
 }

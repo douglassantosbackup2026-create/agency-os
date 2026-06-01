@@ -2,9 +2,10 @@ import type { FinancialBalance } from "./types";
 
 type Props = {
   balance: FinancialBalance;
+  embedded?: boolean;
 };
 
-export function DiagnosisFinancialBalance({ balance }: Props) {
+function BalanceContent({ balance }: { balance: FinancialBalance }) {
   const invested = balance.invested30d;
   const profit = balance.mediaProfit30d ?? 0;
   const risk = balance.atRisk30d;
@@ -14,8 +15,7 @@ export function DiagnosisFinancialBalance({ balance }: Props) {
     invested > 0 ? Math.min(100, Math.round((n / invested) * 100)) : 0;
 
   return (
-    <section className="card balance-sheet" id="financeiro">
-      <h2>Balanço dos últimos 30 dias</h2>
+    <>
       <p className="section-hint">{balance.allocationNote}</p>
       <div className="balance-grid">
         <div className="balance-line">
@@ -71,6 +71,23 @@ export function DiagnosisFinancialBalance({ balance }: Props) {
           </div>
         </div>
       ) : null}
+    </>
+  );
+}
+
+export function DiagnosisFinancialBalance({ balance, embedded }: Props) {
+  if (embedded) {
+    return (
+      <div className="balance-sheet balance-sheet-embedded">
+        <h4 className="chapter-subtitle">Balanço dos últimos 30 dias</h4>
+        <BalanceContent balance={balance} />
+      </div>
+    );
+  }
+  return (
+    <section className="card balance-sheet" id="financeiro">
+      <h2>Balanço dos últimos 30 dias</h2>
+      <BalanceContent balance={balance} />
     </section>
   );
 }

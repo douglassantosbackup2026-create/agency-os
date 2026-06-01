@@ -6,6 +6,7 @@ import {
 import { assertDiagnosisSecret } from "../_shared/diagnosis/validate-diagnosis-access.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
+import { normalizeAnalysisV2 } from "../_shared/diagnosis/derive-analysis.ts";
 
 Deno.serve(async (req) => {
   const cors = handleCors(req);
@@ -38,12 +39,25 @@ Deno.serve(async (req) => {
   const factsJson = rep?.facts_json;
   const spendLast30d = parseSpendFromFacts(factsJson);
 
+  let analysisJson = rep?.analysis_json ?? null;
+  if (
+    analysisJson &&
+    factsJson &&
+    typeof analysisJson === "object" &&
+    typeof factsJson === "object"
+  ) {
+    analysisJson = normalizeAnalysisV2(
+      { ...(analysisJson as Record<string, unknown>) },
+      factsJson as Record<string, unknown>,
+    );
+  }
+
   trace.done({ diagnosis_id: d });
   return jsonResponse({
     diagnosis: diag,
     report: rep
       ? {
-          analysis_json: rep.analysis_json,
+          analysis_json: analysisJson,
           prompt_version: rep.prompt_version,
           facts_summary: summarizeFacts(factsJson),
           management_cta_eligible: isManagementCtaEligible(factsJson),

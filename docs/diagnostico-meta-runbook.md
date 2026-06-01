@@ -72,12 +72,39 @@ npx supabase functions deploy process-diagnosis --project-ref uvuotaxikuxejfeitl
 
 **Reprocessar após v10:** qualquer relatório com `prompt_version != diagnosis-ecommerce-v10`.
 
+## Funil misto vs sobreposição (v11)
+
+- **Prompt:** `diagnosis-ecommerce-v11` — `funnel_guidance` no user prompt (determinístico em `deriveFunnelGuidanceForAi`).
+- **Regra:** campanhas com **objectives Meta diferentes** (Reconhecimento + Tráfego + Vendas) **não** são sobreposição de público; ROAS/receita **só** em campanhas de Vendas.
+- **facts_json:** campo `funnel_guidance` com `mixed_funnel`, `overlap_between_objectives_is_normal`, `mandatory_rules_pt[]`.
+- **Reprocessar:** relatórios que ainda citam overlap/canibalização entre Geo/Meio/Conversão precisam de novo `process-diagnosis` com v11.
+
 ### Validar conta mista (ex.: Conversão + Geo + Meio)
 
 1. Reprocessar diagnóstico (`process-diagnosis` ou novo checkout).
 2. Relatório: chips de funil com % por objetivo; ROAS só na linha **Vendas**.
 3. `sales_block`: CPA ≈ gasto_vendas / compras (não misturar gasto de alcance/tráfego).
 4. Campanha de alcance: status não “sem tracking” vermelho por ROAS `—`.
+
+## Analista Sênior digitalizado (v12)
+
+- **Prompt:** `diagnosis-ecommerce-v12` — injeta `senior_derived` (maturidade, leak por eixo, 5 capítulos, growth, risks) após `funnel_guidance`.
+- **Servidor:** `derive-senior.ts` + módulos (`derive-structure/audience/creative/scale-diagnosis`, `derive-maturity`, `derive-leak-by-axis`, `derive-growth-scenarios`); números só no servidor.
+- **facts_json:** `senior_derived` (espelho de `commercial_derived.seniorDerived`).
+- **analysis_json:** `seniorDerived`, `maturity`, `leakByAxis`, `growthScenarios`, `chapterNarratives` (opcional da IA); `actionPlan[].engine` default `action`.
+- **UI:** ordem — veredito → achados → maturidade → vazamentos por eixo → 5 capítulos (financeiro com balanço embutido) → crescimento → benchmark → anexo técnico (`<details>`).
+- **Públicos Fase 1:** `dataAvailable: partial` — sem overlap entre objectives diferentes; frequência só conta/campanha.
+- **Testes:** `derive-senior.test.ts` (+ suite `supabase/functions/_shared/diagnosis/`).
+
+```bash
+npm test -- supabase/functions/_shared/diagnosis/
+npx supabase functions deploy process-diagnosis --project-ref uvuotaxikuxejfeitlaw
+npx supabase functions deploy diagnosis-report --project-ref uvuotaxikuxejfeitlaw
+```
+
+`diagnosis-report` re-hidrata `analysis_json` com `normalizeAnalysisV2` + `facts_json` na leitura — relatórios v11/v12 antigos ganham `seniorDerived` na UI sem nova chamada à IA.
+
+**Reprocessar após v12:** `prompt_version != diagnosis-ecommerce-v12` — banner no relatório até reprocessar.
 
 ## Queries operacionais
 

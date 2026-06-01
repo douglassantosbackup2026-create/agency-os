@@ -1785,6 +1785,236 @@
   height: 1rem;
 }
 
+/* —— Analista Sênior v12 —— */
+.diagnosis-funnel .maturity-card .maturity-hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  margin: 1rem 0;
+}
+.diagnosis-funnel .maturity-level {
+  font-size: 3rem;
+  font-weight: 800;
+  line-height: 1;
+  color: #d97706;
+  min-width: 3rem;
+  text-align: center;
+}
+.diagnosis-funnel .maturity-label {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 0.35rem;
+}
+.diagnosis-funnel .maturity-bar {
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+.diagnosis-funnel .maturity-bar-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #f59e0b, #16a34a);
+  border-radius: 999px;
+}
+.diagnosis-funnel .maturity-pillars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.65rem;
+}
+.diagnosis-funnel .maturity-pillars li {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.15rem 1rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+.diagnosis-funnel .maturity-pillar-label {
+  font-weight: 600;
+}
+.diagnosis-funnel .maturity-pillar-score {
+  font-weight: 700;
+  color: #0f172a;
+}
+.diagnosis-funnel .maturity-pillar-detail {
+  grid-column: 1 / -1;
+  font-size: 0.85rem;
+}
+
+.diagnosis-funnel .leak-axis-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.diagnosis-funnel .leak-axis-row {
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+}
+.diagnosis-funnel .leak-axis-row.severity-critical {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+.diagnosis-funnel .leak-axis-row.severity-warning {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+.diagnosis-funnel .leak-axis-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 0.35rem;
+}
+.diagnosis-funnel .leak-axis-label {
+  font-weight: 700;
+}
+.diagnosis-funnel .leak-axis-value {
+  font-weight: 800;
+  color: #b45309;
+}
+.diagnosis-funnel .leak-axis-bar {
+  height: 4px;
+  max-width: 100%;
+  background: #f59e0b;
+  border-radius: 999px;
+  margin-bottom: 0.5rem;
+  opacity: 0.85;
+}
+.diagnosis-funnel .leak-axis-headline {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+}
+
+.diagnosis-funnel .growth-scenario-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+@media (max-width: 520px) {
+  .diagnosis-funnel .growth-scenario-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.diagnosis-funnel .growth-scenario-cell {
+  text-align: center;
+  padding: 1rem 0.75rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+.diagnosis-funnel .growth-scenario-probable {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+.diagnosis-funnel .growth-scenario-tag {
+  display: block;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  margin-bottom: 0.35rem;
+}
+.diagnosis-funnel .growth-scenario-pct {
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #1d4ed8;
+}
+.diagnosis-funnel .growth-disclaimer {
+  font-size: 0.9rem;
+}
+
+.diagnosis-funnel .chapters-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.diagnosis-funnel .chapter-card {
+  padding: 1rem 1.15rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  background: #fafafa;
+}
+.diagnosis-funnel .chapter-card.status-good {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+.diagnosis-funnel .chapter-card.status-warning {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+.diagnosis-funnel .chapter-card.status-critical {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+.diagnosis-funnel .chapter-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+.diagnosis-funnel .chapter-card-head h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.diagnosis-funnel .chapter-status-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  background: #e2e8f0;
+  color: #334155;
+  white-space: nowrap;
+}
+.diagnosis-funnel .chapter-status-badge.status-good {
+  background: #dcfce7;
+  color: #166534;
+}
+.diagnosis-funnel .chapter-status-badge.status-warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+.diagnosis-funnel .chapter-status-badge.status-critical {
+  background: #fee2e2;
+  color: #991b1b;
+}
+.diagnosis-funnel .chapter-headline {
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+.diagnosis-funnel .chapter-narrative {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+.diagnosis-funnel .chapter-impact {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  color: #b45309;
+}
+.diagnosis-funnel .chapter-financial-extra {
+  margin-top: 0.75rem;
+}
+.diagnosis-funnel .chapter-subtitle {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+.diagnosis-funnel .action-axis-badge {
+  margin-right: 0.5rem;
+}
+
 .diagnosis-funnel .print-cover {
   display: none;
 }
