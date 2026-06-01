@@ -1083,6 +1083,7 @@ export type Database = {
       diagnoses: {
         Row: {
           amount_cents: number
+          business_context: Json | null
           buyer_user_id: string | null
           completed_at: string | null
           created_at: string
@@ -1119,6 +1120,7 @@ export type Database = {
         }
         Insert: {
           amount_cents?: number
+          business_context?: Json | null
           buyer_user_id?: string | null
           completed_at?: string | null
           created_at?: string
@@ -1155,6 +1157,7 @@ export type Database = {
         }
         Update: {
           amount_cents?: number
+          business_context?: Json | null
           buyer_user_id?: string | null
           completed_at?: string | null
           created_at?: string
