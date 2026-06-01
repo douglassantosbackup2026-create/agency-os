@@ -473,6 +473,60 @@ function DiagnosticoReportPage() {
           </section>
         ) : null}
 
+        {analysis.actionPlan?.length ? (
+          <section className="card">
+            <h2>Plano de ação</h2>
+            <p className="section-hint">
+              A sequência sugerida pela análise — ordenada por impacto.
+            </p>
+            <ol className="action-plan">
+              {[...analysis.actionPlan]
+                .sort((a, b) => (a.step ?? 0) - (b.step ?? 0))
+                .map((a) => (
+                  <li key={`${a.step}-${a.action}`} className="action-step">
+                    <div className="action-step-num">{a.step}</div>
+                    <div className="action-step-body">
+                      <div className="action-step-title">{a.action}</div>
+                      <div className="action-step-meta">
+                        <span><strong>Impacto:</strong> {a.impact}</span>
+                        <span><strong>Prazo:</strong> {a.eta}</span>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+            </ol>
+          </section>
+        ) : null}
+
+        {analysis.improvementScenario?.note ? (
+          <section className="card">
+            <h2>Cenário de melhoria</h2>
+            <p style={{ margin: "0 0 0.5rem" }}>
+              {analysis.improvementScenario.note}
+            </p>
+            <span className="badge badge-medium">
+              Confiança: {confidenceLabelPt(analysis.improvementScenario.confidence)}
+            </span>
+          </section>
+        ) : null}
+
+        {analysis.dataLimitations?.length ? (
+          <section className="card">
+            <h2>Limitações dos dados</h2>
+            <p className="section-hint">
+              O que não foi possível observar — para que você saiba o que
+              está, e o que não está, sustentado por dado.
+            </p>
+            <ul style={{ paddingLeft: "1.2rem", margin: 0 }}>
+              {analysis.dataLimitations.map((n) => (
+                <li key={n} style={{ marginBottom: "0.35rem" }}>{n}</li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+
+
         {data.report?.management_cta_eligible ? (
           <section className="card cta-pain">
             <span className="cta-stamp">Recomendado pela análise</span>
