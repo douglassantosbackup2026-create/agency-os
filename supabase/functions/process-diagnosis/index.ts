@@ -254,10 +254,11 @@ async function fetchAccountInsights(
   const u = new URL(`https://graph.facebook.com/v21.0/${actId}/insights`);
   u.searchParams.set(
     "fields",
-    "impressions,clicks,spend,cpc,cpm,ctr,reach,frequency,actions",
+    "impressions,clicks,spend,cpc,cpm,ctr,reach,frequency,actions,action_values",
   );
   u.searchParams.set("date_preset", "last_30d");
   u.searchParams.set("access_token", token);
+
   const r = await fetch(u.toString());
   const j = (await r.json()) as {
     data?: Record<string, unknown>[];
