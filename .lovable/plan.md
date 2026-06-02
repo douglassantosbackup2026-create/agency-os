@@ -1,51 +1,70 @@
-## Estado (2026-06)
+# Redesign Premium — Diagnóstico Executivo Meta Ads
 
-Implementado no repo: diagnóstico por **objective API** (`campaign-objective.ts`, `derive-analysis.ts`, prompt v8, UI `/diagnostico`). Ver `docs/diagnostico-meta-runbook.md`.
+Substituir o layout atual de `src/routes/diagnostico.$diagnosisId.tsx` por uma experiência de consultoria executiva (McKinsey × Stripe × Linear × Vercel). Mantém toda a lógica de fetch/estado/CTAs/checkout/`s` token, só troca a camada de apresentação. Usa exclusivamente dados reais do `analysis` retornado pelo backend.
 
----
+## Princípios de design
 
-## Problema (histórico — sobreposição / nomenclatura)
+- **Tema dark premium**: fundo `oklch` quase-preto com sutil gradiente, superfícies em níveis (`surface-1/2/3`), bordas hairline (1px alpha), tipografia editorial (serif display para números/headlines, sans para texto), tracking apertado em títulos grandes.
+- **Hierarquia executiva**: cada seção começa com um eyebrow numerado ("01 · Diagnóstico"), título grande, uma linha de subtítulo, e só depois a evidência. Muito whitespace.
+- **Storytelling vertical**: usuário avança como num memorando executivo — Impacto → Maturidade → Vazamentos → Oportunidades → Benchmark → Gargalo → Melhor oportunidade → Plano → Projeção → CTA.
+- **Sem dashboard**: nada de grids densos de gráficos. Números grandes, listas ranqueadas, tabelas tipográficas, barras finas, badges discretos. Animações: fade-up sutis no scroll, sem confetti.
+- **Tokens novos** em `src/styles/diagnosis-premium.css`: paleta dark executiva (bg, surface, border, text-primary/secondary/muted, accent positivo/negativo, gold para destaque CTA). Tudo via CSS vars semânticas.
 
-O relatório está fazendo duas inferências erradas no card "Sobreposição de Públicos":
+## Mapeamento dados reais → seções
 
-1. **Decodifica `[GM]` e `[IN]`** como "Gestão Manual" e "Interesse/Inbound" — são apenas nomenclaturas internas da conta, sem esse significado.
-2. **Afirma sobreposição de público** baseando-se no nome / quantidade de campanhas ativas, ignorando que cada campanha tem `objective` diferente (topo / meio / fundo de funil).
+| Seção | Fonte em `analysis` |
+|---|---|
+| Hero | `financialBalance` + `financialImpact.lossMonthlyFormatted` + `recovery*` + `storyExecutive` + top finding |
+| Maturidade | `maturity` (level, label, pillars[]) + fallback `scoreExplanation.pillars` |
+| Vazamentos | `financialImpact.wasteLines` + `budgetLeaks` + `leakByAxis` (ranking por `monthlyBrl`) |
+| Oportunidades | `opportunities[]` + `growthIntelligenceDerived` |
+| Benchmark | `benchmarkComparison.gaps[]` (current, reference, status, deltaLabel) |
+| Gargalo principal | `topFindings[0]` ou `criticalIssues[0]` com maior `monthlyImpactBrl` |
+| Melhor oportunidade | `opportunities[0]` (maior potencial) com narrativa de `chapterNarratives` |
+| Plano | `actionPlan`/`prioritizedActions` agrupados por horizonte (0–7 / 8–30 / 31–90 via `buildRoadmapFromActionPlan`) |
+| Projeção | `growthScenarios` (conservador/provável/agressivo) ou derivado de `recovery*` |
+| CTA final | `mgmt` hook + `whatsappGestaoHref` (mantém comportamento atual) |
 
-O prompt `diagnosis-ecommerce-v3` já tem a regra #7 proibindo decodificar nomenclaturas, mas não tem regra explícita sobre **quando** é legítimo afirmar sobreposição. O modelo continua escorregando.
+Onde campos faltarem: seção é omitida (não usar mocks), exceto fallbacks já existentes em `diagnosis-report-fallback.ts`.
 
-## Mudanças propostas
+## Arquitetura de componentes
 
-Editar apenas `SYSTEM_PROMPT` em `supabase/functions/process-diagnosis/index.ts`. Sem alteração de schema, código TS, UI ou banco.
+Novo diretório `src/components/diagnosis-report/executive/`:
 
-### 1. Reforçar a regra #7 (decodificação de nomes)
+```text
+ExecutiveLayout.tsx        shell dark + side TOC sticky + progress rail
+ExecHero.tsx               headline impacto + 4 stat cards + gargalo/oportunidade + CTA
+ExecMaturity.tsx           score 0–100 com ring + barras finas dos pilares
+ExecLeaks.tsx              lista ranqueada expansível com impacto R$/mês
+ExecOpportunities.tsx      grid de cards (potencial / dificuldade / prazo)
+ExecBenchmark.tsx          tabela editorial com badges acima/na/abaixo
+ExecBottleneck.tsx         seção full-bleed: problema → causa → consequência → solução
+ExecBestOpportunity.tsx    case study layout (atual vs potencial vs ação)
+ExecActionPlan.tsx         timeline horizontal 3 colunas (7/30/90 dias)
+ExecProjection.tsx         simulador visual 4 cenários (hoje/conservador/provável/agressivo)
+ExecCtaFinal.tsx           bloco premium dourado com 2 CTAs
+```
 
-Tornar a proibição mais agressiva e explícita sobre o efeito em qualquer campo:
+Cada componente recebe só os pedaços do `analysis` que precisa (props tipadas com `DiagnosisAnalysis` partials).
 
-- Banir parafrasear o significado de prefixos/sufixos em **qualquer** campo (`summary`, `criticalIssues.description`, `audiencesSummary.*`, `actionPlan.action`, `structureNotes`, etc.).
-- Permitido: citar o nome cru (rótulo opaco) ou agrupar por padrão sintático ("4 campanhas começam com `[GM]`"). Proibido: atribuir semântica ("provável Gestão Manual", "indica top/fundo de funil", "sugere estratégia X").
-- Listar exemplos de violações típicas para o modelo evitar.
+## Mudanças em `diagnostico.$diagnosisId.tsx`
 
-### 2. Nova regra — quando afirmar sobreposição de público
+- Mantém todo o bloco de hooks, fetch, error/loading, gating de `management_status`, `useManagementCheckout`, `invokeDiagnosisFunction` etc.
+- Remove o `DiagnosisReportShell` + cards atuais e renderiza `<ExecutiveLayout>` com as seções acima na ordem definida.
+- Estados de loading/erro/pending ganham telas dark consistentes (skeleton editorial em vez do shell atual).
+- Mantém suporte a `print` (cover) e `presentation` layout existentes — não altero esses fluxos.
 
-Adicionar bloco dedicado:
+## Estilo
 
-- Só afirmar sobreposição quando houver **evidência observada** em `facts_json`: reach rate < 50%, frequência ≥ 5, ou mesma `targeting`/`saved_audience_id`/interesses sobrepostos.
-- **Campanhas com `objective` diferente** (ex.: `OUTCOME_AWARENESS` vs `OUTCOME_SALES`, `REACH` vs `CONVERSIONS`) **não constituem sobreposição** por padrão — são fases de funil distintas. Tratar como sinal contra, não a favor.
-- Sem dado de targeting/saved audience nos facts, registrar a limitação em `dataLimitations` e **não** levantar a hipótese como problema crítico.
-- Se levantar mesmo assim (ex.: reach rate baixo confirmado), descrever a evidência numérica concreta, sem inferir intenção a partir de nomes.
-
-### 3. Bumpar versão do prompt
-
-Atualizar `PROMPT_VERSION` para `diagnosis-ecommerce-v4` para invalidar cache / rastrear qual versão gerou cada relatório.
+- Novo arquivo `src/styles/diagnosis-executive.css` com tokens dark, tipografia (importa Instrument Serif + Inter via `@import`), utilitários `.exec-eyebrow`, `.exec-stat`, `.exec-rule`, `.exec-card`, animações `fade-up` com `prefers-reduced-motion` respeitado.
+- `diagnosis-premium.css` antigo permanece para a versão `presentation`/print; novo CSS é importado só na rota.
 
 ## Fora do escopo
 
-- Schema do JSON de saída (mantém igual).
-- Frontend (`diagnostico.$diagnosisId.tsx`) — apenas consome.
-- Funções `diagnosis-report`, `diagnosis-context`, `process-diagnosis` normalização determinística.
-- Migrations.
+- Não toco em backend (`process-diagnosis`, prompts) — dados já existem.
+- Não mexo em `/conectar`, checkout, ou rota `presentation`.
+- Não adiciono dependências novas (uso Tailwind + CSS custom).
 
 ## Validação
 
-- Após o deploy do edge function, rodar um novo diagnóstico na mesma conta e conferir o card de Públicos: não deve mais decodificar `[GM]`/`[IN]`, e só deve afirmar sobreposição com número observado (reach rate ou frequência).
-- Diagnósticos antigos no banco mantêm o texto atual — apenas novos rodam com a v4.
+Após implementar: navegar para um diagnóstico real no preview, conferir cada seção, verificar fallbacks quando campos opcionais faltam, checar responsivo mobile, e confirmar build TS limpa.
