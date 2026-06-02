@@ -1087,7 +1087,7 @@ function DiagnosticoReportPage() {
               </p>
             ) : (
               <p className="section-hint" style={{ marginTop: "0.75rem" }}>
-                Faixas de referência indicativas para <strong>{niche.label}</strong> (padrão e-commerce).
+                Faixas de referência indicativas (padrão e-commerce).
               </p>
             )}
             <div className="pain-line">
