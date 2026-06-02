@@ -81,6 +81,7 @@ function DiagnosticoReportPage() {
       management_status?: string | null;
       management_business_name?: string | null;
       business_context?: BusinessContext | null;
+      completed_at?: string | null;
     };
     report?: {
       analysis_json?: Analysis | null;
