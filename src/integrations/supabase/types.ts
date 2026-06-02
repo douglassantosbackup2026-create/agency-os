@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       action_center: {
@@ -1218,6 +1193,79 @@ export type Database = {
           viewed_at?: string | null
         }
         Relationships: []
+      }
+      diagnosis_followup_jobs: {
+        Row: {
+          created_at: string
+          diagnosis_id: string
+          due_at: string
+          id: string
+          outcome_json: Json | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          diagnosis_id: string
+          due_at: string
+          id?: string
+          outcome_json?: Json | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          diagnosis_id?: string
+          due_at?: string
+          id?: string
+          outcome_json?: Json | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diagnosis_followup_jobs_diagnosis_id_fkey"
+            columns: ["diagnosis_id"]
+            isOneToOne: false
+            referencedRelation: "diagnoses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      diagnosis_metric_snapshots: {
+        Row: {
+          captured_at: string
+          diagnosis_id: string
+          facts_digest: Json | null
+          revenue_30d: number | null
+          roas_sales: number | null
+          score: number | null
+          spend_30d: number | null
+        }
+        Insert: {
+          captured_at?: string
+          diagnosis_id: string
+          facts_digest?: Json | null
+          revenue_30d?: number | null
+          roas_sales?: number | null
+          score?: number | null
+          spend_30d?: number | null
+        }
+        Update: {
+          captured_at?: string
+          diagnosis_id?: string
+          facts_digest?: Json | null
+          revenue_30d?: number | null
+          roas_sales?: number | null
+          score?: number | null
+          spend_30d?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diagnosis_metric_snapshots_diagnosis_id_fkey"
+            columns: ["diagnosis_id"]
+            isOneToOne: true
+            referencedRelation: "diagnoses"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       diagnosis_reports: {
         Row: {
@@ -2980,9 +3028,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       ai_job_status: ["pending", "processing", "done", "failed"],
@@ -3007,4 +3052,3 @@ export const Constants = {
     },
   },
 } as const
-
