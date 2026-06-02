@@ -175,10 +175,19 @@ npx supabase functions deploy process-diagnosis diagnosis-report --project-ref u
 
 **Deploy Worker:** requer `CLOUDFLARE_API_TOKEN` no `.env` → `npm run ops:deploy-worker`.
 
-**Reprocess local:** `CRON_SECRET` no `.env` → enfileirar `status=processing` → `npm run ops:reprocess-diagnosis`.
+**Reprocess local:** `SUPABASE_SERVICE_ROLE_KEY` no `.env` → `npm run ops:fetch-cron-secret` (colar `CRON_SECRET=...`) → enfileirar `status=processing` → `npm run ops:reprocess-diagnosis`.
 
-**Piloto:** `7e8e3d16-306f-4960-ace3-56de6a3f0b6a`.
-9. Testes Vitest Páprika passam.
+**Piloto:** `7e8e3d16-306f-4960-ace3-56de6a3f0b6a` — validado 2026-06-02: `prompt_version=v3`, `growth_intelligence_derived` em `facts_json`; `diagnosis-report` hidrata `growthIntelligenceDerived` + `executiveConclusion` mesmo com `status=failed` (IA: timeout Anthropic / quota OpenAI). Reenfileirar após corrigir chaves para `completed` e narrativa v3 completa.
+
+### QA checklist v3
+
+1. `facts_json.growth_intelligence_derived` presente após fetch (antes da IA).
+2. `diagnosis-report`: `growthIntelligenceDerived` e `executiveConclusion` na resposta.
+3. UI: 10 âncoras na apresentação (veredito → conclusão).
+4. Maturidade exibe score 0–100 (não só nível 1–5).
+5. Benchmark com impacto R$ estimado quando há gap.
+6. `npm test -- supabase/functions/_shared/diagnosis/` — 45 testes.
+7. Banner legado some quando `prompt_version = diagnosis-growth-intelligence-v3`.
 
 ## Analista v13 (relator → consultor)
 
