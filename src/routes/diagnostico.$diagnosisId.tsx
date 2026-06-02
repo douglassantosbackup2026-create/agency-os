@@ -81,6 +81,7 @@ function DiagnosticoReportPage() {
       management_status?: string | null;
       management_business_name?: string | null;
       business_context?: BusinessContext | null;
+      completed_at?: string | null;
     };
     report?: {
       analysis_json?: Analysis | null;
@@ -1086,7 +1087,7 @@ function DiagnosticoReportPage() {
               </p>
             ) : (
               <p className="section-hint" style={{ marginTop: "0.75rem" }}>
-                Faixas de referência indicativas para <strong>{niche.label}</strong> (padrão e-commerce).
+                Faixas de referência indicativas (padrão e-commerce).
               </p>
             )}
             <div className="pain-line">
