@@ -3,7 +3,7 @@
    McKinsey × Stripe × Linear × Vercel × Ramp
    ===================================================================== */
 
-@import url("https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700&display=swap");
+/* Fonts loaded via <link> tag in src/routes/__root.tsx head */
 
 .exec-root {
   --exec-bg: oklch(0.16 0.012 260);
