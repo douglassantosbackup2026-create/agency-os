@@ -38,6 +38,8 @@ export type CampaignEnriched = {
   objective_raw: string;
   family: ObjectiveFamily;
   family_label_pt: string;
+  /** "meta" quando objective veio do Graph API; "inferred" quando deduzido por sinais (action_values, actions). */
+  objective_source?: "meta" | "inferred";
   spend: number;
   impressions: number;
   reach: number | null;
@@ -55,6 +57,36 @@ export type CampaignEnriched = {
   kpi_status: DerivedStatus;
   kpi_status_reason: string;
 };
+
+/**
+ * Quando a API Meta omite `objective` (campo em branco / token sem ads_management completo),
+ * inferimos a family a partir de sinais nos insights:
+ *   - presença de purchase em action_values com valor > 0 → "sales"
+ *   - presença de lead em actions com count > 0 → "leads"
+ * Não usamos o nome da campanha (regra explícita do prompt).
+ */
+export function inferFamilyFromSignals(
+  actions: unknown,
+  actionValues: unknown,
+): ObjectiveFamily | null {
+  if (Array.isArray(actionValues)) {
+    const purchaseHit = actionValues.find((a) => {
+      const t = (a as ActionRow).action_type ?? "";
+      const v = num((a as ActionRow).value) ?? 0;
+      return v > 0 && /^(omni_)?purchase$|offsite_conversion\.fb_pixel_purchase|onsite_web(_app)?_purchase/i.test(t);
+    });
+    if (purchaseHit) return "sales";
+  }
+  if (Array.isArray(actions)) {
+    const leadHit = actions.find((a) => {
+      const t = (a as ActionRow).action_type ?? "";
+      const v = num((a as ActionRow).value) ?? 0;
+      return v > 0 && /^lead$|onsite_conversion\.lead_grouped|offsite_conversion\.fb_pixel_lead/i.test(t);
+    });
+    if (leadHit) return "leads";
+  }
+  return null;
+}
 
 export function num(v: unknown): number | null {
   const n = typeof v === "string" ? Number(v) : (v as number);
