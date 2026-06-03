@@ -759,9 +759,17 @@ Deno.serve(async (req) => {
         const account_insights = factsForAnalysis?.account_insights
           ? (factsForAnalysis.account_insights as Record<string, unknown>)
           : await fetchAccountInsights(actId, token);
-        const campaigns =
-          (factsForAnalysis?.campaigns_sample as Record<string, unknown>[] | undefined) ??
-          (await fetchCampaigns(actId, token));
+        const cachedSample =
+          factsForAnalysis?.campaigns_sample as Record<string, unknown>[] | undefined;
+        // Só reutiliza o sample cacheado se contiver `objective` em pelo menos um item.
+        // Em retries antigos o sample podia ter sido salvo sem objective, o que forçava
+        // family="other" e descartava ROAS/receita das campanhas de Vendas.
+        const cachedSampleHasObjective =
+          Array.isArray(cachedSample) &&
+          cachedSample.some((c) => typeof c?.objective === "string" && c.objective.length > 0);
+        const campaigns = cachedSampleHasObjective
+          ? cachedSample!
+          : await fetchCampaigns(actId, token);
         let campaigns_insights: Record<string, unknown>[] = [];
         let ads_insights_top: Record<string, unknown>[] = [];
         let adsets_insights: Record<string, unknown>[] = [];
