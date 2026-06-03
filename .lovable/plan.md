@@ -1,70 +1,78 @@
-# Redesign Premium — Diagnóstico Executivo Meta Ads
+# Por que a receita das campanhas de conversão não aparece
 
-Substituir o layout atual de `src/routes/diagnostico.$diagnosisId.tsx` por uma experiência de consultoria executiva (McKinsey × Stripe × Linear × Vercel). Mantém toda a lógica de fetch/estado/CTAs/checkout/`s` token, só troca a camada de apresentação. Usa exclusivamente dados reais do `analysis` retornado pelo backend.
+## Diagnóstico (causa raiz confirmada nos dados)
 
-## Princípios de design
+Diagnóstico inspecionado: `7e8e3d16-306f-4960-ace3-56de6a3f0b6a` (status `completed`).
 
-- **Tema dark premium**: fundo `oklch` quase-preto com sutil gradiente, superfícies em níveis (`surface-1/2/3`), bordas hairline (1px alpha), tipografia editorial (serif display para números/headlines, sans para texto), tracking apertado em títulos grandes.
-- **Hierarquia executiva**: cada seção começa com um eyebrow numerado ("01 · Diagnóstico"), título grande, uma linha de subtítulo, e só depois a evidência. Muito whitespace.
-- **Storytelling vertical**: usuário avança como num memorando executivo — Impacto → Maturidade → Vazamentos → Oportunidades → Benchmark → Gargalo → Melhor oportunidade → Plano → Projeção → CTA.
-- **Sem dashboard**: nada de grids densos de gráficos. Números grandes, listas ranqueadas, tabelas tipográficas, barras finas, badges discretos. Animações: fade-up sutis no scroll, sem confetti.
-- **Tokens novos** em `src/styles/diagnosis-premium.css`: paleta dark executiva (bg, surface, border, text-primary/secondary/muted, accent positivo/negativo, gold para destaque CTA). Tudo via CSS vars semânticas.
+Na campanha **[GM] - Conversão 1** (`campaign_id 6910581785226`):
 
-## Mapeamento dados reais → seções
+- `campaigns_insights[].action_values` contém **R$ 30.949,28** em `purchase`, `omni_purchase`, `offsite_conversion.fb_pixel_purchase`, `onsite_web_purchase` (gasto R$ 7.446,41 → ROAS real ≈ 4,16x).
+- Em `campaigns_enriched[]` essa mesma campanha aparece como:
+  - `objective_raw: "UNKNOWN"`
+  - `family: "other"` → `family_label_pt: "Outro"`
+  - `roas: null`
+  - `kpi_status: "sem dados"` / `kpi_status_reason: "Objetivo não mapeado — verifique no Gerenciador de Anúncios."`
 
-| Seção | Fonte em `analysis` |
-|---|---|
-| Hero | `financialBalance` + `financialImpact.lossMonthlyFormatted` + `recovery*` + `storyExecutive` + top finding |
-| Maturidade | `maturity` (level, label, pillars[]) + fallback `scoreExplanation.pillars` |
-| Vazamentos | `financialImpact.wasteLines` + `budgetLeaks` + `leakByAxis` (ranking por `monthlyBrl`) |
-| Oportunidades | `opportunities[]` + `growthIntelligenceDerived` |
-| Benchmark | `benchmarkComparison.gaps[]` (current, reference, status, deltaLabel) |
-| Gargalo principal | `topFindings[0]` ou `criticalIssues[0]` com maior `monthlyImpactBrl` |
-| Melhor oportunidade | `opportunities[0]` (maior potencial) com narrativa de `chapterNarratives` |
-| Plano | `actionPlan`/`prioritizedActions` agrupados por horizonte (0–7 / 8–30 / 31–90 via `buildRoadmapFromActionPlan`) |
-| Projeção | `growthScenarios` (conservador/provável/agressivo) ou derivado de `recovery*` |
-| CTA final | `mgmt` hook + `whatsappGestaoHref` (mantém comportamento atual) |
+Ou seja: a receita **existe** nos dados crus, mas é descartada na etapa de enriquecimento.
 
-Onde campos faltarem: seção é omitida (não usar mocks), exceto fallbacks já existentes em `diagnosis-report-fallback.ts`.
+### Por quê
 
-## Arquitetura de componentes
+1. `campaigns_sample` salvo em `facts_json` traz somente `{id, name, status, effective_status}` — **sem `objective`, `daily_budget`, `lifetime_budget`**, apesar de `fetchCampaigns` em `supabase/functions/process-diagnosis/index.ts:406` pedir esses campos. A API Meta está omitindo `objective` para essa conta/token (provável: token sem escopo `ads_management` completo, ou campanhas antigas com objective herdado / ODAX migrado).
+2. Em `supabase/functions/_shared/diagnosis/campaign-objective.ts:406-407`, sem `meta.objective`, cai para `"UNKNOWN"` → `mapObjectiveToFamily` devolve `"other"`.
+3. Na linha 423-424 a receita só é calculada quando `family === "sales"`:
+   ```ts
+   const roas = family === "sales" ? computeRoas(action_values, spend) : null;
+   ```
+4. Como consequência:
+   - `roas = null`
+   - `kpi_status = "sem dados"`
+   - Toda a cadeia downstream (`derive-commercial`, `derive-top-findings`, `derive-meta-senior`, `derive-analysis` totals, prompt do LLM) filtra por `family === "sales"` e ignora a campanha.
+   - O agregado da conta mostra "sem receita" mesmo havendo R$ 30k+ rastreados pelo pixel.
+5. Há ainda um caminho de cache em `process-diagnosis/index.ts:762-764`: se `factsForAnalysis.campaigns_sample` já existir no `diagnosis_reports`, ele é reutilizado **sem refetch**, perpetuando o sample minimalista entre tentativas.
 
-Novo diretório `src/components/diagnosis-report/executive/`:
+## Plano de ajuste
 
-```text
-ExecutiveLayout.tsx        shell dark + side TOC sticky + progress rail
-ExecHero.tsx               headline impacto + 4 stat cards + gargalo/oportunidade + CTA
-ExecMaturity.tsx           score 0–100 com ring + barras finas dos pilares
-ExecLeaks.tsx              lista ranqueada expansível com impacto R$/mês
-ExecOpportunities.tsx      grid de cards (potencial / dificuldade / prazo)
-ExecBenchmark.tsx          tabela editorial com badges acima/na/abaixo
-ExecBottleneck.tsx         seção full-bleed: problema → causa → consequência → solução
-ExecBestOpportunity.tsx    case study layout (atual vs potencial vs ação)
-ExecActionPlan.tsx         timeline horizontal 3 colunas (7/30/90 dias)
-ExecProjection.tsx         simulador visual 4 cenários (hoje/conservador/provável/agressivo)
-ExecCtaFinal.tsx           bloco premium dourado com 2 CTAs
-```
+Tudo em backend (edge functions), sem mudar UI. Escopo cirúrgico no pipeline de enriquecimento.
 
-Cada componente recebe só os pedaços do `analysis` que precisa (props tipadas com `DiagnosisAnalysis` partials).
+### 1. Inferir family por sinais quando `objective` vier vazio
+Arquivo: `supabase/functions/_shared/diagnosis/campaign-objective.ts`
 
-## Mudanças em `diagnostico.$diagnosisId.tsx`
+- Em `enrichCampaigns`, quando `mapObjectiveToFamily(objective_raw) === "other"`, aplicar fallback nesta ordem (apenas se objective ausente/UNKNOWN — não sobrescrever objective explícito da API):
+  1. Se `action_values` contém qualquer um de `purchase`, `omni_purchase`, `offsite_conversion.fb_pixel_purchase`, `onsite_web_purchase`, `onsite_web_app_purchase` com valor > 0 → `family = "sales"` (`family_inferred_from = "purchase_action_values"`).
+  2. Se `actions` contém `lead`, `onsite_conversion.lead_grouped` ou `offsite_conversion.fb_pixel_lead` com count > 0 e sem purchase → `family = "leads"`.
+  3. Caso contrário, manter `"other"`.
+- Computar `roas` quando `family === "sales"` **independentemente** de o objective ter vindo do Meta ou da inferência.
+- Anotar `objective_source: "meta" | "inferred"` em `CampaignEnriched` para auditoria (não muda o contrato, só adiciona campo opcional).
+- Quando `family` foi inferido, ajustar `kpi_status_reason` para algo como `"Objetivo da API ausente — classificada como Vendas por presença de compras rastreadas."` em vez de "sem dados".
 
-- Mantém todo o bloco de hooks, fetch, error/loading, gating de `management_status`, `useManagementCheckout`, `invokeDiagnosisFunction` etc.
-- Remove o `DiagnosisReportShell` + cards atuais e renderiza `<ExecutiveLayout>` com as seções acima na ordem definida.
-- Estados de loading/erro/pending ganham telas dark consistentes (skeleton editorial em vez do shell atual).
-- Mantém suporte a `print` (cover) e `presentation` layout existentes — não altero esses fluxos.
+### 2. Garantir refetch do sample com `objective` em retries
+Arquivo: `supabase/functions/process-diagnosis/index.ts` (linhas 762-764)
 
-## Estilo
+- Trocar o `??` que reaproveita `factsForAnalysis.campaigns_sample` por uma checagem: só reutilizar se o sample contiver pelo menos um item com chave `objective` definida. Caso contrário, refetch via `fetchCampaigns`.
+- Continua barato: 1 chamada Graph extra apenas quando o cache está incompleto.
 
-- Novo arquivo `src/styles/diagnosis-executive.css` com tokens dark, tipografia (importa Instrument Serif + Inter via `@import`), utilitários `.exec-eyebrow`, `.exec-stat`, `.exec-rule`, `.exec-card`, animações `fade-up` com `prefers-reduced-motion` respeitado.
-- `diagnosis-premium.css` antigo permanece para a versão `presentation`/print; novo CSS é importado só na rota.
+### 3. Tornar o prompt e o agregador resilientes a `objective_source = "inferred"`
+Arquivos: `supabase/functions/process-diagnosis/index.ts` (bloco DADOS/REGRAS) e `supabase/functions/_shared/diagnosis/derive-analysis.ts`
 
-## Fora do escopo
+- Atualizar a regra #10 do prompt para reconhecer `objective_source` e permitir ROAS/receita quando family foi inferida por purchase action_values (mantendo a proibição de inventar receita).
+- Em `deriveAccountSummary` e `derive-commercial`, somar receita/ROAS agregada sobre **todas** campanhas com `roas != null`, não apenas as com `objective_raw` mapeado por nome.
 
-- Não toco em backend (`process-diagnosis`, prompts) — dados já existem.
-- Não mexo em `/conectar`, checkout, ou rota `presentation`.
-- Não adiciono dependências novas (uso Tailwind + CSS custom).
+### 4. Testes
+- Adicionar caso em `campaign-objective.test.ts`: fixture com `objective: ""` e `action_values` com `purchase` → espera `family === "sales"`, `roas` > 0, `kpi_status` ∈ {`bom`,`atenção`,`alerta`}.
+- Adicionar caso oposto: sem purchase nem leads → mantém `family === "other"`.
 
-## Validação
+### 5. Reprocessar diagnósticos afetados
+- Após deploy, re-enfileirar diagnósticos onde existir em `diagnosis_reports.facts_json -> 'campaigns_enriched'` algum item com `family = "other"` mas cujo `campaigns_insights` correspondente tenha `purchase` em `action_values`. Migração: `UPDATE diagnoses SET status='processing', failed_reason=NULL, updated_at=now() WHERE id IN (...)`. Mostro a query final para você aprovar antes de rodar.
 
-Após implementar: navegar para um diagnóstico real no preview, conferir cada seção, verificar fallbacks quando campos opcionais faltam, checar responsivo mobile, e confirmar build TS limpa.
+## Detalhes técnicos (resumo)
+
+- Arquivos editados: `_shared/diagnosis/campaign-objective.ts`, `process-diagnosis/index.ts`, `_shared/diagnosis/derive-analysis.ts`, `_shared/diagnosis/derive-commercial.ts` (apenas o agregado), `_shared/diagnosis/campaign-objective.test.ts`.
+- Deploy: `process-diagnosis`.
+- Sem mudanças de schema, sem migração de tabela. Sem mudanças de UI.
+- Impacto colateral: contas que **realmente** não são de vendas, mas têm pixel de view_content disparando como purchase por erro de tag, podem ser reclassificadas. Mitigação: gatilho exige `purchase`/`omni_purchase` **com valor monetário > 0** e gasto > 0 — não basta presença em `actions`.
+
+## Pós-deploy / verificação
+- Reprocessar o diagnóstico `7e8e3d16-...` e conferir:
+  - `campaigns_enriched[campaign_id=6910581785226].family === "sales"`
+  - `roas ≈ 4.16`
+  - Bloco de receita no relatório executivo passa a mostrar R$ 30.949,28.
