@@ -6,27 +6,33 @@
 /* Fonts loaded via <link> tag in src/routes/__root.tsx head */
 
 .exec-root {
-  --exec-bg: oklch(0.16 0.012 260);
-  --exec-bg-deep: oklch(0.12 0.012 260);
-  --exec-surface-1: oklch(0.20 0.012 260);
-  --exec-surface-2: oklch(0.24 0.014 260);
-  --exec-surface-3: oklch(0.28 0.016 260);
+  /* Tokens alinhados à identidade Retentio (dark premium, accent roxo) */
+  --exec-bg: oklch(0.14 0.01 264);
+  --exec-bg-deep: oklch(0.12 0.01 264);
+  --exec-surface-1: oklch(0.17 0.012 264);
+  --exec-surface-2: oklch(0.20 0.014 264);
+  --exec-surface-3: oklch(0.24 0.016 264);
   --exec-border: oklch(1 0 0 / 0.08);
   --exec-border-strong: oklch(1 0 0 / 0.16);
-  --exec-text: oklch(0.97 0 0);
-  --exec-text-2: oklch(0.78 0.005 260);
-  --exec-text-3: oklch(0.58 0.005 260);
-  --exec-accent: oklch(0.78 0.16 75);          /* warm gold */
-  --exec-accent-soft: oklch(0.78 0.16 75 / 0.14);
-  --exec-positive: oklch(0.78 0.16 160);
-  --exec-positive-soft: oklch(0.78 0.16 160 / 0.14);
-  --exec-negative: oklch(0.72 0.20 25);
-  --exec-negative-soft: oklch(0.72 0.20 25 / 0.14);
-  --exec-warning: oklch(0.82 0.16 75);
-  --exec-warning-soft: oklch(0.82 0.16 75 / 0.12);
+  --exec-text: oklch(0.96 0.005 240);
+  --exec-text-2: oklch(0.78 0.008 250);
+  --exec-text-3: oklch(0.58 0.01 260);
+  --exec-accent: oklch(0.7 0.18 285);              /* primary roxo Retentio */
+  --exec-accent-soft: oklch(0.7 0.18 285 / 0.14);
+  --exec-positive: oklch(0.74 0.16 155);
+  --exec-positive-soft: oklch(0.74 0.16 155 / 0.14);
+  --exec-negative: oklch(0.65 0.22 22);
+  --exec-negative-soft: oklch(0.65 0.22 22 / 0.14);
+  --exec-warning: oklch(0.8 0.16 75);
+  --exec-warning-soft: oklch(0.8 0.16 75 / 0.12);
 
-  --exec-serif: "Instrument Serif", "Cormorant Garamond", Georgia, serif;
-  --exec-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* Tipografia do projeto: Inter (UI) + JetBrains Mono (números).
+     Mantemos o nome --exec-serif para não quebrar o layout, mas
+     apontamos para a stack sans do projeto (display continua com
+     tracking apertado via letter-spacing nos headlines). */
+  --exec-serif: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --exec-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --exec-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
 
   --exec-radius: 16px;
   --exec-radius-sm: 10px;
@@ -35,15 +41,17 @@
 
   color: var(--exec-text);
   background:
-    radial-gradient(1200px 600px at 80% -10%, oklch(0.30 0.05 280 / 0.35), transparent 60%),
-    radial-gradient(900px 500px at -10% 30%, oklch(0.28 0.05 220 / 0.25), transparent 60%),
+    radial-gradient(1200px 600px at 80% -10%, oklch(0.52 0.22 285 / 0.18), transparent 60%),
+    radial-gradient(900px 500px at -10% 30%, oklch(0.5 0.14 230 / 0.14), transparent 60%),
     var(--exec-bg);
   min-height: 100vh;
   font-family: var(--exec-sans);
-  font-feature-settings: "ss01", "cv11";
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss01";
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   letter-spacing: -0.005em;
 }
+
 
 .exec-root *,
 .exec-root *::before,
@@ -157,7 +165,7 @@
   padding: 6px 12px;
   border-radius: 999px;
   background: var(--exec-accent-soft);
-  border: 1px solid oklch(0.78 0.16 75 / 0.32);
+  border: 1px solid oklch(0.7 0.18 285 / 0.32);
   color: var(--exec-accent);
   font-size: 12px;
   font-weight: 500;
@@ -303,10 +311,10 @@
 }
 .exec-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .exec-btn-primary {
-  background: linear-gradient(180deg, oklch(0.84 0.16 75), oklch(0.72 0.18 65));
-  color: oklch(0.18 0.04 60);
-  border-color: oklch(0.7 0.18 65);
-  box-shadow: 0 8px 28px -8px oklch(0.78 0.16 75 / 0.55);
+  background: linear-gradient(180deg, oklch(0.74 0.18 285), oklch(0.6 0.22 285));
+  color: oklch(0.1 0.01 264);
+  border-color: oklch(0.6 0.22 285);
+  box-shadow: 0 8px 28px -8px oklch(0.7 0.18 285 / 0.55);
 }
 .exec-btn-primary:hover { transform: translateY(-1px); }
 .exec-btn-ghost {
@@ -407,7 +415,7 @@
 }
 .exec-pillar-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--exec-accent), oklch(0.85 0.18 80));
+  background: linear-gradient(90deg, var(--exec-accent), oklch(0.82 0.16 290));
   border-radius: 999px;
   transition: width 0.9s ease;
 }
@@ -959,10 +967,10 @@
   border-radius: 24px;
   padding: clamp(48px, 7vw, 96px) clamp(28px, 6vw, 72px);
   background:
-    radial-gradient(900px 500px at 100% 0%, oklch(0.78 0.16 75 / 0.20), transparent 60%),
-    radial-gradient(700px 400px at 0% 100%, oklch(0.62 0.18 50 / 0.18), transparent 60%),
-    linear-gradient(135deg, oklch(0.18 0.02 60), oklch(0.14 0.015 50));
-  border: 1px solid oklch(0.78 0.16 75 / 0.35);
+    radial-gradient(900px 500px at 100% 0%, oklch(0.7 0.18 285 / 0.22), transparent 60%),
+    radial-gradient(700px 400px at 0% 100%, oklch(0.5 0.14 230 / 0.18), transparent 60%),
+    linear-gradient(135deg, oklch(0.18 0.014 264), oklch(0.14 0.012 264));
+  border: 1px solid oklch(0.7 0.18 285 / 0.35);
   overflow: hidden;
 }
 .exec-cta-final::before {
@@ -970,7 +978,7 @@
   position: absolute;
   inset: 0;
   background:
-    repeating-linear-gradient(45deg, oklch(0.78 0.16 75 / 0.03) 0 2px, transparent 2px 14px);
+    repeating-linear-gradient(45deg, oklch(0.7 0.18 285 / 0.03) 0 2px, transparent 2px 14px);
   pointer-events: none;
 }
 .exec-cta-final > * { position: relative; }
@@ -1006,7 +1014,7 @@
 .exec-cta-input:focus {
   outline: none;
   border-color: var(--exec-accent);
-  box-shadow: 0 0 0 4px oklch(0.78 0.16 75 / 0.15);
+  box-shadow: 0 0 0 4px oklch(0.7 0.18 285 / 0.18);
 }
 .exec-cta-error {
   color: var(--exec-negative);
