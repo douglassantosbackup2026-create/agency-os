@@ -7,6 +7,9 @@
  * - gestao.status_poll_failed
  * - diagnosis.report_fetch_failed
  * - diagnosis.track_failed
+ * - diagnosis.ai_providers_failed
+ * - diagnosis.retry_requested
+ * - diagnosis.retry_failed
  * Eventos do painel (via reportPanelError):
  * - ai_job_poll, ai_job_realtime, query errors (via QueryCache)
  * Produção: definir window.__RETENTION_REPORT_ERROR__(source, error) para Sentry/Datadog.
@@ -38,6 +41,9 @@ export function reportFunnelError(
     | "gestao.status_poll_failed"
     | "diagnosis.report_fetch_failed"
     | "diagnosis.track_failed"
+    | "diagnosis.ai_providers_failed"
+    | "diagnosis.retry_requested"
+    | "diagnosis.retry_failed"
     | "diagnosis.funnel_boundary",
   detail: unknown,
 ): void {

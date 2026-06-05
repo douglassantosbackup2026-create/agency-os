@@ -4,6 +4,8 @@ import { callDiagnosisApi } from "@/lib/diagnosis-api";
 import { resolveSupabaseUrl } from "@/lib/supabase-config";
 import { useDiagnosisPoll } from "@/hooks/use-diagnosis-poll";
 import { InlineErrorBanner } from "@/components/diagnosis-funnel/InlineErrorBanner";
+import { DiagnosisFailedPanel } from "@/components/diagnosis-funnel/DiagnosisFailedPanel";
+import { parseDiagnosisFailedReason } from "@/lib/diagnosis-failed-reason";
 import { reportFunnelError } from "@/lib/report-error";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -104,6 +106,17 @@ function ObrigadoPage() {
     }
   }, [pollError]);
 
+  useEffect(() => {
+    if (status?.status !== "failed" || !status.failed_reason) return;
+    const parsed = parseDiagnosisFailedReason(status.failed_reason);
+    if (parsed.telemetryKind) {
+      reportFunnelError("diagnosis.ai_providers_failed", {
+        kind: parsed.telemetryKind,
+        diagnosisId: d,
+      });
+    }
+  }, [status?.status, status?.failed_reason, d]);
+
   // Client-only to avoid SSR hydration mismatch on window.location
   const [fullLink, setFullLink] = useState<string>("");
   useEffect(() => {
@@ -193,6 +206,13 @@ function ObrigadoPage() {
     const u = resolveSupabaseUrl();
     return u ? `${u}/functions/v1/meta-oauth-start` : "";
   };
+
+  const handleDiagnosisRetrySuccess = useCallback(() => {
+    setStatus((prev) =>
+      prev ? { ...prev, status: "processing", failed_reason: null } : prev,
+    );
+    retryNow();
+  }, [retryNow]);
 
   const metaUrl = useMemo(
     () =>
@@ -322,35 +342,13 @@ function ObrigadoPage() {
         ) : null}
 
         {st === "failed" ? (
-          <div className="mt-4 rounded-2xl border border-destructive/30 bg-destructive/5 p-6 animate-fade-in">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="mt-0.5 h-5 w-5 text-destructive" />
-              <div className="flex-1">
-                <h2 className="text-lg font-semibold text-destructive">
-                  Algo correu mal
-                </h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {status?.failed_reason ?? "Erro desconhecido"}
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {metaUrl ? (
-                    <a
-                      href={metaUrl}
-                      className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90"
-                    >
-                      Reconectar Meta
-                    </a>
-                  ) : null}
-                  <Link
-                    to="/"
-                    className="inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-medium hover:bg-accent"
-                  >
-                    Voltar ao início
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
+          <DiagnosisFailedPanel
+            failedReason={status?.failed_reason}
+            diagnosisId={d}
+            secretSlug={s}
+            metaOAuthUrl={metaUrl}
+            onRetrySuccess={handleDiagnosisRetrySuccess}
+          />
         ) : null}
 
         {pollError ? (

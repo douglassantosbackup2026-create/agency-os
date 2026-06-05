@@ -18,6 +18,11 @@ import { V3_GROWTH_INTELLIGENCE_RULES } from "../_shared/diagnosis/v3-growth-int
 import {
   enrichFactsWithMetaSeniorFetch,
 } from "../_shared/diagnosis/derive-meta-senior.ts";
+import {
+  AiAllProvidersFailedError,
+  type AiAttempt,
+  userFacingDiagnosisError,
+} from "../_shared/diagnosis/ai-failure-messages.ts";
 
 const PROMPT_VERSION = "diagnosis-growth-intelligence-v3";
 const AI_TIMEOUT_MS = 60_000;
@@ -656,7 +661,7 @@ async function runWithFallback(
       console.warn(`[process-diagnosis] ${p.name} falhou (${ms}ms): ${err}`);
     }
   }
-  throw new Error(`Todos os providers IA falharam: ${JSON.stringify(attempts)}`);
+  throw new AiAllProvidersFailedError(attempts as AiAttempt[]);
 }
 
 // ── Handler ──────────────────────────────────────────────────────────────────
@@ -938,12 +943,24 @@ Deno.serve(async (req) => {
 
       processed++;
     } catch (e) {
-      console.error(e);
+      let failedReason: string;
+      if (e instanceof AiAllProvidersFailedError) {
+        traceLog(
+          "process_diagnosis.ai_failed",
+          { kind: e.failureKind, attempts: e.attempts },
+          traceId,
+        );
+        failedReason = e.userMessage;
+      } else {
+        const raw = String(e);
+        console.error(raw);
+        failedReason = userFacingDiagnosisError(raw).slice(0, 500);
+      }
       await sb
         .from("diagnoses")
         .update({
           status: "failed",
-          failed_reason: String(e).slice(0, 500),
+          failed_reason: failedReason,
         })
         .eq("id", id);
     }

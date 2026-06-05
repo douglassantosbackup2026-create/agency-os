@@ -10,6 +10,8 @@ import { useManagementCheckout } from "@/hooks/use-management-checkout";
 import type { DiagnosisAnalysis } from "@/components/diagnosis-report/types";
 import { DiagnosisExecutiveReport } from "@/components/diagnosis-report/executive/DiagnosisExecutiveReport";
 import { InlineErrorBanner } from "@/components/diagnosis-funnel/InlineErrorBanner";
+import { DiagnosisFailedPanel } from "@/components/diagnosis-funnel/DiagnosisFailedPanel";
+import { parseDiagnosisFailedReason } from "@/lib/diagnosis-failed-reason";
 import { reportFunnelError } from "@/lib/report-error";
 import "@/styles/diagnosis-executive.css";
 
@@ -129,6 +131,19 @@ function DiagnosticoReportPage() {
     };
   }, [diagnosisId, s, loadKey]);
 
+  useEffect(() => {
+    if (data?.diagnosis?.status !== "failed" || !data.diagnosis.failed_reason) {
+      return;
+    }
+    const parsed = parseDiagnosisFailedReason(data.diagnosis.failed_reason);
+    if (parsed.telemetryKind) {
+      reportFunnelError("diagnosis.ai_providers_failed", {
+        kind: parsed.telemetryKind,
+        diagnosisId,
+      });
+    }
+  }, [data?.diagnosis?.status, data?.diagnosis?.failed_reason, diagnosisId]);
+
   const analysis = data?.report?.analysis_json;
 
   function trackEvent(event: string) {
@@ -246,31 +261,21 @@ function DiagnosticoReportPage() {
   }
 
   if (data.diagnosis.status === "failed") {
-    const reason = data.diagnosis.failed_reason ?? "Erro desconhecido";
-    const needsReconnect = /token|meta|reconect/i.test(reason);
     return (
       <div className="exec-root">
         <div className="exec-state">
-          <div className="exec-state-card">
-            <h1>Diagnóstico falhou</h1>
-            <p className="mt-2">{reason}</p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link
-                to="/obrigado"
-                search={{ d: diagnosisId, s: s! }}
-                className="exec-btn exec-btn-ghost inline-flex"
-              >
-                Ver status do pedido
-              </Link>
-              {needsReconnect && metaOAuthUrl ? (
-                <a
-                  href={metaOAuthUrl}
-                  className="exec-btn exec-btn-primary inline-flex"
-                >
-                  Reconectar Meta
-                </a>
-              ) : null}
-            </div>
+          <div className="exec-state-card exec-state-card-wide">
+            <DiagnosisFailedPanel
+              failedReason={data.diagnosis.failed_reason}
+              diagnosisId={diagnosisId}
+              secretSlug={s!}
+              metaOAuthUrl={metaOAuthUrl}
+              title="Diagnóstico falhou"
+              className=""
+              showHomeLink={false}
+              showStatusLink
+              onRetrySuccess={refetchReport}
+            />
           </div>
         </div>
       </div>

@@ -81,6 +81,9 @@ verify_jwt = false
 [functions.diagnosis-status]
 verify_jwt = false
 
+[functions.diagnosis-retry]
+verify_jwt = false
+
 [functions.diagnosis-report]
 verify_jwt = false
 
