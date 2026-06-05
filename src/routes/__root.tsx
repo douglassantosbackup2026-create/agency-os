@@ -182,6 +182,13 @@ function RootShell({ children }: { children: React.ReactNode }) {
           // Aplica tema antes da primeira pintura (alinhar com src/lib/theme.ts)
           dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
         />
+        <script dangerouslySetInnerHTML={{ __html: META_PIXEL_SCRIPT }} />
+        <noscript
+          dangerouslySetInnerHTML={{
+            __html:
+              '<img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=1014878304387575&ev=PageView&noscript=1" />',
+          }}
+        />
         <HeadContent />
       </head>
       <body>
