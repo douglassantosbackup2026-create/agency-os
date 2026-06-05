@@ -43,6 +43,9 @@ export type GrowthScenarios = {
   conservativePct: number;
   probablePct: number;
   aggressivePct: number;
+  conservativeMonthlyBrl: number;
+  probableMonthlyBrl: number;
+  aggressiveMonthlyBrl: number;
   conservativeFormatted: string;
   probableFormatted: string;
   aggressiveFormatted: string;

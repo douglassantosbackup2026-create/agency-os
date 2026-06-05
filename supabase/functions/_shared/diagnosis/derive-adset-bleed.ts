@@ -1,5 +1,6 @@
 import { computeRoas, enrichCampaigns, num } from "./campaign-objective.ts";
-import { referenceRoasBom } from "./niche-benchmarks-v1.ts";
+import { resolveRoasTarget } from "./derive-roas-target.ts";
+import type { BusinessContextInput } from "./derive-business-hints.ts";
 import type { NicheContext } from "./derive-niche-context.ts";
 
 export type AdsetBleedRow = {
@@ -49,7 +50,8 @@ export function deriveAdsetBleedRanking(
     enriched.filter((c) => c.family === "sales").map((c) => String(c.campaign_id)),
   );
 
-  const roasRef = referenceRoasBom(niche.nicheKey);
+  const ctx = facts?.business_context as BusinessContextInput | undefined;
+  const roasRef = resolveRoasTarget(ctx, niche.nicheKey).target;
   const rows: AdsetBleedRow[] = [];
 
   for (const r of insights) {

@@ -53,7 +53,7 @@ export function buildConsultativeDerived(
   const nicheContext = resolveNicheContext(facts, businessContext);
   facts.niche_context = nicheContext;
 
-  const accountFinancialGap = deriveAccountFinancialGap(facts, nicheContext);
+  const accountFinancialGap = deriveAccountFinancialGap(facts, nicheContext, businessContext);
   if (accountFinancialGap) facts.account_financial_gap = accountFinancialGap;
 
   const learningRaw = deriveAdsetLearningStatus(facts);

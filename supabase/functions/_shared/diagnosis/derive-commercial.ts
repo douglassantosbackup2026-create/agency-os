@@ -13,12 +13,15 @@ import {
 import { deriveFinancialBalance, type FinancialBalance } from "./derive-financial-balance.ts";
 import { deriveTopFindings, type TopFinding } from "./derive-top-findings.ts";
 import { buildSeniorDerived, type SeniorDerived } from "./derive-senior.ts";
+import type { AccountFinancialGap } from "./derive-account-financial-gap.ts";
 import {
   classifyTier,
   formatTierGapNote,
   NICHE_BENCHMARKS_V1,
   type BenchmarkTier,
 } from "./niche-benchmarks-v1.ts";
+import { normalizeCtrPct, resolveRoasTarget } from "./derive-roas-target.ts";
+import type { BusinessContextInput } from "./derive-business-hints.ts";
 
 export type NicheBenchmarkKey =
   | "ecom_geral"
@@ -272,6 +275,7 @@ export function deriveRecoveryScenarios(
   waste: WasteBreakdown,
   economics: AccountEconomics,
   facts: Record<string, unknown> | null | undefined,
+  gapMonthlyBrl = 0,
 ): RecoveryScenarios {
   const enriched = getEnriched(facts);
   const goodSales = enriched.filter((c) => c.family === "sales" && c.kpi_status === "bom" && c.roas != null);
@@ -281,10 +285,27 @@ export function deriveRecoveryScenarios(
       : economics.roasSales ?? 2.5;
 
   const wasteSpend = waste.totalMonthlyBrl;
-  const conservativeMonthlyBrl = wasteSpend * 0.15 * avgRoas;
-  const optimisticMonthlyBrl = wasteSpend * 0.3 * avgRoas;
+  const baseMonthly = Math.max(wasteSpend, gapMonthlyBrl);
+
+  let conservativeMonthlyBrl: number;
+  let optimisticMonthlyBrl: number;
+
+  if (baseMonthly > 0 && gapMonthlyBrl > wasteSpend) {
+    conservativeMonthlyBrl = Math.round(gapMonthlyBrl * 0.35);
+    optimisticMonthlyBrl = gapMonthlyBrl;
+  } else if (wasteSpend > 0) {
+    conservativeMonthlyBrl = wasteSpend * 0.15 * avgRoas;
+    optimisticMonthlyBrl = wasteSpend * 0.3 * avgRoas;
+  } else if (gapMonthlyBrl > 0) {
+    conservativeMonthlyBrl = Math.round(gapMonthlyBrl * 0.35);
+    optimisticMonthlyBrl = gapMonthlyBrl;
+  } else {
+    conservativeMonthlyBrl = 0;
+    optimisticMonthlyBrl = 0;
+  }
+
   const confidence: "low" | "medium" =
-    wasteSpend > 0 && (economics.roasSales != null || goodSales.length > 0) ? "medium" : "low";
+    baseMonthly > 0 && (economics.roasSales != null || goodSales.length > 0) ? "medium" : "low";
 
   return {
     conservativeMonthlyBrl,
@@ -293,7 +314,9 @@ export function deriveRecoveryScenarios(
     optimisticFormatted: fmtBRL(optimisticMonthlyBrl),
     confidence,
     basisNote:
-      `Estimativa indicativa: recuperar 15–30% do gasto em risco (≈ ${fmtBRL(wasteSpend)}) com eficiência próxima ao ROAS ${avgRoas.toFixed(1)}x das campanhas bem classificadas.`,
+      gapMonthlyBrl > wasteSpend
+        ? `Estimativa indicativa: recuperar 35–100% do gap vs meta de ROAS (≈ ${fmtBRL(gapMonthlyBrl)}/mês na mesa).`
+        : `Estimativa indicativa: recuperar 15–30% do gasto em risco (≈ ${fmtBRL(wasteSpend)}) com eficiência próxima ao ROAS ${avgRoas.toFixed(1)}x das campanhas bem classificadas.`,
   };
 }
 
@@ -379,21 +402,44 @@ export function deriveBenchmarkGaps(
   const v1 = NICHE_BENCHMARKS_V1[nicheKey] ?? NICHE_BENCHMARKS_V1.ecom_geral;
   const economics = deriveAccountEconomics(facts);
   const ins = (facts?.account_insights ?? {}) as Record<string, unknown>;
-  const ctr = num(ins.ctr);
+  const ctx = facts?.business_context as BusinessContextInput | undefined;
+  const roasTarget = resolveRoasTarget(ctx, nicheKey);
+  const ctr = normalizeCtrPct(num(ins.ctr));
   const cpm = num(ins.cpm);
   const frequency = num(ins.frequency);
   const gaps: BenchmarkGap[] = [];
 
-  if (v1.roas && economics.roasSales != null) {
-    pushTierGap(
-      gaps,
-      nicheKey,
-      "ROAS (Vendas)",
+  if (economics.roasSales != null) {
+    const refLabel =
+      roasTarget.source === "declared"
+        ? `${roasTarget.target.toFixed(1).replace(".", ",")}× (meta declarada)`
+        : `${roasTarget.target.toFixed(1).replace(".", ",")}× (${roasTarget.label})`;
+    const tier = classifyTier(economics.roasSales, {
+      ...v1.roas!,
+      bom: [roasTarget.target, roasTarget.target * 1.2],
+      atencao: [roasTarget.target * 0.6, roasTarget.target * 0.95],
+      ruim: roasTarget.target * 0.6,
+      excelente: roasTarget.target * 1.2,
+      higherIsBetter: true,
+    });
+    const status = tierToStatus(tier);
+    const delta = gapDelta(
       economics.roasSales,
-      economics.roasFormatted,
-      "roas",
-      (n) => `${n.toFixed(1).replace(".", ",")}x`,
+      roasTarget.target,
+      roasTarget.target * 1.2,
+      true,
     );
+    gaps.push({
+      metric: "ROAS (Vendas)",
+      current: economics.roasFormatted,
+      reference: refLabel,
+      status,
+      gapNote:
+        economics.roasSales < roasTarget.target
+          ? `ROAS ${economics.roasFormatted} vs meta ${roasTarget.target.toFixed(1)}× — gap de eficiência.`
+          : `ROAS na faixa da meta (${tier}).`,
+      ...delta,
+    });
   }
 
   if (v1.ctrConversion && ctr != null) {
@@ -510,10 +556,46 @@ export function deriveScoreExplanation(
   };
 }
 
+export type ExecutiveFinancials = {
+  primaryGapMonthlyBrl: number;
+  primaryGapMonthlyFormatted: string;
+  heroRangeFormatted: string;
+  heroValueFormatted: string;
+};
+
+export function resolveExecutiveFinancials(
+  waste: WasteBreakdown,
+  recovery: RecoveryScenarios,
+  gap: AccountFinancialGap | null,
+): ExecutiveFinancials {
+  const gapMonthly = gap?.gapMonthlyBrl ?? 0;
+  const primaryGap = Math.max(waste.totalMonthlyBrl, gapMonthly);
+  const conservative =
+    recovery.conservativeMonthlyBrl > 0
+      ? recovery.conservativeMonthlyBrl
+      : Math.round(primaryGap * 0.35);
+  const optimistic =
+    recovery.optimisticMonthlyBrl > 0 ? recovery.optimisticMonthlyBrl : primaryGap;
+  const heroRange =
+    primaryGap > 0
+      ? `${fmtBRL(conservative)} – ${fmtBRL(optimistic)}`
+      : `${recovery.conservativeFormatted} – ${recovery.optimisticFormatted}`;
+  return {
+    primaryGapMonthlyBrl: primaryGap,
+    primaryGapMonthlyFormatted: fmtBRL(primaryGap),
+    heroRangeFormatted: heroRange,
+    heroValueFormatted: primaryGap > 0 ? heroRange : heroRange,
+  };
+}
+
 export type StoryExecutive = {
   headline: string;
   lossMonthlyBrl: number;
   lossMonthlyFormatted: string;
+  primaryGapMonthlyBrl: number;
+  primaryGapMonthlyFormatted: string;
+  heroRangeFormatted: string;
+  heroValueFormatted: string;
   recoveryConservativeBrl: number;
   recoveryOptimisticBrl: number;
   recoveryRangeFormatted: string;
@@ -526,6 +608,7 @@ export function deriveStoryExecutive(
   recovery: RecoveryScenarios,
   economics: AccountEconomics,
   facts: Record<string, unknown> | null | undefined,
+  gap: AccountFinancialGap | null = null,
 ): StoryExecutive {
   const enriched = getEnriched(facts);
   const problemCount =
@@ -536,7 +619,12 @@ export function deriveStoryExecutive(
   ).length;
 
   let headline: string;
-  if (waste.totalMonthlyBrl >= 3000) {
+  const execFin = resolveExecutiveFinancials(waste, recovery, gap);
+  if (execFin.primaryGapMonthlyBrl >= 3000) {
+    headline = `Identificamos ${execFin.heroRangeFormatted}/mês em oportunidade não capturada vs sua meta de ROAS.`;
+  } else if (execFin.primaryGapMonthlyBrl > 0) {
+    headline = `Há cerca de ${execFin.primaryGapMonthlyFormatted}/mês entre o que a conta gera e o potencial com a meta de ROAS.`;
+  } else if (waste.totalMonthlyBrl >= 3000) {
     headline = `Estimamos até ${waste.totalFormatted}/mês em verba Meta em risco ou sem visibilidade de venda.`;
   } else if (waste.totalMonthlyBrl > 0) {
     headline = `Há cerca de ${waste.totalFormatted}/mês em eficiência a recuperar na sua conta Meta.`;
@@ -548,11 +636,15 @@ export function deriveStoryExecutive(
 
   return {
     headline,
-    lossMonthlyBrl: waste.totalMonthlyBrl,
-    lossMonthlyFormatted: waste.totalFormatted,
+    lossMonthlyBrl: execFin.primaryGapMonthlyBrl,
+    lossMonthlyFormatted: execFin.primaryGapMonthlyFormatted,
+    primaryGapMonthlyBrl: execFin.primaryGapMonthlyBrl,
+    primaryGapMonthlyFormatted: execFin.primaryGapMonthlyFormatted,
+    heroRangeFormatted: execFin.heroRangeFormatted,
+    heroValueFormatted: execFin.heroValueFormatted,
     recoveryConservativeBrl: recovery.conservativeMonthlyBrl,
     recoveryOptimisticBrl: recovery.optimisticMonthlyBrl,
-    recoveryRangeFormatted: `${recovery.conservativeFormatted} – ${recovery.optimisticFormatted}`,
+    recoveryRangeFormatted: execFin.heroRangeFormatted,
     problemCount,
     quickWinCount,
   };
@@ -578,12 +670,15 @@ export function buildCommercialDerived(
   const nicheKey =
     (nicheFromFacts?.nicheKey as NicheBenchmarkKey | undefined) ??
     matchNicheFromContext(ctx?.niche ?? null);
+  const gap =
+    (facts?.account_financial_gap as AccountFinancialGap | undefined) ?? null;
+  const gapMonthly = gap?.gapMonthlyBrl ?? 0;
   const economics = deriveAccountEconomics(facts);
   const waste = deriveWasteBreakdown(facts);
-  const recovery = deriveRecoveryScenarios(waste, economics, facts);
+  const recovery = deriveRecoveryScenarios(waste, economics, facts, gapMonthly);
   const benchmarkComparison = deriveBenchmarkGaps(facts, nicheKey);
   const scoreExplanation = deriveScoreExplanation(facts);
-  const storyExecutive = deriveStoryExecutive(waste, recovery, economics, facts);
+  const storyExecutive = deriveStoryExecutive(waste, recovery, economics, facts, gap);
   const topFindings = deriveTopFindings(facts, waste, benchmarkComparison);
   const financialBalance = deriveFinancialBalance(economics, waste, recovery);
   return {
@@ -614,6 +709,10 @@ export function commercialToAnalysisFields(
       mediaProfitFormatted: commercial.accountEconomics.mediaProfitFormatted,
       lossMonthlyBrl: commercial.storyExecutive.lossMonthlyBrl,
       lossMonthlyFormatted: commercial.storyExecutive.lossMonthlyFormatted,
+      primaryGapMonthlyBrl: commercial.storyExecutive.primaryGapMonthlyBrl,
+      primaryGapMonthlyFormatted: commercial.storyExecutive.primaryGapMonthlyFormatted,
+      heroRangeFormatted: commercial.storyExecutive.heroRangeFormatted,
+      heroValueFormatted: commercial.storyExecutive.heroValueFormatted,
       wasteLines: commercial.waste.lines,
       paretoAds: commercial.waste.paretoAds,
       recoveryConservativeBrl: commercial.recovery.conservativeMonthlyBrl,

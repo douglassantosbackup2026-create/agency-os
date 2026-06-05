@@ -6,6 +6,7 @@ export type BusinessContext = {
   avg_ticket_brl?: number | null;
   margin_pct?: number | null;
   monthly_goal_brl?: number | null;
+  target_roas?: number | null;
   notes?: string | null;
   saved_at?: string | null;
 };
@@ -33,6 +34,9 @@ export function DiagnosisBusinessContextForm({
   const [goal, setGoal] = useState(
     initial?.monthly_goal_brl != null ? String(initial.monthly_goal_brl) : "",
   );
+  const [targetRoas, setTargetRoas] = useState(
+    initial?.target_roas != null ? String(initial.target_roas) : "",
+  );
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -52,6 +56,7 @@ export function DiagnosisBusinessContextForm({
             avg_ticket_brl: ticket.trim() ? Number(ticket) : null,
             margin_pct: margin.trim() ? Number(margin) : null,
             monthly_goal_brl: goal.trim() ? Number(goal) : null,
+            target_roas: targetRoas.trim() ? Number(targetRoas) : null,
             notes: notes.trim() || null,
           },
         }),
@@ -115,6 +120,18 @@ export function DiagnosisBusinessContextForm({
             value={goal}
             onChange={(e) => setGoal(e.target.value)}
             placeholder="Ex.: 50000"
+          />
+        </label>
+        <label>
+          Meta de ROAS (×)
+          <input
+            type="number"
+            min={1}
+            max={50}
+            step={0.1}
+            value={targetRoas}
+            onChange={(e) => setTargetRoas(e.target.value)}
+            placeholder="Ex.: 10"
           />
         </label>
       </div>

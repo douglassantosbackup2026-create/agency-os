@@ -304,9 +304,11 @@ export function scoreCampaignKpi(c: {
   cpc_link: number | null;
   cpm: number | null;
   frequency: number | null;
+  roasTarget?: number;
 }): { status: DerivedStatus; reason: string } {
   const { family, roas, primary_result: pr, ctr_link, cpc_link, cpm, frequency } =
     c;
+  const target = c.roasTarget ?? 3;
 
   if (family === "sales") {
     if (roas == null) {
@@ -315,18 +317,18 @@ export function scoreCampaignKpi(c: {
         reason: "Sem receita de compra rastreada (ROAS não aplicável sem pixel de compra).",
       };
     }
-    if (roas >= 3) {
-      return { status: "bom", reason: `ROAS ${roas.toFixed(2)}x (referência > 3x).` };
+    if (roas >= target) {
+      return { status: "bom", reason: `ROAS ${roas.toFixed(2)}x (meta ${target.toFixed(1)}x).` };
     }
-    if (roas >= 1.5) {
+    if (roas >= target * 0.45) {
       return {
         status: "atenção",
-        reason: `ROAS ${roas.toFixed(2)}x abaixo do ideal (> 3x).`,
+        reason: `ROAS ${roas.toFixed(2)}x abaixo da meta (${target.toFixed(1)}x).`,
       };
     }
     return {
       status: "alerta",
-      reason: `ROAS ${roas.toFixed(2)}x — eficiência de venda comprometida.`,
+      reason: `ROAS ${roas.toFixed(2)}x — eficiência de venda comprometida (meta ${target.toFixed(1)}x).`,
     };
   }
 

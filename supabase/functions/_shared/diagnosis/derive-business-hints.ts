@@ -7,6 +7,7 @@ export type BusinessContextInput = {
   avg_ticket_brl?: number | null;
   margin_pct?: number | null;
   monthly_goal_brl?: number | null;
+  target_roas?: number | null;
   notes?: string | null;
 };
 

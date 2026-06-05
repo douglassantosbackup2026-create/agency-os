@@ -34,11 +34,18 @@ const priorityClass = (p?: string | number): "is-high" | "is-mid" | "is-low" => 
   return "is-low";
 };
 
-const statusLabel = (status?: string) => {
+const statusLabel = (status?: string, isBad?: boolean) => {
+  if (isBad || status === "below") return "Crítico";
   const c = statusToClass(status);
   if (c === "is-good") return "Acima da média";
   if (c === "is-mid") return "Na média";
   return "Abaixo da média";
+};
+
+const leakPriorityLabel = (rank: number): string => {
+  if (rank <= 1) return "Alta";
+  if (rank <= 3) return "Média";
+  return "Baixa";
 };
 
 function Section({
@@ -116,17 +123,33 @@ export function DiagnosisExecutiveReport({
     gi?.executiveImpact.investedFormatted ?? fb?.investedFormatted ?? fi?.spendFormatted ?? "—";
   const revenueFormatted =
     gi?.executiveImpact.revenueActualFormatted ?? fb?.revenueFormatted ?? fi?.revenueFormatted ?? "—";
-  const lossMonthly = fi?.lossMonthlyBrl ?? 0;
+  const gapMonthly = gi?.executiveImpact.gapMonthlyBrl ?? 0;
+  const primaryGap =
+    fi?.primaryGapMonthlyBrl ?? Math.max(lossMonthly, gapMonthly);
   const lossFormatted =
-    fi?.lossMonthlyFormatted ?? story?.lossMonthlyFormatted ?? gi?.executiveImpact.gapMonthlyFormatted ?? "—";
+    fi?.primaryGapMonthlyFormatted ??
+    fi?.lossMonthlyFormatted ??
+    story?.lossMonthlyFormatted ??
+    gi?.executiveImpact.gapMonthlyFormatted ??
+    "—";
   const recoveryRange =
+    fi?.heroRangeFormatted ??
+    story?.heroRangeFormatted ??
     story?.recoveryRangeFormatted ??
     (fi?.recoveryConservativeFormatted && fi?.recoveryOptimisticFormatted
-      ? `${fi.recoveryConservativeFormatted} a ${fi.recoveryOptimisticFormatted}`
+      ? `${fi.recoveryConservativeFormatted} – ${fi.recoveryOptimisticFormatted}`
       : (fi?.recoveryConservativeFormatted ?? fi?.recoveryOptimisticFormatted ?? "—"));
 
-  const heroValue = lossMonthly > 0 ? lossFormatted : recoveryRange;
-  const heroHasOpportunity = lossMonthly > 0 || (fi?.recoveryConservativeBrl ?? 0) > 0;
+  const heroValue =
+    primaryGap > 0
+      ? recoveryRange.includes("–") || recoveryRange.includes("-")
+        ? recoveryRange
+        : lossFormatted
+      : recoveryRange;
+  const heroHasOpportunity =
+    primaryGap > 0 ||
+    (fi?.recoveryConservativeBrl ?? 0) > 0 ||
+    gapMonthly > 0;
 
   // Largest leak (bottleneck) & largest opportunity
   const allLeaks = useMemo(() => {
@@ -143,7 +166,7 @@ export function DiagnosisExecutiveReport({
       monthlyBrl: m.monthlyImpactBrl,
       description: m.rootCause,
       hint: m.action,
-      priority: m.priority >= 70 ? "Alta" : m.priority >= 40 ? "Média" : "Baixa",
+      priority: leakPriorityLabel(m.priority),
       category: m.category || "Vazamento",
     }));
     const merged = fromGi.length ? fromGi : fromBudget;
@@ -152,6 +175,7 @@ export function DiagnosisExecutiveReport({
 
   const totalLeaks = allLeaks.reduce((s, l) => s + (l.monthlyBrl ?? 0), 0);
   const topLeak = allLeaks[0];
+  const topLeaks = allLeaks.slice(0, 3);
 
   const opportunities = useMemo(() => {
     if (gi?.growthOpportunities?.length) {
@@ -180,14 +204,10 @@ export function DiagnosisExecutiveReport({
   const benchmarks = analysis.benchmarkComparison?.gaps ?? [];
 
   // Maturity
-  const maturity = analysis.maturity;
-  const pillars = maturity?.pillars ?? analysis.scoreExplanation?.pillars?.map((p) => ({
-    id: p.id,
-    label: p.label,
-    score: Number(p.value.replace(/[^\d.]/g, "")) || 0,
-    detail: p.detail,
-  })) ?? [];
-  const scoreVal = analysis.score ?? 0;
+  const maturity = analysis.maturity ?? gi?.maturity;
+  const pillars =
+    maturity?.pillars?.filter((p) => typeof p.score === "number") ?? [];
+  const scoreVal = gi?.maturity?.score0to100 ?? analysis.score ?? 0;
 
   // Action plan
   const roadmap = useMemo(
@@ -200,7 +220,10 @@ export function DiagnosisExecutiveReport({
   const giScenarios = gi?.projections?.scenarios ?? [];
 
   // Annual opportunity for final CTA
-  const annualOpp = (fi?.recoveryOptimisticBrl ?? fi?.lossMonthlyBrl ?? 0) * 12;
+  const annualOpp =
+    (gi?.executiveImpact.gapAnnualBrl ??
+      (primaryGap > 0 ? primaryGap * 12 : null) ??
+      (fi?.recoveryOptimisticBrl ?? fi?.lossMonthlyBrl ?? 0) * 12);
 
   return (
     <div className="exec-root">
@@ -220,7 +243,8 @@ export function DiagnosisExecutiveReport({
             <span>●</span> Análise concluída · {Math.round(scoreVal)}/100
           </div>
           <h1 className="exec-hero-headline">
-            Identificamos <span className="accent">{heroValue}</span>{lossMonthly > 0 ? "/mês" : ""}
+            Identificamos <span className="accent">{heroValue}</span>
+            {heroHasOpportunity ? "/mês" : ""}
             <br />
             {heroHasOpportunity ? "em oportunidade não capturada." : "para destravar agora."}
           </h1>
@@ -242,13 +266,17 @@ export function DiagnosisExecutiveReport({
             <div className="exec-stat">
               <div className="exec-stat-label">Potencial identificado</div>
               <div className="exec-stat-value is-accent">
-                {fi?.recoveryOptimisticFormatted ?? recoveryRange}
+                {fi?.recoveryOptimisticFormatted ??
+                  gi?.executiveImpact.gapMonthlyFormatted ??
+                  recoveryRange}
               </div>
               <p className="exec-stat-hint">Recuperável em 60–90 dias</p>
             </div>
             <div className="exec-stat">
               <div className="exec-stat-label">Gap de crescimento</div>
-              <div className="exec-stat-value is-negative">{lossFormatted}</div>
+              <div className="exec-stat-value is-negative">
+                {gi?.executiveImpact.gapMonthlyFormatted ?? lossFormatted}
+              </div>
               <p className="exec-stat-hint">Por mês — se nada mudar</p>
             </div>
           </div>
@@ -314,14 +342,22 @@ export function DiagnosisExecutiveReport({
               </div>
               <div className="exec-pillars">
                 {pillars.map((p) => {
+                  const limited =
+                    p.score === 0 &&
+                    /limitad|insuficient|sem dados/i.test(p.detail ?? "");
                   const v = typeof p.score === "number" ? p.score : 0;
                   return (
                     <div key={p.id} className="exec-pillar">
                       <div className="exec-pillar-label">{p.label}</div>
                       <div className="exec-pillar-bar">
-                        <div className="exec-pillar-fill" style={{ width: `${Math.max(4, Math.min(100, v))}%` }} />
+                        {!limited ? (
+                          <div
+                            className="exec-pillar-fill"
+                            style={{ width: `${Math.max(4, Math.min(100, v))}%` }}
+                          />
+                        ) : null}
                       </div>
-                      <div className="exec-pillar-val">{Math.round(v)}</div>
+                      <div className="exec-pillar-val">{limited ? "—" : Math.round(v)}</div>
                     </div>
                   );
                 })}
@@ -440,7 +476,7 @@ export function DiagnosisExecutiveReport({
                         <td>
                           <span className={`exec-status-pill ${cls}`}>
                             <span className="pill-dot" />
-                            {statusLabel(b.status)}
+                            {statusLabel(b.status, b.isBad)}
                           </span>
                         </td>
                       </tr>
@@ -458,9 +494,25 @@ export function DiagnosisExecutiveReport({
             num="06"
             eyebrow="Principal Gargalo"
             title={<>O que está <span className="accent">travando</span> seu crescimento agora</>}
-            subtitle="Análise detalhada do gargalo de maior impacto financeiro."
+            subtitle={
+              topLeaks.length > 1
+                ? `Top ${topLeaks.length} gargalos — total estimado ${fmtBRL(totalLeaks)}/mês.`
+                : "Análise detalhada do gargalo de maior impacto financeiro."
+            }
             id="gargalo"
           >
+            {topLeaks.length > 1 ? (
+              <ul className="exec-leak-list" style={{ marginBottom: 24 }}>
+                {topLeaks.map((leak, idx) => (
+                  <li key={`${leak.title}-${idx}`} className="exec-leak-row" style={{ listStyle: "none", padding: "12px 0", borderBottom: "1px solid var(--exec-border, rgba(255,255,255,0.08))" }}>
+                    <strong>{String(idx + 1).padStart(2, "0")}.</strong> {leak.title}
+                    {leak.monthlyBrl > 0 ? (
+                      <span style={{ float: "right" }}>−{fmtBRL(leak.monthlyBrl)}/mês</span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             <div className="exec-bottleneck">
               <div className="exec-bottleneck-head">
                 <div className="exec-bottleneck-tag">Prioridade máxima</div>
@@ -587,19 +639,31 @@ export function DiagnosisExecutiveReport({
                 <>
                   <div className="exec-projection-col">
                     <div className="exec-projection-label">Conservador</div>
-                    <div className="exec-projection-value">{scenarios.conservativeFormatted}</div>
+                    <div className="exec-projection-value">
+                      {scenarios.conservativeMonthlyBrl != null && scenarios.conservativeMonthlyBrl > 0
+                        ? fmtBRL(scenarios.conservativeMonthlyBrl)
+                        : scenarios.conservativeFormatted}
+                    </div>
                     <div className="exec-projection-delta">+{scenarios.conservativePct}%</div>
                     <p className="exec-projection-hint">Apenas fechar vazamentos críticos</p>
                   </div>
                   <div className="exec-projection-col is-featured">
                     <div className="exec-projection-label">Provável</div>
-                    <div className="exec-projection-value">{scenarios.probableFormatted}</div>
+                    <div className="exec-projection-value">
+                      {scenarios.probableMonthlyBrl != null && scenarios.probableMonthlyBrl > 0
+                        ? fmtBRL(scenarios.probableMonthlyBrl)
+                        : scenarios.probableFormatted}
+                    </div>
                     <div className="exec-projection-delta">+{scenarios.probablePct}%</div>
                     <p className="exec-projection-hint">Plano completo executado</p>
                   </div>
                   <div className="exec-projection-col">
                     <div className="exec-projection-label">Agressivo</div>
-                    <div className="exec-projection-value">{scenarios.aggressiveFormatted}</div>
+                    <div className="exec-projection-value">
+                      {scenarios.aggressiveMonthlyBrl != null && scenarios.aggressiveMonthlyBrl > 0
+                        ? fmtBRL(scenarios.aggressiveMonthlyBrl)
+                        : scenarios.aggressiveFormatted}
+                    </div>
                     <div className="exec-projection-delta">+{scenarios.aggressivePct}%</div>
                     <p className="exec-projection-hint">Plano + escala validada</p>
                   </div>

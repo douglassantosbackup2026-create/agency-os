@@ -11,6 +11,7 @@ type Body = {
     avg_ticket_brl?: number | string | null;
     margin_pct?: number | string | null;
     monthly_goal_brl?: number | string | null;
+    target_roas?: number | string | null;
     notes?: string;
   };
 };
@@ -59,6 +60,7 @@ Deno.serve(async (req) => {
     avg_ticket_brl: clamp(toNumberOrNull(ctx.avg_ticket_brl), 0, 1_000_000),
     margin_pct: clamp(toNumberOrNull(ctx.margin_pct), 0, 100),
     monthly_goal_brl: clamp(toNumberOrNull(ctx.monthly_goal_brl), 0, 100_000_000),
+    target_roas: clamp(toNumberOrNull(ctx.target_roas), 1, 50),
     notes: sanitizeText(ctx.notes, 600),
     saved_at: new Date().toISOString(),
   };
@@ -68,6 +70,7 @@ Deno.serve(async (req) => {
     cleaned.avg_ticket_brl !== null ||
     cleaned.margin_pct !== null ||
     cleaned.monthly_goal_brl !== null ||
+    cleaned.target_roas !== null ||
     cleaned.notes;
 
   const sb = diagnosisServiceClient();

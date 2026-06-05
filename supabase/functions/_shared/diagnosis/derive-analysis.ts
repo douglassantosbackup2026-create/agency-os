@@ -24,6 +24,8 @@ import {
   deriveBusinessHints,
   type BusinessContextInput,
 } from "./derive-business-hints.ts";
+export { deriveAccountScore, deriveScoreV2 } from "./derive-account-score.ts";
+import { deriveScoreV2 } from "./derive-account-score.ts";
 import { deriveHypothesisSeeds } from "./derive-hypothesis-seeds.ts";
 import { buildSeniorDerived } from "./derive-senior.ts";
 import type { SeniorDerived } from "./derive-senior-types.ts";
@@ -307,44 +309,6 @@ export function deriveMetricsFromFactsV2(
   return { metrics, account_context_metrics, limitations };
 }
 
-export function deriveScoreV2(
-  facts: Record<string, unknown> | null | undefined,
-): { score: number; scoreLabel: string } {
-  const enriched = getEnriched(facts);
-  if (enriched.length === 0) {
-    return { score: 50, scoreLabel: "Regular" };
-  }
-
-  const statusPoints: Record<DerivedStatus, number> = {
-    bom: 100,
-    atenção: 72,
-    alerta: 45,
-    "sem tracking": 55,
-    "sem dados": 60,
-  };
-
-  let weighted = 0;
-  let totalSpend = 0;
-  for (const c of enriched) {
-    weighted += c.spend * statusPoints[c.kpi_status];
-    totalSpend += c.spend;
-  }
-  const score = totalSpend > 0
-    ? Math.round(weighted / totalSpend)
-    : 50;
-  const clamped = Math.max(0, Math.min(100, score));
-  const scoreLabel =
-    clamped >= 90
-      ? "Excelente"
-      : clamped >= 70
-        ? "Bom"
-        : clamped >= 50
-          ? "Regular"
-          : clamped >= 30
-            ? "Crítico"
-            : "Emergência";
-  return { score: clamped, scoreLabel };
-}
 
 function findActionValue(arr: unknown, regex: RegExp): number | null {
   if (!Array.isArray(arr)) return null;

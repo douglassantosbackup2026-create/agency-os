@@ -61,6 +61,10 @@ export type DiagnosisAnalysis = {
     mediaProfitFormatted?: string;
     lossMonthlyBrl?: number;
     lossMonthlyFormatted?: string;
+    primaryGapMonthlyBrl?: number;
+    primaryGapMonthlyFormatted?: string;
+    heroRangeFormatted?: string;
+    heroValueFormatted?: string;
     recoveryConservativeBrl?: number;
     recoveryOptimisticBrl?: number;
     recoveryConservativeFormatted?: string;
@@ -214,6 +218,9 @@ export type GrowthScenarios = {
   conservativePct: number;
   probablePct: number;
   aggressivePct: number;
+  conservativeMonthlyBrl?: number;
+  probableMonthlyBrl?: number;
+  aggressiveMonthlyBrl?: number;
   conservativeFormatted: string;
   probableFormatted: string;
   aggressiveFormatted: string;

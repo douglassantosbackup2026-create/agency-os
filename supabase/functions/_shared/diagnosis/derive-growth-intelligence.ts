@@ -5,6 +5,8 @@
 
 import type { PrioritizedAction } from "./derive-action-priority.ts";
 import { deriveActionPriority } from "./derive-action-priority.ts";
+import { deriveAccountScore } from "./derive-account-score.ts";
+import { computeRoas, num } from "./campaign-objective.ts";
 import type { AccountFinancialGap } from "./derive-account-financial-gap.ts";
 import type { AdsetBleedRow } from "./derive-adset-bleed.ts";
 import type { ConsultativeDerived } from "./derive-consultative-blocks.ts";
@@ -200,9 +202,89 @@ function buildMoneyLeaks(
   consultative: ConsultativeDerived | null,
   commercial: CommercialDerived,
   senior: SeniorDerived | undefined,
+  facts: Record<string, unknown>,
 ): MoneyLeakItem[] {
   const leaks: MoneyLeakItem[] = [];
   let rank = 0;
+
+  const funnel = consultative?.conversionFunnel;
+  if (funnel?.revenueAtRiskMonthlyBrl && funnel.revenueAtRiskMonthlyBrl >= 50) {
+    leaks.push({
+      id: "funnel:checkout",
+      title: "Abandono no checkout — receita não capturada",
+      monthlyImpactBrl: funnel.revenueAtRiskMonthlyBrl,
+      monthlyImpactFormatted: fmtBrl(funnel.revenueAtRiskMonthlyBrl),
+      confidence: "high",
+      rootCause: funnel.bottleneckLabel,
+      action: "Otimizar checkout/UX — o Meta já entrega intenção; o gargalo está no site.",
+      priority: 0,
+      category: "structure",
+    });
+  }
+
+  const adsetInsights = Array.isArray(facts.adsets_insights)
+    ? (facts.adsets_insights as Record<string, unknown>[])
+    : [];
+  const spendByAdset = new Map<string, number>();
+  for (const r of adsetInsights) {
+    const id = String(r.adset_id ?? "");
+    if (id) spendByAdset.set(id, num(r.spend) ?? 0);
+  }
+
+  for (const row of consultative?.adsetLearningStatus ?? []) {
+    if (row.learning_status !== "learning_fail") continue;
+    const spend = spendByAdset.get(row.adset_id) ?? 0;
+    if (spend < 100) continue;
+    const impact = Math.round(spend * 0.5);
+    leaks.push({
+      id: `learning:${row.adset_id}`,
+      title: `Learning fail — ${row.adset_name.slice(0, 60)}`,
+      monthlyImpactBrl: impact,
+      monthlyImpactFormatted: fmtBrl(impact),
+      confidence: "high",
+      rootCause: row.issues_summary?.join("; ") || "Conjunto saiu do aprendizado sem otimização plena.",
+      action: "Consolidar volume, revisar público/criativo ou pausar antes de escalar.",
+      priority: 0,
+      category: "learning",
+      entityName: row.adset_name,
+    });
+  }
+
+  const adsTop = Array.isArray(facts.ads_insights_top)
+    ? (facts.ads_insights_top as Record<string, unknown>[])
+    : [];
+  for (const ad of adsTop) {
+    const spend = num(ad.spend) ?? 0;
+    if (spend < 200) continue;
+    const purchases = Array.isArray(ad.actions)
+      ? (ad.actions as { action_type?: string; value?: string }[]).reduce((s, a) => {
+          if (/^purchase$|^omni_purchase$/i.test(a.action_type ?? "")) {
+            return s + (num(a.value) ?? 0);
+          }
+          return s;
+        }, 0)
+      : 0;
+    const roas = computeRoas(ad.action_values, spend);
+    if (purchases > 1) continue;
+    const impact = Math.round(spend * (purchases === 0 ? 0.85 : 0.55));
+    if (impact < 80) continue;
+    const adName = String(ad.ad_name ?? ad.ad_id ?? "anúncio").slice(0, 60);
+    leaks.push({
+      id: `ad-bleed:${String(ad.ad_id ?? adName)}`,
+      title: `Criativo ineficiente — ${adName}`,
+      monthlyImpactBrl: impact,
+      monthlyImpactFormatted: fmtBrl(impact),
+      confidence: "medium",
+      rootCause:
+        purchases === 0
+          ? `${fmtBrl(spend)} gastos sem compra rastreada no período.`
+          : `${fmtBrl(spend)} para ${purchases} compra — ROAS ${roas != null ? `${roas.toFixed(1)}×` : "baixo"}.`,
+      action: "Pausar ou substituir criativo; redistribuir verba para vencedores.",
+      priority: 0,
+      category: "creative",
+      entityName: adName,
+    });
+  }
 
   for (const row of consultative?.adsetBleedRanking ?? []) {
     if (row.bleedBrl < 50) continue;
@@ -249,17 +331,20 @@ function buildMoneyLeaks(
   const delivery = consultative?.deliverySummary;
   if (delivery && delivery.estimatedDailyBlindSpendBrl > 0) {
     const monthly = Math.round(delivery.estimatedDailyBlindSpendBrl * 30);
-    leaks.push({
-      id: "delivery:learning",
-      title: "Verba em conjuntos em aprendizado ou com limitações",
-      monthlyImpactBrl: monthly,
-      monthlyImpactFormatted: fmtBrl(monthly),
-      confidence: "medium",
-      rootCause: delivery.summaryPt,
-      action: "Consolidar conjuntos antes de escalar; evitar fragmentação excessiva.",
-      priority: 0,
-      category: "learning",
-    });
+    const hasLearningNamed = leaks.some((l) => l.id.startsWith("learning:"));
+    if (!hasLearningNamed) {
+      leaks.push({
+        id: "delivery:learning",
+        title: "Verba em conjuntos em aprendizado ou com limitações",
+        monthlyImpactBrl: monthly,
+        monthlyImpactFormatted: fmtBrl(monthly),
+        confidence: "medium",
+        rootCause: delivery.summaryPt,
+        action: "Consolidar conjuntos antes de escalar; evitar fragmentação excessiva.",
+        priority: 0,
+        category: "learning",
+      });
+    }
   }
 
   for (const item of senior?.leakByAxis ?? []) {
@@ -403,9 +488,11 @@ function buildBenchmarkImpacts(
   });
 }
 
-function buildEnterpriseMaturity(maturity: MaturityScore): EnterpriseMaturity {
-  const weighted = maturity.pillars.reduce((s, p) => s + p.score, 0) / maturity.pillars.length;
-  const score0to100 = Math.round(Math.min(100, Math.max(0, weighted)));
+function buildEnterpriseMaturity(
+  maturity: MaturityScore,
+  accountScore: number,
+): EnterpriseMaturity {
+  const score0to100 = Math.max(0, Math.min(100, Math.round(accountScore)));
   const enterpriseLabel = enterpriseLabelFromScore(score0to100);
   const blockers: string[] = [];
   for (const p of maturity.pillars) {
@@ -501,16 +588,19 @@ export function buildGrowthIntelligenceDerived(
   const gap = consultative?.accountFinancialGap ?? null;
 
   const executiveImpact = buildExecutiveImpact(gap, commercial);
-  const moneyLeaks = buildMoneyLeaks(consultative ?? null, commercial, senior);
+  const moneyLeaks = buildMoneyLeaks(consultative ?? null, commercial, senior, facts);
   const growthOpportunities = buildGrowthOpportunities(consultative ?? null, commercial, senior);
   const risks = buildRisks(senior, consultative?.deliverySummary ?? null, commercial);
   const benchmarkImpacts = buildBenchmarkImpacts(commercial);
-  const maturity = buildEnterpriseMaturity(senior?.maturity ?? {
-    level: 3,
-    label: "Intermediário",
-    summary: "Dados limitados para maturidade.",
-    pillars: [],
-  });
+  const maturity = buildEnterpriseMaturity(
+    senior?.maturity ?? {
+      level: 3,
+      label: "Intermediário",
+      summary: "Dados limitados para maturidade.",
+      pillars: [],
+    },
+    deriveAccountScore(facts).score,
+  );
   const decisionActions = buildDecisionActions(senior, facts);
   const projections = buildProjections(commercial, senior?.growthScenarios);
 

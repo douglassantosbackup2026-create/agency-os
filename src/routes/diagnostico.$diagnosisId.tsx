@@ -26,6 +26,7 @@ type BusinessContext = {
   avg_ticket_brl?: number | null;
   margin_pct?: number | null;
   monthly_goal_brl?: number | null;
+  target_roas?: number | null;
   notes?: string | null;
   saved_at?: string | null;
 };
@@ -295,13 +296,29 @@ function DiagnosticoReportPage() {
   }
 
   const score = analysis.score ?? 0;
+  const gapCta =
+    analysis.growthIntelligenceDerived?.executiveImpact.gapMonthlyBrl ??
+    analysis.financialImpact?.primaryGapMonthlyBrl ??
+    analysis.financialImpact?.lossMonthlyBrl ??
+    0;
+  const gapCtaFormatted =
+    gapCta > 0
+      ? gapCta.toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+          maximumFractionDigits: 0,
+        })
+      : null;
   const consultWhatsappHref = whatsappGestaoHref(
-    `Olá! Concluí o diagnóstico Meta Ads (score ${score}/100). Gostaria de conversar sobre os próximos passos. ID: ${diagnosisId}`,
+    gapCtaFormatted
+      ? `Olá! Concluí o diagnóstico Meta Ads (score ${score}/100). Quero recuperar ${gapCtaFormatted}/mês que estão ficando na mesa. ID: ${diagnosisId}`
+      : `Olá! Concluí o diagnóstico Meta Ads (score ${score}/100). Gostaria de conversar sobre os próximos passos. ID: ${diagnosisId}`,
   );
 
   const fi = analysis.financialImpact;
   const annualOpp =
-    (fi?.recoveryOptimisticBrl ?? fi?.recoveryConservativeBrl ?? fi?.lossMonthlyBrl ?? 0) * 12;
+    analysis.growthIntelligenceDerived?.executiveImpact.gapAnnualBrl ??
+    (gapCta > 0 ? gapCta * 12 : (fi?.recoveryOptimisticBrl ?? fi?.recoveryConservativeBrl ?? fi?.lossMonthlyBrl ?? 0) * 12);
   const annualFormatted = annualOpp > 0
     ? annualOpp.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
     : null;
@@ -372,7 +389,11 @@ function DiagnosticoReportPage() {
                     <span>Próximo passo recomendado</span>
                   </div>
                   <h2 className="exec-headline">
-                    {annualFormatted ? (
+                    {gapCtaFormatted ? (
+                      <>
+                        Quero recuperar <span className="accent">{gapCtaFormatted}</span> que estão ficando na mesa.
+                      </>
+                    ) : annualFormatted ? (
                       <>
                         Existe uma oportunidade estimada de <span className="accent">{annualFormatted}</span> por ano identificada nesta análise.
                       </>
@@ -447,7 +468,9 @@ function DiagnosticoReportPage() {
                     >
                       {mgmt.loading
                         ? "Abrindo Mercado Pago…"
-                        : "Solicitar Reunião Estratégica"}
+                        : gapCtaFormatted
+                          ? `Quero recuperar ${gapCtaFormatted}/mês`
+                          : "Solicitar Reunião Estratégica"}
                       <span className="exec-btn-arrow">→</span>
                     </button>
                     <a
