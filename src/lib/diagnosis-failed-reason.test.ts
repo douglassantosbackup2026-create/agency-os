@@ -12,6 +12,14 @@ describe("parseDiagnosisFailedReason", () => {
     expect(parsed.message).toContain("Serviço de IA temporariamente");
   });
 
+  it("classifica rate limit Anthropic", () => {
+    const raw =
+      'Error: Todos os providers IA falharam: [{"provider":"anthropic","ok":false,"ms":286,"error":"Error: Anthropic HTTP 429: rate_limit_error"}]';
+    const parsed = parseDiagnosisFailedReason(raw);
+    expect(parsed.telemetryKind).toBe("ai_rate_limit");
+    expect(parsed.message).toContain("Muitas tentativas");
+  });
+
   it("classifica timeout em todos os providers", () => {
     const raw =
       'Error: Todos os providers IA falharam: [{"provider":"anthropic","ok":false,"ms":60006,"error":"AbortError"},{"provider":"openai","ok":false,"ms":60001,"error":"AbortError"}]';

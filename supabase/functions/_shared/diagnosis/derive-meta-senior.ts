@@ -16,6 +16,10 @@ import {
 import { deriveStructureRecommendations } from "./derive-structure-recommendations.ts";
 import type { MetaSeniorDerived } from "./meta-senior-types.ts";
 import { deriveFunnelGuidanceForAi } from "./derive-analysis.ts";
+import {
+  createMetaGraphSession,
+  type MetaGraphSession,
+} from "../meta-graph-throttle.ts";
 
 /** `objective_spend_mix` é fração por família (0–1); legado em array com spend_pct. */
 function salesSpendPctFromMix(mix: unknown): number {
@@ -35,61 +39,73 @@ function salesSpendPctFromMix(mix: unknown): number {
   return 0;
 }
 
+async function runMetaFetch(
+  session: MetaGraphSession,
+  label: string,
+  fn: () => Promise<void>,
+  optional = false,
+): Promise<void> {
+  if (optional && session.skipOptional()) return;
+  try {
+    await session.beforeFetch();
+    await fn();
+  } catch (e) {
+    session.recordError(String(e));
+    console.warn(`[meta-senior] ${label}: ${String(e).slice(0, 120)}`);
+  }
+}
+
 /** Enriquece facts in-place com raw fetch (opcional — se já tiver dados, só deriva). */
 export async function enrichFactsWithMetaSeniorFetch(
   facts: Record<string, unknown>,
   actId: string,
   token: string,
+  metaSession?: MetaGraphSession,
 ): Promise<void> {
+  const session = metaSession ?? createMetaGraphSession();
   const current = dateRangeDaysAgo(0, 30);
   const previous = dateRangeDaysAgo(30, 30);
 
-  try {
+  await runMetaFetch(session, "account meta", async () => {
     facts.account_meta = await fetchAdAccountMeta(actId, token);
-  } catch (e) {
-    console.warn(`[meta-senior] account meta: ${String(e).slice(0, 120)}`);
-  }
+  });
 
-  try {
+  await runMetaFetch(session, "adset insights rich", async () => {
     const rich = await fetchAdsetInsightsRich(actId, token, 80);
     if (rich.length) facts.adsets_insights = rich;
-  } catch (e) {
-    console.warn(`[meta-senior] adset insights rich: ${String(e).slice(0, 120)}`);
-  }
+  });
 
-  try {
+  await runMetaFetch(session, "ads auction", async () => {
     facts.ads_insights_auction = await fetchAdsAuctionInsights(actId, token, 40);
-  } catch (e) {
-    console.warn(`[meta-senior] ads auction: ${String(e).slice(0, 120)}`);
+  }, true);
+  if (!facts.ads_insights_auction) {
     facts.ads_insights_auction = facts.ads_insights_top ?? [];
   }
 
-  try {
+  await runMetaFetch(session, "adset trends", async () => {
     facts.adsets_insights_current = await fetchAdsetInsightsForRange(
       actId,
       token,
       current.since,
       current.until,
     );
+    await session.beforeFetch();
     facts.adsets_insights_previous = await fetchAdsetInsightsForRange(
       actId,
       token,
       previous.since,
       previous.until,
     );
-  } catch (e) {
-    console.warn(`[meta-senior] adset trends: ${String(e).slice(0, 120)}`);
-  }
+  });
 
-  try {
+  await runMetaFetch(session, "adsets config", async () => {
     facts.adsets_config = await fetchAdsetsConfig(actId, token, 60);
-  } catch (e) {
-    console.warn(`[meta-senior] adsets config: ${String(e).slice(0, 120)}`);
-  }
+  }, true);
 
-  try {
+  await runMetaFetch(session, "recommendations", async () => {
     facts.meta_recommendations_raw = await fetchAccountRecommendations(actId, token);
-  } catch {
+  }, true);
+  if (!facts.meta_recommendations_raw) {
     facts.meta_recommendations_raw = [];
   }
 }

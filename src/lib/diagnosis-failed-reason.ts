@@ -35,10 +35,23 @@ function extractAiAttempts(raw: string): AiAttempt[] | null {
   }
 }
 
+function isInsufficientQuota(errors: string[]): boolean {
+  return errors.some((e) => e.includes("insufficient_quota"));
+}
+
+function isRateLimit(errors: string[]): boolean {
+  return errors.some(
+    (e) =>
+      e.includes("rate_limit_error") ||
+      e.includes("rate limit") ||
+      (e.includes("429") && !e.includes("insufficient_quota")),
+  );
+}
+
 function classifyFromAttempts(attempts: AiAttempt[]): ParsedDiagnosisFailure {
   const errors = attempts.map((a) => String(a.error ?? "").toLowerCase());
 
-  if (errors.some((e) => e.includes("insufficient_quota") || e.includes("429"))) {
+  if (isInsufficientQuota(errors)) {
     return {
       message:
         "Serviço de IA temporariamente indisponível. Estamos a resolver — tenta gerar o relatório novamente em alguns minutos.",
@@ -46,6 +59,17 @@ function classifyFromAttempts(attempts: AiAttempt[]): ParsedDiagnosisFailure {
       showRetry: true,
       showMetaReconnect: false,
       telemetryKind: "ai_quota",
+    };
+  }
+
+  if (isRateLimit(errors)) {
+    return {
+      message:
+        "Muitas tentativas em pouco tempo. Aguarda 2–3 minutos e tenta novamente.",
+      kind: "retry",
+      showRetry: true,
+      showMetaReconnect: false,
+      telemetryKind: "ai_rate_limit",
     };
   }
 
@@ -121,6 +145,16 @@ export function parseDiagnosisFailedReason(
   const legacyAttempts = extractAiAttempts(text);
   if (legacyAttempts) {
     return classifyFromAttempts(legacyAttempts);
+  }
+
+  if (/Muitas tentativas em pouco tempo/i.test(text)) {
+    return {
+      message: text,
+      kind: "retry",
+      showRetry: true,
+      showMetaReconnect: false,
+      telemetryKind: "ai_rate_limit",
+    };
   }
 
   if (

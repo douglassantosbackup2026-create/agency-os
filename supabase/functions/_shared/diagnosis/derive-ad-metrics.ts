@@ -38,7 +38,10 @@ export function deriveAdCreativeSignals(
   const impressions = num(top.impressions) ?? 0;
   const clicks = num(top.clicks) ?? 0;
   const outbound = actionValue(top, "outbound_clicks", "outbound_click");
-  const video3s = actionValue(top, "video_3_sec_watched_actions");
+  let video3s = actionValue(top, "video_3_sec_watched_actions");
+  if (!video3s) {
+    video3s = actionValue(top, "actions", "video_view");
+  }
 
   let topOutboundCtrPct: number | null = null;
   if (impressions > 0 && outbound > 0) {

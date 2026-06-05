@@ -21,11 +21,25 @@ import {
 import {
   AiAllProvidersFailedError,
   type AiAttempt,
+  isAnthropicRateLimitError,
   userFacingDiagnosisError,
 } from "../_shared/diagnosis/ai-failure-messages.ts";
+import {
+  createMetaGraphSession,
+  type MetaGraphSession,
+  sleep,
+} from "../_shared/meta-graph-throttle.ts";
 
 const PROMPT_VERSION = "diagnosis-growth-intelligence-v3";
-const AI_TIMEOUT_MS = 60_000;
+const AI_TIMEOUT_MS = Math.max(
+  30_000,
+  Number(Deno.env.get("DIAGNOSIS_AI_TIMEOUT_MS") ?? "120000") || 120_000,
+);
+
+const AD_INSIGHTS_FIELDS_FULL =
+  "ad_id,ad_name,campaign_name,impressions,clicks,spend,ctr,cpm,actions,action_values,outbound_clicks,outbound_clicks_ctr,video_p25_watched_actions,video_p50_watched_actions,video_p75_watched_actions,video_p100_watched_actions";
+const AD_INSIGHTS_FIELDS_MIN =
+  "ad_id,ad_name,campaign_name,impressions,clicks,spend,ctr,cpm,actions,action_values,outbound_clicks,outbound_clicks_ctr";
 
 const SYSTEM_PROMPT = `És um Diretor de Crescimento especializado em Meta Ads para e-commerce brasileiro — não és auditor, dashboard nem lista de KPIs. Respondes APENAS em PT-BR e APENAS com JSON válido (sem markdown, sem texto fora do JSON). Valores monetários sempre em BRL (a menos que facts.account_insights indique outra moeda). Hierarquia: Dinheiro → Crescimento → Gargalos → Riscos → Métricas.
 
@@ -472,10 +486,12 @@ async function fetchAdSetInsights(
 async function fetchAdSetsTargetingSample(
   campaigns: Record<string, unknown>[],
   token: string,
-  maxCampaigns = 5,
+  metaSession: MetaGraphSession,
+  maxCampaigns = 3,
 ): Promise<Record<string, unknown>[]> {
   const out: Record<string, unknown>[] = [];
   for (const c of campaigns.slice(0, maxCampaigns)) {
+    if (metaSession.skipOptional()) break;
     const cid = String(c.id ?? "");
     if (!cid) continue;
     const u = new URL(`https://graph.facebook.com/v21.0/${cid}/adsets`);
@@ -483,12 +499,14 @@ async function fetchAdSetsTargetingSample(
     u.searchParams.set("limit", "25");
     u.searchParams.set("access_token", token);
     try {
+      await metaSession.beforeFetch();
       const r = await fetch(u.toString());
       const j = (await r.json()) as {
         data?: Record<string, unknown>[];
         error?: { message: string };
       };
       if (j.error) {
+        metaSession.recordError(j.error.message);
         console.warn(
           `[process-diagnosis] adsets targeting ${cid}: ${j.error.message.slice(0, 120)}`,
         );
@@ -496,7 +514,9 @@ async function fetchAdSetsTargetingSample(
       }
       if (j.data?.length) out.push(...j.data);
     } catch (e) {
-      console.warn(`[process-diagnosis] adsets targeting fetch: ${String(e).slice(0, 120)}`);
+      const msg = String(e);
+      metaSession.recordError(msg);
+      console.warn(`[process-diagnosis] adsets targeting fetch: ${msg.slice(0, 120)}`);
     }
   }
   return out.slice(0, 60);
@@ -505,25 +525,47 @@ async function fetchAdSetsTargetingSample(
 async function fetchTopAdsInsights(
   actId: string,
   token: string,
+  metaSession: MetaGraphSession,
   limit = 25,
 ): Promise<Record<string, unknown>[]> {
-  const u = new URL(`https://graph.facebook.com/v21.0/${actId}/insights`);
-  u.searchParams.set("level", "ad");
-  u.searchParams.set(
-    "fields",
-    "ad_id,ad_name,campaign_name,impressions,clicks,spend,ctr,cpm,actions,action_values,outbound_clicks,outbound_clicks_ctr,video_3_sec_watched_actions,video_p25_watched_actions,video_p50_watched_actions,video_p75_watched_actions,video_p100_watched_actions",
-  );
-  u.searchParams.set("date_preset", "last_30d");
-  u.searchParams.set("sort", "spend_descending");
-  u.searchParams.set("limit", String(limit));
-  u.searchParams.set("access_token", token);
-  const r = await fetch(u.toString());
-  const j = (await r.json()) as {
-    data?: Record<string, unknown>[];
-    error?: { message: string };
-  };
-  if (j.error) throw new Error(j.error.message);
-  return j.data ?? [];
+  const fieldSets = [AD_INSIGHTS_FIELDS_FULL, AD_INSIGHTS_FIELDS_MIN];
+  for (const fields of fieldSets) {
+    if (metaSession.skipOptional()) return [];
+    const u = new URL(`https://graph.facebook.com/v21.0/${actId}/insights`);
+    u.searchParams.set("level", "ad");
+    u.searchParams.set("fields", fields);
+    u.searchParams.set("date_preset", "last_30d");
+    u.searchParams.set("sort", "spend_descending");
+    u.searchParams.set("limit", String(limit));
+    u.searchParams.set("access_token", token);
+    try {
+      await metaSession.beforeFetch();
+      const r = await fetch(u.toString());
+      const j = (await r.json()) as {
+        data?: Record<string, unknown>[];
+        error?: { message: string };
+      };
+      if (j.error) {
+        metaSession.recordError(j.error.message);
+        if (fields === AD_INSIGHTS_FIELDS_MIN) {
+          console.warn(
+            `[process-diagnosis] ad insights falhou: ${j.error.message.slice(0, 200)}`,
+          );
+          return [];
+        }
+        continue;
+      }
+      return j.data ?? [];
+    } catch (e) {
+      const msg = String(e);
+      metaSession.recordError(msg);
+      if (fields === AD_INSIGHTS_FIELDS_MIN) {
+        console.warn(`[process-diagnosis] ad insights falhou: ${msg.slice(0, 200)}`);
+        return [];
+      }
+    }
+  }
+  return [];
 }
 
 // ── AI Providers ─────────────────────────────────────────────────────────────
@@ -641,24 +683,38 @@ async function runWithFallback(
 ): Promise<{ analysis: Record<string, unknown>; provider: ProviderName; attempts: unknown[] }> {
   const attempts: unknown[] = [];
   for (const p of PROVIDERS) {
-    const t0 = Date.now();
-    try {
-      const analysis = await p.run(facts);
-      const ms = Date.now() - t0;
-      if (!validateAnalysis(analysis)) {
-        attempts.push({ provider: p.name, ok: false, ms, error: "validation_failed" });
-        console.warn(`[process-diagnosis] ${p.name} validação falhou (${ms}ms)`);
-        continue;
+    let anthropicRetried = false;
+    while (true) {
+      const t0 = Date.now();
+      try {
+        const analysis = await p.run(facts);
+        const ms = Date.now() - t0;
+        if (!validateAnalysis(analysis)) {
+          attempts.push({ provider: p.name, ok: false, ms, error: "validation_failed" });
+          console.warn(`[process-diagnosis] ${p.name} validação falhou (${ms}ms)`);
+          break;
+        }
+        const normalized = normalizeAnalysis(analysis as Record<string, unknown>, facts);
+        attempts.push({ provider: p.name, ok: true, ms });
+        console.log(`[process-diagnosis] ${p.name} OK (${ms}ms)`);
+        return { analysis: normalized, provider: p.name, attempts };
+      } catch (e) {
+        const ms = Date.now() - t0;
+        const err = String(e).slice(0, 300);
+        if (
+          p.name === "anthropic" &&
+          isAnthropicRateLimitError(err) &&
+          !anthropicRetried
+        ) {
+          anthropicRetried = true;
+          console.warn(`[process-diagnosis] anthropic rate limit — retry em 3s`);
+          await sleep(3000);
+          continue;
+        }
+        attempts.push({ provider: p.name, ok: false, ms, error: err });
+        console.warn(`[process-diagnosis] ${p.name} falhou (${ms}ms): ${err}`);
+        break;
       }
-      const normalized = normalizeAnalysis(analysis as Record<string, unknown>, facts);
-      attempts.push({ provider: p.name, ok: true, ms });
-      console.log(`[process-diagnosis] ${p.name} OK (${ms}ms)`);
-      return { analysis: normalized, provider: p.name, attempts };
-    } catch (e) {
-      const ms = Date.now() - t0;
-      const err = String(e).slice(0, 300);
-      attempts.push({ provider: p.name, ok: false, ms, error: err });
-      console.warn(`[process-diagnosis] ${p.name} falhou (${ms}ms): ${err}`);
     }
   }
   throw new AiAllProvidersFailedError(attempts as AiAttempt[]);
@@ -775,6 +831,7 @@ Deno.serve(async (req) => {
         const campaigns = cachedSampleHasObjective
           ? cachedSample!
           : await fetchCampaigns(actId, token);
+        const metaSession = createMetaGraphSession();
         let campaigns_insights: Record<string, unknown>[] = [];
         let ads_insights_top: Record<string, unknown>[] = [];
         let adsets_insights: Record<string, unknown>[] = [];
@@ -793,7 +850,8 @@ Deno.serve(async (req) => {
           adsets_targeting_sample = await fetchAdSetsTargetingSample(
             campaigns.slice(0, 40),
             token,
-            5,
+            metaSession,
+            3,
           );
         } catch (e) {
           console.warn(
@@ -801,7 +859,7 @@ Deno.serve(async (req) => {
           );
         }
         try {
-          ads_insights_top = await fetchTopAdsInsights(actId, token, 25);
+          ads_insights_top = await fetchTopAdsInsights(actId, token, metaSession, 25);
         } catch (e) {
           console.warn(`[process-diagnosis] ad insights falhou: ${String(e).slice(0, 200)}`);
         }
@@ -847,7 +905,7 @@ Deno.serve(async (req) => {
           !hasLearningData;
         if (needsMetaSenior) {
           try {
-            await enrichFactsWithMetaSeniorFetch(factsForAnalysis, actId, token);
+            await enrichFactsWithMetaSeniorFetch(factsForAnalysis, actId, token, metaSession);
           } catch (e) {
             console.warn(
               `[process-diagnosis] meta-senior fetch: ${String(e).slice(0, 200)}`,

@@ -24,11 +24,23 @@ function attemptErrors(attempts: AiAttempt[]): string[] {
   return attempts.map((a) => String(a.error ?? "").toLowerCase());
 }
 
+function isInsufficientQuota(errors: string[]): boolean {
+  return errors.some((e) => e.includes("insufficient_quota"));
+}
+
+function isRateLimit(errors: string[]): boolean {
+  return errors.some(
+    (e) =>
+      e.includes("rate_limit_error") ||
+      e.includes("rate limit") ||
+      (e.includes("429") && !e.includes("insufficient_quota")),
+  );
+}
+
 export function classifyAiFailureKind(attempts: AiAttempt[]): string {
   const errors = attemptErrors(attempts);
-  if (errors.some((e) => e.includes("insufficient_quota") || e.includes("429"))) {
-    return "ai_quota";
-  }
+  if (isInsufficientQuota(errors)) return "ai_quota";
+  if (isRateLimit(errors)) return "ai_rate_limit";
   if (errors.some((e) => e.includes("ausente") || e.includes("api_key"))) {
     return "ai_config";
   }
@@ -47,6 +59,8 @@ export function classifyAiFailureKind(attempts: AiAttempt[]): string {
 export function userFacingAiFailure(attempts: AiAttempt[]): string {
   const kind = classifyAiFailureKind(attempts);
   switch (kind) {
+    case "ai_rate_limit":
+      return "Muitas tentativas em pouco tempo. Aguarda 2–3 minutos e tenta novamente.";
     case "ai_quota":
       return "Serviço de IA temporariamente indisponível. Estamos a resolver — tenta gerar o relatório novamente em alguns minutos.";
     case "ai_config":
@@ -77,4 +91,10 @@ export function userFacingDiagnosisError(raw: string): string {
   if (/token meta|reconect/i.test(raw)) return raw.slice(0, 500);
   if (raw.length <= 500 && !raw.startsWith("Error:")) return raw;
   return "Não foi possível concluir o diagnóstico. Tenta novamente ou contacta o suporte.";
+}
+
+export function isAnthropicRateLimitError(err: string): boolean {
+  const e = err.toLowerCase();
+  return e.includes("429") &&
+    (e.includes("rate_limit") || e.includes("anthropic"));
 }

@@ -22,6 +22,9 @@ Deploy: `npm run ops:deploy-worker` (injeta `VITE_PUBLIC_SITE_URL` se ausente).
 | `OAUTH_STATE_SECRET` | Sim (≥ 16 chars) |
 | `CRON_SECRET` | Sim — `process-diagnosis` + fire-and-forget pós-OAuth |
 | `ANTHROPIC_API_KEY`, `CLAUDE_MODEL` | Sim |
+| `GEMINI_API_KEY` | Recomendado enquanto OpenAI estiver sem quota (fallback) |
+| `DIAGNOSIS_AI_TIMEOUT_MS` | Opcional (default 120000 ms) |
+| `META_FETCH_DELAY_MS` | Opcional (default 300 ms entre chamadas Graph) |
 | `META_TEST_ENABLED` | **false** ou ausente em prod |
 | `DIAGNOSIS_PRICE_CENTS`, `MANAGEMENT_PRICE_CENTS` | Opcional |
 

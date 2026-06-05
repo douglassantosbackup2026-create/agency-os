@@ -3,6 +3,9 @@ import { assertDiagnosisSecret } from "../_shared/diagnosis/validate-diagnosis-a
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 import { triggerProcessDiagnosis } from "../_shared/diagnosis/trigger-process-diagnosis.ts";
 import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
+import { distributedRateLimitExceeded } from "../_shared/distributed-rate-limit.ts";
+
+const RETRY_COOLDOWN_SEC = 120;
 
 function isMetaTokenFailure(reason: string | null | undefined): boolean {
   return /token meta|reconect/i.test(reason ?? "");
@@ -14,6 +17,24 @@ function isNonRetryableFailure(reason: string | null | undefined): boolean {
   if (/Orçamento diário de IA/.test(reason)) return true;
   if (/Configuração de IA incompleta/.test(reason)) return true;
   return false;
+}
+
+function cooldownResponse(updatedAt: string | null | undefined) {
+  const elapsed = updatedAt
+    ? Date.now() - new Date(updatedAt).getTime()
+    : 0;
+  const waitSec = Math.max(
+    1,
+    Math.ceil((RETRY_COOLDOWN_SEC * 1000 - elapsed) / 1000),
+  );
+  return jsonResponse(
+    {
+      error: `Aguarda ${waitSec} segundos antes de tentar novamente.`,
+      code: "retry_cooldown",
+      retry_after_sec: waitSec,
+    },
+    429,
+  );
 }
 
 Deno.serve(async (req) => {
@@ -47,7 +68,7 @@ Deno.serve(async (req) => {
   const sb = diagnosisServiceClient();
   const { data: row, error } = await sb
     .from("diagnoses")
-    .select("status, failed_reason, meta_ad_account_id")
+    .select("status, failed_reason, meta_ad_account_id, updated_at")
     .eq("id", d)
     .eq("secret_slug", s)
     .maybeSingle();
@@ -63,6 +84,24 @@ Deno.serve(async (req) => {
       { error: "Diagnóstico não está em estado de falha" },
       422,
     );
+  }
+
+  const updatedAt = row.updated_at as string | null | undefined;
+  if (
+    updatedAt &&
+    Date.now() - new Date(updatedAt).getTime() < RETRY_COOLDOWN_SEC * 1000
+  ) {
+    return cooldownResponse(updatedAt);
+  }
+
+  const rateLimited = await distributedRateLimitExceeded(
+    sb,
+    `diagnosis-retry:${d}`,
+    1,
+    RETRY_COOLDOWN_SEC,
+  );
+  if (rateLimited) {
+    return cooldownResponse(updatedAt);
   }
 
   if (isNonRetryableFailure(row.failed_reason)) {

@@ -1,11 +1,13 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { AlertCircle, Loader2, RefreshCw } from "lucide-react";
-import { callDiagnosisApi } from "@/lib/diagnosis-api";
+import { callDiagnosisApi, DiagnosisApiError } from "@/lib/diagnosis-api";
 import { parseDiagnosisFailedReason } from "@/lib/diagnosis-failed-reason";
 import { whatsappGestaoHref } from "@/lib/gestao-whatsapp";
 import { reportFunnelError } from "@/lib/report-error";
 import { toast } from "sonner";
+
+const RETRY_COOLDOWN_SEC = 120;
 
 type Props = {
   failedReason: string | null | undefined;
@@ -32,12 +34,26 @@ export function DiagnosisFailedPanel({
 }: Props) {
   const parsed = parseDiagnosisFailedReason(failedReason);
   const [retrying, setRetrying] = useState(false);
+  const [cooldownSec, setCooldownSec] = useState(0);
+
+  useEffect(() => {
+    if (cooldownSec <= 0) return;
+    const t = window.setInterval(() => {
+      setCooldownSec((s) => (s <= 1 ? 0 : s - 1));
+    }, 1000);
+    return () => window.clearInterval(t);
+  }, [cooldownSec]);
 
   const supportHref = whatsappGestaoHref(
     `Olá! O meu diagnóstico Meta Ads falhou e preciso de ajuda. ID: ${diagnosisId}`,
   );
 
+  const startCooldown = useCallback((seconds = RETRY_COOLDOWN_SEC) => {
+    setCooldownSec(seconds);
+  }, []);
+
   const handleRetry = useCallback(async () => {
+    if (cooldownSec > 0) return;
     setRetrying(true);
     reportFunnelError("diagnosis.retry_requested", { diagnosisId });
     try {
@@ -45,9 +61,15 @@ export function DiagnosisFailedPanel({
         "diagnosis-retry",
         { method: "POST", query: { d: diagnosisId, s: secretSlug } },
       );
+      startCooldown();
       onRetrySuccess?.();
     } catch (err) {
       reportFunnelError("diagnosis.retry_failed", err);
+      if (err instanceof DiagnosisApiError && err.status === 429) {
+        const body = err.message.match(/(\d+)\s+segundos/);
+        const wait = body ? Number(body[1]) : RETRY_COOLDOWN_SEC;
+        startCooldown(wait);
+      }
       toast.error(
         err instanceof Error
           ? err.message
@@ -56,10 +78,17 @@ export function DiagnosisFailedPanel({
     } finally {
       setRetrying(false);
     }
-  }, [diagnosisId, secretSlug, onRetrySuccess]);
+  }, [
+    cooldownSec,
+    diagnosisId,
+    secretSlug,
+    onRetrySuccess,
+    startCooldown,
+  ]);
 
   const showMeta =
     parsed.showMetaReconnect && Boolean(metaOAuthUrl);
+  const retryDisabled = retrying || cooldownSec > 0;
 
   return (
     <div className={className}>
@@ -73,7 +102,7 @@ export function DiagnosisFailedPanel({
               <button
                 type="button"
                 onClick={() => void handleRetry()}
-                disabled={retrying}
+                disabled={retryDisabled}
                 className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60"
               >
                 {retrying ? (
@@ -81,7 +110,9 @@ export function DiagnosisFailedPanel({
                 ) : (
                   <RefreshCw className="h-4 w-4" />
                 )}
-                Tentar novamente
+                {cooldownSec > 0
+                  ? `Aguarda ${cooldownSec}s`
+                  : "Tentar novamente"}
               </button>
             ) : null}
             {showMeta ? (
@@ -125,4 +156,3 @@ export function DiagnosisFailedPanel({
     </div>
   );
 }
-
