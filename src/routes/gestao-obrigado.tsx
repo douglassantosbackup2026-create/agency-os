@@ -1,10 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { invokeDiagnosisFunction } from "@/lib/diagnosis-invoke";
+import { callDiagnosisApi } from "@/lib/diagnosis-api";
 import {
   buildGestaoIntroMessage,
   whatsappGestaoHref,
 } from "@/lib/gestao-whatsapp";
+import { useDiagnosisPoll } from "@/hooks/use-diagnosis-poll";
+import { InlineErrorBanner } from "@/components/diagnosis-funnel/InlineErrorBanner";
+import { reportFunnelError } from "@/lib/report-error";
 import "@/styles/diagnosis.css";
 
 type GestaoObrigadoSearch = { d?: string; s?: string };
@@ -28,7 +31,6 @@ export const Route = createFileRoute("/gestao-obrigado")({
 function GestaoObrigadoPage() {
   const { d, s } = Route.useSearch();
   const [snapshot, setSnapshot] = useState<StatusPayload | null>(null);
-  const [pollErr, setPollErr] = useState<string | null>(null);
   const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
@@ -40,61 +42,35 @@ function GestaoObrigadoPage() {
     }
   }, [d, s]);
 
-  useEffect(() => {
-    if (!d || !s) return;
-    let alive = true;
-    const started = Date.now();
-    let intervalId = 0;
-
-    const stop = () => {
-      if (intervalId) window.clearInterval(intervalId);
-      intervalId = 0;
-    };
-
-    const tick = async (): Promise<"stop" | "continue"> => {
-      if (!alive) return "stop";
-      if (Date.now() - started > TIMEOUT_MS) {
-        setTimedOut(true);
+  const { pollError, retryNow } = useDiagnosisPoll({
+    enabled: Boolean(d && s),
+    intervalMs: POLL_MS,
+    maxDurationMs: TIMEOUT_MS,
+    onTick: async () => {
+      const j = await callDiagnosisApi<StatusPayload>("diagnosis-status", {
+        query: { d: d!, s: s! },
+      });
+      setSnapshot(j);
+      if (j.management_status === "paid") {
+        setTimedOut(false);
         return "stop";
       }
-      try {
-        const res = await invokeDiagnosisFunction("diagnosis-status", {
-          query: { d, s },
-        });
-        const j = (await res.json()) as StatusPayload & { error?: string };
-        if (!res.ok) throw new Error(j.error ?? "Erro ao consultar estado");
-        if (!alive) return "stop";
-        setSnapshot(j);
-        setPollErr(null);
-        if (j.management_status === "paid") {
-          setTimedOut(false);
-          return "stop";
-        }
-        return "continue";
-      } catch (e) {
-        if (alive) setPollErr(e instanceof Error ? e.message : "Erro");
-        return "continue";
-      }
-    };
+      return "continue";
+    },
+  });
 
-    const run = async () => {
-      const first = await tick();
-      if (!alive || first === "stop") return;
-      intervalId = window.setInterval(() => {
-        void (async () => {
-          const r = await tick();
-          if (r === "stop") stop();
-        })();
-      }, POLL_MS);
-    };
+  useEffect(() => {
+    if (!d || !s) return;
+    if (snapshot?.management_status === "paid") return;
+    const t = window.setTimeout(() => setTimedOut(true), TIMEOUT_MS);
+    return () => window.clearTimeout(t);
+  }, [d, s, snapshot?.management_status]);
 
-    void run();
-
-    return () => {
-      alive = false;
-      stop();
-    };
-  }, [d, s]);
+  useEffect(() => {
+    if (pollError) {
+      reportFunnelError("gestao.status_poll_failed", pollError);
+    }
+  }, [pollError]);
 
   const waHref = useMemo(() => {
     if (!d) return "";
@@ -158,7 +134,13 @@ function GestaoObrigadoPage() {
               </p>
             </>
           )}
-          {pollErr ? <p style={{ color: "#b91c1c" }}>{pollErr}</p> : null}
+          {pollError ? (
+            <InlineErrorBanner
+              message={pollError}
+              onRetry={retryNow}
+              className="mt-4"
+            />
+          ) : null}
         </div>
 
         {(confirmed || timedOut) && waHref ? (

@@ -5,7 +5,7 @@ import {
   mergeSubscription,
   type SubscriptionLimits,
 } from "@/lib/subscription-limits";
-import { throwIfSupabaseError } from "@/lib/supabase-result";
+import { throwIfSupabaseError, queryErrorMeta } from "@/lib/supabase-result";
 
 export function useSubscriptionLimits() {
   const { agency } = useAuth();
@@ -13,6 +13,7 @@ export function useSubscriptionLimits() {
   return useQuery({
     queryKey: ["subscription-limits", agency?.id],
     enabled: !!agency,
+    meta: queryErrorMeta,
     queryFn: async () => {
       const [sub, clientsCt, alertsCt] = await Promise.all([
         supabase

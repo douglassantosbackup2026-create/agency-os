@@ -11,6 +11,8 @@ import {
 } from "@/components/operational-ui";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
+import { throwIfSupabaseError, queryErrorMeta } from "@/lib/supabase-result";
+import { QueryErrorState } from "@/components/query-error-state";
 
 type ClientMini = Pick<
   Database["public"]["Tables"]["clients"]["Row"],
@@ -32,9 +34,10 @@ function CreativesPage() {
   const [previewUrl, setPreviewUrl] = useState("");
   const [description, setDescription] = useState("");
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["creatives", agency?.id],
     enabled: !!agency,
+    meta: queryErrorMeta,
     queryFn: async () => {
       const [clientsRes, creativesRes] = await Promise.all([
         supabase
@@ -48,6 +51,8 @@ function CreativesPage() {
           .eq("agency_id", agency!.id)
           .order("created_at", { ascending: false }),
       ]);
+      throwIfSupabaseError(clientsRes.error, "creatives.clients");
+      throwIfSupabaseError(creativesRes.error, "creatives.creative_assets");
       return {
         clients: (clientsRes.data ?? []) as ClientMini[],
         creatives: (creativesRes.data ?? []) as CreativeAssetRow[],
@@ -78,6 +83,17 @@ function CreativesPage() {
     setPreviewUrl("");
     setDescription("");
     refetch();
+  }
+
+  if (isError) {
+    return (
+      <QueryErrorState
+        message={
+          error instanceof Error ? error.message : String(error ?? "Erro")
+        }
+        onRetry={() => void refetch()}
+      />
+    );
   }
 
   if (isLoading || !data) return <PageSkeleton preset="compact" />;

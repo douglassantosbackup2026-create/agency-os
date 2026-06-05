@@ -20,7 +20,8 @@ import {
   SYNC_CRITICAL_HOURS,
 } from "@/lib/sync-freshness";
 import { toast } from "sonner";
-import { throwIfSupabaseError } from "@/lib/supabase-result";
+import { throwIfSupabaseError, queryErrorMeta } from "@/lib/supabase-result";
+import { QueryErrorState } from "@/components/query-error-state";
 import { Bell, Database, ListTodo } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/standup")({
@@ -68,9 +69,10 @@ function StandupPage() {
   const queryClient = useQueryClient();
   const { clientId: scopeClientId } = useOperationClientScope();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["standup", agency?.id, user?.id],
     enabled: !!agency?.id && !!user?.id,
+    meta: queryErrorMeta,
     queryFn: async () => {
       const todayIso = new Date().toISOString().slice(0, 10);
       const [actionsRes, alertsRes, syncRes, clientsRes, snoozeRes] =
@@ -251,6 +253,17 @@ function StandupPage() {
     },
     [agency?.id, user?.id, queryClient],
   );
+
+  if (isError) {
+    return (
+      <QueryErrorState
+        message={
+          error instanceof Error ? error.message : String(error ?? "Erro")
+        }
+        onRetry={() => void refetch()}
+      />
+    );
+  }
 
   if (isLoading || !data) return <PageSkeleton preset="compact" />;
 

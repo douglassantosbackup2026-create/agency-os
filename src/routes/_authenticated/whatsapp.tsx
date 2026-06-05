@@ -13,6 +13,8 @@ import {
   PageSkeleton,
 } from "@/components/operational-ui";
 import { timeAgo } from "@/lib/format";
+import { throwIfSupabaseError, queryErrorMeta } from "@/lib/supabase-result";
+import { QueryErrorState } from "@/components/query-error-state";
 
 export const Route = createFileRoute("/_authenticated/whatsapp")({
   component: WhatsApp,
@@ -58,9 +60,10 @@ function WhatsApp() {
   const [tplCategory, setTplCategory] = useState("geral");
   const [mergedPreview, setMergedPreview] = useState<string | null>(null);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["whatsapp", agency?.id],
     enabled: !!agency,
+    meta: queryErrorMeta,
     queryFn: async () => {
       const [logs, templates, clients] = await Promise.all([
         supabase
@@ -80,6 +83,9 @@ function WhatsApp() {
           .eq("agency_id", agency!.id)
           .order("name"),
       ]);
+      throwIfSupabaseError(logs.error, "whatsapp.logs");
+      throwIfSupabaseError(templates.error, "whatsapp.templates");
+      throwIfSupabaseError(clients.error, "whatsapp.clients");
       return {
         logs: logs.data ?? [],
         templates: templates.data ?? [],
@@ -199,6 +205,17 @@ function WhatsApp() {
   function fillTemplateFromSaved(body: string) {
     setMessage(body);
     setTab("send");
+  }
+
+  if (isError) {
+    return (
+      <QueryErrorState
+        message={
+          error instanceof Error ? error.message : String(error ?? "Erro")
+        }
+        onRetry={() => void refetch()}
+      />
+    );
   }
 
   if (isLoading || !data) return <PageSkeleton />;

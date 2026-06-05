@@ -1,4 +1,14 @@
-/** Ponto único para telemetria; em DEV faz log. Opcional: `window.__RETENTION_REPORT_ERROR__(source, error)`. */
+/**
+ * Telemetria central do app.
+ * Eventos do funil (via reportFunnelError):
+ * - checkout.pix_poll_failed
+ * - checkout.mp_sdk_failed
+ * - obrigado.status_poll_failed
+ * - gestao.status_poll_failed
+ * - diagnosis.report_fetch_failed
+ * - diagnosis.track_failed
+ * Opcional em produção: window.__RETENTION_REPORT_ERROR__(source, error)
+ */
 export function reportError(source: string, error: unknown): void {
   if (import.meta.env.DEV) {
     console.error(`[reportError:${source}]`, error);
@@ -16,4 +26,18 @@ export function reportError(source: string, error: unknown): void {
       /* ignore third-party failures */
     }
   }
+}
+
+export function reportFunnelError(
+  event:
+    | "checkout.pix_poll_failed"
+    | "checkout.mp_sdk_failed"
+    | "obrigado.status_poll_failed"
+    | "gestao.status_poll_failed"
+    | "diagnosis.report_fetch_failed"
+    | "diagnosis.track_failed"
+    | "diagnosis.funnel_boundary",
+  detail: unknown,
+): void {
+  reportError(`funnel:${event}`, detail);
 }

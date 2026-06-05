@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { timeAgo } from "@/lib/format";
 import { Card, Empty, PageSkeleton } from "@/components/operational-ui";
-import { throwIfSupabaseError } from "@/lib/supabase-result";
+import { throwIfSupabaseError, queryErrorMeta } from "@/lib/supabase-result";
 import { QueryErrorState } from "@/components/query-error-state";
 import { Activity as Act } from "lucide-react";
 import { useOperationClientScope } from "@/hooks/use-operation-client-scope";
@@ -20,6 +20,7 @@ function Feed() {
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["activity", agency?.id],
     enabled: !!agency,
+    meta: queryErrorMeta,
     queryFn: async () => {
       const res = await supabase
         .from("activities")

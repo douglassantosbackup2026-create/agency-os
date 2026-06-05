@@ -30,6 +30,8 @@ import {
   type ActionCenterListRowModel as ActionCenterRow,
 } from "@/components/action-center-list-row";
 import { VirtualList } from "@/components/virtual-list";
+import { throwIfSupabaseError, queryErrorMeta } from "@/lib/supabase-result";
+import { QueryErrorState } from "@/components/query-error-state";
 
 const ACTIONS_FILTERS_LS = "action-center-filters-v1";
 /** Referência estável para linhas não-expandidas — preserva memo() das rows. */
@@ -253,6 +255,8 @@ function ActionsCenter() {
   const {
     data: actionsRows,
     isLoading,
+    isError,
+    error,
     refetch,
   } = useQuery({
     queryKey: [
@@ -264,6 +268,7 @@ function ActionsCenter() {
       clientFilter,
     ],
     enabled: !!agency,
+    meta: queryErrorMeta,
     queryFn: async () => {
       let q = supabase
         .from("action_center")
@@ -277,8 +282,8 @@ function ActionsCenter() {
       if (priority !== "all") q = q.eq("priority", priority);
       if (clientFilter !== "all") q = q.eq("client_id", clientFilter);
 
-      const { data: rows, error } = await q;
-      if (error) throw error;
+      const { data: rows, error: listErr } = await q;
+      throwIfSupabaseError(listErr, "action_center.list");
       return rows ?? [];
     },
   });
@@ -317,13 +322,13 @@ function ActionsCenter() {
     queryKey: ["action-center-events", expandedId],
     enabled: !!expandedId,
     queryFn: async () => {
-      const { data: ev, error } = await supabase
+      const { data: ev, error: eventsErr } = await supabase
         .from("action_center_events")
         .select("id, event_type, payload, created_at")
         .eq("action_id", expandedId!)
         .order("created_at", { ascending: false })
         .limit(40);
-      if (error) throw error;
+      throwIfSupabaseError(eventsErr, "action_center.events");
       return ev ?? [];
     },
   });
@@ -420,6 +425,17 @@ function ActionsCenter() {
     },
     [patchAction],
   );
+
+  if (isError) {
+    return (
+      <QueryErrorState
+        message={
+          error instanceof Error ? error.message : String(error ?? "Erro")
+        }
+        onRetry={() => void refetch()}
+      />
+    );
+  }
 
   if (
     isLoading ||

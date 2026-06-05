@@ -66,7 +66,7 @@ import {
   Stat,
 } from "@/components/operational-ui";
 import { toast } from "sonner";
-import { throwIfSupabaseError } from "@/lib/supabase-result";
+import { throwIfSupabaseError, queryErrorMeta } from "@/lib/supabase-result";
 import { QueryErrorState } from "@/components/query-error-state";
 import { isOpenActionCenterStatus } from "@/lib/action-center-status";
 import { Button } from "@/components/ui/button";
@@ -183,6 +183,7 @@ function ClientDetail() {
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["client", clientId],
+    meta: queryErrorMeta,
     queryFn: async () => {
       const clientSnap = await supabase
         .from("clients")

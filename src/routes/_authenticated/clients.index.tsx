@@ -33,7 +33,7 @@ import { rowsToCsv } from "@/lib/csv";
 import { PageHeader } from "@/components/page-header";
 import { ClientCockpitRow } from "@/components/client-cockpit-row";
 import { QueryErrorState } from "@/components/query-error-state";
-import { throwIfSupabaseError } from "@/lib/supabase-result";
+import { throwIfSupabaseError, queryErrorMeta } from "@/lib/supabase-result";
 import { formatSyncAgeShort } from "@/lib/sync-freshness";
 import { VirtualList } from "@/components/virtual-list";
 
@@ -68,6 +68,7 @@ function Clients() {
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["clients", agency?.id],
     enabled: !!agency,
+    meta: queryErrorMeta,
     queryFn: async () => {
       const myRolesRes = await supabase
         .from("user_roles")

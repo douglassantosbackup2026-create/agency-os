@@ -41,6 +41,8 @@ import {
 import { VirtualList } from "@/components/virtual-list";
 import { useOperationClientScope } from "@/hooks/use-operation-client-scope";
 import { sortAlertsByOperationalPriority } from "@/lib/operational-priority";
+import { throwIfSupabaseError, queryErrorMeta } from "@/lib/supabase-result";
+import { QueryErrorState } from "@/components/query-error-state";
 
 export const Route = createFileRoute("/_authenticated/alerts")({
   component: Alerts,
@@ -80,9 +82,10 @@ function Alerts() {
     },
   );
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["alerts", agency?.id, filter],
     enabled: !!agency,
+    meta: queryErrorMeta,
     queryFn: async () => {
       let q = supabase
         .from("alerts")
@@ -91,16 +94,18 @@ function Alerts() {
         .order("created_at", { ascending: false })
         .limit(200);
       if (filter !== "all") q = q.eq("status", filter);
-      const [{ data: rows }, { data: prefs }] = await Promise.all([
+      const [alertsRes, prefsRes] = await Promise.all([
         q,
         supabase
           .from("client_whatsapp_prefs")
           .select("client_id, mute_whatsapp_until")
           .eq("agency_id", agency!.id),
       ]);
+      throwIfSupabaseError(alertsRes.error, "alerts.list");
+      throwIfSupabaseError(prefsRes.error, "alerts.wa_prefs");
       return {
-        alerts: rows ?? [],
-        waPrefs: prefs ?? [],
+        alerts: alertsRes.data ?? [],
+        waPrefs: prefsRes.data ?? [],
       };
     },
   });
@@ -385,6 +390,17 @@ function Alerts() {
       enabled ? "Notificações ativadas." : "Notificações desativadas.",
     );
   }, [desktopNotifications]);
+
+  if (isError) {
+    return (
+      <QueryErrorState
+        message={
+          error instanceof Error ? error.message : String(error ?? "Erro")
+        }
+        onRetry={() => void refetch()}
+      />
+    );
+  }
 
   if (isLoading || clientsLoading || teammatesLoading || !data)
     return <PageSkeleton preset="compact" />;

@@ -16,7 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ONBOARDING_CHECKLIST_STEPS } from "@/lib/onboarding-checklist";
-import { throwIfSupabaseError } from "@/lib/supabase-result";
+import { throwIfSupabaseError, queryErrorMeta } from "@/lib/supabase-result";
 import { QueryErrorState } from "@/components/query-error-state";
 
 export const Route = createFileRoute("/_authenticated/onboarding")({
@@ -127,6 +127,7 @@ function Onboarding() {
   } = useQuery({
     queryKey: ["onboarding-checklist", agency?.id],
     enabled: !!agency,
+    meta: queryErrorMeta,
     queryFn: async () => {
       const [clientsRes, itemsRes] = await Promise.all([
         supabase

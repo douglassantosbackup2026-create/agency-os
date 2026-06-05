@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -14,6 +15,7 @@ import { AuthProvider } from "@/hooks/use-auth";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { AppErrorBoundary } from "@/components/app-error-boundary";
+import { DiagnosisFunnelErrorBoundary } from "@/components/diagnosis-funnel/DiagnosisFunnelErrorBoundary";
 import { reportError } from "@/lib/report-error";
 import { useEffect, useSyncExternalStore } from "react";
 import { getSnapshotTheme, subscribeTheme } from "@/lib/theme";
@@ -199,6 +201,24 @@ function RootShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+function isDiagnosisFunnelPath(pathname: string): boolean {
+  return (
+    pathname === "/checkout" ||
+    pathname === "/obrigado" ||
+    pathname === "/gestao-obrigado" ||
+    pathname.startsWith("/diagnostico/")
+  );
+}
+
+function FunnelAwareOutlet() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const outlet = <Outlet />;
+  if (isDiagnosisFunnelPath(pathname)) {
+    return <DiagnosisFunnelErrorBoundary>{outlet}</DiagnosisFunnelErrorBoundary>;
+  }
+  return outlet;
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const colorMode = useSyncExternalStore(
@@ -225,7 +245,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <AppErrorBoundary>
-          <Outlet />
+          <FunnelAwareOutlet />
         </AppErrorBoundary>
         <Toaster position="top-right" theme={colorMode} />
       </AuthProvider>

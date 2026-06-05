@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { invokeDiagnosisFunction } from "@/lib/diagnosis-invoke";
+import { callDiagnosisApi } from "@/lib/diagnosis-api";
 
 type Args = {
   diagnosisId: string;
@@ -17,21 +17,19 @@ export function useManagementCheckout() {
     setError(null);
     setLoading(true);
     try {
-      const res = await invokeDiagnosisFunction("create-management-checkout", {
-        method: "POST",
-        body: JSON.stringify({
-          diagnosis_id: payload.diagnosisId,
-          secret_slug: payload.secretSlug,
-          business_name: payload.business_name,
-          website: payload.website,
-          instagram: payload.instagram,
-        }),
-      });
-      const j = (await res.json()) as {
-        init_point?: string;
-        error?: string;
-      };
-      if (!res.ok) throw new Error(j.error ?? "Erro ao criar checkout");
+      const j = await callDiagnosisApi<{ init_point?: string }>(
+        "create-management-checkout",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            diagnosis_id: payload.diagnosisId,
+            secret_slug: payload.secretSlug,
+            business_name: payload.business_name,
+            website: payload.website,
+            instagram: payload.instagram,
+          }),
+        },
+      );
       if (!j.init_point) throw new Error("Sem link de pagamento");
       window.location.href = j.init_point;
     } catch (e) {

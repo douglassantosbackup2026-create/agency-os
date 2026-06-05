@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { Database } from "@/integrations/supabase/types";
+import { throwIfSupabaseError, queryErrorMeta } from "@/lib/supabase-result";
+import { QueryErrorState } from "@/components/query-error-state";
 
 export const Route = createFileRoute("/_authenticated/ai-review")({
   component: AiReviewCenter,
@@ -107,9 +109,10 @@ function AiReviewCenter() {
   const { agency } = useAuth();
   const [kindFilter, setKindFilter] = useState<QueueKind | "all">("all");
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["ai-review-queue", agency?.id],
     enabled: !!agency,
+    meta: queryErrorMeta,
     queryFn: async () => {
       const [reports, alerts, meetings, wa, competitors] = await Promise.all([
         supabase
@@ -157,6 +160,11 @@ function AiReviewCenter() {
           .order("captured_at", { ascending: false })
           .limit(50),
       ]);
+      throwIfSupabaseError(reports.error, "ai-review.reports");
+      throwIfSupabaseError(alerts.error, "ai-review.alerts");
+      throwIfSupabaseError(meetings.error, "ai-review.meetings");
+      throwIfSupabaseError(wa.error, "ai-review.whatsapp");
+      throwIfSupabaseError(competitors.error, "ai-review.competitors");
       return {
         reports: reports.data ?? [],
         alerts: alerts.data ?? [],
@@ -497,6 +505,17 @@ function AiReviewCenter() {
       default:
         return k;
     }
+  }
+
+  if (isError) {
+    return (
+      <QueryErrorState
+        message={
+          error instanceof Error ? error.message : String(error ?? "Erro")
+        }
+        onRetry={() => void refetch()}
+      />
+    );
   }
 
   if (isLoading || !data) return <PageSkeleton preset="compact" />;

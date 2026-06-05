@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { invokeDiagnosisFunction } from "@/lib/diagnosis-invoke";
+import { callDiagnosisApi } from "@/lib/diagnosis-api";
 
 export type BusinessContext = {
   niche?: string | null;
@@ -42,7 +42,7 @@ export function DiagnosisBusinessContextForm({
     setSaving(true);
     setMessage(null);
     try {
-      const res = await invokeDiagnosisFunction("diagnosis-context", {
+      await callDiagnosisApi("diagnosis-context", {
         method: "POST",
         body: JSON.stringify({
           diagnosis_id: diagnosisId,
@@ -56,8 +56,6 @@ export function DiagnosisBusinessContextForm({
           },
         }),
       });
-      const j = await res.json();
-      if (!res.ok) throw new Error((j as { error?: string }).error ?? "Erro ao salvar");
       setMessage("Contexto salvo.");
       if (reportCompleted) {
         setMessage(

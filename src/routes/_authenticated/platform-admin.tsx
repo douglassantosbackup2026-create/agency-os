@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { edgeFunctionErrorMessage } from "@/lib/edge-function-error";
+import { throwIfSupabaseError, queryErrorMeta } from "@/lib/supabase-result";
+import { QueryErrorState } from "@/components/query-error-state";
 import { motion } from "framer-motion";
 import {
   Card,
@@ -72,9 +74,10 @@ function StatusDot({ ok }: { ok: boolean }) {
 function PlatformAdmin() {
   const { user } = useAuth();
 
-  const { data, isLoading, error, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["platform-admin", user?.id],
     enabled: !!user?.id,
+    meta: queryErrorMeta,
     queryFn: async () => {
       const [overviewRes, agenciesRes, oauthRes] = await Promise.all([
         supabase.rpc("platform_overview_counts"),
@@ -82,8 +85,8 @@ function PlatformAdmin() {
         supabase.functions.invoke("oauth-env-status", { body: {} }),
       ]);
 
-      if (overviewRes.error) throw overviewRes.error;
-      if (agenciesRes.error) throw agenciesRes.error;
+      throwIfSupabaseError(overviewRes.error, "platform-admin.overview");
+      throwIfSupabaseError(agenciesRes.error, "platform-admin.agencies");
 
       const raw = (overviewRes.data ?? [])[0] as OverviewRow | undefined;
       const overview = raw
@@ -112,18 +115,14 @@ function PlatformAdmin() {
 
   if (isLoading) return <PageSkeleton preset="compact" />;
 
-  if (error) {
+  if (isError) {
     return (
-      <div className="p-6">
-        <Empty
-          label={(error as Error).message}
-          action={
-            <Button type="button" variant="outline" onClick={() => refetch()}>
-              Tentar novamente
-            </Button>
-          }
-        />
-      </div>
+      <QueryErrorState
+        message={
+          error instanceof Error ? error.message : String(error ?? "Erro")
+        }
+        onRetry={() => void refetch()}
+      />
     );
   }
 

@@ -25,6 +25,8 @@ import {
   getReportRawDataView,
 } from "@/lib/supabase-json";
 import { useAiJobStatus } from "@/hooks/use-ai-job-status";
+import { throwIfSupabaseError, queryErrorMeta } from "@/lib/supabase-result";
+import { QueryErrorState } from "@/components/query-error-state";
 
 type ReportRow = Database["public"]["Tables"]["reports"]["Row"] & {
   clients?: {
@@ -81,9 +83,10 @@ function Reports() {
   >("created_desc");
   const [filtersHydrated, setFiltersHydrated] = useState(false);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["reports", agency?.id],
     enabled: !!agency,
+    meta: queryErrorMeta,
     queryFn: async () => {
       const [reports, clients] = await Promise.all([
         supabase
@@ -98,6 +101,8 @@ function Reports() {
           .eq("agency_id", agency!.id)
           .order("name"),
       ]);
+      throwIfSupabaseError(reports.error, "reports.list");
+      throwIfSupabaseError(clients.error, "reports.clients");
       return {
         reports: (reports.data ?? []) as ReportRow[],
         clients: clients.data ?? [],
@@ -525,6 +530,17 @@ function Reports() {
 
     doc.save(
       `relatorio-${(r.clients?.name ?? "cliente").toLowerCase().replace(/\s+/g, "-")}-${r.period_end ?? "atual"}.pdf`,
+    );
+  }
+
+  if (isError) {
+    return (
+      <QueryErrorState
+        message={
+          error instanceof Error ? error.message : String(error ?? "Erro")
+        }
+        onRetry={() => void refetch()}
+      />
     );
   }
 

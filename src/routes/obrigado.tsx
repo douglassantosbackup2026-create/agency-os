@@ -1,7 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { invokeDiagnosisFunction } from "@/lib/diagnosis-invoke";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { callDiagnosisApi } from "@/lib/diagnosis-api";
 import { resolveSupabaseUrl } from "@/lib/supabase-config";
+import { useDiagnosisPoll } from "@/hooks/use-diagnosis-poll";
+import { InlineErrorBanner } from "@/components/diagnosis-funnel/InlineErrorBanner";
+import { reportFunnelError } from "@/lib/report-error";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,9 +77,32 @@ function ObrigadoPage() {
   const navigate = useNavigate();
   const { d, s, t, oauth_error } = Route.useSearch();
   const [status, setStatus] = useState<StatusPayload | null>(null);
-  const [pollErr, setPollErr] = useState<string | null>(null);
   const [waitedSec, setWaitedSec] = useState(0);
   const [nextPollIn, setNextPollIn] = useState(POLL_MS / 1000);
+
+  const onStatusTick = useCallback(async () => {
+    const j = await callDiagnosisApi<StatusPayload>("diagnosis-status", {
+      query: { d: d!, s: s! },
+    });
+    setStatus(j);
+    setNextPollIn(POLL_MS / 1000);
+    if (j.status === "completed" || j.status === "failed") {
+      return "stop" as const;
+    }
+    return "continue" as const;
+  }, [d, s]);
+
+  const { pollError, retryNow, isPolling } = useDiagnosisPoll({
+    enabled: Boolean(d && s),
+    intervalMs: POLL_MS,
+    onTick: onStatusTick,
+  });
+
+  useEffect(() => {
+    if (pollError) {
+      reportFunnelError("obrigado.status_poll_failed", pollError);
+    }
+  }, [pollError]);
 
   // Client-only to avoid SSR hydration mismatch on window.location
   const [fullLink, setFullLink] = useState<string>("");
@@ -146,39 +172,22 @@ function ObrigadoPage() {
     };
   }, [t, auto.kind, d, s, navigate]);
 
-  // ---- Status polling -------------------------------------------------
+  // ---- Status polling timer (UI countdown) ----------------------------
   useEffect(() => {
     if (!d || !s) return;
     let alive = true;
-    const tick = async () => {
-      try {
-        const res = await invokeDiagnosisFunction("diagnosis-status", {
-          query: { d, s },
-        });
-        const j = (await res.json()) as StatusPayload & { error?: string };
-        if (!res.ok) throw new Error(j.error ?? "Erro ao consultar estado");
-        if (alive) {
-          setStatus(j);
-          setPollErr(null);
-          setNextPollIn(POLL_MS / 1000);
-        }
-      } catch (e) {
-        if (alive) setPollErr(e instanceof Error ? e.message : "Erro");
-      }
-    };
-    void tick();
-    const id = window.setInterval(() => void tick(), POLL_MS);
     const sec = window.setInterval(() => {
       if (!alive) return;
       setWaitedSec((x) => x + 1);
-      setNextPollIn((x) => (x <= 1 ? POLL_MS / 1000 : x - 1));
+      if (isPolling) {
+        setNextPollIn((x) => (x <= 1 ? POLL_MS / 1000 : x - 1));
+      }
     }, 1000);
     return () => {
       alive = false;
-      window.clearInterval(id);
       window.clearInterval(sec);
     };
-  }, [d, s]);
+  }, [d, s, isPolling]);
 
   const oauthBase = () => {
     const u = resolveSupabaseUrl();
@@ -281,7 +290,9 @@ function ObrigadoPage() {
           />
         ) : null}
 
-        {st === "processing" ? <ProcessingCard pollErr={pollErr} /> : null}
+        {st === "processing" ? (
+          <ProcessingCard pollErr={pollError} onRetry={retryNow} />
+        ) : null}
 
         {st === "completed" ? (
           <div className="mt-4 rounded-2xl border bg-card p-6 shadow-sm animate-fade-in">
@@ -314,20 +325,40 @@ function ObrigadoPage() {
           <div className="mt-4 rounded-2xl border border-destructive/30 bg-destructive/5 p-6 animate-fade-in">
             <div className="flex items-start gap-3">
               <AlertCircle className="mt-0.5 h-5 w-5 text-destructive" />
-              <div>
+              <div className="flex-1">
                 <h2 className="text-lg font-semibold text-destructive">
                   Algo correu mal
                 </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {status?.failed_reason ?? "Erro desconhecido"}
                 </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {metaUrl ? (
+                    <a
+                      href={metaUrl}
+                      className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90"
+                    >
+                      Reconectar Meta
+                    </a>
+                  ) : null}
+                  <Link
+                    to="/"
+                    className="inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-medium hover:bg-accent"
+                  >
+                    Voltar ao início
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
         ) : null}
 
-        {pollErr && st !== "processing" && st !== "awaiting_payment" ? (
-          <p className="mt-4 text-sm text-muted-foreground">{pollErr}</p>
+        {pollError ? (
+          <InlineErrorBanner
+            message={pollError}
+            onRetry={retryNow}
+            className="mt-4"
+          />
         ) : null}
 
         <TrustFooter />
@@ -657,7 +688,13 @@ function AwaitingPaymentCard({
 /* Processing                                                                 */
 /* -------------------------------------------------------------------------- */
 
-function ProcessingCard({ pollErr }: { pollErr: string | null }) {
+function ProcessingCard({
+  pollErr,
+  onRetry,
+}: {
+  pollErr: string | null;
+  onRetry?: () => void;
+}) {
   const [tick, setTick] = useState(0);
   useEffect(() => {
     const id = window.setInterval(() => setTick((x) => x + 1), 1500);
@@ -726,7 +763,11 @@ function ProcessingCard({ pollErr }: { pollErr: string | null }) {
       </ul>
 
       {pollErr ? (
-        <p className="mt-4 text-xs text-destructive">{pollErr}</p>
+        <InlineErrorBanner
+          message={pollErr}
+          onRetry={onRetry}
+          className="mt-4"
+        />
       ) : null}
     </div>
   );

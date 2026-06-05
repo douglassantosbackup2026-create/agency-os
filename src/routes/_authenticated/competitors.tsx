@@ -11,6 +11,8 @@ import {
 } from "@/components/operational-ui";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
+import { throwIfSupabaseError, queryErrorMeta } from "@/lib/supabase-result";
+import { QueryErrorState } from "@/components/query-error-state";
 
 type ClientMini = Pick<
   Database["public"]["Tables"]["clients"]["Row"],
@@ -35,9 +37,10 @@ function CompetitorsPage() {
   const [name, setName] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["competitors", agency?.id],
     enabled: !!agency,
+    meta: queryErrorMeta,
     queryFn: async () => {
       const [clientsRes, wlRes, snapRes] = await Promise.all([
         supabase
@@ -57,6 +60,9 @@ function CompetitorsPage() {
           .order("captured_at", { ascending: false })
           .limit(30),
       ]);
+      throwIfSupabaseError(clientsRes.error, "competitors.clients");
+      throwIfSupabaseError(wlRes.error, "competitors.watchlist");
+      throwIfSupabaseError(snapRes.error, "competitors.snapshots");
       return {
         clients: clientsRes.data ?? [],
         watchlist: wlRes.data ?? [],
@@ -104,6 +110,17 @@ function CompetitorsPage() {
         : 0;
     toast.success(`Snapshots criados: ${created}`);
     refetch();
+  }
+
+  if (isError) {
+    return (
+      <QueryErrorState
+        message={
+          error instanceof Error ? error.message : String(error ?? "Erro")
+        }
+        onRetry={() => void refetch()}
+      />
+    );
   }
 
   if (isLoading || !data) return <PageSkeleton preset="compact" />;

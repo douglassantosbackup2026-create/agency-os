@@ -23,6 +23,8 @@ import { AgencyClientSelect } from "@/components/agency-client-select";
 import { timeAgo, initials } from "@/lib/format";
 import type { Database } from "@/integrations/supabase/types";
 import { escapeCsvField } from "@/lib/csv";
+import { throwIfSupabaseError, queryErrorMeta } from "@/lib/supabase-result";
+import { QueryErrorState } from "@/components/query-error-state";
 
 type AiUsageRow = Pick<
   Database["public"]["Tables"]["ai_usage_events"]["Row"],
@@ -145,9 +147,10 @@ function Admin() {
   const [auditDays, setAuditDays] = useState<number>(30);
   const [auditClientId, setAuditClientId] = useState("");
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["admin", agency?.id, auditDays, auditClientId],
     enabled: !!agency,
+    meta: queryErrorMeta,
     queryFn: async () => {
       const [roles, flags, sub, activity] = await Promise.all([
         supabase
@@ -167,6 +170,10 @@ function Admin() {
           .order("created_at", { ascending: false })
           .limit(20),
       ]);
+      throwIfSupabaseError(roles.error, "admin.user_roles");
+      throwIfSupabaseError(flags.error, "admin.feature_flags");
+      throwIfSupabaseError(sub.error, "admin.subscriptions");
+      throwIfSupabaseError(activity.error, "admin.activities");
       const sinceAi = new Date(Date.now() - 30 * 86400000)
         .toISOString()
         .slice(0, 10);
@@ -244,6 +251,21 @@ function Admin() {
           return q;
         })(),
       ]);
+
+      throwIfSupabaseError(clients.error, "admin.clients");
+      throwIfSupabaseError(scopes.error, "admin.client_member_scopes");
+      throwIfSupabaseError(syncRuns.error, "admin.sync_runs");
+      throwIfSupabaseError(syncRunErrors.error, "admin.sync_run_errors");
+      throwIfSupabaseError(aiUsage.error, "admin.ai_usage_events");
+      throwIfSupabaseError(integrations.error, "admin.integrations");
+      throwIfSupabaseError(
+        auditRecoStatuses.error,
+        "admin.audit_reco_status",
+      );
+      throwIfSupabaseError(
+        auditCampaignActions.error,
+        "admin.audit_campaign_actions",
+      );
 
       const recoByAction: Record<string, number> = {};
       for (const row of auditRecoStatuses.data ?? []) {
@@ -349,6 +371,17 @@ function Admin() {
       if (error) return toast.error(error.message);
     }
     refetch();
+  }
+
+  if (isError) {
+    return (
+      <QueryErrorState
+        message={
+          error instanceof Error ? error.message : String(error ?? "Erro")
+        }
+        onRetry={() => void refetch()}
+      />
+    );
   }
 
   if (isLoading || !data) return <PageSkeleton />;

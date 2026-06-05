@@ -11,7 +11,7 @@ import {
   ScoreBar,
 } from "@/components/operational-ui";
 import type { Database } from "@/integrations/supabase/types";
-import { throwIfSupabaseError } from "@/lib/supabase-result";
+import { throwIfSupabaseError, queryErrorMeta } from "@/lib/supabase-result";
 import { QueryErrorState } from "@/components/query-error-state";
 
 type ClientBrief = Pick<
@@ -30,6 +30,7 @@ function Health() {
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["health", agency?.id],
     enabled: !!agency,
+    meta: queryErrorMeta,
     queryFn: async () => {
       const [clients, scores] = await Promise.all([
         supabase

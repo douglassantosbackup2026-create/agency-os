@@ -44,7 +44,7 @@ import {
 import { ONBOARDING_STEP_KEYS } from "@/lib/onboarding-checklist";
 import { buildPortfolioNextSteps, formatEffort } from "@/lib/next-steps-queue";
 import { invokeWithToast } from "@/lib/supabase-invoke";
-import { throwIfSupabaseError } from "@/lib/supabase-result";
+import { throwIfSupabaseError, queryErrorMeta } from "@/lib/supabase-result";
 import { QueryErrorState } from "@/components/query-error-state";
 import { toast } from "sonner";
 import {
@@ -108,6 +108,7 @@ function Dashboard() {
     queryKey: dashboardQueryKey(agency?.id),
     enabled: !!agency,
     staleTime: DASHBOARD_STALE_MS,
+    meta: queryErrorMeta,
     queryFn: async () => {
       const { data: detail, error: detailErr } = await supabase.rpc(
         "get_agency_dashboard_detail",

@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
-import { invokeDiagnosisFunction } from "@/lib/diagnosis-invoke";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { callDiagnosisApi } from "@/lib/diagnosis-api";
+import { resolveSupabaseUrl } from "@/lib/supabase-config";
 import {
   buildGestaoIntroMessage,
   whatsappGestaoHref,
@@ -8,6 +9,8 @@ import {
 import { useManagementCheckout } from "@/hooks/use-management-checkout";
 import type { DiagnosisAnalysis } from "@/components/diagnosis-report/types";
 import { DiagnosisExecutiveReport } from "@/components/diagnosis-report/executive/DiagnosisExecutiveReport";
+import { InlineErrorBanner } from "@/components/diagnosis-funnel/InlineErrorBanner";
+import { reportFunnelError } from "@/lib/report-error";
 import "@/styles/diagnosis-executive.css";
 
 const GESTAO_URGENCY_TEXT =
@@ -60,6 +63,21 @@ function DiagnosticoReportPage() {
     } | null;
   } | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [loadKey, setLoadKey] = useState(0);
+
+  const refetchReport = useCallback(() => {
+    setErr(null);
+    setData(null);
+    setLoadKey((k) => k + 1);
+  }, []);
+
+  const metaOAuthUrl = useMemo(() => {
+    if (!s) return "";
+    const base = resolveSupabaseUrl();
+    return base
+      ? `${base}/functions/v1/meta-oauth-start?d=${encodeURIComponent(diagnosisId)}&s=${encodeURIComponent(s)}`
+      : "";
+  }, [diagnosisId, s]);
 
   useEffect(() => {
     document.title = "Diagnóstico Executivo Meta Ads — Retentio";
@@ -74,14 +92,14 @@ function DiagnosticoReportPage() {
 
   useEffect(() => {
     if (!s) return;
-    void invokeDiagnosisFunction("diagnosis-track", {
+    void callDiagnosisApi("diagnosis-track", {
       method: "POST",
       body: JSON.stringify({
         diagnosis_id: diagnosisId,
         secret_slug: s,
         event: "viewed",
       }),
-    });
+    }).catch((e) => reportFunnelError("diagnosis.track_failed", e));
   }, [diagnosisId, s]);
 
   useEffect(() => {
@@ -94,41 +112,47 @@ function DiagnosticoReportPage() {
     let alive = true;
     (async () => {
       try {
-        const res = await invokeDiagnosisFunction("diagnosis-report", {
+        const j = await callDiagnosisApi<typeof data>("diagnosis-report", {
           query: { d: diagnosisId, s },
         });
-        const j = (await res.json()) as typeof data & { error?: string };
-        if (!res.ok) throw new Error(j.error ?? "Erro");
         if (alive) setData(j);
       } catch (e) {
-        if (alive) setErr(e instanceof Error ? e.message : "Erro");
+        if (alive) {
+          const message = e instanceof Error ? e.message : "Erro";
+          setErr(message);
+          reportFunnelError("diagnosis.report_fetch_failed", e);
+        }
       }
     })();
     return () => {
       alive = false;
     };
-  }, [diagnosisId, s]);
+  }, [diagnosisId, s, loadKey]);
 
   const analysis = data?.report?.analysis_json;
 
   function trackEvent(event: string) {
     if (!s) return;
-    void invokeDiagnosisFunction("diagnosis-track", {
+    void callDiagnosisApi("diagnosis-track", {
       method: "POST",
       body: JSON.stringify({ diagnosis_id: diagnosisId, secret_slug: s, event }),
-    }).catch(() => {});
+    }).catch((e) => reportFunnelError("diagnosis.track_failed", e));
   }
 
   async function trackCta() {
     if (!s) return;
-    await invokeDiagnosisFunction("diagnosis-track", {
-      method: "POST",
-      body: JSON.stringify({
-        diagnosis_id: diagnosisId,
-        secret_slug: s,
-        event: "cta",
-      }),
-    });
+    try {
+      await callDiagnosisApi("diagnosis-track", {
+        method: "POST",
+        body: JSON.stringify({
+          diagnosis_id: diagnosisId,
+          secret_slug: s,
+          event: "cta",
+        }),
+      });
+    } catch (e) {
+      reportFunnelError("diagnosis.track_failed", e);
+    }
   }
 
   const managementPaid = data?.diagnosis?.management_status === "paid";
@@ -168,7 +192,20 @@ function DiagnosticoReportPage() {
         <div className="exec-state">
           <div className="exec-state-card">
             <h1>Não foi possível abrir</h1>
-            <p>{err}</p>
+            <InlineErrorBanner
+              message={err}
+              onRetry={refetchReport}
+              className="mt-4 text-left"
+            />
+            {s ? (
+              <Link
+                to="/obrigado"
+                search={{ d: diagnosisId, s }}
+                className="exec-btn exec-btn-ghost mt-4 inline-flex"
+              >
+                Ver status do pedido
+              </Link>
+            ) : null}
           </div>
         </div>
       </div>
@@ -209,12 +246,31 @@ function DiagnosticoReportPage() {
   }
 
   if (data.diagnosis.status === "failed") {
+    const reason = data.diagnosis.failed_reason ?? "Erro desconhecido";
+    const needsReconnect = /token|meta|reconect/i.test(reason);
     return (
       <div className="exec-root">
         <div className="exec-state">
           <div className="exec-state-card">
             <h1>Diagnóstico falhou</h1>
-            <p>{data.diagnosis.failed_reason}</p>
+            <p className="mt-2">{reason}</p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link
+                to="/obrigado"
+                search={{ d: diagnosisId, s: s! }}
+                className="exec-btn exec-btn-ghost inline-flex"
+              >
+                Ver status do pedido
+              </Link>
+              {needsReconnect && metaOAuthUrl ? (
+                <a
+                  href={metaOAuthUrl}
+                  className="exec-btn exec-btn-primary inline-flex"
+                >
+                  Reconectar Meta
+                </a>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>

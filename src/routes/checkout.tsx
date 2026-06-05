@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
 import {
@@ -16,7 +16,10 @@ import {
   Mail,
 } from "lucide-react";
 
-import { invokeDiagnosisFunction } from "@/lib/diagnosis-invoke";
+import { callDiagnosisApi } from "@/lib/diagnosis-api";
+import { useDiagnosisPoll } from "@/hooks/use-diagnosis-poll";
+import { InlineErrorBanner } from "@/components/diagnosis-funnel/InlineErrorBanner";
+import { reportFunnelError } from "@/lib/report-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -144,31 +147,89 @@ interface MpInstance {
   }) => Promise<Array<{ id: string }>>;
 }
 
-function useMercadoPago(publicKey: string | null): MpInstance | null {
+function useMercadoPago(publicKey: string | null): {
+  mp: MpInstance | null;
+  sdkError: string | null;
+} {
   const [mp, setMp] = useState<MpInstance | null>(null);
+  const [sdkError, setSdkError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!publicKey || typeof window === "undefined") return;
+
+    setSdkError(null);
+    setMp(null);
+
+    let timeoutId = 0;
+    let cancelled = false;
+
+    const failSdk = (message: string) => {
+      if (cancelled) return;
+      setSdkError(message);
+      reportFunnelError("checkout.mp_sdk_failed", message);
+    };
+
+    const init = () => {
+      if (cancelled || !window.MercadoPago) return;
+      setMp(new window.MercadoPago(publicKey, { locale: "pt-BR" }));
+      if (timeoutId) window.clearTimeout(timeoutId);
+    };
+
+    timeoutId = window.setTimeout(() => {
+      setMp((current) => {
+        if (!current) {
+          failSdk(
+            "Não foi possível carregar o Mercado Pago. Recarregue a página ou tente outro navegador.",
+          );
+        }
+        return current;
+      });
+    }, 15_000);
+
     const existing = document.querySelector<HTMLScriptElement>(
       'script[data-mp-sdk="v2"]',
     );
-    const init = () => {
-      if (window.MercadoPago) {
-        setMp(new window.MercadoPago(publicKey, { locale: "pt-BR" }));
-      }
-    };
     if (existing) {
       if (window.MercadoPago) init();
-      else existing.addEventListener("load", init, { once: true });
-      return;
+      else {
+        existing.addEventListener("load", init, { once: true });
+        existing.addEventListener(
+          "error",
+          () =>
+            failSdk(
+              "Falha ao carregar o script do Mercado Pago. Verifique a ligação e recarregue a página.",
+            ),
+          { once: true },
+        );
+      }
+      return () => {
+        cancelled = true;
+        if (timeoutId) window.clearTimeout(timeoutId);
+      };
     }
+
     const s = document.createElement("script");
     s.src = "https://sdk.mercadopago.com/js/v2";
     s.async = true;
     s.dataset.mpSdk = "v2";
     s.addEventListener("load", init, { once: true });
+    s.addEventListener(
+      "error",
+      () =>
+        failSdk(
+          "Falha ao carregar o script do Mercado Pago. Verifique a ligação e recarregue a página.",
+        ),
+      { once: true },
+    );
     document.head.appendChild(s);
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) window.clearTimeout(timeoutId);
+    };
   }, [publicKey]);
-  return mp;
+
+  return { mp, sdkError };
 }
 
 // ============================================================
@@ -182,15 +243,12 @@ type StartResp = {
 };
 
 async function apiStart(payer: PayerForm): Promise<StartResp> {
-  const res = await invokeDiagnosisFunction("start-diagnosis-payment", {
+  return callDiagnosisApi<StartResp>("start-diagnosis-payment", {
     method: "POST",
     body: JSON.stringify({
       payer: { ...payer, cpf: onlyDigits(payer.cpf), phone: onlyDigits(payer.phone) },
     }),
   });
-  const j = (await res.json()) as StartResp & { error?: string };
-  if (!res.ok) throw new Error(j.error ?? "Falha ao iniciar pagamento");
-  return j;
 }
 
 type ProcessResp = {
@@ -209,34 +267,23 @@ type ProcessResp = {
 };
 
 async function apiProcess(payload: Record<string, unknown>): Promise<ProcessResp> {
-  const res = await invokeDiagnosisFunction("process-diagnosis-payment", {
+  return callDiagnosisApi<ProcessResp>("process-diagnosis-payment", {
     method: "POST",
     body: JSON.stringify(payload),
   });
-  const j = (await res.json()) as ProcessResp;
-  if (!res.ok) {
-    if (j.code === "mp_credentials_environment_mismatch") {
-      throw new Error(
-        "As credenciais do Mercado Pago estão em modo produção. Para testar, use credenciais TEST- e comprador de teste; para uma venda real, use dados reais do comprador.",
-      );
-    }
-    throw new Error(j.error ?? "Pagamento recusado");
-  }
-  return j;
 }
 
 async function apiStatus(
   d: string,
   s: string,
 ): Promise<{ status: string; auto_login_token: string | null }> {
-  const res = await invokeDiagnosisFunction("diagnosis-payment-status", {
+  const j = await callDiagnosisApi<{
+    status?: string;
+    auto_login_token?: string | null;
+  }>("diagnosis-payment-status", {
     method: "GET",
     query: { d, s },
   });
-  const j = (await res.json()) as {
-    status?: string;
-    auto_login_token?: string | null;
-  };
   return {
     status: j.status ?? "unknown",
     auto_login_token: j.auto_login_token ?? null,
@@ -319,7 +366,7 @@ function CheckoutPage() {
   const [started, setStarted] = useState<StartResp | null>(null);
   const [method, setMethod] = useState<"pix" | "card">("pix");
 
-  const mp = useMercadoPago(started?.mp_public_key ?? null);
+  const { mp, sdkError } = useMercadoPago(started?.mp_public_key ?? null);
   const amount = started?.amount_cents ?? DEFAULT_AMOUNT_CENTS;
 
   const ensureStarted = useCallback(async (): Promise<StartResp | null> => {
@@ -554,6 +601,7 @@ function CheckoutPage() {
                 ensureStarted={ensureStarted}
                 starting={submitting}
                 mp={mp}
+                sdkError={sdkError}
                 amount={amount}
                 onApproved={onApproved}
               />
@@ -657,7 +705,31 @@ function PixSection({
     qr_code_base64: string;
   } | null>(null);
   const [copied, setCopied] = useState(false);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const onPixPollTick = useCallback(async () => {
+    if (!started) return "continue" as const;
+    const { status, auto_login_token } = await apiStatus(
+      started.diagnosis_id,
+      started.secret_slug,
+    );
+    if (status !== "awaiting_payment") {
+      onApproved(started.diagnosis_id, started.secret_slug, auto_login_token);
+      return "stop" as const;
+    }
+    return "continue" as const;
+  }, [started, onApproved]);
+
+  const { pollError, retryNow } = useDiagnosisPoll({
+    enabled: Boolean(pix && started),
+    intervalMs: 3000,
+    onTick: onPixPollTick,
+  });
+
+  useEffect(() => {
+    if (pollError) {
+      reportFunnelError("checkout.pix_poll_failed", pollError);
+    }
+  }, [pollError]);
 
   const generate = useCallback(async () => {
     setErr(null);
@@ -685,29 +757,6 @@ function PixSection({
     }
   }, [ensureStarted]);
 
-  useEffect(() => {
-    if (!pix || !started) return;
-    const checkStatus = async () => {
-      try {
-        const { status, auto_login_token } = await apiStatus(
-          started.diagnosis_id,
-          started.secret_slug,
-        );
-        if (status !== "awaiting_payment") {
-          if (pollRef.current) clearInterval(pollRef.current);
-          onApproved(started.diagnosis_id, started.secret_slug, auto_login_token);
-        }
-      } catch {
-        /* ignore */
-      }
-    };
-    void checkStatus();
-    pollRef.current = setInterval(() => void checkStatus(), 3000);
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, [pix, started, onApproved]);
-
   const confirmNow = useCallback(async () => {
     if (!started) return;
     setErr(null);
@@ -718,7 +767,6 @@ function PixSection({
         started.secret_slug,
       );
       if (status !== "awaiting_payment") {
-        if (pollRef.current) clearInterval(pollRef.current);
         onApproved(started.diagnosis_id, started.secret_slug, auto_login_token);
       } else {
         setErr("Ainda não recebemos a confirmação do Mercado Pago. Aguarde alguns segundos e tente novamente.");
@@ -801,6 +849,9 @@ function PixSection({
           {err}
         </div>
       ) : null}
+      {pollError ? (
+        <InlineErrorBanner message={pollError} onRetry={retryNow} />
+      ) : null}
       <Button
         type="button"
         variant="outline"
@@ -823,6 +874,7 @@ function CardSection({
   ensureStarted,
   starting,
   mp,
+  sdkError,
   amount,
   onApproved,
 }: {
@@ -830,6 +882,7 @@ function CardSection({
   ensureStarted: () => Promise<StartResp | null>;
   starting: boolean;
   mp: MpInstance | null;
+  sdkError: string | null;
   amount: number;
   onApproved: (d: string, s: string, t?: string | null) => void;
 }) {
@@ -915,6 +968,13 @@ function CardSection({
 
   return (
     <form onSubmit={submit} className="space-y-4">
+      {sdkError ? (
+        <InlineErrorBanner
+          message={sdkError}
+          onRetry={() => window.location.reload()}
+          retryLabel="Recarregar página"
+        />
+      ) : null}
       <div className="space-y-1.5">
         <Label htmlFor="cardNumber">Número do cartão</Label>
         <Input

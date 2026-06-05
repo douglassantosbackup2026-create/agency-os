@@ -17,6 +17,8 @@ import { Card, CardHeader, PageSkeleton } from "@/components/operational-ui";
 import { timeAgo } from "@/lib/format";
 import type { Database, Json } from "@/integrations/supabase/types";
 import { edgeFunctionErrorMessage } from "@/lib/edge-function-error";
+import { throwIfSupabaseError, queryErrorMeta } from "@/lib/supabase-result";
+import { QueryErrorState } from "@/components/query-error-state";
 
 export const Route = createFileRoute("/_authenticated/integrations")({
   component: Integrations,
@@ -57,9 +59,10 @@ function Integrations() {
   const [manualCsv, setManualCsv] = useState("");
   const [manualLoading, setManualLoading] = useState(false);
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["integrations", agency?.id],
     enabled: !!agency,
+    meta: queryErrorMeta,
     queryFn: async () => {
       const [integ, clients] = await Promise.all([
         supabase
@@ -72,6 +75,8 @@ function Integrations() {
           .eq("agency_id", agency!.id)
           .order("name"),
       ]);
+      throwIfSupabaseError(integ.error, "integrations.list");
+      throwIfSupabaseError(clients.error, "integrations.clients");
       return { integ: integ.data ?? [], clients: clients.data ?? [] };
     },
   });
@@ -225,6 +230,17 @@ function Integrations() {
     if (error) return toast.error(error.message);
     toast.success(`Importação manual concluída (${payload.length} linhas).`);
     setManualCsv("");
+  }
+
+  if (isError) {
+    return (
+      <QueryErrorState
+        message={
+          error instanceof Error ? error.message : String(error ?? "Erro")
+        }
+        onRetry={() => void refetch()}
+      />
+    );
   }
 
   if (isLoading || !data) return <PageSkeleton preset="compact" />;

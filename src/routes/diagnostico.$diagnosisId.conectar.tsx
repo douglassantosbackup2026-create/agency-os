@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Loader2, AlertCircle } from "lucide-react";
-import { invokeDiagnosisFunction } from "@/lib/diagnosis-invoke";
+import { callDiagnosisApi } from "@/lib/diagnosis-api";
+import { InlineErrorBanner } from "@/components/diagnosis-funnel/InlineErrorBanner";
 
 type PendingAccount = {
   id?: string;
@@ -31,8 +32,6 @@ export const Route = createFileRoute("/diagnostico/$diagnosisId/conectar")({
 });
 
 function accountStatusLabel(n?: number): { label: string; tone: string } {
-  // Meta account_status: 1 Active, 2 Disabled, 3 Unsettled, 7 Pending Risk,
-  // 8 Pending Settlement, 9 In Grace, 101 Closed, etc.
   if (n === 1) return { label: "Ativa", tone: "text-emerald-600" };
   if (n === 2 || n === 101)
     return { label: "Desativada", tone: "text-destructive" };
@@ -46,33 +45,36 @@ function ConnectAccountPage() {
   const navigate = useNavigate();
   const [data, setData] = useState<StatusResponse | null>(null);
   const [loadErr, setLoadErr] = useState<string | null>(null);
+  const [loadKey, setLoadKey] = useState(0);
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [submitErr, setSubmitErr] = useState<string | null>(null);
+
+  const reload = useCallback(() => {
+    setLoadErr(null);
+    setData(null);
+    setLoadKey((k) => k + 1);
+  }, []);
 
   useEffect(() => {
     let alive = true;
     if (!diagnosisId || !s) return;
     (async () => {
       try {
-        const res = await invokeDiagnosisFunction("diagnosis-status", {
-          method: "GET",
+        const j = await callDiagnosisApi<StatusResponse>("diagnosis-status", {
           query: { d: diagnosisId, s },
         });
-        const j = (await res.json()) as StatusResponse & { error?: string };
         if (!alive) return;
-        if (!res.ok) {
-          setLoadErr(j.error ?? "Erro ao carregar contas.");
-          return;
-        }
         setData(j);
       } catch (e) {
-        if (alive) setLoadErr((e as Error).message);
+        if (alive) {
+          setLoadErr(e instanceof Error ? e.message : "Erro ao carregar contas.");
+        }
       }
     })();
     return () => {
       alive = false;
     };
-  }, [diagnosisId, s]);
+  }, [diagnosisId, s, loadKey]);
 
   const accounts = useMemo(
     () => (data?.pending_ad_accounts ?? []).filter(Boolean),
@@ -86,7 +88,7 @@ function ConnectAccountPage() {
     setSubmitErr(null);
     setSubmitting(accountId);
     try {
-      const res = await invokeDiagnosisFunction("confirm-ad-account", {
+      const j = await callDiagnosisApi<{ ok?: boolean }>("confirm-ad-account", {
         method: "POST",
         body: JSON.stringify({
           diagnosisId,
@@ -94,18 +96,17 @@ function ConnectAccountPage() {
           accountId,
         }),
       });
-      const j = (await res.json()) as { ok?: boolean; error?: string };
-      if (!res.ok || !j.ok) {
-        setSubmitErr(j.error ?? "Falha ao confirmar conta.");
+      if (!j.ok) {
+        setSubmitErr("Falha ao confirmar conta.");
         setSubmitting(null);
         return;
       }
       navigate({
         to: "/obrigado",
-        search: { d: diagnosisId, s, step: "processing" },
+        search: { d: diagnosisId, s },
       });
     } catch (e) {
-      setSubmitErr((e as Error).message);
+      setSubmitErr(e instanceof Error ? e.message : "Erro");
       setSubmitting(null);
     }
   }
@@ -126,15 +127,19 @@ function ConnectAccountPage() {
       <Shell>
         <div className="flex items-start gap-3">
           <AlertCircle className="mt-0.5 h-5 w-5 text-destructive" />
-          <div>
+          <div className="flex-1">
             <h1 className="text-xl font-semibold">Não consegui carregar</h1>
-            <p className="mt-1 text-sm text-muted-foreground">{loadErr}</p>
+            <InlineErrorBanner
+              message={loadErr}
+              onRetry={reload}
+              className="mt-4"
+            />
             <Link
               to="/obrigado"
               search={{ d: diagnosisId, s }}
               className="mt-4 inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-accent"
             >
-              Voltar
+              Voltar ao status
             </Link>
           </div>
         </div>
@@ -181,6 +186,10 @@ function ConnectAccountPage() {
         Seleciona qual queres que o diagnóstico use.
       </p>
 
+      {submitErr ? (
+        <InlineErrorBanner message={submitErr} className="mt-4" />
+      ) : null}
+
       <ul className="mt-6 space-y-3">
         {accounts.map((a) => {
           const accountId = a.id ?? a.account_id ?? "";
@@ -197,59 +206,42 @@ function ConnectAccountPage() {
                   <p className="truncate text-base font-medium">
                     {a.name || a.business_name || "Sem nome"}
                   </p>
-                  <span className={`text-xs font-medium ${st.tone}`}>
-                    • {st.label}
-                  </span>
+                  <CheckCircle2 className="hidden h-4 w-4 text-emerald-600 sm:inline" />
                 </div>
-                <p className="mt-1 truncate text-xs text-muted-foreground">
-                  ID: {a.id ?? `act_${a.account_id ?? ""}`}
+                <p className="mt-1 text-xs text-muted-foreground">
+                  ID {a.account_id ?? accountId}
                   {a.currency ? ` · ${a.currency}` : ""}
-                  {a.business_name && a.business_name !== a.name
-                    ? ` · ${a.business_name}`
-                    : ""}
+                  {" · "}
+                  <span className={st.tone}>{st.label}</span>
                 </p>
               </div>
               <button
                 type="button"
-                onClick={() => confirm(a)}
                 disabled={disabled}
-                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50"
+                onClick={() => void confirm(a)}
+                className="inline-flex h-10 shrink-0 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
               >
                 {isSubmitting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    A confirmar…
+                  </>
                 ) : (
-                  <CheckCircle2 className="h-4 w-4" />
+                  "Usar esta conta"
                 )}
-                {isSubmitting ? "A confirmar…" : "Analisar esta conta"}
               </button>
             </li>
           );
         })}
       </ul>
-
-      {submitErr ? (
-        <div className="mt-4 rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-          {submitErr}
-        </div>
-      ) : null}
-
-      <p className="mt-6 text-xs text-muted-foreground">
-        Não vês a conta certa? Verifica se o utilizador Facebook que conectaste
-        tem acesso a essa conta de anúncio no Business Manager e tenta
-        novamente.
-      </p>
     </Shell>
   );
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/40">
-      <div className="mx-auto max-w-2xl px-4 py-10 sm:py-14">
-        <div className="rounded-2xl border bg-card p-6 text-card-foreground shadow-sm sm:p-8">
-          {children}
-        </div>
-      </div>
+    <div className="min-h-screen bg-background px-4 py-10">
+      <div className="mx-auto max-w-lg">{children}</div>
     </div>
   );
 }
