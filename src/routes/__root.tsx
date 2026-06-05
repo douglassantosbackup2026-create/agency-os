@@ -20,6 +20,8 @@ import { getSnapshotTheme, subscribeTheme } from "@/lib/theme";
 
 const THEME_INIT_SCRIPT = `(function(){try{var k='theme';var r=document.documentElement;var s=localStorage.getItem(k);var d;if(s==='dark')d=!0;else if(s==='light')d=!1;else d=window.matchMedia('(prefers-color-scheme: dark)').matches;if(d)r.classList.add('dark');else r.classList.remove('dark');}catch(e){}})();`;
 
+const META_PIXEL_SCRIPT = `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','1014878304387575');fbq('track','PageView');`;
+
 function NotFoundComponent() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -88,10 +90,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           {
             httpEquiv: "Content-Security-Policy",
             content:
-              "default-src 'self'; script-src 'self' 'unsafe-inline' https://sdk.mercadopago.com https://*.mlstatic.com https://cdn.gpteng.co; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdn.gpteng.co data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://*.supabase.in https://api.mercadopago.com https://api.mercadolibre.com https://*.mlstatic.com https://graph.facebook.com https://cdn.gpteng.co; frame-src https://*.mercadopago.com; base-uri 'self'; form-action 'self';",
+              "default-src 'self'; script-src 'self' 'unsafe-inline' https://sdk.mercadopago.com https://*.mlstatic.com https://cdn.gpteng.co https://connect.facebook.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdn.gpteng.co data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://*.supabase.in https://api.mercadopago.com https://api.mercadolibre.com https://*.mlstatic.com https://graph.facebook.com https://cdn.gpteng.co https://www.facebook.com https://connect.facebook.net; frame-src https://*.mercadopago.com; base-uri 'self'; form-action 'self';",
           },
           { httpEquiv: "X-Content-Type-Options", content: "nosniff" },
           { name: "referrer", content: "strict-origin-when-cross-origin" },
+          {
+            name: "facebook-domain-verification",
+            content: "rqya1e2l4vihrvte9x5kzpscr035rk",
+          },
+
           {
             title: seoDefaults.title,
           },
@@ -174,6 +181,13 @@ function RootShell({ children }: { children: React.ReactNode }) {
         <script
           // Aplica tema antes da primeira pintura (alinhar com src/lib/theme.ts)
           dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
+        />
+        <script dangerouslySetInnerHTML={{ __html: META_PIXEL_SCRIPT }} />
+        <noscript
+          dangerouslySetInnerHTML={{
+            __html:
+              '<img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=1014878304387575&ev=PageView&noscript=1" />',
+          }}
         />
         <HeadContent />
       </head>
