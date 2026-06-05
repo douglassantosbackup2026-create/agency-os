@@ -7,6 +7,13 @@ export function metaFetchDelayMs(): number {
   );
 }
 
+export function metaFetchMaxRetries(): number {
+  return Math.max(
+    1,
+    Number(Deno.env.get("META_FETCH_MAX_RETRIES") ?? "2") || 2,
+  );
+}
+
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -72,16 +79,16 @@ export function createMetaGraphSession(): MetaGraphSession {
   };
 }
 
-export async function metaGraphGetJson<T extends { error?: { message: string } }>(
-  url: URL,
-  session: MetaGraphSession,
-): Promise<T> {
+export async function metaGraphFetchJson<
+  T extends { error?: { message: string } },
+>(url: URL, session: MetaGraphSession): Promise<T> {
   await session.beforeFetch();
   const r = await fetch(url.toString());
   const j = (await r.json()) as T;
-  if (j.error?.message) {
-    session.recordError(j.error.message);
-    throw new Error(j.error.message);
+  const msg = j.error?.message;
+  if (msg) {
+    session.recordError(msg);
+    throw new Error(msg);
   }
   return j;
 }

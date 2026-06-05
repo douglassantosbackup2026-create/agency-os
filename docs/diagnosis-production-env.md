@@ -24,7 +24,9 @@ Deploy: `npm run ops:deploy-worker` (injeta `VITE_PUBLIC_SITE_URL` se ausente).
 | `ANTHROPIC_API_KEY`, `CLAUDE_MODEL` | Sim |
 | `GEMINI_API_KEY` | Recomendado enquanto OpenAI estiver sem quota (fallback) |
 | `DIAGNOSIS_AI_TIMEOUT_MS` | Opcional (default 120000 ms) |
+| `DIAGNOSIS_AI_MAX_TOKENS` | Opcional (default 8192; reduzir se rate limit Anthropic persistir) |
 | `META_FETCH_DELAY_MS` | Opcional (default 300 ms entre chamadas Graph) |
+| `META_FETCH_MAX_RETRIES` | Opcional (default 2 retries em fields alternativos de ads) |
 | `META_TEST_ENABLED` | **false** ou ausente em prod |
 | `DIAGNOSIS_PRICE_CENTS`, `MANAGEMENT_PRICE_CENTS` | Opcional |
 

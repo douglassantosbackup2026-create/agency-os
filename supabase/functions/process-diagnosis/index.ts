@@ -26,6 +26,8 @@ import {
 } from "../_shared/diagnosis/ai-failure-messages.ts";
 import {
   createMetaGraphSession,
+  metaFetchMaxRetries,
+  metaGraphFetchJson,
   type MetaGraphSession,
   sleep,
 } from "../_shared/meta-graph-throttle.ts";
@@ -40,6 +42,16 @@ const AD_INSIGHTS_FIELDS_FULL =
   "ad_id,ad_name,campaign_name,impressions,clicks,spend,ctr,cpm,actions,action_values,outbound_clicks,outbound_clicks_ctr,video_p25_watched_actions,video_p50_watched_actions,video_p75_watched_actions,video_p100_watched_actions";
 const AD_INSIGHTS_FIELDS_MIN =
   "ad_id,ad_name,campaign_name,impressions,clicks,spend,ctr,cpm,actions,action_values,outbound_clicks,outbound_clicks_ctr";
+
+function diagnosisAiMaxTokens(): number {
+  return Math.max(
+    1024,
+    Math.min(
+      8192,
+      Number(Deno.env.get("DIAGNOSIS_AI_MAX_TOKENS") ?? "8192") || 8192,
+    ),
+  );
+}
 
 const SYSTEM_PROMPT = `És um Diretor de Crescimento especializado em Meta Ads para e-commerce brasileiro — não és auditor, dashboard nem lista de KPIs. Respondes APENAS em PT-BR e APENAS com JSON válido (sem markdown, sem texto fora do JSON). Valores monetários sempre em BRL (a menos que facts.account_insights indique outra moeda). Hierarquia: Dinheiro → Crescimento → Gargalos → Riscos → Métricas.
 
@@ -438,7 +450,9 @@ async function fetchCampaigns(
 async function fetchCampaignInsights(
   actId: string,
   token: string,
+  metaSession: MetaGraphSession,
 ): Promise<Record<string, unknown>[]> {
+  if (metaSession.skipOptional()) return [];
   const u = new URL(`https://graph.facebook.com/v21.0/${actId}/insights`);
   u.searchParams.set("level", "campaign");
   u.searchParams.set(
@@ -448,12 +462,10 @@ async function fetchCampaignInsights(
   u.searchParams.set("date_preset", "last_30d");
   u.searchParams.set("limit", "100");
   u.searchParams.set("access_token", token);
-  const r = await fetch(u.toString());
-  const j = (await r.json()) as {
+  const j = await metaGraphFetchJson<{
     data?: Record<string, unknown>[];
     error?: { message: string };
-  };
-  if (j.error) throw new Error(j.error.message);
+  }>(u, metaSession);
   return j.data ?? [];
 }
 
@@ -462,8 +474,10 @@ async function fetchCampaignInsights(
 async function fetchAdSetInsights(
   actId: string,
   token: string,
+  metaSession: MetaGraphSession,
   limit = 80,
 ): Promise<Record<string, unknown>[]> {
+  if (metaSession.skipOptional()) return [];
   const u = new URL(`https://graph.facebook.com/v21.0/${actId}/insights`);
   u.searchParams.set("level", "adset");
   u.searchParams.set(
@@ -473,12 +487,10 @@ async function fetchAdSetInsights(
   u.searchParams.set("date_preset", "last_30d");
   u.searchParams.set("limit", String(limit));
   u.searchParams.set("access_token", token);
-  const r = await fetch(u.toString());
-  const j = (await r.json()) as {
+  const j = await metaGraphFetchJson<{
     data?: Record<string, unknown>[];
     error?: { message: string };
-  };
-  if (j.error) throw new Error(j.error.message);
+  }>(u, metaSession);
   return j.data ?? [];
 }
 
@@ -528,7 +540,10 @@ async function fetchTopAdsInsights(
   metaSession: MetaGraphSession,
   limit = 25,
 ): Promise<Record<string, unknown>[]> {
-  const fieldSets = [AD_INSIGHTS_FIELDS_FULL, AD_INSIGHTS_FIELDS_MIN];
+  const fieldSets = [AD_INSIGHTS_FIELDS_FULL, AD_INSIGHTS_FIELDS_MIN].slice(
+    0,
+    metaFetchMaxRetries(),
+  );
   for (const fields of fieldSets) {
     if (metaSession.skipOptional()) return [];
     const u = new URL(`https://graph.facebook.com/v21.0/${actId}/insights`);
@@ -584,7 +599,7 @@ async function callAnthropic(facts: Record<string, unknown>): Promise<unknown> {
     },
     body: JSON.stringify({
       model,
-      max_tokens: 8192,
+      max_tokens: diagnosisAiMaxTokens(),
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: buildUserPrompt(facts) }],
     }),
@@ -654,7 +669,7 @@ async function callGemini(facts: Record<string, unknown>): Promise<unknown> {
       ],
       generationConfig: {
         responseMimeType: "application/json",
-        maxOutputTokens: 8192,
+        maxOutputTokens: diagnosisAiMaxTokens(),
       },
     }),
   });
@@ -837,12 +852,12 @@ Deno.serve(async (req) => {
         let adsets_insights: Record<string, unknown>[] = [];
         let adsets_targeting_sample: Record<string, unknown>[] = [];
         try {
-          campaigns_insights = await fetchCampaignInsights(actId, token);
+          campaigns_insights = await fetchCampaignInsights(actId, token, metaSession);
         } catch (e) {
           console.warn(`[process-diagnosis] campaign insights falhou: ${String(e).slice(0, 200)}`);
         }
         try {
-          adsets_insights = await fetchAdSetInsights(actId, token, 80);
+          adsets_insights = await fetchAdSetInsights(actId, token, metaSession, 80);
         } catch (e) {
           console.warn(`[process-diagnosis] adset insights falhou: ${String(e).slice(0, 200)}`);
         }

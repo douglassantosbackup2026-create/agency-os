@@ -255,7 +255,9 @@ function ObrigadoPage() {
         : st === "awaiting_connection" || st === "awaiting_account_selection"
           ? 1
           : st === "failed"
-            ? 1
+            ? status?.meta_ad_account_id
+              ? 2
+              : 1
             : 0; // awaiting_payment / unknown -> step 1 active (Pagamento)
 
   return (
