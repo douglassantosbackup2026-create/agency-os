@@ -7,7 +7,9 @@
  * - gestao.status_poll_failed
  * - diagnosis.report_fetch_failed
  * - diagnosis.track_failed
- * Opcional em produção: window.__RETENTION_REPORT_ERROR__(source, error)
+ * Eventos do painel (via reportPanelError):
+ * - ai_job_poll, ai_job_realtime, query errors (via QueryCache)
+ * Produção: definir window.__RETENTION_REPORT_ERROR__(source, error) para Sentry/Datadog.
  */
 export function reportError(source: string, error: unknown): void {
   if (import.meta.env.DEV) {
@@ -40,4 +42,11 @@ export function reportFunnelError(
   detail: unknown,
 ): void {
   reportError(`funnel:${event}`, detail);
+}
+
+export function reportPanelError(
+  event: "ai_job_poll" | "ai_job_realtime" | string,
+  detail: unknown,
+): void {
+  reportError(`panel:${event}`, detail);
 }

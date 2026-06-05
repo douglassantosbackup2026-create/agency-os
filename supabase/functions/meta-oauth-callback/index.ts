@@ -15,6 +15,7 @@ import {
   normalizePublicSiteUrl,
 } from "../_shared/public-site-url.ts";
 import { putMetaTestExchange } from "../_shared/meta-test-exchange.ts";
+import { triggerProcessDiagnosis } from "../_shared/diagnosis/trigger-process-diagnosis.ts";
 import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 
 function siteUrl(): string {
@@ -73,23 +74,6 @@ async function fetchAdAccounts(
     }[];
   };
   return j.data ?? [];
-}
-
-
-async function triggerProcess(): Promise<void> {
-  const secret = Deno.env.get("CRON_SECRET");
-  if (!secret) return;
-  const base = Deno.env.get("SUPABASE_URL")!.replace(/\/+$/, "");
-  const anon = Deno.env.get("SUPABASE_ANON_KEY")!;
-  await fetch(`${base}/functions/v1/process-diagnosis`, {
-    method: "POST",
-    headers: {
-      apikey: anon,
-      Authorization: `Bearer ${secret}`,
-      "Content-Type": "application/json",
-    },
-    body: "{}",
-  }).catch(() => undefined);
 }
 
 type VerifiedState =
@@ -317,7 +301,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Falha ao atualizar diagnóstico" }, 500);
   }
 
-  await triggerProcess();
+  triggerProcessDiagnosis("meta-oauth-callback");
 
   traceLog("meta_oauth_callback.ok", { diagnosis_id: diagnosisId }, traceId);
   return new Response(null, {

@@ -337,15 +337,18 @@ function Admin() {
 
   async function toggleFlag(key: string, current?: FeatureFlagRow) {
     if (current) {
-      await supabase
+      const { error } = await supabase
         .from("feature_flags")
         .update({ enabled: !current.enabled })
         .eq("id", current.id);
+      if (error) return toast.error(error.message);
     } else {
-      await supabase
+      const { error } = await supabase
         .from("feature_flags")
         .insert({ agency_id: agency!.id, key, enabled: true });
+      if (error) return toast.error(error.message);
     }
+    toast.success("Feature flag atualizada.");
     refetch();
   }
 

@@ -32,6 +32,8 @@ type Props = {
   expanded: boolean;
   overdue: boolean;
   eventRows: EventRow[];
+  eventsError?: string | null;
+  onRetryEvents?: () => void;
   onToggleSelect: (id: string) => void;
   onToggleExpand: (id: string) => void;
   onPatchStatus: (id: string, status: string) => void;
@@ -46,6 +48,8 @@ function ActionCenterListRowInner({
   expanded,
   overdue,
   eventRows,
+  eventsError,
+  onRetryEvents,
   onToggleSelect,
   onToggleExpand,
   onPatchStatus,
@@ -151,7 +155,22 @@ function ActionCenterListRowInner({
           <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
             Histórico da ação
           </div>
-          {!eventRows.length ? (
+          {eventsError ? (
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+              <span className="text-destructive">{eventsError}</span>
+              {onRetryEvents && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={() => void onRetryEvents()}
+                >
+                  Tentar novamente
+                </Button>
+              )}
+            </div>
+          ) : !eventRows.length ? (
             <p className="mt-1 text-xs text-muted-foreground">
               Sem eventos registrados.
             </p>

@@ -318,9 +318,15 @@ function ActionsCenter() {
     setSelectedIds((prev) => prev.filter((id) => idSet.has(id)));
   }, [idSet]);
 
-  const { data: eventRows } = useQuery({
+  const {
+    data: eventRows,
+    isError: eventsQueryError,
+    error: eventsQueryErr,
+    refetch: refetchEvents,
+  } = useQuery({
     queryKey: ["action-center-events", expandedId],
     enabled: !!expandedId,
+    meta: queryErrorMeta,
     queryFn: async () => {
       const { data: ev, error: eventsErr } = await supabase
         .from("action_center_events")
@@ -332,6 +338,13 @@ function ActionsCenter() {
       return ev ?? [];
     },
   });
+
+  const eventsErrorMessage =
+    expandedId && eventsQueryError
+      ? eventsQueryErr instanceof Error
+        ? eventsQueryErr.message
+        : String(eventsQueryErr ?? "Erro ao carregar histórico")
+      : null;
 
   const patchAction = useCallback(
     async (
@@ -808,6 +821,14 @@ function ActionsCenter() {
                   expanded={expandedId === a.id}
                   overdue={isActionOverdue(a)}
                   eventRows={expandedId === a.id ? (eventRows ?? EMPTY_EVENT_ROWS) : EMPTY_EVENT_ROWS}
+                  eventsError={
+                    expandedId === a.id ? eventsErrorMessage : null
+                  }
+                  onRetryEvents={
+                    expandedId === a.id
+                      ? () => void refetchEvents()
+                      : undefined
+                  }
                   onToggleSelect={toggleSelect}
                   onToggleExpand={onToggleExpand}
                   onPatchStatus={onPatchStatus}

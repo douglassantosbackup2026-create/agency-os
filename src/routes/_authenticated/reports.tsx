@@ -120,6 +120,10 @@ function Reports() {
       toast.error(lastError ?? "Falha ao gerar relatório.");
       setPendingReportJobId(null);
     },
+    onPollError: (message) => {
+      toast.error(message);
+      setPendingReportJobId(null);
+    },
     onTimeout: () => {
       toast.info(
         "Relatório ainda em processamento. Atualize a lista em alguns minutos.",

@@ -2,14 +2,18 @@ import { useEffect, useRef } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { aiJobPollDone } from "@/lib/resilience-integration-helpers";
+import { reportPanelError } from "@/lib/report-error";
 
 const POLL_MS = 3000;
 const MAX_ATTEMPTS = 40;
+const MAX_CONSECUTIVE_POLL_ERRORS = 3;
 
 export type AiJobTerminalHandlers = {
   onDone?: (resultRef: string | null) => void;
   onFailed?: (lastError: string | null) => void;
   onTimeout?: () => void;
+  /** Falhas consecutivas ao consultar ai_jobs (rede/RLS). */
+  onPollError?: (message: string) => void;
 };
 
 /**
@@ -28,6 +32,7 @@ export function useAiJobStatus(
     let cancelled = false;
     let pollTimer: ReturnType<typeof setTimeout> | undefined;
     let attempts = 0;
+    let consecutivePollErrors = 0;
     let channel: RealtimeChannel | undefined;
 
     const finish = (
@@ -64,15 +69,34 @@ export function useAiJobStatus(
         return;
       }
       attempts += 1;
-      const { data: job } = await supabase
+      const { data: job, error } = await supabase
         .from("ai_jobs")
         .select("status, result_ref, last_error")
         .eq("id", jobId)
         .maybeSingle();
-      if (job) handleRow(job);
-      if (!cancelled && attempts < MAX_ATTEMPTS) {
-        pollTimer = setTimeout(() => void poll(), POLL_MS);
-      } else if (!cancelled && attempts >= MAX_ATTEMPTS) {
+
+      if (error) {
+        consecutivePollErrors += 1;
+        reportPanelError("ai_job_poll", { jobId, error: error.message });
+        if (consecutivePollErrors >= MAX_CONSECUTIVE_POLL_ERRORS) {
+          const msg = `Não foi possível acompanhar o job de IA: ${error.message}`;
+          handlersRef.current.onPollError?.(msg);
+          finish("failed", { last_error: msg });
+          return;
+        }
+      } else {
+        consecutivePollErrors = 0;
+        if (job) handleRow(job);
+      }
+
+      if (cancelled) return;
+      if (attempts < MAX_ATTEMPTS) {
+        const backoff =
+          consecutivePollErrors > 0
+            ? POLL_MS + consecutivePollErrors * 1000
+            : POLL_MS;
+        pollTimer = setTimeout(() => void poll(), backoff);
+      } else {
         finish("timeout");
       }
     };
@@ -96,7 +120,10 @@ export function useAiJobStatus(
           handleRow(row);
         },
       )
-      .subscribe(() => {
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          reportPanelError("ai_job_realtime", { jobId, status });
+        }
         void poll();
       });
 

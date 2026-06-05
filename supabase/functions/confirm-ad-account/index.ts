@@ -5,23 +5,8 @@
 import { handleCors, jsonResponse } from "../_shared/diagnosis/cors.ts";
 import { assertDiagnosisSecret } from "../_shared/diagnosis/validate-diagnosis-access.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
+import { triggerProcessDiagnosis } from "../_shared/diagnosis/trigger-process-diagnosis.ts";
 import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
-
-function triggerProcess(): void {
-  const secret = Deno.env.get("CRON_SECRET");
-  if (!secret) return;
-  const base = Deno.env.get("SUPABASE_URL")!.replace(/\/+$/, "");
-  const anon = Deno.env.get("SUPABASE_ANON_KEY")!;
-  fetch(`${base}/functions/v1/process-diagnosis`, {
-    method: "POST",
-    headers: {
-      apikey: anon,
-      Authorization: `Bearer ${secret}`,
-      "Content-Type": "application/json",
-    },
-    body: "{}",
-  }).catch(() => undefined);
-}
 
 type PendingAccount = {
   id?: string;
@@ -121,7 +106,7 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Falha ao atualizar diagnóstico" }, 500);
   }
 
-  triggerProcess();
+  triggerProcessDiagnosis("confirm-ad-account");
   trace.done({ accountId: finalActId });
   return jsonResponse({ ok: true, meta_ad_account_id: finalActId });
 });

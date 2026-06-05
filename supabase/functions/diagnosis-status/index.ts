@@ -5,6 +5,7 @@ import {
   ensureBuyerAccountAndToken,
   fetchBuyerDiagnosis,
 } from "../_shared/diagnosis/buyer-account.ts";
+import { triggerProcessDiagnosis } from "../_shared/diagnosis/trigger-process-diagnosis.ts";
 import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
 
 // Fallback reconciliation in case the MP webhook never arrives (network,
@@ -46,21 +47,8 @@ async function reconcileWithMp(
   }
 }
 
-function triggerProcessDiagnosis(): void {
-  const secret = Deno.env.get("CRON_SECRET");
-  if (!secret) return;
-  const base = Deno.env.get("SUPABASE_URL")!.replace(/\/+$/, "");
-  const anon = Deno.env.get("SUPABASE_ANON_KEY")!;
-  // fire-and-forget; do not await
-  fetch(`${base}/functions/v1/process-diagnosis`, {
-    method: "POST",
-    headers: {
-      apikey: anon,
-      Authorization: `Bearer ${secret}`,
-      "Content-Type": "application/json",
-    },
-    body: "{}",
-  }).catch(() => undefined);
+function triggerProcessDiagnosisNudge(): void {
+  triggerProcessDiagnosis("diagnosis-status");
 }
 
 Deno.serve(async (req) => {
@@ -95,7 +83,7 @@ Deno.serve(async (req) => {
   // Auto-recovery: if stuck in processing and Meta is connected, nudge
   // process-diagnosis (idempotent — checks facts/analysis state internally).
   if (status === "processing" && data?.meta_ad_account_id) {
-    triggerProcessDiagnosis();
+    triggerProcessDiagnosisNudge();
   }
 
   trace.done({ status });
