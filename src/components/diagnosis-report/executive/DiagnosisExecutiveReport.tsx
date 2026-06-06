@@ -124,6 +124,7 @@ export function DiagnosisExecutiveReport({
   const revenueFormatted =
     gi?.executiveImpact.revenueActualFormatted ?? fb?.revenueFormatted ?? fi?.revenueFormatted ?? "—";
   const gapMonthly = gi?.executiveImpact.gapMonthlyBrl ?? 0;
+  const lossMonthly = fi?.lossMonthlyBrl ?? 0;
   const primaryGap =
     fi?.primaryGapMonthlyBrl ?? Math.max(lossMonthly, gapMonthly);
   const lossFormatted =
@@ -672,8 +673,8 @@ export function DiagnosisExecutiveReport({
                 giScenarios.slice(0, 3).map((s, i) => (
                   <div key={s.key} className={`exec-projection-col ${i === 1 ? "is-featured" : ""}`}>
                     <div className="exec-projection-label">{s.label}</div>
-                    <div className="exec-projection-value">{s.revenueUpliftFormatted}</div>
-                    <div className="exec-projection-delta">+{s.additionalRevenueFormatted}</div>
+                    <div className="exec-projection-value">{s.additionalRevenueFormatted}</div>
+                    <div className="exec-projection-delta">+{s.revenueUpliftFormatted}</div>
                     <p className="exec-projection-hint">{s.estimatedEta}</p>
                   </div>
                 ))

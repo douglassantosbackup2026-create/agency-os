@@ -534,8 +534,6 @@ export function normalizeAnalysisV2(
     scoreDerived.score,
   );
   applyBusinessHintsToSenior(commercial.seniorDerived, facts ?? null);
-  const commercialFields = commercialToAnalysisFields(commercial);
-  Object.assign(obj, commercialFields);
 
   const metaSenior = facts?.meta_senior;
   if (metaSenior && typeof metaSenior === "object") {
@@ -547,13 +545,14 @@ export function normalizeAnalysisV2(
     obj.consultativeDerived = consultative;
   }
 
-  if (facts && typeof facts === "object" && !facts.growth_intelligence_derived) {
+  if (facts && typeof facts === "object") {
     buildGrowthIntelligenceDerived(facts as Record<string, unknown>, commercial);
   }
   const growthIntel = facts?.growth_intelligence_derived;
   if (growthIntel && typeof growthIntel === "object") {
     obj.growthIntelligenceDerived = growthIntel;
   }
+  Object.assign(obj, commercialToAnalysisFields(commercial));
 
   const seeds =
     (Array.isArray(facts?.hypothesis_seeds)

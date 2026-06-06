@@ -567,9 +567,10 @@ export function resolveExecutiveFinancials(
   waste: WasteBreakdown,
   recovery: RecoveryScenarios,
   gap: AccountFinancialGap | null,
+  leaksMonthlyBrl = 0,
 ): ExecutiveFinancials {
   const gapMonthly = gap?.gapMonthlyBrl ?? 0;
-  const primaryGap = Math.max(waste.totalMonthlyBrl, gapMonthly);
+  const primaryGap = Math.max(waste.totalMonthlyBrl, gapMonthly, leaksMonthlyBrl);
   const conservative =
     recovery.conservativeMonthlyBrl > 0
       ? recovery.conservativeMonthlyBrl

@@ -6,6 +6,7 @@ import { enrichCampaigns } from "./campaign-objective.ts";
 import {
   buildCommercialDerived,
   campaignWasteFraction,
+  deriveBenchmarkGaps,
   deriveWasteBreakdown,
 } from "./derive-commercial.ts";
 
@@ -72,6 +73,32 @@ describe("derive-commercial", () => {
     );
     expect(roasGap).toBeDefined();
     expect(["above", "within"]).toContain(roasGap!.status);
+  });
+
+  it("benchmark usa target_roas 10 declarado e ROAS fica below vs meta", () => {
+    const facts = {
+      ...factsFromFixture(),
+      business_context: { target_roas: 10 },
+    };
+    const commercial = buildCommercialDerived(facts);
+    const roasGap = commercial.benchmarkComparison.gaps.find((g) =>
+      /roas/i.test(g.metric),
+    );
+    expect(roasGap).toBeDefined();
+    expect(roasGap!.reference).toContain("10");
+    expect(roasGap!.status).toBe("below");
+    expect(roasGap!.gapNote).toMatch(/10/);
+  });
+
+  it("CTR normalizado compara percentual da conta", () => {
+    const facts = {
+      ...factsFromFixture(),
+      account_insights: { ctr: "2.93", cpm: "47.58", frequency: "1.14" },
+    };
+    const comparison = deriveBenchmarkGaps(facts, "ecom_geral");
+    const ctrGap = comparison.gaps.find((g) => /ctr/i.test(g.metric));
+    expect(ctrGap).toBeDefined();
+    expect(ctrGap!.current).toMatch(/2,93%/);
   });
 
   it("scoreExplanation lista pilares", () => {

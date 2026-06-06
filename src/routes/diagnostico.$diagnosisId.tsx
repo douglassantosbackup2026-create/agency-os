@@ -9,11 +9,13 @@ import {
 import { useManagementCheckout } from "@/hooks/use-management-checkout";
 import type { DiagnosisAnalysis } from "@/components/diagnosis-report/types";
 import { DiagnosisExecutiveReport } from "@/components/diagnosis-report/executive/DiagnosisExecutiveReport";
+import { DiagnosisBusinessContextForm } from "@/components/diagnosis-report/DiagnosisBusinessContextForm";
 import { InlineErrorBanner } from "@/components/diagnosis-funnel/InlineErrorBanner";
 import { DiagnosisFailedPanel } from "@/components/diagnosis-funnel/DiagnosisFailedPanel";
 import { parseDiagnosisFailedReason } from "@/lib/diagnosis-failed-reason";
 import { reportFunnelError } from "@/lib/report-error";
 import "@/styles/diagnosis-executive.css";
+import "@/styles/diagnosis.css";
 
 const GESTAO_URGENCY_TEXT =
   import.meta.env.VITE_GESTAO_URGENCY_TEXT?.trim() ||
@@ -329,7 +331,11 @@ function DiagnosticoReportPage() {
     <>
       <DiagnosisExecutiveReport
         analysis={analysis}
-        primaryCtaLabel="Agendar Reunião Estratégica"
+        primaryCtaLabel={
+          gapCtaFormatted
+            ? `Quero recuperar ${gapCtaFormatted}/mês`
+            : "Agendar Reunião Estratégica"
+        }
         onPrimaryCta={() => {
           if (ctaEligible) scrollToManagementCta();
           else {
@@ -338,6 +344,24 @@ function DiagnosticoReportPage() {
           }
         }}
       />
+
+      {s ? (
+        <div className="exec-root" style={{ background: "transparent", minHeight: 0 }}>
+          <div className="exec-container" style={{ paddingBottom: 48 }}>
+            <details className="exec-context-details">
+              <summary className="exec-context-summary">
+                Contexto da loja (meta ROAS, margem…)
+              </summary>
+              <DiagnosisBusinessContextForm
+                diagnosisId={diagnosisId}
+                secretSlug={s}
+                initial={data.diagnosis.business_context ?? null}
+                reportCompleted={data.diagnosis.status === "completed"}
+              />
+            </details>
+          </div>
+        </div>
+      ) : null}
 
       {/* ============ SECTION 10 — CTA FINAL ============ */}
       {ctaEligible ? (

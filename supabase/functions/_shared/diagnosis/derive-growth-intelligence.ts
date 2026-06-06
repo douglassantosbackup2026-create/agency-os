@@ -159,11 +159,41 @@ function mapSeniorSeverity(s: SeniorRisk["severity"]): GrowthRiskItem["severity"
   return "low";
 }
 
+function sumMoneyLeaks(leaks: MoneyLeakItem[]): number {
+  return leaks.reduce((sum, leak) => sum + leak.monthlyImpactBrl, 0);
+}
+
+function syncStoryExecutiveGap(
+  commercial: CommercialDerived,
+  primaryGap: number,
+): void {
+  if (primaryGap <= commercial.storyExecutive.primaryGapMonthlyBrl) return;
+  const recovery = commercial.recovery;
+  const conservative =
+    recovery.conservativeMonthlyBrl > 0
+      ? recovery.conservativeMonthlyBrl
+      : Math.round(primaryGap * 0.35);
+  const optimistic =
+    recovery.optimisticMonthlyBrl > 0 ? recovery.optimisticMonthlyBrl : primaryGap;
+  const heroRange = `${fmtBrl(conservative)} – ${fmtBrl(optimistic)}`;
+  commercial.storyExecutive.primaryGapMonthlyBrl = primaryGap;
+  commercial.storyExecutive.primaryGapMonthlyFormatted = fmtBrl(primaryGap);
+  commercial.storyExecutive.lossMonthlyBrl = primaryGap;
+  commercial.storyExecutive.lossMonthlyFormatted = fmtBrl(primaryGap);
+  commercial.storyExecutive.heroRangeFormatted = heroRange;
+  commercial.storyExecutive.heroValueFormatted = heroRange;
+  commercial.storyExecutive.recoveryRangeFormatted = heroRange;
+}
+
 function buildExecutiveImpact(
   gap: AccountFinancialGap | null,
   commercial: CommercialDerived,
+  leakSum = 0,
 ): ExecutiveImpact {
   const econ = commercial.accountEconomics;
+  const wasteGap = commercial.waste.totalMonthlyBrl;
+  const gapFromMeta = gap?.gapMonthlyBrl ?? 0;
+  const primaryGap = Math.max(gapFromMeta, wasteGap, leakSum);
   if (gap) {
     return {
       invested30d: gap.invested30d,
@@ -174,10 +204,10 @@ function buildExecutiveImpact(
       roasActualFormatted: gap.roasActualFormatted,
       revenuePotential: gap.revenuePotential,
       revenuePotentialFormatted: gap.revenuePotentialFormatted,
-      gapMonthlyBrl: gap.gapMonthlyBrl,
-      gapMonthlyFormatted: gap.gapMonthlyFormatted,
-      gapAnnualBrl: gap.gapAnnualBrl,
-      gapAnnualFormatted: gap.gapAnnualFormatted,
+      gapMonthlyBrl: primaryGap,
+      gapMonthlyFormatted: fmtBrl(primaryGap),
+      gapAnnualBrl: primaryGap * 12,
+      gapAnnualFormatted: fmtBrl(primaryGap * 12),
       headlinePt: gap.headlinePt,
     };
   }
@@ -587,8 +617,10 @@ export function buildGrowthIntelligenceDerived(
   const senior = commercial.seniorDerived;
   const gap = consultative?.accountFinancialGap ?? null;
 
-  const executiveImpact = buildExecutiveImpact(gap, commercial);
   const moneyLeaks = buildMoneyLeaks(consultative ?? null, commercial, senior, facts);
+  const leakSum = sumMoneyLeaks(moneyLeaks);
+  syncStoryExecutiveGap(commercial, Math.max(gap?.gapMonthlyBrl ?? 0, commercial.waste.totalMonthlyBrl, leakSum));
+  const executiveImpact = buildExecutiveImpact(gap, commercial, leakSum);
   const growthOpportunities = buildGrowthOpportunities(consultative ?? null, commercial, senior);
   const risks = buildRisks(senior, consultative?.deliverySummary ?? null, commercial);
   const benchmarkImpacts = buildBenchmarkImpacts(commercial);

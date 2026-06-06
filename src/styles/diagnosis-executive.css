@@ -1066,3 +1066,26 @@
   .exec-section > * { animation: none; }
   .exec-pillar-fill, .exec-score-ring-bar { transition: none; }
 }
+
+.exec-context-details {
+  border: 1px solid var(--exec-border, rgba(255, 255, 255, 0.08));
+  border-radius: 12px;
+  padding: 16px 20px;
+  background: var(--exec-surface, rgba(255, 255, 255, 0.02));
+}
+
+.exec-context-summary {
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--exec-text-2, rgba(255, 255, 255, 0.72));
+  list-style: none;
+}
+
+.exec-context-summary::-webkit-details-marker {
+  display: none;
+}
+
+.exec-context-details[open] .exec-context-summary {
+  margin-bottom: 16px;
+}
