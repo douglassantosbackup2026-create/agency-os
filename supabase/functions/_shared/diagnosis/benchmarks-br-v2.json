@@ -1,0 +1,1562 @@
+{
+  "_meta": {
+    "version": "2.0",
+    "mercado": "Brasil",
+    "plataforma": "Meta Ads",
+    "moeda": "BRL"
+  },
+  "verticais": {
+    "moda_acessorios": {
+      "label": "Moda e Acessórios",
+      "ticket_medio_referencia": {
+        "min": 120,
+        "max": 350,
+        "moeda": "BRL"
+      },
+      "metricas": {
+        "roas": {
+          "label": "ROAS",
+          "unidade": "x",
+          "referencia_ideal": 7.5,
+          "faixas": {
+            "ruim": {
+              "operador": "lt",
+              "valor": 4,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 4,
+              "max": 6,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 6,
+              "max": 9,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "gt",
+              "valor": 9,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "Seu ROAS de {valor}× está {pct}% abaixo do mínimo saudável para moda no Brasil. Para cada R investido, você recupera R — quando o ideal seria recuperar pelo menos R.",
+          "mensagem_bom": "Seu ROAS de {valor}× está dentro da faixa saudável para moda."
+        },
+        "cpm": {
+          "label": "CPM",
+          "unidade": "R$",
+          "referencia_ideal": 30,
+          "faixas": {
+            "ruim": {
+              "operador": "gt",
+              "valor": 60,
+              "label": "Caro demais",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 40,
+              "max": 60,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 20,
+              "max": 40,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "lt",
+              "valor": 20,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "Você está pagando R para mostrar seus anúncios para 1.000 pessoas. Para moda no Brasil, o ideal é entre R–40.",
+          "mensagem_bom": ""
+        },
+        "ctr_conversao": {
+          "label": "CTR (campanhas de conversão)",
+          "unidade": "%",
+          "referencia_ideal": 3,
+          "faixas": {
+            "ruim": {
+              "operador": "lt",
+              "valor": 1,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 1,
+              "max": 2,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 2,
+              "max": 4,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "gt",
+              "valor": 4,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "De cada 1.000 pessoas que viram seu anúncio, apenas {valor_abs} clicaram. Para moda, o ideal é pelo menos 20 cliques por 1.000 impressões.",
+          "mensagem_bom": ""
+        },
+        "cpp": {
+          "label": "CPP",
+          "unidade": "R$",
+          "referencia_ideal": 90,
+          "faixas": {
+            "ruim": {
+              "operador": "gt",
+              "valor": 200,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 120,
+              "max": 200,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 60,
+              "max": 120,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "lt",
+              "valor": 60,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "Você está pagando R para cada compra realizada. Para moda no Brasil, o ideal fica entre R–120.",
+          "mensagem_bom": ""
+        },
+        "frequencia": {
+          "label": "Frequência média",
+          "unidade": "x",
+          "referencia_ideal": 2.5,
+          "faixas": {
+            "ruim": {
+              "operador": "gt",
+              "valor": 5,
+              "label": "Saturação",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 3,
+              "max": 5,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 2,
+              "max": 3,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "lt",
+              "valor": 1.5,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "Cada pessoa viu seu anúncio em média {valor} vezes. Acima de 5× em moda, o público começa a ignorar ativamente.",
+          "mensagem_bom": ""
+        },
+        "taxa_checkout_compra": {
+          "label": "Taxa checkout → compra",
+          "unidade": "%",
+          "referencia_ideal": 55,
+          "faixas": {
+            "ruim": {
+              "operador": "lt",
+              "valor": 30,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 30,
+              "max": 45,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 45,
+              "max": 60,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "gt",
+              "valor": 60,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "De {checkout_abs} pessoas que iniciaram o checkout, apenas {compras_abs} finalizaram a compra ({valor}%). Isso é um problema de site, não de anúncio.",
+          "mensagem_bom": ""
+        },
+        "taxa_atc_lpv": {
+          "label": "Taxa add-to-cart / landing page view",
+          "unidade": "%",
+          "referencia_ideal": 7,
+          "faixas": {
+            "ruim": {
+              "operador": "lt",
+              "valor": 3,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 3,
+              "max": 6,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 6,
+              "max": 10,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "gt",
+              "valor": 10,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "Apenas {valor}% das pessoas que chegaram no seu site adicionaram algo ao carrinho.",
+          "mensagem_bom": ""
+        }
+      }
+    },
+    "beleza_cosmeticos": {
+      "label": "Beleza e Cosméticos",
+      "ticket_medio_referencia": {
+        "min": 80,
+        "max": 280,
+        "moeda": "BRL"
+      },
+      "metricas": {
+        "roas": {
+          "label": "ROAS",
+          "unidade": "x",
+          "referencia_ideal": 9,
+          "faixas": {
+            "ruim": {
+              "operador": "lt",
+              "valor": 5,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 5,
+              "max": 8,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 8,
+              "max": 12,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "gt",
+              "valor": 12,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "ROAS de {valor}× está abaixo do mínimo saudável para beleza (5×).",
+          "mensagem_bom": ""
+        },
+        "cpm": {
+          "label": "CPM",
+          "unidade": "R$",
+          "referencia_ideal": 22,
+          "faixas": {
+            "ruim": {
+              "operador": "gt",
+              "valor": 50,
+              "label": "Caro demais",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 30,
+              "max": 50,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 15,
+              "max": 30,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "lt",
+              "valor": 15,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "CPM de R está elevado para beleza.",
+          "mensagem_bom": ""
+        },
+        "ctr_conversao": {
+          "label": "CTR",
+          "unidade": "%",
+          "referencia_ideal": 3.5,
+          "faixas": {
+            "ruim": {
+              "operador": "lt",
+              "valor": 1.5,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 1.5,
+              "max": 2.5,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 2.5,
+              "max": 5,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "gt",
+              "valor": 5,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "CTR de {valor}% está abaixo do esperado para beleza.",
+          "mensagem_bom": ""
+        },
+        "cpp": {
+          "label": "CPP",
+          "unidade": "R$",
+          "referencia_ideal": 60,
+          "faixas": {
+            "ruim": {
+              "operador": "gt",
+              "valor": 150,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 80,
+              "max": 150,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 40,
+              "max": 80,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "lt",
+              "valor": 40,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "CPP de R está acima do ideal para beleza.",
+          "mensagem_bom": ""
+        },
+        "frequencia": {
+          "label": "Frequência",
+          "unidade": "x",
+          "referencia_ideal": 2.2,
+          "faixas": {
+            "ruim": {
+              "operador": "gt",
+              "valor": 5,
+              "label": "Saturação",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 3,
+              "max": 5,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 2,
+              "max": 3,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "lt",
+              "valor": 1.5,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "Frequência de {valor}× em beleza indica audiência esgotada.",
+          "mensagem_bom": ""
+        },
+        "taxa_checkout_compra": {
+          "label": "Taxa checkout → compra",
+          "unidade": "%",
+          "referencia_ideal": 58,
+          "faixas": {
+            "ruim": {
+              "operador": "lt",
+              "valor": 35,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 35,
+              "max": 50,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 50,
+              "max": 65,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "gt",
+              "valor": 65,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "Taxa de finalização de checkout de {valor}% está abaixo do ideal para beleza.",
+          "mensagem_bom": ""
+        },
+        "taxa_atc_lpv": {
+          "label": "Taxa ATC/LPV",
+          "unidade": "%",
+          "referencia_ideal": 8,
+          "faixas": {
+            "ruim": {
+              "operador": "lt",
+              "valor": 4,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 4,
+              "max": 7,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 7,
+              "max": 12,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "gt",
+              "valor": 12,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "ATC de {valor}% está baixo para beleza.",
+          "mensagem_bom": ""
+        }
+      }
+    },
+    "casa_decoracao": {
+      "label": "Casa e Decoração",
+      "ticket_medio_referencia": {
+        "min": 150,
+        "max": 800,
+        "moeda": "BRL"
+      },
+      "metricas": {
+        "roas": {
+          "label": "ROAS",
+          "unidade": "x",
+          "referencia_ideal": 8,
+          "faixas": {
+            "ruim": {
+              "operador": "lt",
+              "valor": 4,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 4,
+              "max": 7,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 7,
+              "max": 10,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "gt",
+              "valor": 10,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "ROAS de {valor}× está abaixo do esperado para casa e decoração.",
+          "mensagem_bom": ""
+        },
+        "cpm": {
+          "label": "CPM",
+          "unidade": "R$",
+          "referencia_ideal": 26,
+          "faixas": {
+            "ruim": {
+              "operador": "gt",
+              "valor": 55,
+              "label": "Caro demais",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 35,
+              "max": 55,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 18,
+              "max": 35,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "lt",
+              "valor": 18,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "CPM de R está elevado para casa.",
+          "mensagem_bom": ""
+        },
+        "ctr_conversao": {
+          "label": "CTR",
+          "unidade": "%",
+          "referencia_ideal": 2,
+          "faixas": {
+            "ruim": {
+              "operador": "lt",
+              "valor": 0.8,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 0.8,
+              "max": 1.5,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 1.5,
+              "max": 3,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "gt",
+              "valor": 3,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "CTR de {valor}% está abaixo do ideal para casa.",
+          "mensagem_bom": ""
+        },
+        "cpp": {
+          "label": "CPP",
+          "unidade": "R$",
+          "referencia_ideal": 115,
+          "faixas": {
+            "ruim": {
+              "operador": "gt",
+              "valor": 250,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 150,
+              "max": 250,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 80,
+              "max": 150,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "lt",
+              "valor": 80,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "CPP de R compromete a margem em casa/decoração.",
+          "mensagem_bom": ""
+        },
+        "frequencia": {
+          "label": "Frequência",
+          "unidade": "x",
+          "referencia_ideal": 2.3,
+          "faixas": {
+            "ruim": {
+              "operador": "gt",
+              "valor": 4,
+              "label": "Saturação",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 3,
+              "max": 4,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 2,
+              "max": 3,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "lt",
+              "valor": 1.5,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "Frequência de {valor}× indica saturação.",
+          "mensagem_bom": ""
+        },
+        "taxa_checkout_compra": {
+          "label": "Taxa checkout → compra",
+          "unidade": "%",
+          "referencia_ideal": 48,
+          "faixas": {
+            "ruim": {
+              "operador": "lt",
+              "valor": 25,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 25,
+              "max": 40,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 40,
+              "max": 58,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "gt",
+              "valor": 58,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "Taxa de {valor}% no checkout está abaixo do ideal.",
+          "mensagem_bom": ""
+        },
+        "taxa_atc_lpv": {
+          "label": "Taxa ATC/LPV",
+          "unidade": "%",
+          "referencia_ideal": 5,
+          "faixas": {
+            "ruim": {
+              "operador": "lt",
+              "valor": 2,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 2,
+              "max": 4,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 4,
+              "max": 7,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "gt",
+              "valor": 7,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "ATC de {valor}% está baixo para casa.",
+          "mensagem_bom": ""
+        }
+      }
+    },
+    "eletronicos_tecnologia": {
+      "label": "Eletrônicos e Tecnologia",
+      "ticket_medio_referencia": {
+        "min": 200,
+        "max": 3000,
+        "moeda": "BRL"
+      },
+      "metricas": {
+        "roas": {
+          "label": "ROAS",
+          "unidade": "x",
+          "referencia_ideal": 11,
+          "faixas": {
+            "ruim": {
+              "operador": "lt",
+              "valor": 6,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 6,
+              "max": 10,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 10,
+              "max": 15,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "gt",
+              "valor": 15,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "ROAS de {valor}× está crítico para eletrônicos.",
+          "mensagem_bom": ""
+        },
+        "cpm": {
+          "label": "CPM",
+          "unidade": "R$",
+          "referencia_ideal": 30,
+          "faixas": {
+            "ruim": {
+              "operador": "gt",
+              "valor": 65,
+              "label": "Caro demais",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 40,
+              "max": 65,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 20,
+              "max": 40,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "lt",
+              "valor": 20,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "CPM de R está muito elevado para eletrônicos.",
+          "mensagem_bom": ""
+        },
+        "ctr_conversao": {
+          "label": "CTR",
+          "unidade": "%",
+          "referencia_ideal": 1.5,
+          "faixas": {
+            "ruim": {
+              "operador": "lt",
+              "valor": 0.5,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 0.5,
+              "max": 1,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 1,
+              "max": 2,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "gt",
+              "valor": 2,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "CTR de {valor}% está abaixo do esperado em eletrônicos.",
+          "mensagem_bom": ""
+        },
+        "cpp": {
+          "label": "CPP",
+          "unidade": "R$",
+          "referencia_ideal": 130,
+          "faixas": {
+            "ruim": {
+              "operador": "gt",
+              "valor": 300,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 180,
+              "max": 300,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 80,
+              "max": 180,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "lt",
+              "valor": 80,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "CPP de R compromete seriamente a margem.",
+          "mensagem_bom": ""
+        },
+        "frequencia": {
+          "label": "Frequência",
+          "unidade": "x",
+          "referencia_ideal": 1.8,
+          "faixas": {
+            "ruim": {
+              "operador": "gt",
+              "valor": 3,
+              "label": "Saturação",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 2,
+              "max": 3,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 1.5,
+              "max": 2,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "lt",
+              "valor": 1,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "Frequência de {valor}× em eletrônicos é preocupante.",
+          "mensagem_bom": ""
+        },
+        "taxa_checkout_compra": {
+          "label": "Taxa checkout → compra",
+          "unidade": "%",
+          "referencia_ideal": 52,
+          "faixas": {
+            "ruim": {
+              "operador": "lt",
+              "valor": 28,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 28,
+              "max": 42,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 42,
+              "max": 60,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "gt",
+              "valor": 60,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "Taxa de checkout de {valor}% está abaixo do ideal.",
+          "mensagem_bom": ""
+        },
+        "taxa_atc_lpv": {
+          "label": "Taxa ATC/LPV",
+          "unidade": "%",
+          "referencia_ideal": 4,
+          "faixas": {
+            "ruim": {
+              "operador": "lt",
+              "valor": 1.5,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 1.5,
+              "max": 3,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 3,
+              "max": 6,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "gt",
+              "valor": 6,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "ATC de {valor}% está baixo em eletrônicos.",
+          "mensagem_bom": ""
+        }
+      }
+    },
+    "esportes_fitness": {
+      "label": "Esportes e Fitness",
+      "ticket_medio_referencia": {
+        "min": 80,
+        "max": 500,
+        "moeda": "BRL"
+      },
+      "metricas": {
+        "roas": {
+          "label": "ROAS",
+          "unidade": "x",
+          "referencia_ideal": 8.5,
+          "faixas": {
+            "ruim": {
+              "operador": "lt",
+              "valor": 4,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 4,
+              "max": 7,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 7,
+              "max": 11,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "gt",
+              "valor": 11,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "ROAS de {valor}× está abaixo do mínimo para esportes/fitness.",
+          "mensagem_bom": ""
+        },
+        "cpm": {
+          "label": "CPM",
+          "unidade": "R$",
+          "referencia_ideal": 21,
+          "faixas": {
+            "ruim": {
+              "operador": "gt",
+              "valor": 45,
+              "label": "Caro demais",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 28,
+              "max": 45,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 14,
+              "max": 28,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "lt",
+              "valor": 14,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "CPM de R está elevado para esportes.",
+          "mensagem_bom": ""
+        },
+        "ctr_conversao": {
+          "label": "CTR",
+          "unidade": "%",
+          "referencia_ideal": 3,
+          "faixas": {
+            "ruim": {
+              "operador": "lt",
+              "valor": 1.2,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 1.2,
+              "max": 2,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 2,
+              "max": 4,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "gt",
+              "valor": 4,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "CTR de {valor}% está abaixo do ideal para esportes.",
+          "mensagem_bom": ""
+        },
+        "cpp": {
+          "label": "CPP",
+          "unidade": "R$",
+          "referencia_ideal": 75,
+          "faixas": {
+            "ruim": {
+              "operador": "gt",
+              "valor": 180,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 100,
+              "max": 180,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 50,
+              "max": 100,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "lt",
+              "valor": 50,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "CPP de R compromete a operação.",
+          "mensagem_bom": ""
+        },
+        "frequencia": {
+          "label": "Frequência",
+          "unidade": "x",
+          "referencia_ideal": 2.5,
+          "faixas": {
+            "ruim": {
+              "operador": "gt",
+              "valor": 5,
+              "label": "Saturação",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 3,
+              "max": 5,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 2,
+              "max": 3,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "lt",
+              "valor": 1.5,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "Frequência de {valor}× está alta para esportes.",
+          "mensagem_bom": ""
+        },
+        "taxa_checkout_compra": {
+          "label": "Taxa checkout → compra",
+          "unidade": "%",
+          "referencia_ideal": 55,
+          "faixas": {
+            "ruim": {
+              "operador": "lt",
+              "valor": 30,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 30,
+              "max": 45,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 45,
+              "max": 62,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "gt",
+              "valor": 62,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "Taxa de checkout de {valor}% está abaixo do ideal.",
+          "mensagem_bom": ""
+        },
+        "taxa_atc_lpv": {
+          "label": "Taxa ATC/LPV",
+          "unidade": "%",
+          "referencia_ideal": 7,
+          "faixas": {
+            "ruim": {
+              "operador": "lt",
+              "valor": 3,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 3,
+              "max": 5,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 5,
+              "max": 9,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "gt",
+              "valor": 9,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "ATC de {valor}% está abaixo do ideal.",
+          "mensagem_bom": ""
+        }
+      }
+    },
+    "alimentos_suplementos": {
+      "label": "Alimentos, Bebidas e Suplementos",
+      "ticket_medio_referencia": {
+        "min": 60,
+        "max": 300,
+        "moeda": "BRL"
+      },
+      "metricas": {
+        "roas": {
+          "label": "ROAS",
+          "unidade": "x",
+          "referencia_ideal": 11,
+          "faixas": {
+            "ruim": {
+              "operador": "lt",
+              "valor": 6,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 6,
+              "max": 10,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 10,
+              "max": 15,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "gt",
+              "valor": 15,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "ROAS de {valor}× está abaixo do mínimo para suplementos.",
+          "mensagem_bom": ""
+        },
+        "cpm": {
+          "label": "CPM",
+          "unidade": "R$",
+          "referencia_ideal": 18,
+          "faixas": {
+            "ruim": {
+              "operador": "gt",
+              "valor": 40,
+              "label": "Caro demais",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 25,
+              "max": 40,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 12,
+              "max": 25,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "lt",
+              "valor": 12,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "CPM de R está elevado para suplementos.",
+          "mensagem_bom": ""
+        },
+        "ctr_conversao": {
+          "label": "CTR",
+          "unidade": "%",
+          "referencia_ideal": 3,
+          "faixas": {
+            "ruim": {
+              "operador": "lt",
+              "valor": 1,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 1,
+              "max": 2,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 2,
+              "max": 4,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "gt",
+              "valor": 4,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "CTR de {valor}% está abaixo do ideal.",
+          "mensagem_bom": ""
+        },
+        "cpp": {
+          "label": "CPP",
+          "unidade": "R$",
+          "referencia_ideal": 50,
+          "faixas": {
+            "ruim": {
+              "operador": "gt",
+              "valor": 120,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 70,
+              "max": 120,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 35,
+              "max": 70,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "lt",
+              "valor": 35,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "CPP de R compromete a rentabilidade.",
+          "mensagem_bom": ""
+        },
+        "frequencia": {
+          "label": "Frequência",
+          "unidade": "x",
+          "referencia_ideal": 2.3,
+          "faixas": {
+            "ruim": {
+              "operador": "gt",
+              "valor": 4,
+              "label": "Saturação",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 3,
+              "max": 4,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 2,
+              "max": 3,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "lt",
+              "valor": 1.5,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "Frequência de {valor}× está elevada.",
+          "mensagem_bom": ""
+        },
+        "taxa_checkout_compra": {
+          "label": "Taxa checkout → compra",
+          "unidade": "%",
+          "referencia_ideal": 60,
+          "faixas": {
+            "ruim": {
+              "operador": "lt",
+              "valor": 35,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 35,
+              "max": 50,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 50,
+              "max": 68,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "gt",
+              "valor": 68,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "Taxa de checkout de {valor}% está abaixo do ideal.",
+          "mensagem_bom": ""
+        },
+        "taxa_atc_lpv": {
+          "label": "Taxa ATC/LPV",
+          "unidade": "%",
+          "referencia_ideal": 9,
+          "faixas": {
+            "ruim": {
+              "operador": "lt",
+              "valor": 4,
+              "label": "Crítico",
+              "cor": "red"
+            },
+            "atencao": {
+              "operador": "bt",
+              "min": 4,
+              "max": 7,
+              "label": "Atenção",
+              "cor": "amber"
+            },
+            "bom": {
+              "operador": "bt",
+              "min": 7,
+              "max": 12,
+              "label": "Bom",
+              "cor": "green"
+            },
+            "excelente": {
+              "operador": "gt",
+              "valor": 12,
+              "label": "Excelente",
+              "cor": "teal"
+            }
+          },
+          "mensagem_ruim": "ATC de {valor}% está abaixo do ideal.",
+          "mensagem_bom": ""
+        }
+      }
+    }
+  },
+  "mapeamento_subvertical": {
+    "mapa": {
+      "roupas": "moda_acessorios",
+      "moda": "moda_acessorios",
+      "calçados": "moda_acessorios",
+      "maquiagem": "beleza_cosmeticos",
+      "beleza": "beleza_cosmeticos",
+      "skincare": "beleza_cosmeticos",
+      "móveis": "casa_decoracao",
+      "casa": "casa_decoracao",
+      "decoração": "casa_decoracao",
+      "celular": "eletronicos_tecnologia",
+      "tecnologia": "eletronicos_tecnologia",
+      "eletrônicos": "eletronicos_tecnologia",
+      "fitness": "esportes_fitness",
+      "esporte": "esportes_fitness",
+      "academia": "esportes_fitness",
+      "whey": "alimentos_suplementos",
+      "suplemento": "alimentos_suplementos",
+      "alimento": "alimentos_suplementos"
+    }
+  }
+}

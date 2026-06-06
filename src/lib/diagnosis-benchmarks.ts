@@ -1,5 +1,4 @@
-// P5 — Benchmarks de referência por nicho (Páprika v1 tiers — faixa "bom").
-// Faixas alinhadas a supabase/functions/_shared/diagnosis/niche-benchmarks-v1.ts
+// P5 — Benchmarks BR v2 — faixas "bom" alinhadas a benchmarks-br-v2.json (via servidor).
 
 export type BenchmarkRange = [number, number];
 

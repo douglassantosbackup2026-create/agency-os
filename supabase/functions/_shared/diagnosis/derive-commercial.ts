@@ -20,6 +20,7 @@ import {
   NICHE_BENCHMARKS_V1,
   type BenchmarkTier,
 } from "./niche-benchmarks-v1.ts";
+import { benchmarkGapNote, calcularStatus } from "./benchmark-loader.ts";
 import { normalizeCtrPct, resolveRoasTarget } from "./derive-roas-target.ts";
 import type { BusinessContextInput } from "./derive-business-hints.ts";
 
@@ -36,32 +37,6 @@ export type NicheBenchmarkKey =
   | "b2b";
 
 type BenchmarkRange = [number, number];
-
-const NICHE_BENCHMARKS: Record<
-  NicheBenchmarkKey,
-  { label: string; ranges: Partial<Record<"roas" | "ctr" | "cpm" | "frequencia", BenchmarkRange>> }
-> = {
-  ecom_geral: {
-    label: "E-commerce geral (referência BR)",
-    ranges: { roas: [2.5, 5.0], ctr: [1.0, 2.0], cpm: [18, 40], frequencia: [1.5, 3.0] },
-  },
-  ecom_moda: {
-    label: "E-commerce de moda",
-    ranges: { roas: [2.0, 4.0], ctr: [1.2, 2.2], cpm: [15, 35], frequencia: [1.5, 3.0] },
-  },
-  infoproduto: {
-    label: "Infoproduto / curso",
-    ranges: { roas: [2.0, 4.0], ctr: [1.5, 3.0], cpm: [12, 28], frequencia: [1.5, 2.8] },
-  },
-  servico_local: {
-    label: "Serviço local",
-    ranges: { roas: [3.0, 6.0], ctr: [1.0, 2.0], cpm: [10, 25], frequencia: [1.5, 3.0] },
-  },
-  b2b: {
-    label: "B2B / lead gen",
-    ranges: { ctr: [0.8, 1.8], cpm: [20, 50], frequencia: [1.5, 3.0] },
-  },
-};
 
 function fmtBRL(n: number): string {
   return `R$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
@@ -363,6 +338,13 @@ function tierToStatus(tier: BenchmarkTier): "below" | "within" | "above" {
   return "above";
 }
 
+function metricKeyToJson(
+  metricKey: "roas" | "cpm" | "ctrConversion" | "frequencia",
+): string {
+  if (metricKey === "ctrConversion") return "ctr_conversao";
+  return metricKey;
+}
+
 function pushTierGap(
   gaps: BenchmarkGap[],
   nicheKey: string,
@@ -371,6 +353,7 @@ function pushTierGap(
   currentFormatted: string,
   metricKey: "roas" | "cpm" | "ctrConversion" | "frequencia",
   formatRef: (n: number) => string,
+  contexto?: { impressions?: number },
 ): void {
   const v1 = NICHE_BENCHMARKS_V1[nicheKey] ?? NICHE_BENCHMARKS_V1.ecom_geral;
   const m = v1[metricKey];
@@ -379,7 +362,9 @@ function pushTierGap(
   const [lo, hi] = m.bom;
   const status = tierToStatus(tier);
   const delta = gapDelta(current, lo, hi, m.higherIsBetter);
+  const jsonKey = metricKeyToJson(metricKey);
   const gapNote =
+    benchmarkGapNote(nicheKey, jsonKey, current, contexto) ||
     formatTierGapNote(metricLabel, current, nicheKey, metricKey, formatRef) ||
     (status === "below"
       ? `${metricLabel} abaixo do mínimo saudável do nicho.`
@@ -429,6 +414,11 @@ export function deriveBenchmarkGaps(
       roasTarget.target * 1.2,
       true,
     );
+    const roasConsult = calcularStatus({
+      nicheKey,
+      metricJsonKey: "roas",
+      valor: economics.roasSales,
+    });
     gaps.push({
       metric: "ROAS (Vendas)",
       current: economics.roasFormatted,
@@ -436,12 +426,17 @@ export function deriveBenchmarkGaps(
       status,
       gapNote:
         economics.roasSales < roasTarget.target
-          ? `ROAS ${economics.roasFormatted} vs meta ${roasTarget.target.toFixed(1)}× — gap de eficiência.`
-          : `ROAS na faixa da meta (${tier}).`,
+          ? roasTarget.source === "declared"
+            ? `ROAS ${economics.roasFormatted} vs meta ${roasTarget.target.toFixed(1).replace(".", ",")}× — gap de eficiência.`
+            : roasConsult?.mensagem ??
+              `ROAS ${economics.roasFormatted} vs meta ${roasTarget.target.toFixed(1)}× — gap de eficiência.`
+          : roasConsult?.mensagem ?? `ROAS na faixa da meta (${tier}).`,
+      isBad: tier === "ruim" || tier === "atencao",
       ...delta,
     });
   }
 
+  const impressions = num(ins.impressions);
   if (v1.ctrConversion && ctr != null) {
     pushTierGap(
       gaps,
@@ -451,6 +446,7 @@ export function deriveBenchmarkGaps(
       `${ctr.toFixed(2).replace(".", ",")}%`,
       "ctrConversion",
       (n) => `${n.toFixed(2).replace(".", ",")}%`,
+      impressions != null ? { impressions } : undefined,
     );
   }
 

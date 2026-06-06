@@ -14,9 +14,9 @@ describe("resolveRoasTarget", () => {
     expect(r.target).toBeCloseTo(4, 0);
   });
 
-  it("fallback para nicho", () => {
+  it("fallback para referencia ideal do nicho", () => {
     const r = resolveRoasTarget(null, "ecom_moda");
     expect(r.source).toBe("niche");
-    expect(r.target).toBe(6);
+    expect(r.target).toBe(7.5);
   });
 });

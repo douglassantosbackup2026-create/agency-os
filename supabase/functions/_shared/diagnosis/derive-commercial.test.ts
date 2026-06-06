@@ -90,6 +90,19 @@ describe("derive-commercial", () => {
     expect(roasGap!.gapNote).toMatch(/10/);
   });
 
+  it("ROAS moda ~4,95 sem target usa mensagem v2 na faixa atencao", () => {
+    const facts = {
+      ...factsFromFixture(),
+      business_context: { niche: "moda feminina" },
+    };
+    const commercial = buildCommercialDerived(facts);
+    const roasGap = commercial.benchmarkComparison.gaps.find((g) =>
+      /roas/i.test(g.metric),
+    );
+    expect(roasGap?.status).toBe("within");
+    expect(roasGap?.gapNote).toMatch(/moda|4,95×|saudável/i);
+  });
+
   it("CTR normalizado compara percentual da conta", () => {
     const facts = {
       ...factsFromFixture(),

@@ -1,5 +1,5 @@
 import { deriveBreakevenRoas, type BusinessContextInput } from "./derive-business-hints.ts";
-import { referenceRoasBom } from "./niche-benchmarks-v1.ts";
+import { referenceRoasIdeal } from "./benchmark-loader.ts";
 
 export type RoasTargetSource = "declared" | "breakeven" | "niche";
 
@@ -31,11 +31,11 @@ export function resolveRoasTarget(
     };
   }
 
-  const niche = referenceRoasBom(nicheKey);
+  const niche = referenceRoasIdeal(nicheKey);
   return {
     target: niche,
     source: "niche",
-    label: `Referência nicho ${niche.toFixed(1).replace(".", ",")}×`,
+    label: `Referência ideal nicho ${niche.toFixed(1).replace(".", ",")}×`,
   };
 }
 

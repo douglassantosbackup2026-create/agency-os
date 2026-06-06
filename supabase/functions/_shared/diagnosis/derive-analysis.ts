@@ -24,6 +24,12 @@ import {
   deriveBusinessHints,
   type BusinessContextInput,
 } from "./derive-business-hints.ts";
+import {
+  calcularImpactoCheckout,
+  referenciaIdeal,
+  ticketMedioReferencia,
+} from "./benchmark-loader.ts";
+import { resolveNicheContext } from "./derive-niche-context.ts";
 export { deriveAccountScore, deriveScoreV2 } from "./derive-account-score.ts";
 import { deriveScoreV2 } from "./derive-account-score.ts";
 import { deriveHypothesisSeeds } from "./derive-hypothesis-seeds.ts";
@@ -795,6 +801,10 @@ export function deriveFunnelAnalysis(
 
   if (purchase === 0 && checkout === 0) return null;
 
+  const bizCtx = facts?.business_context as BusinessContextInput | undefined;
+  const niche = resolveNicheContext(facts ?? null, bizCtx ?? null);
+  const checkoutRefPct = referenciaIdeal(niche.nicheKey, "taxa_checkout_compra") ?? 55;
+
   const atcRate = lpv > 0 && atc > 0 ? (atc / lpv) * 100 : null;
   const checkoutRate = atc > 0 && checkout > 0 ? (checkout / atc) * 100 : null;
   const purchaseRate = checkout > 0 && purchase > 0 ? (purchase / checkout) * 100 : null;
@@ -804,7 +814,7 @@ export function deriveFunnelAnalysis(
 
   if (purchaseRate != null && purchaseRate < 35 && checkout >= 10) {
     bottleneck = "checkout";
-    bottleneckLabel = `Alta taxa de abandono no checkout: ${purchaseRate.toFixed(0)}% finalizam (referência saudável: 50–65% em moda BR).`;
+    bottleneckLabel = `Alta taxa de abandono no checkout: ${purchaseRate.toFixed(0)}% finalizam (referência saudável: ${checkoutRefPct}% em ${niche.nicheLabel}).`;
   } else if (checkoutRate != null && checkoutRate < 20 && atc >= 20) {
     bottleneck = "atc";
     bottleneckLabel = `Alta taxa de abandono de carrinho: ${checkoutRate.toFixed(0)}% avançam ao checkout.`;
@@ -818,15 +828,23 @@ export function deriveFunnelAnalysis(
 
   let revenueAtRiskMonthlyBrl: number | null = null;
   if (bottleneck === "checkout" && purchase > 0 && checkout > 0) {
-    let totalRevenue = 0;
-    for (const c of enriched) {
-      if (c.family === "sales" && c.roas != null) totalRevenue += c.roas * c.spend;
+    let ticket = bizCtx?.avg_ticket_brl ?? null;
+    if (ticket == null) {
+      let totalRevenue = 0;
+      for (const c of enriched) {
+        if (c.family === "sales" && c.roas != null) totalRevenue += c.roas * c.spend;
+      }
+      if (totalRevenue > 0) ticket = totalRevenue / purchase;
     }
-    if (totalRevenue > 0) {
-      const avgOrderValue = totalRevenue / purchase;
-      const expectedAt50pct = checkout * 0.5;
-      const additional = Math.max(0, expectedAt50pct - purchase);
-      revenueAtRiskMonthlyBrl = Math.round(additional * avgOrderValue);
+    ticket = ticket ?? ticketMedioReferencia(niche.nicheKey) ?? 200;
+    const impact = calcularImpactoCheckout({
+      checkouts: checkout,
+      comprasReais: purchase,
+      taxaReferenciaPct: checkoutRefPct,
+      ticketMedioBrl: ticket,
+    });
+    if (impact.receitaPerdidaEstimada >= 50) {
+      revenueAtRiskMonthlyBrl = impact.receitaPerdidaEstimada;
     }
   }
 
