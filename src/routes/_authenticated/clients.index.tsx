@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { brl } from "@/lib/format";
-import { Plus, Search, SlidersHorizontal } from "lucide-react";
+import { Plus, Search, SlidersHorizontal, Info, Copy } from "lucide-react";
 import {
   Card,
   CardHeader,
@@ -15,6 +15,7 @@ import {
 } from "@/components/operational-ui";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Sheet,
   SheetContent,
@@ -266,6 +267,14 @@ function Clients() {
     )
     .slice(0, 4);
 
+  function copyPortalLink(slug: string) {
+    const url = `${window.location.origin}/p/${slug}`;
+    void navigator.clipboard.writeText(url).then(
+      () => toast.success("Link do portal copiado."),
+      () => toast.error("Não foi possível copiar o link."),
+    );
+  }
+
   function downloadCockpitCsv() {
     const rows: string[][] = [
       [
@@ -354,6 +363,16 @@ function Clients() {
           </Button>
         </div>
       </PageHeader>
+
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertTitle>Links do portal</AlertTitle>
+        <AlertDescription>
+          Slugs são gerados automaticamente na base de dados. Links antigos{" "}
+          <code className="rounded bg-surface px-1 py-0.5 text-[11px]">/p/...</code>{" "}
+          não funcionam — use o botão copiar ao lado de cada cliente.
+        </AlertDescription>
+      </Alert>
 
       <Sheet open={listToolbarOpen} onOpenChange={setListToolbarOpen}>
         <SheetContent side="bottom" className="p-0">
@@ -761,6 +780,21 @@ function Clients() {
                           <div className="truncate text-xs text-muted-foreground">
                             {c.segment}
                           </div>
+                        )}
+                        {c.portal_slug && (
+                          <button
+                            type="button"
+                            title="Copiar link do portal"
+                            className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              copyPortalLink(c.portal_slug!);
+                            }}
+                          >
+                            <Copy className="h-3 w-3" />
+                            Copiar portal
+                          </button>
                         )}
                       </div>
                     </div>

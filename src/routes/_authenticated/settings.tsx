@@ -6,9 +6,10 @@ import { Card, CardHeader } from "@/components/operational-ui";
 import { PageHeader } from "@/components/page-header";
 import { toast } from "sonner";
 import { invokeWithToast } from "@/lib/supabase-invoke";
-import { Database, Upload, Loader2, Moon, Sun } from "lucide-react";
+import { Database, Upload, Loader2, Moon, Sun, Info } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getSnapshotTheme, setTheme, subscribeTheme } from "@/lib/theme";
 
 export const Route = createFileRoute("/_authenticated/settings")({
@@ -246,24 +247,27 @@ function Settings() {
 
         <Card className="lg:col-span-2">
           <CardHeader title="Portal do cliente" />
-          <div className="space-y-2 p-4 text-sm text-muted-foreground">
-            <p>
-              Cada cliente com{" "}
-              <code className="rounded bg-surface px-1 py-0.5 text-[11px]">
-                portal_slug
-              </code>{" "}
-              ganha um portal público em{" "}
+          <div className="space-y-3 p-4">
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertTitle>Links do portal atualizados</AlertTitle>
+              <AlertDescription className="text-sm">
+                Cada cliente recebe um slug seguro gerado automaticamente na
+                base de dados. Links antigos{" "}
+                <code className="rounded bg-surface px-1 py-0.5 text-[11px]">
+                  /p/...
+                </code>{" "}
+                deixaram de funcionar após a atualização de segurança — reenvie
+                o link actual na ficha do cliente ou copie na lista de clientes.
+              </AlertDescription>
+            </Alert>
+            <p className="text-sm text-muted-foreground">
+              O portal público fica em{" "}
               <code className="rounded bg-surface px-1 py-0.5 text-[11px]">
                 /p/&lt;slug&gt;
               </code>{" "}
-              com tema da sua agência.
-            </p>
-            <p>
-              Configure o slug na tela de cada cliente. Ex:{" "}
-              <code className="rounded bg-surface px-1 py-0.5 text-[11px]">
-                /p/acme
-              </code>
-              .
+              com tema da sua agência. O slug é atribuído pelo sistema ao criar
+              o cliente (não é editável manualmente).
             </p>
           </div>
         </Card>

@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       action_center: {
@@ -1097,6 +1122,10 @@ export type Database = {
           management_mp_payment_id: string | null
           management_mp_preference_id: string | null
           management_paid_at: string | null
+          management_payment_method: string | null
+          management_pix_expires_at: string | null
+          management_pix_qr_code: string | null
+          management_pix_qr_code_base64: string | null
           management_status: string
           management_website: string | null
           meta_ad_account_id: string | null
@@ -1134,6 +1163,10 @@ export type Database = {
           management_mp_payment_id?: string | null
           management_mp_preference_id?: string | null
           management_paid_at?: string | null
+          management_payment_method?: string | null
+          management_pix_expires_at?: string | null
+          management_pix_qr_code?: string | null
+          management_pix_qr_code_base64?: string | null
           management_status?: string
           management_website?: string | null
           meta_ad_account_id?: string | null
@@ -1171,6 +1204,10 @@ export type Database = {
           management_mp_payment_id?: string | null
           management_mp_preference_id?: string | null
           management_paid_at?: string | null
+          management_payment_method?: string | null
+          management_pix_expires_at?: string | null
+          management_pix_qr_code?: string | null
+          management_pix_qr_code_base64?: string | null
           management_status?: string
           management_website?: string | null
           meta_ad_account_id?: string | null
@@ -2803,6 +2840,7 @@ export type Database = {
         Returns: number
       }
       cleanup_stale_sync_runs: { Args: never; Returns: number }
+      count_agency_clients: { Args: { p_agency_id: string }; Returns: number }
       count_open_alerts: { Args: { _agency: string }; Returns: number }
       current_user_agency: { Args: never; Returns: string }
       delete_orphan_metrics_daily_for_sync: {
@@ -2813,6 +2851,7 @@ export type Database = {
         }
         Returns: number
       }
+      generate_portal_slug: { Args: never; Returns: string }
       get_agency_client_batch: {
         Args: { p_agency_id: string; p_job_key: string; p_limit?: number }
         Returns: Json
@@ -2855,6 +2894,48 @@ export type Database = {
       is_member_of: { Args: { _agency_id: string }; Returns: boolean }
       is_owner_or_admin: { Args: { _agency_id: string }; Returns: boolean }
       max_alerts_for_agency: { Args: { _agency: string }; Returns: number }
+      platform_diagnosis_failures_summary: {
+        Args: { p_days?: number }
+        Returns: Json
+      }
+      platform_diagnosis_funnel_counts: {
+        Args: { p_days?: number }
+        Returns: {
+          cnt: number
+          status: string
+        }[]
+      }
+      platform_diagnosis_list_recent: {
+        Args: {
+          p_failed_only_24h?: boolean
+          p_limit?: number
+          p_offset?: number
+          p_status?: string
+        }
+        Returns: {
+          amount_cents: number
+          completed_at: string
+          created_at: string
+          cta_clicked: boolean
+          failed_reason_short: string
+          funnel_age_minutes: number
+          id: string
+          management_amount_cents: number
+          management_status: string
+          meta_connected: boolean
+          payer_email_masked: string
+          payment_method: string
+          prompt_version: string
+          secret_slug: string
+          status: string
+          updated_at: string
+        }[]
+      }
+      platform_diagnosis_ops_snapshot: { Args: never; Returns: Json }
+      platform_diagnosis_revenue_summary: {
+        Args: { p_days?: number }
+        Returns: Json
+      }
       platform_list_agencies_minimal: {
         Args: never
         Returns: {
@@ -2883,6 +2964,10 @@ export type Database = {
         Returns: Json
       }
       upsert_metrics_daily_batch: { Args: { p_rows: Json }; Returns: undefined }
+      user_can_access_client: {
+        Args: { p_client_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       ai_job_status: "pending" | "processing" | "done" | "failed"
@@ -3028,6 +3113,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       ai_job_status: ["pending", "processing", "done", "failed"],

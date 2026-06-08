@@ -72,4 +72,13 @@ describe("RLS security migration contract", () => {
     expect(sql).toMatch(/creative_reviews/i);
     expect(sql).toMatch(/creative_asset_id/i);
   });
+
+  it("security_activities_scope applies user_can_access_client to activities", () => {
+    const sql = readFileSync(
+      join(root, "supabase", "migrations", "20260609150000_security_activities_scope.sql"),
+      "utf8",
+    );
+    expect(sql).toMatch(/activities_select/i);
+    expect(sql).toMatch(/user_can_access_client\(client_id\)/i);
+  });
 });

@@ -18,6 +18,8 @@
     "ops:apply-crons": "node scripts/apply-cron-jobs.mjs",
     "ops:sync-cron-secret": "node scripts/sync-cron-secret.mjs",
     "db:lint": "npx supabase db lint",
+    "db:types": "npx supabase gen types typescript --linked > src/integrations/supabase/types.ts",
+    "ops:check-edge-env": "node scripts/check-edge-env.mjs --require-prod",
     "perf:lighthouse": "node scripts/lighthouse-authenticated.mjs",
     "ops:resilience-health": "node scripts/resilience-health-check.mjs",
     "ops:diagnosis-health": "node scripts/diagnosis-health-check.mjs",

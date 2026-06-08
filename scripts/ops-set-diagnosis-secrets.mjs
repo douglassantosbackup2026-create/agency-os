@@ -4,17 +4,35 @@
  *
  * Uso:
  *   PUBLIC_SITE_URL=https://tanstack-start-app....workers.dev node scripts/ops-set-diagnosis-secrets.mjs
+ *   node scripts/ops-set-diagnosis-secrets.mjs --require-prod
  *
  * Opcional: MERCADOPAGO_ACCESS_TOKEN, OAUTH_STATE_SECRET, CRON_SECRET, ANTHROPIC_API_KEY
  */
 import { spawnSync } from "node:child_process";
+
+const requireProd = process.argv.includes("--require-prod");
+if (requireProd) {
+  const check = spawnSync(
+    "node",
+    ["scripts/check-edge-env.mjs", "--require-prod"],
+    { stdio: "inherit" },
+  );
+  if (check.status !== 0) process.exit(check.status ?? 1);
+}
 
 const projectRef = process.env.SUPABASE_PROJECT_REF?.trim() || "uvuotaxikuxejfeitlaw";
 
 const site =
   process.env.PUBLIC_SITE_URL?.trim() ||
   process.env.VITE_PUBLIC_SITE_URL?.trim() ||
-  "https://tanstack-start-app.douglaspinheirosantos94.workers.dev";
+  (requireProd
+    ? ""
+    : "https://tanstack-start-app.douglaspinheirosantos94.workers.dev");
+
+if (!site) {
+  console.error("[security] PUBLIC_SITE_URL é obrigatório com --require-prod.");
+  process.exit(1);
+}
 
 const pairs = [
   ["PUBLIC_SITE_URL", site],

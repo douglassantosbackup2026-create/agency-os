@@ -34,12 +34,15 @@ Referência das correções aplicadas em jun/2026 após auditoria completa. Vali
 - [ ] `portal-creative-review`: criativo não-`pending` → **409**
 - [ ] `PUBLIC_SITE_URL` configurado em produção (CORS diagnosis + app)
 - [ ] Build produção exige `VITE_SUPABASE_*` (`scripts/check-prod-env.mjs`)
+- [ ] Antes de deploy Edge Functions: `npm run ops:check-edge-env` (exige `PUBLIC_SITE_URL` ou `APP_ALLOWED_ORIGINS`)
 
 ## Smoke commands
 
 ```bash
 npm run test -- --run
 npm run db:lint   # com projeto linkado
+npm run db:types  # regenerar types após migrations
+npm run ops:check-edge-env
 ```
 
 ## Secrets obrigatórios (produção)
