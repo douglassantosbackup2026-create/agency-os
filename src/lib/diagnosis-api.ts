@@ -35,7 +35,7 @@ function friendlyMessage(
     return "Serviço temporariamente indisponível. Tente novamente em instantes.";
   }
   if (status === 404) return "Pedido não encontrado. Verifique o link completo.";
-  return "Não foi possível contactar o servidor.";
+  return "Não foi possível contatar o servidor.";
 }
 
 export async function callDiagnosisApi<T>(
@@ -48,7 +48,7 @@ export async function callDiagnosisApi<T>(
   } catch (err) {
     reportError(`diagnosis-api:${name}:network`, err);
     throw new DiagnosisApiError(
-      "Falha de rede. Verifique a sua ligação e tente novamente.",
+      "Falha de rede. Verifique sua conexão e tente novamente.",
       0,
     );
   }

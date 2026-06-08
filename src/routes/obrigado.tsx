@@ -61,7 +61,7 @@ export const Route = createFileRoute("/obrigado")({
 const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   token: "Não foi possível obter o token de acesso da Meta. Tente novamente.",
   noadaccounts:
-    "A conta Meta ligada não tem contas de anúncios ativas. Verifique as permissões e tente novamente.",
+    "A conta Meta conectada não tem contas de anúncios ativas. Verifique as permissões e tente novamente.",
   access_denied:
     "Acesso negado. Autorize o acesso de leitura (ads_read) para continuar.",
 };
@@ -74,6 +74,22 @@ type AutoLoginState =
   | { kind: "error"; message: string };
 
 const POLL_MS = 5000;
+
+function mapAuthErrorMessage(message: string): string {
+  const lower = message.toLowerCase();
+  if (
+    lower.includes("invalid") ||
+    lower.includes("expired") ||
+    lower.includes("expirado") ||
+    lower.includes("inválido")
+  ) {
+    return "Link de acesso inválido ou expirado. Use o link mais recente desta página.";
+  }
+  if (lower.includes("network") || lower.includes("fetch")) {
+    return "Falha de rede. Verifique sua conexão e tente novamente.";
+  }
+  return message;
+}
 
 function ObrigadoPage() {
   const navigate = useNavigate();
@@ -159,7 +175,9 @@ function ObrigadoPage() {
         if (error || !data.user?.email) {
           setAuto({
             kind: "error",
-            message: error?.message ?? "Não foi possível autenticar.",
+            message: mapAuthErrorMessage(
+              error?.message ?? "Não foi possível autenticar.",
+            ),
           });
           return;
         }
@@ -175,7 +193,9 @@ function ObrigadoPage() {
         if (!cancelled) {
           setAuto({
             kind: "error",
-            message: e instanceof Error ? e.message : "Erro ao autenticar",
+            message: mapAuthErrorMessage(
+              e instanceof Error ? e.message : "Erro ao autenticar",
+            ),
           });
         }
       }
@@ -232,7 +252,7 @@ function ObrigadoPage() {
             </h1>
             <p className="mt-2 text-muted-foreground">
               Use o link completo da página de obrigado (com parâmetros d e s)
-              que recebeste após o pagamento.
+              que você recebeu após o pagamento.
             </p>
             <Link
               to="/"
@@ -324,10 +344,10 @@ function ObrigadoPage() {
               </div>
               <div className="flex-1">
                 <h2 className="text-lg font-semibold tracking-tight">
-                  O teu diagnóstico está pronto
+                  Seu diagnóstico está pronto
                 </h2>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Já podes consultar o relatório completo com insights e
+                  Agora você pode consultar o relatório completo com análises e
                   recomendações.
                 </p>
                 <Link
@@ -443,8 +463,8 @@ function SuccessHero() {
           Pagamento confirmado
         </h1>
         <p className="mt-2 max-w-md text-sm text-muted-foreground sm:text-base">
-          Estamos a preparar o teu diagnóstico Meta Ads. Segue os próximos
-          passos abaixo.
+          Estamos preparando seu diagnóstico Meta Ads. Siga os próximos passos
+          abaixo.
         </p>
       </div>
     </div>
@@ -476,14 +496,14 @@ function SaveLinkBlock({ fullLink }: { fullLink: string }) {
           <AccordionTrigger className="px-6 py-4 hover:no-underline">
             <span className="flex items-center gap-2 text-sm font-medium">
               <Lock className="h-4 w-4 text-muted-foreground" />
-              Guardar link de acesso{" "}
+              Salvar link de acesso{" "}
               <span className="text-muted-foreground">(recomendado)</span>
             </span>
           </AccordionTrigger>
           <AccordionContent className="px-6 pb-5">
             <p className="text-sm text-muted-foreground">
-              Guarda este link nos favoritos. É a forma mais rápida de voltar
-              aqui caso saias do navegador.
+              Salve este link nos favoritos. É a forma mais rápida de voltar
+              aqui caso você saia do navegador.
             </p>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
               <code
@@ -538,8 +558,8 @@ function ChooseAccountCard({
           Escolhe a conta de anúncio
         </h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          O teu Facebook tem mais de uma conta de anúncio. Seleciona qual
-          queres que o diagnóstico analise.
+          Sua conta do Facebook tem mais de uma conta de anúncio. Selecione qual
+          você quer que o diagnóstico analise.
         </p>
         <Link
           to="/diagnostico/$diagnosisId/conectar"
@@ -569,8 +589,8 @@ function ConnectMetaCard({ metaUrl }: { metaUrl: string }) {
               Conectar Meta Ads
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Acesso <strong className="text-foreground">somente de leitura</strong>.
-              Podes revogar nas configurações da Meta a qualquer momento.
+              Acesso <strong className="text-foreground">somente leitura</strong>.
+              Você pode revogar nas configurações da Meta a qualquer momento.
             </p>
           </div>
         </div>
@@ -584,7 +604,7 @@ function ConnectMetaCard({ metaUrl }: { metaUrl: string }) {
           <PermissionList
             title="O que nunca fazemos"
             tone="negative"
-            items={["Alterar ou pausar anúncios", "Publicar em teu nome", "Aceder a mensagens"]}
+            items={["Alterar ou pausar anúncios", "Publicar em seu nome", "Acessar mensagens"]}
           />
         </div>
 
@@ -674,7 +694,7 @@ function AwaitingPaymentCard({
                 Verificar agora
               </Button>
               <span className="text-xs text-muted-foreground">
-                A demorar mais que o normal? Fala connosco no fim da página.
+                Demorando mais que o normal? Fale conosco no fim da página.
               </span>
             </div>
           ) : null}
@@ -703,10 +723,10 @@ function ProcessingCard({
   // Animated checklist progression (visual only)
   const progress = Math.min(95, 25 + tick * 4);
   const steps = [
-    { label: "Ligação Meta estabelecida", at: 0 },
-    { label: "A extrair dados das campanhas (90 dias)", at: 25 },
-    { label: "A analisar performance e gerar insights", at: 55 },
-    { label: "A preparar relatório", at: 80 },
+    { label: "Conexão com a Meta estabelecida", at: 0 },
+    { label: "Extraindo dados das campanhas (90 dias)", at: 25 },
+    { label: "Analisando performance e gerando análises", at: 55 },
+    { label: "Preparando relatório", at: 80 },
   ];
 
   return (
@@ -717,11 +737,11 @@ function ProcessingCard({
         </div>
         <div className="flex-1">
           <h2 className="text-lg font-semibold tracking-tight">
-            A preparar o teu diagnóstico
+            Preparando seu diagnóstico
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Normalmente demora 2 a 4 minutos. Podes fechar esta aba — voltamos
-            a abrir pelo link guardado.
+            Normalmente leva de 2 a 4 minutos. Você pode fechar esta aba — voltamos
+            a abrir pelo link salvo.
           </p>
         </div>
       </div>
@@ -787,7 +807,7 @@ function MetaConnectedCard({ adAccountId }: { adAccountId: string }) {
             Meta Ads conectada com sucesso
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Conta de anúncios ligada:{" "}
+            Conta de anúncios conectada:{" "}
             <code className="rounded bg-muted px-1.5 py-0.5 text-xs">
               {adAccountId}
             </code>
@@ -813,7 +833,7 @@ function OAuthErrorCard({
         <AlertCircle className="mt-0.5 h-5 w-5 text-amber-600 dark:text-amber-400" />
         <div className="flex-1">
           <h2 className="text-base font-semibold tracking-tight">
-            Não conseguimos ligar à Meta
+            Não conseguimos conectar à Meta
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {OAUTH_ERROR_MESSAGES[errorKey] ?? `Erro: ${errorKey}`}
@@ -841,7 +861,7 @@ function TrustFooter() {
     <div className="mt-10 flex flex-col items-center gap-2 text-xs text-muted-foreground">
       <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
         <span className="inline-flex items-center gap-1">
-          <Lock className="h-3 w-3" /> Dados encriptados
+          <Lock className="h-3 w-3" /> Dados criptografados
         </span>
         <span className="inline-flex items-center gap-1">
           <ShieldCheck className="h-3 w-3" /> Acesso somente leitura
@@ -904,7 +924,7 @@ function SetPasswordCard({
       <div className="mt-4 rounded-2xl border bg-card p-5 shadow-sm">
         <div className="flex items-center gap-2 text-sm">
           <Loader2 className="h-4 w-4 animate-spin text-primary" />
-          <span>A ativar o teu acesso…</span>
+          <span>Ativando seu acesso…</span>
         </div>
       </div>
     );
@@ -921,8 +941,8 @@ function SetPasswordCard({
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">{auto.message}</p>
             <p className="mt-2 text-sm text-muted-foreground">
-              Sem stress — ainda tens acesso ao diagnóstico pelo link guardado.
-              Podes criar a tua conta depois com o e-mail do checkout.
+              Sem problemas — você ainda tem acesso ao diagnóstico pelo link salvo.
+              Você pode criar sua conta depois com o e-mail do checkout.
             </p>
           </div>
         </div>
@@ -940,7 +960,7 @@ function SetPasswordCard({
               Senha definida
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              A tua conta está pronta. Podes entrar quando quiseres com o teu
+              Sua conta está pronta. Você pode entrar quando quiser com seu
               e-mail e essa senha.
             </p>
           </div>
@@ -973,7 +993,11 @@ function SetPasswordCard({
       setAuto({ kind: "saved" });
       toast.success("Senha definida com sucesso");
     } catch (e2) {
-      setErr(e2 instanceof Error ? e2.message : "Erro ao salvar senha");
+      setErr(
+        mapAuthErrorMessage(
+          e2 instanceof Error ? e2.message : "Erro ao salvar senha",
+        ),
+      );
     } finally {
       setSaving(false);
     }
@@ -987,12 +1011,12 @@ function SetPasswordCard({
         </div>
         <div className="flex-1">
           <h2 className="text-lg font-semibold tracking-tight">
-            Defina a sua senha de acesso
+            Defina sua senha de acesso
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Criámos a conta com o e-mail{" "}
-            <strong className="text-foreground">{auto.email}</strong>. Define
-            uma senha para voltares quando quiseres.
+            Criamos a conta com o e-mail{" "}
+            <strong className="text-foreground">{auto.email}</strong>. Defina
+            uma senha para voltar quando quiser.
           </p>
 
           <form onSubmit={onSubmit} className="mt-4 space-y-4">
@@ -1073,7 +1097,7 @@ function SetPasswordCard({
               {saving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  A guardar…
+                  Salvando…
                 </>
               ) : (
                 "Definir senha e ativar conta"

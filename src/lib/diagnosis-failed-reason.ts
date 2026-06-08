@@ -19,7 +19,7 @@ type AiAttempt = {
 
 const META_RECONNECT = /token meta|reconect/i;
 const NON_RETRY =
-  /Orçamento diário de IA|Configuração de IA incompleta|Contacta o suporte com o ID/i;
+  /Orçamento diário de IA|Configuração de IA incompleta|Entre em contato com o suporte com o ID/i;
 
 function extractAiAttempts(raw: string): AiAttempt[] | null {
   const marker = "Todos os providers IA falharam:";
@@ -54,7 +54,7 @@ function classifyFromAttempts(attempts: AiAttempt[]): ParsedDiagnosisFailure {
   if (isInsufficientQuota(errors)) {
     return {
       message:
-        "Serviço de IA temporariamente indisponível. Estamos a resolver — tenta gerar o relatório novamente em alguns minutos.",
+        "Serviço de IA temporariamente indisponível. Estamos resolvendo — tente gerar o relatório novamente em alguns minutos.",
       kind: "retry",
       showRetry: true,
       showMetaReconnect: false,
@@ -65,7 +65,7 @@ function classifyFromAttempts(attempts: AiAttempt[]): ParsedDiagnosisFailure {
   if (isRateLimit(errors)) {
     return {
       message:
-        "Muitas tentativas em pouco tempo. Aguarda 2–3 minutos e tenta novamente.",
+        "Muitas tentativas em pouco tempo. Aguarde 2–3 minutos e tente novamente.",
       kind: "retry",
       showRetry: true,
       showMetaReconnect: false,
@@ -76,7 +76,7 @@ function classifyFromAttempts(attempts: AiAttempt[]): ParsedDiagnosisFailure {
   if (errors.some((e) => e.includes("ausente") || e.includes("api_key"))) {
     return {
       message:
-        "Configuração de IA incompleta. Contacta o suporte com o ID do teu diagnóstico.",
+        "Configuração de IA incompleta. Entre em contato com o suporte com o ID do seu diagnóstico.",
       kind: "support",
       showRetry: false,
       showMetaReconnect: false,
@@ -90,7 +90,7 @@ function classifyFromAttempts(attempts: AiAttempt[]): ParsedDiagnosisFailure {
   ) {
     return {
       message:
-        "A geração do relatório demorou mais do que o esperado. Tenta novamente.",
+        "A geração do relatório demorou mais do que o esperado. Tente novamente.",
       kind: "retry",
       showRetry: true,
       showMetaReconnect: false,
@@ -100,7 +100,7 @@ function classifyFromAttempts(attempts: AiAttempt[]): ParsedDiagnosisFailure {
 
   if (errors.some((e) => e.includes("validation_failed"))) {
     return {
-      message: "Não foi possível validar o relatório gerado. Tenta novamente.",
+      message: "Não foi possível validar o relatório gerado. Tente novamente.",
       kind: "retry",
       showRetry: true,
       showMetaReconnect: false,
@@ -110,7 +110,7 @@ function classifyFromAttempts(attempts: AiAttempt[]): ParsedDiagnosisFailure {
 
   return {
     message:
-      "Não foi possível gerar o relatório agora. Tenta novamente ou contacta o suporte.",
+      "Não foi possível gerar o relatório agora. Tente novamente ou entre em contato com o suporte.",
     kind: "retry",
     showRetry: true,
     showMetaReconnect: false,
@@ -158,7 +158,7 @@ export function parseDiagnosisFailedReason(
   }
 
   if (
-    /Serviço de IA temporariamente|Tenta gerar o relatório|Tenta novamente|Não foi possível gerar o relatório|Não foi possível validar|demorou mais do que o esperado/i.test(
+    /Serviço de IA temporariamente|Tente gerar o relatório|Tente novamente|Não foi possível gerar o relatório|Não foi possível validar|demorou mais do que o esperado/i.test(
       text,
     )
   ) {
@@ -174,7 +174,7 @@ export function parseDiagnosisFailedReason(
   if (text.startsWith("Error:") || text.length > 200) {
     return {
       message:
-        "Não foi possível concluir o diagnóstico. Tenta novamente ou contacta o suporte.",
+        "Não foi possível concluir o diagnóstico. Tente novamente ou entre em contato com o suporte.",
       kind: "generic",
       showRetry: true,
       showMetaReconnect: false,

@@ -39,7 +39,7 @@ describe("parseDiagnosisFailedReason", () => {
 
   it("aceita mensagem amigável do backend", () => {
     const msg =
-      "A geração do relatório demorou mais do que o esperado. Tenta novamente.";
+      "A geração do relatório demorou mais do que o esperado. Tente novamente.";
     const parsed = parseDiagnosisFailedReason(msg);
     expect(parsed.message).toBe(msg);
     expect(parsed.showRetry).toBe(true);

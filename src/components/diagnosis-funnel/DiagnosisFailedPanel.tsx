@@ -27,7 +27,7 @@ export function DiagnosisFailedPanel({
   secretSlug,
   metaOAuthUrl = "",
   onRetrySuccess,
-  title = "Algo correu mal",
+  title = "Algo deu errado",
   className = "mt-4 rounded-2xl border border-destructive/30 bg-destructive/5 p-6 animate-fade-in",
   showHomeLink = true,
   showStatusLink = false,
@@ -45,7 +45,7 @@ export function DiagnosisFailedPanel({
   }, [cooldownSec]);
 
   const supportHref = whatsappGestaoHref(
-    `Olá! O meu diagnóstico Meta Ads falhou e preciso de ajuda. ID: ${diagnosisId}`,
+    `Olá! Meu diagnóstico Meta Ads falhou e preciso de ajuda. ID: ${diagnosisId}`,
   );
 
   const startCooldown = useCallback((seconds = RETRY_COOLDOWN_SEC) => {
@@ -73,7 +73,7 @@ export function DiagnosisFailedPanel({
       toast.error(
         err instanceof Error
           ? err.message
-          : "Não foi possível tentar novamente. Tenta em instantes.",
+          : "Não foi possível tentar novamente. Tente em instantes.",
       );
     } finally {
       setRetrying(false);
@@ -111,7 +111,7 @@ export function DiagnosisFailedPanel({
                   <RefreshCw className="h-4 w-4" />
                 )}
                 {cooldownSec > 0
-                  ? `Aguarda ${cooldownSec}s`
+                  ? `Aguarde ${cooldownSec}s`
                   : "Tentar novamente"}
               </button>
             ) : null}
@@ -130,7 +130,7 @@ export function DiagnosisFailedPanel({
                 rel="noopener noreferrer"
                 className="inline-flex h-10 items-center justify-center rounded-lg border px-4 text-sm font-medium hover:bg-accent"
               >
-                Contactar suporte
+                Falar com suporte
               </a>
             ) : null}
             {showStatusLink ? (
