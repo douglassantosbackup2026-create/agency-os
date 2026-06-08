@@ -40,6 +40,20 @@ PUBLIC_SITE_URL=https://tanstack-start-app.douglaspinheirosantos94.workers.dev n
 
 `https://uvuotaxikuxejfeitlaw.supabase.co/functions/v1/meta-oauth-callback`
 
+## Gestão de tráfego (checkout transparente)
+
+| Função | Uso |
+|--------|-----|
+| `start-management-payment` | Inicia checkout gestão (d+s + loja + payer) |
+| `process-management-payment` | Cartão/PIX transparente (`external_reference: mgmt:<uuid>`) |
+| `management-payment-status` | Poll PIX gestão |
+
+Rota Worker: `/gestao-checkout?d=<uuid>&s=<slug>`. Pós-pagamento: `/gestao-obrigado`.
+
+`MERCADOPAGO_PUBLIC_KEY` obrigatório (mesmo que diagnóstico R$37).
+
+Legacy redirect MP: `create-management-checkout` (deprecated).
+
 ## Cron `process-diagnosis`
 
 Ver [`ops-cron-deploy-checklist.md`](ops-cron-deploy-checklist.md). Job `process-diagnosis-batch` (*/5).

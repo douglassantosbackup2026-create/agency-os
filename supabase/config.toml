@@ -66,6 +66,15 @@ verify_jwt = false
 [functions.create-management-checkout]
 verify_jwt = false
 
+[functions.start-management-payment]
+verify_jwt = false
+
+[functions.process-management-payment]
+verify_jwt = false
+
+[functions.management-payment-status]
+verify_jwt = false
+
 [functions.mercadopago-webhook]
 verify_jwt = false
 

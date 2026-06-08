@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { callDiagnosisApi } from "@/lib/diagnosis-api";
 import { resolveSupabaseUrl } from "@/lib/supabase-config";
@@ -6,10 +6,10 @@ import {
   buildGestaoIntroMessage,
   whatsappGestaoHref,
 } from "@/lib/gestao-whatsapp";
-import { useManagementCheckout } from "@/hooks/use-management-checkout";
+import { gestaoCheckoutSearch } from "@/lib/gestao-checkout-url";
+import { gestaoUrgencyText } from "@/content/gestao-checkout";
 import type { DiagnosisAnalysis } from "@/components/diagnosis-report/types";
 import { DiagnosisExecutiveReport } from "@/components/diagnosis-report/executive/DiagnosisExecutiveReport";
-import { DiagnosisBusinessContextForm } from "@/components/diagnosis-report/DiagnosisBusinessContextForm";
 import { InlineErrorBanner } from "@/components/diagnosis-funnel/InlineErrorBanner";
 import { DiagnosisFailedPanel } from "@/components/diagnosis-funnel/DiagnosisFailedPanel";
 import { parseDiagnosisFailedReason } from "@/lib/diagnosis-failed-reason";
@@ -17,11 +17,7 @@ import { reportFunnelError } from "@/lib/report-error";
 import "@/styles/diagnosis-executive.css";
 import "@/styles/diagnosis.css";
 
-const GESTAO_URGENCY_TEXT =
-  import.meta.env.VITE_GESTAO_URGENCY_TEXT?.trim() ||
-  "Condição especial para as próximas 2 operações";
-
-type DiagnosticoSearch = { s?: string; gestaoCheckout?: string };
+type DiagnosticoSearch = { s?: string };
 
 type BusinessContext = {
   niche?: string | null;
@@ -36,21 +32,14 @@ type BusinessContext = {
 export const Route = createFileRoute("/diagnostico/$diagnosisId")({
   validateSearch: (search: Record<string, unknown>): DiagnosticoSearch => ({
     s: typeof search.s === "string" ? search.s : undefined,
-    gestaoCheckout:
-      typeof search.gestaoCheckout === "string"
-        ? search.gestaoCheckout
-        : undefined,
   }),
   component: DiagnosticoReportPage,
 });
 
 function DiagnosticoReportPage() {
   const { diagnosisId } = Route.useParams();
-  const { s, gestaoCheckout } = Route.useSearch();
-  const mgmt = useManagementCheckout();
-  const [businessName, setBusinessName] = useState("");
-  const [website, setWebsite] = useState("");
-  const [instagram, setInstagram] = useState("");
+  const { s } = Route.useSearch();
+  const navigate = useNavigate();
 
   const [data, setData] = useState<{
     diagnosis?: {
@@ -149,14 +138,6 @@ function DiagnosticoReportPage() {
 
   const analysis = data?.report?.analysis_json;
 
-  function trackEvent(event: string) {
-    if (!s) return;
-    void callDiagnosisApi("diagnosis-track", {
-      method: "POST",
-      body: JSON.stringify({ diagnosis_id: diagnosisId, secret_slug: s, event }),
-    }).catch((e) => reportFunnelError("diagnosis.track_failed", e));
-  }
-
   async function trackCta() {
     if (!s) return;
     try {
@@ -184,9 +165,17 @@ function DiagnosticoReportPage() {
     );
   }, [managementPaid, data?.diagnosis, diagnosisId]);
 
-  function scrollToManagementCta() {
-    document.getElementById("sec-cta")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    trackEvent("cta_scroll");
+  function goToGestaoCheckout(gapFormatted?: string | null) {
+    if (!s) return;
+    void trackCta();
+    navigate({
+      to: "/gestao-checkout",
+      search: gestaoCheckoutSearch({
+        diagnosisId,
+        secretSlug: s,
+        gapFormatted: gapFormatted,
+      }),
+    });
   }
 
   // ---------- Error / loading shells (premium dark) ----------
@@ -337,7 +326,7 @@ function DiagnosticoReportPage() {
             : "Agendar Reunião Estratégica"
         }
         onPrimaryCta={() => {
-          if (ctaEligible) scrollToManagementCta();
+          if (ctaEligible) goToGestaoCheckout(gapCtaFormatted);
           else {
             void trackCta();
             window.open(consultWhatsappHref, "_blank", "noopener,noreferrer");
@@ -345,39 +334,11 @@ function DiagnosticoReportPage() {
         }}
       />
 
-      {s ? (
-        <div className="exec-root" style={{ background: "transparent", minHeight: 0 }}>
-          <div className="exec-container" style={{ paddingBottom: 48 }}>
-            <details className="exec-context-details">
-              <summary className="exec-context-summary">
-                Contexto da loja (meta ROAS, margem…)
-              </summary>
-              <DiagnosisBusinessContextForm
-                diagnosisId={diagnosisId}
-                secretSlug={s}
-                initial={data.diagnosis.business_context ?? null}
-                reportCompleted={data.diagnosis.status === "completed"}
-              />
-            </details>
-          </div>
-        </div>
-      ) : null}
-
       {/* ============ SECTION 10 — CTA FINAL ============ */}
       {ctaEligible ? (
         <div className="exec-root" style={{ background: "transparent", minHeight: 0 }}>
           <div className="exec-container" style={{ paddingBottom: 96 }}>
             <section className="exec-cta-final" id="sec-cta">
-              {gestaoCheckout === "falha" ? (
-                <p className="exec-cta-error" role="alert">
-                  O Mercado Pago não concluiu o pagamento. Você pode tentar de novo a seguir.
-                </p>
-              ) : gestaoCheckout === "pending" ? (
-                <p className="exec-cta-note" style={{ marginBottom: 16 }}>
-                  Pagamento pendente no Mercado Pago. Esta página será atualizada quando o status for confirmado.
-                </p>
-              ) : null}
-
               {managementPaid ? (
                 <>
                   <div className="exec-eyebrow">
@@ -427,74 +388,18 @@ function DiagnosticoReportPage() {
                   </h2>
                   <p className="exec-subhead">
                     Agora que os gargalos foram identificados, o próximo passo é executar.
-                    Você pode fazer internamente — ou ter uma equipe especializada aplicando as correções deste relatório todos os dias.
+                    Você pode fazer internamente — ou contratar gestão especializada com pagamento seguro na próxima página.
                   </p>
-
-                  <div className="exec-cta-form">
-                    <div className="exec-cta-field">
-                      <span className="exec-cta-field-label">Nome da loja</span>
-                      <input
-                        className="exec-cta-input"
-                        value={businessName}
-                        onChange={(e) => setBusinessName(e.target.value)}
-                        autoComplete="organization"
-                        maxLength={240}
-                        required
-                      />
-                    </div>
-                    <div className="exec-cta-field">
-                      <span className="exec-cta-field-label">Site principal</span>
-                      <input
-                        className="exec-cta-input"
-                        type="url"
-                        inputMode="url"
-                        placeholder="https://..."
-                        value={website}
-                        onChange={(e) => setWebsite(e.target.value)}
-                        maxLength={500}
-                        required
-                      />
-                    </div>
-                    <div className="exec-cta-field">
-                      <span className="exec-cta-field-label">Instagram</span>
-                      <input
-                        className="exec-cta-input"
-                        value={instagram}
-                        onChange={(e) => setInstagram(e.target.value)}
-                        maxLength={240}
-                        placeholder="@loja ou link"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {mgmt.error ? <p className="exec-cta-error">{mgmt.error}</p> : null}
 
                   <div className="exec-cta-row" style={{ marginTop: 24 }}>
                     <button
                       type="button"
                       className="exec-btn exec-btn-primary"
-                      disabled={
-                        mgmt.loading ||
-                        !businessName.trim() ||
-                        !website.trim() ||
-                        !instagram.trim()
-                      }
-                      onClick={() =>
-                        void mgmt.checkout({
-                          diagnosisId,
-                          secretSlug: s ?? "",
-                          business_name: businessName.trim(),
-                          website: website.trim(),
-                          instagram: instagram.trim(),
-                        })
-                      }
+                      onClick={() => goToGestaoCheckout(gapCtaFormatted)}
                     >
-                      {mgmt.loading
-                        ? "Abrindo Mercado Pago…"
-                        : gapCtaFormatted
-                          ? `Quero recuperar ${gapCtaFormatted}/mês`
-                          : "Solicitar Reunião Estratégica"}
+                      {gapCtaFormatted
+                        ? `Quero recuperar ${gapCtaFormatted}/mês`
+                        : "Contratar gestão de tráfego"}
                       <span className="exec-btn-arrow">→</span>
                     </button>
                     <a
@@ -509,7 +414,7 @@ function DiagnosticoReportPage() {
                   </div>
 
                   <p className="exec-cta-note" style={{ marginTop: 20 }}>
-                    {GESTAO_URGENCY_TEXT} · 2 vagas disponíveis.
+                    {gestaoUrgencyText()} · 2 vagas disponíveis.
                   </p>
                 </>
               )}

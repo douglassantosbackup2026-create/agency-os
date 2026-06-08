@@ -204,6 +204,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function isDiagnosisFunnelPath(pathname: string): boolean {
   return (
     pathname === "/checkout" ||
+    pathname === "/gestao-checkout" ||
     pathname === "/obrigado" ||
     pathname === "/gestao-obrigado" ||
     pathname.startsWith("/diagnostico/")

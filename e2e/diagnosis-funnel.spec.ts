@@ -28,7 +28,7 @@ test.describe("diagnóstico — rotas públicas", () => {
       process.env.LIGHTHOUSE_BASE_URL?.replace(/\/$/, "") ??
       "https://tanstack-start-app.douglaspinheirosantos94.workers.dev";
 
-    for (const path of ["/", "/checkout"]) {
+    for (const path of ["/", "/checkout", "/gestao-checkout?d=00000000-0000-4000-8000-000000000000&s=smoke"]) {
       const res = await page.goto(`${base}${path}`, {
         waitUntil: "domcontentloaded",
       });

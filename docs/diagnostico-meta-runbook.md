@@ -9,7 +9,9 @@ Ver também: [`diagnosis-production-env.md`](diagnosis-production-env.md), [`dia
 
 ## Edge Functions (`verify_jwt = false`)
 
-Configuradas em `supabase/config.toml`: `create-diagnosis-checkout`, `start-diagnosis-payment`, `diagnosis-status`, `diagnosis-report`, `diagnosis-context`, `diagnosis-followup`, `meta-oauth`, `meta-oauth-callback`, `process-diagnosis`, `create-management-checkout`, `mercadopago-webhook` (partilhado), `meta-api-test` (só com `META_TEST_ENABLED`).
+Configuradas em `supabase/config.toml`: `create-diagnosis-checkout`, `start-diagnosis-payment`, `start-management-payment`, `process-management-payment`, `management-payment-status`, `diagnosis-status`, `diagnosis-report`, `diagnosis-context`, `diagnosis-followup`, `meta-oauth`, `meta-oauth-callback`, `process-diagnosis`, `create-management-checkout` (legacy redirect MP), `mercadopago-webhook` (partilhado), `meta-api-test` (só com `META_TEST_ENABLED`).
+
+**Upsell gestão (transparente):** CTA do relatório → `/gestao-checkout?d&s` → `start-management-payment` + `process-management-payment` → `/gestao-obrigado`. Webhook `mgmt:<uuid>` já suportado.
 
 Cada endpoint público valida `secret_slug` / rate limit / `CRON_SECRET` (cron) conforme a função.
 

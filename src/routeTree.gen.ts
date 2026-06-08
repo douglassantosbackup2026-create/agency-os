@@ -18,6 +18,7 @@ import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as ObrigadoRouteImport } from './routes/obrigado'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as GestaoObrigadoRouteImport } from './routes/gestao-obrigado'
+import { Route as GestaoCheckoutRouteImport } from './routes/gestao-checkout'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as DemoRouteImport } from './routes/demo'
 import { Route as CheckoutRouteImport } from './routes/checkout'
@@ -90,6 +91,11 @@ const LoginRoute = LoginRouteImport.update({
 const GestaoObrigadoRoute = GestaoObrigadoRouteImport.update({
   id: '/gestao-obrigado',
   path: '/gestao-obrigado',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GestaoCheckoutRoute = GestaoCheckoutRouteImport.update({
+  id: '/gestao-checkout',
+  path: '/gestao-checkout',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -244,6 +250,7 @@ export interface FileRoutesByFullPath {
   '/checkout': typeof CheckoutRoute
   '/demo': typeof DemoRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/gestao-checkout': typeof GestaoCheckoutRoute
   '/gestao-obrigado': typeof GestaoObrigadoRoute
   '/login': typeof LoginRoute
   '/obrigado': typeof ObrigadoRoute
@@ -282,6 +289,7 @@ export interface FileRoutesByTo {
   '/checkout': typeof CheckoutRoute
   '/demo': typeof DemoRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/gestao-checkout': typeof GestaoCheckoutRoute
   '/gestao-obrigado': typeof GestaoObrigadoRoute
   '/login': typeof LoginRoute
   '/obrigado': typeof ObrigadoRoute
@@ -322,6 +330,7 @@ export interface FileRoutesById {
   '/checkout': typeof CheckoutRoute
   '/demo': typeof DemoRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/gestao-checkout': typeof GestaoCheckoutRoute
   '/gestao-obrigado': typeof GestaoObrigadoRoute
   '/login': typeof LoginRoute
   '/obrigado': typeof ObrigadoRoute
@@ -362,6 +371,7 @@ export interface FileRouteTypes {
     | '/checkout'
     | '/demo'
     | '/forgot-password'
+    | '/gestao-checkout'
     | '/gestao-obrigado'
     | '/login'
     | '/obrigado'
@@ -400,6 +410,7 @@ export interface FileRouteTypes {
     | '/checkout'
     | '/demo'
     | '/forgot-password'
+    | '/gestao-checkout'
     | '/gestao-obrigado'
     | '/login'
     | '/obrigado'
@@ -439,6 +450,7 @@ export interface FileRouteTypes {
     | '/checkout'
     | '/demo'
     | '/forgot-password'
+    | '/gestao-checkout'
     | '/gestao-obrigado'
     | '/login'
     | '/obrigado'
@@ -479,6 +491,7 @@ export interface RootRouteChildren {
   CheckoutRoute: typeof CheckoutRoute
   DemoRoute: typeof DemoRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  GestaoCheckoutRoute: typeof GestaoCheckoutRoute
   GestaoObrigadoRoute: typeof GestaoObrigadoRoute
   LoginRoute: typeof LoginRoute
   ObrigadoRoute: typeof ObrigadoRoute
@@ -555,6 +568,13 @@ declare module '@tanstack/react-router' {
       path: '/gestao-obrigado'
       fullPath: '/gestao-obrigado'
       preLoaderRoute: typeof GestaoObrigadoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gestao-checkout': {
+      id: '/gestao-checkout'
+      path: '/gestao-checkout'
+      fullPath: '/gestao-checkout'
+      preLoaderRoute: typeof GestaoCheckoutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -849,6 +869,7 @@ const rootRouteChildren: RootRouteChildren = {
   CheckoutRoute: CheckoutRoute,
   DemoRoute: DemoRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  GestaoCheckoutRoute: GestaoCheckoutRoute,
   GestaoObrigadoRoute: GestaoObrigadoRoute,
   LoginRoute: LoginRoute,
   ObrigadoRoute: ObrigadoRoute,

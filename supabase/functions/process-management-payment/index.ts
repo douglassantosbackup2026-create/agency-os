@@ -1,13 +1,10 @@
 import { handleCors, jsonResponse } from "../_shared/diagnosis/cors.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
-import {
-  ensureBuyerAccountAndToken,
-  fetchBuyerDiagnosis,
-} from "../_shared/diagnosis/buyer-account.ts";
 import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
 import {
   buildMpPaymentPayload,
   isLiveCredentialMismatch,
+  managementItemTitle,
   MP_CREDENTIAL_MISMATCH_ERROR,
   postMpPayment,
 } from "../_shared/mp-transparent-payment.ts";
@@ -18,9 +15,10 @@ const DIAGNOSIS_ID_RE =
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
-  const trace = beginEdgeTrace(req, "process_diagnosis_payment");
-  if (req.method !== "POST")
+  const trace = beginEdgeTrace(req, "process_management_payment");
+  if (req.method !== "POST") {
     return jsonResponse({ error: "Method not allowed" }, 405);
+  }
 
   let body: Record<string, unknown>;
   try {
@@ -43,7 +41,7 @@ Deno.serve(async (req) => {
   const { data: diag } = await sb
     .from("diagnoses")
     .select(
-      "id, secret_slug, status, amount_cents, payer_name, payer_email, payer_cpf, payer_phone, mp_payment_id, pix_qr_code",
+      "id, secret_slug, management_status, management_amount_cents, payer_name, payer_email, payer_cpf, management_mp_payment_id, management_pix_qr_code",
     )
     .eq("id", diagnosisId)
     .maybeSingle();
@@ -52,13 +50,11 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "diagnóstico não encontrado" }, 404);
   }
 
-  if (diag.status !== "awaiting_payment") {
-    if (method === "pix" && diag.pix_qr_code) {
+  if (diag.management_status !== "awaiting_payment") {
+    if (method === "pix" && diag.management_pix_qr_code) {
       return jsonResponse({
         status: "pending",
-        pix: {
-          qr_code: diag.pix_qr_code,
-        },
+        pix: { qr_code: diag.management_pix_qr_code },
       });
     }
     return jsonResponse({ error: "pagamento já processado" }, 409);
@@ -66,7 +62,7 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!.replace(/\/+$/, "");
   const notificationUrl = `${supabaseUrl}/functions/v1/mercadopago-webhook`;
-  const amount = (diag.amount_cents as number) / 100;
+  const amount = (diag.management_amount_cents as number) / 100;
 
   let cardInput;
   if (method === "card") {
@@ -86,25 +82,24 @@ Deno.serve(async (req) => {
 
   const payload = buildMpPaymentPayload({
     amount,
-    description: "Diagnóstico Meta Ads (e-commerce)",
-    externalReference: diagnosisId,
+    description: managementItemTitle(),
+    externalReference: `mgmt:${diagnosisId}`,
     notificationUrl,
     payer: {
       name: diag.payer_name as string,
       email: diag.payer_email as string,
       cpf: diag.payer_cpf as string,
-      phone: diag.payer_phone as string | undefined,
     },
     method: method as "card" | "pix",
     card: cardInput,
-    statementDescriptor: "DIAGNOSTICO META",
+    statementDescriptor: "GESTAO TRAFEGO",
   });
 
-  const idemKey = `${diagnosisId}:${method}`;
+  const idemKey = `mgmt:${diagnosisId}:${method}`;
   const mpResult = await postMpPayment(idemKey, payload);
 
   if (!mpResult.ok) {
-    console.error("MP payment error", mpResult.res.status, mpResult.json);
+    console.error("MP management payment error", mpResult.res.status, mpResult.json);
     if (isLiveCredentialMismatch(mpResult.res, mpResult.json)) {
       return jsonResponse(
         {
@@ -128,40 +123,33 @@ Deno.serve(async (req) => {
   const status = mpJson.status ?? "unknown";
 
   const update: Record<string, unknown> = {
-    payment_method: method,
-    mp_payment_id: mpId,
+    management_payment_method: method,
+    management_mp_payment_id: mpId,
   };
 
   if (method === "pix") {
     const td = mpJson.point_of_interaction?.transaction_data;
-    update.pix_qr_code = td?.qr_code ?? null;
-    update.pix_qr_code_base64 = td?.qr_code_base64 ?? null;
-    update.pix_expires_at = mpJson.date_of_expiration ?? null;
+    update.management_pix_qr_code = td?.qr_code ?? null;
+    update.management_pix_qr_code_base64 = td?.qr_code_base64 ?? null;
+    update.management_pix_expires_at = mpJson.date_of_expiration ?? null;
   }
 
   await sb.from("diagnoses").update(update).eq("id", diagnosisId);
 
   if (method === "card") {
-    let autoLoginToken: string | null = null;
     if (status === "approved") {
       await sb
         .from("diagnoses")
-        .update({ status: "awaiting_connection" })
+        .update({
+          management_status: "paid",
+          management_paid_at: new Date().toISOString(),
+        })
         .eq("id", diagnosisId);
-      try {
-        const buyer = await fetchBuyerDiagnosis(sb, diagnosisId);
-        if (buyer) {
-          const r = await ensureBuyerAccountAndToken(sb, buyer);
-          autoLoginToken = r.auto_login_token;
-        }
-      } catch (e) {
-        console.error("process-payment: buyer account failed", e);
-      }
     }
 
     const redirect =
       status === "approved"
-        ? `/obrigado?d=${diagnosisId}&s=${secret}${autoLoginToken ? `&t=${encodeURIComponent(autoLoginToken)}` : ""}`
+        ? `/gestao-obrigado?d=${diagnosisId}&s=${secret}`
         : null;
 
     trace.done({ status, diagnosis_id: diagnosisId });
@@ -169,7 +157,6 @@ Deno.serve(async (req) => {
       status,
       status_detail: mpJson.status_detail ?? null,
       redirect,
-      auto_login_token: autoLoginToken,
     });
   }
 

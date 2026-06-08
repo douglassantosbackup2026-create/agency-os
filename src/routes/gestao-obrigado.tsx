@@ -47,7 +47,7 @@ function GestaoObrigadoPage() {
     intervalMs: POLL_MS,
     maxDurationMs: TIMEOUT_MS,
     onTick: async () => {
-      const j = await callDiagnosisApi<StatusPayload>("diagnosis-status", {
+      const j = await callDiagnosisApi<StatusPayload>("management-payment-status", {
         query: { d: d!, s: s! },
       });
       setSnapshot(j);

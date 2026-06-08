@@ -9,6 +9,7 @@ type Args = {
   instagram: string;
 };
 
+/** @deprecated Preferir `/gestao-checkout` + `start-management-payment` (checkout transparente). */
 export function useManagementCheckout() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
