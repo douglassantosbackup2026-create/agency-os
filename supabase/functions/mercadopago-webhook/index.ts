@@ -52,6 +52,12 @@ async function verifyMpSignature(
   const v1 = parts["v1"];
   if (!ts || !v1) return false;
 
+  const tsNum = Number(ts);
+  if (!Number.isFinite(tsNum)) return false;
+  const tsMs = tsNum > 1e12 ? tsNum : tsNum * 1000;
+  const maxSkewMs = 5 * 60 * 1000;
+  if (Math.abs(Date.now() - tsMs) > maxSkewMs) return false;
+
   const manifest = `id:${dataId};request-id:${requestId};ts:${ts};`;
   const key = await crypto.subtle.importKey(
     "raw",
@@ -123,31 +129,6 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "invalid signature" }, 401);
   }
 
-  const sbEarly = diagnosisServiceClient();
-  const idempotencyKey = `mp:payment:${dataId}`;
-  const { data: claimed, error: claimErr } = await sbEarly
-    .from("webhook_events")
-    .insert({
-      idempotency_key: idempotencyKey,
-      branch: "payment",
-      payload_hash: dataId,
-    })
-    .select("idempotency_key")
-    .maybeSingle();
-
-  if (claimErr) {
-    const code = String((claimErr as { code?: string }).code ?? "");
-    if (code === "23505") {
-      traceLog("mercadopago_webhook.idempotent", { data_id: dataId }, traceId);
-      return jsonResponse({ ok: true, idempotent: true }, 200);
-    }
-    console.error("webhook_events insert", claimErr);
-    return jsonResponse({ error: "idempotency_failed" }, 500);
-  }
-  if (!claimed) {
-    return jsonResponse({ ok: true, idempotent: true }, 200);
-  }
-
   const payment = await fetchPayment(dataId, token);
   if (!payment) {
     return jsonResponse({ error: "payment fetch failed" }, 502);
@@ -164,6 +145,43 @@ Deno.serve(async (req) => {
   }
 
   const sb = diagnosisServiceClient();
+  const idempotencyKey = `mp:payment:${dataId}`;
+
+  const { data: priorEvent } = await sb
+    .from("webhook_events")
+    .select("idempotency_key")
+    .eq("idempotency_key", idempotencyKey)
+    .maybeSingle();
+  if (priorEvent) {
+    traceLog("mercadopago_webhook.idempotent", { data_id: dataId }, traceId);
+    return jsonResponse({ ok: true, idempotent: true }, 200);
+  }
+
+  async function claimIdempotency(): Promise<Response | null> {
+    const { data: claimed, error: claimErr } = await sb
+      .from("webhook_events")
+      .insert({
+        idempotency_key: idempotencyKey,
+        branch: "payment",
+        payload_hash: dataId,
+      })
+      .select("idempotency_key")
+      .maybeSingle();
+
+    if (claimErr) {
+      const code = String((claimErr as { code?: string }).code ?? "");
+      if (code === "23505") {
+        traceLog("mercadopago_webhook.idempotent", { data_id: dataId }, traceId);
+        return jsonResponse({ ok: true, idempotent: true }, 200);
+      }
+      console.error("webhook_events insert", claimErr);
+      return jsonResponse({ error: "idempotency_failed" }, 500);
+    }
+    if (!claimed) {
+      return jsonResponse({ ok: true, idempotent: true }, 200);
+    }
+    return null;
+  }
 
   if (typeof extRef === "string" && extRef.startsWith(MGMT_PREFIX)) {
     const rawId = extRef.slice(MGMT_PREFIX.length);
@@ -204,6 +222,9 @@ Deno.serve(async (req) => {
     if (existing.management_mp_payment_id === dataId) {
       return jsonResponse({ ok: true, idempotent: true, branch: "mgmt" }, 200);
     }
+
+    const claimResp = await claimIdempotency();
+    if (claimResp) return claimResp;
 
     const paidAt = new Date().toISOString();
     const { error: upErr } = await sb
@@ -258,6 +279,9 @@ Deno.serve(async (req) => {
   if (existing.mp_payment_id === dataId) {
     return jsonResponse({ ok: true, idempotent: true }, 200);
   }
+
+  const claimResp = await claimIdempotency();
+  if (claimResp) return claimResp;
 
   const { error: upErr } = await sb
     .from("diagnoses")

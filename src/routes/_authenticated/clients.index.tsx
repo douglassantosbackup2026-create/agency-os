@@ -853,20 +853,12 @@ function NewClientDialog({
       return;
     }
     setLoading(true);
-    const slug =
-      name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "") +
-      "-" +
-      Math.random().toString(36).slice(2, 6);
     const { error } = await supabase.from("clients").insert({
       agency_id: agencyId,
       name,
       segment: segment || null,
       mrr: Number(mrr) || 0,
       monthly_budget: Number(budget) || 0,
-      portal_slug: slug,
     });
     setLoading(false);
     if (error) return toast.error(error.message);

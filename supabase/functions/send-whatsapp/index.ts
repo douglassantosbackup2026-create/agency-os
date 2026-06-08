@@ -229,6 +229,34 @@ Deno.serve(async (req) => {
           status: 404,
           headers: corsHeaders,
         });
+      const logClientId =
+        typeof existing.client_id === "string" ? existing.client_id : null;
+      if (logClientId) {
+        const { data: clRow } = await admin
+          .from("clients")
+          .select("id, agency_id")
+          .eq("id", logClientId)
+          .maybeSingle();
+        if (!clRow || String(clRow.agency_id) !== agency_id) {
+          return new Response(JSON.stringify({ error: "log not found" }), {
+            status: 404,
+            headers: corsHeaders,
+          });
+        }
+        const allowed = await assertUserCanAccessClient(admin, u.user.id, {
+          id: logClientId,
+          agency_id: String(clRow.agency_id),
+        });
+        if (!allowed) {
+          return new Response(
+            JSON.stringify({ error: "Sem permissão para este cliente" }),
+            {
+              status: 403,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            },
+          );
+        }
+      }
       const text = String(existing.message ?? "");
       const recip = String(existing.recipient ?? "");
       const ev = await sendEvolution(recip, text);

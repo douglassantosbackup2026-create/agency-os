@@ -248,13 +248,6 @@ function Onboarding() {
     if (!agency) return;
     if (!quickClientName.trim())
       return toast.error("Informe o nome do cliente.");
-    const slug =
-      quickClientName
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "") +
-      "-" +
-      Math.random().toString(36).slice(2, 6);
     const { data: inserted, error } = await supabase
       .from("clients")
       .insert({
@@ -263,7 +256,6 @@ function Onboarding() {
         monthly_budget: Number(quickBudget) || 0,
         mrr: Number(quickMrr) || 0,
         status: "onboarding",
-        portal_slug: slug,
       })
       .select("id")
       .maybeSingle();

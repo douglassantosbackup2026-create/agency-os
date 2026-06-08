@@ -39,11 +39,22 @@ Convites válidos devem passar pela Edge Function `invite-member` (service role)
 
 ## 3. Portal público
 
+Após migração `20260609120100_security_portal_slugs.sql`, todos os slugs foram **regenerados** (24 hex chars). Links antigos `/p/{slug}` deixam de funcionar.
+
+- Slugs novos são atribuídos pelo trigger `tr_clients_assign_portal_slug` (não gerar no frontend).
+- Rate limit global por IP em `portal-data` (`PORTAL_GLOBAL_IP_LIMIT_MAX`, default 300/min).
+
+## 4. Meta test harness
+
+**Nunca** activar `META_TEST_ENABLED=true` ou rota `/test-meta-oauth` em produção pública. Ver [`security-audit-remediation.md`](security-audit-remediation.md).
+
+## 5. Portal smoke
+
 - Abrir `/p/<slug-invalido>` — mensagem de portal indisponível.
 - Slug válido: dados aparecem (função `portal-data`).
 - Opcional: confirmar `429` após limite (`PORTAL_RATE_LIMIT_*`) com ferramenta de carga **apenas** em staging.
 
-## 4. Integrações: tokens invisíveis para `member`
+## 6. Integrações: tokens invisíveis para `member`
 
 Com JWT de utilizador com role **member**:
 
@@ -59,17 +70,17 @@ const { data } = await supabase.from('integrations_public').select('*');
 // Esperado: OK — metadados apenas
 ```
 
-## 5. Cron / funções privilegiadas
+## 7. Cron / funções privilegiadas
 
 - Com `CRON_SECRET` definido no Dashboard, chamada sem Bearer secreto nem JWT válido deve responder **401**.
 - JWT **member** a invocar `evaluate-alerts` ou `compute-health-scores` deve responder **403**.
 - Sem `CRON_SECRET` em dev local: definir `ALLOW_INSECURE_CRON_ANON=true` ou configurar o secret (nunca em produção).
 
-## 6. Mercado Pago (diagnóstico)
+## 8. Mercado Pago (diagnóstico)
 
 - Sem `MERCADOPAGO_WEBHOOK_SECRET`, `mercadopago-webhook` deve responder **503** `webhook_not_configured`.
 - Webhook com assinatura inválida: **401**.
 
-## 7. Automatização futura
+## 9. Automatização futura
 
 Integrar estes passos em CI com dois JWTs de teste e falhar o pipeline se qualquer leitura/escrita cross-tenant passar.

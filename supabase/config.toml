@@ -90,6 +90,9 @@ verify_jwt = false
 [functions.meta-oauth-callback]
 verify_jwt = false
 
+[functions.confirm-ad-account]
+verify_jwt = false
+
 [functions.process-diagnosis]
 verify_jwt = false
 

@@ -31,3 +31,22 @@ export async function portalRateLimitExceeded(
   );
   return distributedRateLimitExceeded(admin, rateKey, max, windowSec);
 }
+
+/** Global per-IP cap across all slug lookups (mitigates cross-slug enumeration). */
+export async function portalGlobalIpRateLimitExceeded(
+  admin: SupabaseClient,
+  ip: string,
+): Promise<boolean> {
+  const max = Math.max(
+    1,
+    Number(Deno.env.get("PORTAL_GLOBAL_IP_LIMIT_MAX") ?? "300") || 300,
+  );
+  const windowSec = Math.max(
+    1,
+    Math.floor(
+      (Number(Deno.env.get("PORTAL_RATE_LIMIT_WINDOW_MS") ?? "60000") ||
+        60000) / 1000,
+    ),
+  );
+  return distributedRateLimitExceeded(admin, `portal-ip:${ip}`, max, windowSec);
+}

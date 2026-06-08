@@ -3,7 +3,7 @@
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { handleCors, jsonResponse } from "../_shared/diagnosis/cors.ts";
-import { assertCronOrUser } from "../_shared/cron-auth.ts";
+import { isCronAuthenticated } from "../_shared/cron-agency-scope.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 import { num } from "../_shared/diagnosis/campaign-objective.ts";
 import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
@@ -54,7 +54,7 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
-  if (!(await assertCronOrUser(req, admin))) {
+  if (!(await isCronAuthenticated(req, admin))) {
     return jsonResponse({ error: "Unauthorized" }, 401);
   }
 

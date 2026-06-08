@@ -150,10 +150,6 @@ Deno.serve(async (req) => {
       status: i === 7 ? "paused" : "active",
       monthly_budget: randInt(8000, 60000),
       mrr: randInt(2500, 12000),
-      portal_slug:
-        name.toLowerCase().replace(/[^a-z0-9]+/g, "-") +
-        "-" +
-        Math.random().toString(36).slice(2, 6),
       tags: [SEGMENTS[i].toLowerCase()],
     }));
     const { data: clients } = await admin

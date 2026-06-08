@@ -30,4 +30,46 @@ describe("RLS security migration contract", () => {
     expect(sql).toMatch(/integrations_guard_secrets/i);
     expect(sql).toMatch(/is_owner_or_admin/i);
   });
+
+  it("security_rpc_guards adds tenant guards and helpers", () => {
+    const sql = readFileSync(
+      join(root, "supabase", "migrations", "20260609120000_security_rpc_guards.sql"),
+      "utf8",
+    );
+    expect(sql).toMatch(/user_can_access_client/i);
+    expect(sql).toMatch(/count_agency_clients/i);
+    expect(sql).toMatch(/auth_is_platform_admin/i);
+    expect(sql).toMatch(/ENABLE ROW LEVEL SECURITY/i);
+    expect(sql).toMatch(/ai-job:%/i);
+  });
+
+  it("security_portal_slugs regenerates slugs with gen_random_bytes", () => {
+    const sql = readFileSync(
+      join(root, "supabase", "migrations", "20260609120100_security_portal_slugs.sql"),
+      "utf8",
+    );
+    expect(sql).toMatch(/generate_portal_slug/i);
+    expect(sql).toMatch(/gen_random_bytes/i);
+    expect(sql).toMatch(/clients_assign_portal_slug/i);
+  });
+
+  it("security_subscriptions_guard blocks plan limit self-escalation", () => {
+    const sql = readFileSync(
+      join(root, "supabase", "migrations", "20260609130000_security_subscriptions_guard.sql"),
+      "utf8",
+    );
+    expect(sql).toMatch(/subscriptions_guard_plan_limits/i);
+    expect(sql).toMatch(/max_clients/i);
+  });
+
+  it("security_client_scope_policies uses user_can_access_client", () => {
+    const sql = readFileSync(
+      join(root, "supabase", "migrations", "20260609140000_security_client_scope_policies.sql"),
+      "utf8",
+    );
+    expect(sql).toMatch(/user_can_access_client/i);
+    expect(sql).toMatch(/campaigns/i);
+    expect(sql).toMatch(/creative_reviews/i);
+    expect(sql).toMatch(/creative_asset_id/i);
+  });
 });

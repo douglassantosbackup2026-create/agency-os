@@ -18,7 +18,21 @@ jobs:
       - run: npm run lint
       - run: npm test -- --run
       - run: npm run build
+        env:
+          VITE_SUPABASE_URL: https://uvuotaxikuxejfeitlaw.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2dW90YXhpa3V4ZWpmZWl0bGF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNzk4MjcsImV4cCI6MjA5Mzg1NTgyN30.32xOultMJNFLQ98Nw3VxQR5t5wyEH1NxTyg6K_bMl_s
       - run: npm ci --prefix diagnostico-meta
       - run: npm run diag:lint
       - run: npm run diag:test
       - run: npm run diag:build
+      - uses: supabase/setup-cli@v1
+        if: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' }}
+        with:
+          version: latest
+      - name: supabase db lint
+        if: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' }}
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase db lint
+      - name: Block META_TEST_ENABLED=true in deploy scripts
+        run: node scripts/check-deploy-secrets.mjs

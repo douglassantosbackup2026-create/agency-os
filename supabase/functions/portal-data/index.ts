@@ -1,7 +1,7 @@
 // Public endpoint — returns sanitized client portal data given a portal_slug.
 // No auth required; uses service role on the server side.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { portalClientIp, portalRateLimitExceeded } from "../_shared/portal-rate-limit.ts";
+import { portalClientIp, portalGlobalIpRateLimitExceeded, portalRateLimitExceeded } from "../_shared/portal-rate-limit.ts";
 import {
   buildPortalGa4Tracking,
   buildPortalHealth,
@@ -61,6 +61,12 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
+    if (await portalGlobalIpRateLimitExceeded(admin, ip)) {
+      return new Response(JSON.stringify({ error: "too_many_requests" }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     if (
       await portalRateLimitExceeded(
         admin,

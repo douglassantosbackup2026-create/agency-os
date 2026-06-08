@@ -11,6 +11,11 @@ import {
   MP_CREDENTIAL_MISMATCH_ERROR,
   postMpPayment,
 } from "../_shared/mp-transparent-payment.ts";
+import { publicClientIp, publicRateLimitExceeded } from "../_shared/public-rate-limit.ts";
+import {
+  amountMatchesExpected,
+  paymentAmountCents,
+} from "../_shared/mercadopago-webhook-helpers.ts";
 
 const DIAGNOSIS_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -37,6 +42,12 @@ Deno.serve(async (req) => {
   }
   if (method !== "card" && method !== "pix") {
     return jsonResponse({ error: "método inválido" }, 400);
+  }
+
+  const ip = publicClientIp(req);
+  const sbRl = diagnosisServiceClient();
+  if (await publicRateLimitExceeded(sbRl, `diagnosis-process:${ip}`)) {
+    return jsonResponse({ error: "Muitas tentativas. Aguarde um momento." }, 429);
   }
 
   const sb = diagnosisServiceClient();
@@ -144,6 +155,10 @@ Deno.serve(async (req) => {
   if (method === "card") {
     let autoLoginToken: string | null = null;
     if (status === "approved") {
+      const paidCents = paymentAmountCents(mpJson as Record<string, unknown>);
+      if (!amountMatchesExpected(paidCents, diag.amount_cents as number)) {
+        return jsonResponse({ error: "amount mismatch" }, 400);
+      }
       await sb
         .from("diagnoses")
         .update({ status: "awaiting_connection" })

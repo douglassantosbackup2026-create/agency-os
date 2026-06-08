@@ -2,6 +2,18 @@
 
 Itens planeados após P0/P1. Não bloqueiam deploy se P0 estiver completo.
 
+## Concluído (auditoria jun/2026)
+
+- RPC guards (`get_agency_dashboard_snapshot`, `get_resilience_ops_snapshot`, `get_agency_dashboard_detail`)
+- `user_can_access_client` + policies em tabelas filhas
+- Portal slugs CSPRNG + regeneração global
+- `diagnosis-followup` / `process-diagnosis` cron-only
+- Webhook MP idempotency ordering + ts freshness
+- Rate limits pagamento + portal IP global
+- Subscriptions plan limits trigger
+- Auth frontend (`getUser`, reset-password recovery, command palette)
+- Ver [`security-audit-remediation.md`](security-audit-remediation.md)
+
 ## 1. Cifra de tokens em repouso
 
 - Migrar `integrations.api_key_encrypted` / `refresh_token_encrypted` para **Supabase Vault** ou `pgsodium`.
@@ -18,7 +30,7 @@ Itens planeados após P0/P1. Não bloqueiam deploy se P0 estiver completo.
 
 - Política de redaction: não logar `Authorization`, bodies OAuth, prompts LLM completos.
 - Alertas em `ai_usage_events` (spike por `agency_id`).
-- `supabase-db-lint` em CI sem `continue-on-error` quando projeto linkado.
+- `supabase-db-lint` em CI quando `SUPABASE_ACCESS_TOKEN` configurado.
 
 ## 4. Separação de produtos (opcional)
 

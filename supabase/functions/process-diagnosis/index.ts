@@ -1,5 +1,5 @@
 import { handleCors, jsonResponse } from "../_shared/diagnosis/cors.ts";
-import { assertCronOrUser } from "../_shared/cron-auth.ts";
+import { isCronAuthenticated } from "../_shared/cron-agency-scope.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 import { diagnosisAiBudgetExceeded } from "../_shared/ai-budget.ts";
 import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
@@ -745,8 +745,9 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Method not allowed" }, 405);
 
   const sb = diagnosisServiceClient();
-  const auth = await assertCronOrUser(req, sb);
-  if (auth) return auth;
+  if (!(await isCronAuthenticated(req, sb))) {
+    return jsonResponse({ error: "Unauthorized" }, 401);
+  }
 
   const { data: cleaned } = await sb.rpc("cleanup_stale_diagnosis_processing", {
     p_stale_minutes: 30,

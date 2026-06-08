@@ -135,6 +135,13 @@ Deno.serve(async (req) => {
       });
     }
 
+    if (creative.status !== "pending") {
+      return new Response(JSON.stringify({ error: "criativo já revisado" }), {
+        status: 409,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { error: upErr } = await admin
       .from("creative_assets")
       .update({

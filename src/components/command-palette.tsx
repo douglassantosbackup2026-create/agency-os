@@ -46,9 +46,11 @@ type ReportPick = { id: string; excerpt: string; clientName: string };
 export function CommandPalette({
   open,
   onOpenChange,
+  isOwnerOrAdmin = false,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  isOwnerOrAdmin?: boolean;
 }) {
   const navigate = useNavigate();
   const { agency, isPlatformAdmin } = useAuth();
@@ -281,19 +283,23 @@ export function CommandPalette({
           <CommandItem onSelect={() => go("/whatsapp")}>
             <MessageSquare className="mr-2 h-4 w-4" /> Enviar WhatsApp
           </CommandItem>
-          <CommandItem onSelect={recomputeHealth}>
-            <RefreshCw className="mr-2 h-4 w-4" /> Atualizar visão de saúde da
-            carteira
-          </CommandItem>
           <CommandItem onSelect={evalAlerts}>
             <CheckSquare className="mr-2 h-4 w-4" /> Reavaliar alertas
           </CommandItem>
-          <CommandItem onSelect={runDailySummary}>
-            <MessageSquare className="mr-2 h-4 w-4" /> Disparar resumos do dia
-          </CommandItem>
-          <CommandItem onSelect={seed}>
-            <Database className="mr-2 h-4 w-4" /> Gerar dados de exemplo
-          </CommandItem>
+          {isOwnerOrAdmin && (
+            <>
+              <CommandItem onSelect={runDailySummary}>
+                <MessageSquare className="mr-2 h-4 w-4" /> Disparar resumos do dia
+              </CommandItem>
+              <CommandItem onSelect={recomputeHealth}>
+                <RefreshCw className="mr-2 h-4 w-4" /> Atualizar visão de saúde da
+                carteira
+              </CommandItem>
+              <CommandItem onSelect={seed}>
+                <Database className="mr-2 h-4 w-4" /> Gerar dados de exemplo
+              </CommandItem>
+            </>
+          )}
         </CommandGroup>
         <CommandSeparator />
         <CommandGroup heading="Conta">

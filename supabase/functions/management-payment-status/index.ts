@@ -1,6 +1,7 @@
 import { handleCors, jsonResponse } from "../_shared/diagnosis/cors.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
+import { publicClientIp, publicRateLimitExceeded } from "../_shared/public-rate-limit.ts";
 
 const DIAGNOSIS_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -53,6 +54,11 @@ Deno.serve(async (req) => {
   }
 
   const sb = diagnosisServiceClient();
+  const ip = publicClientIp(req);
+  if (await publicRateLimitExceeded(sb, `management-status:${ip}:${d}`)) {
+    return jsonResponse({ error: "Muitas tentativas. Aguarde um momento." }, 429);
+  }
+
   const { data } = await sb
     .from("diagnoses")
     .select(

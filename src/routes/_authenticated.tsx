@@ -58,8 +58,8 @@ import { OperationScopeSelect } from "@/components/operation-scope-select";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
-    const { data } = await supabase.auth.getSession();
-    if (!data.session) throw redirect({ to: "/login" });
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user) throw redirect({ to: "/login" });
   },
   component: AuthenticatedLayout,
 });
@@ -651,7 +651,11 @@ function AuthenticatedLayout() {
         </OperationClientScopeProvider>
       </div>
 
-      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        isOwnerOrAdmin={memberRole !== null && memberRole !== "member"}
+      />
     </div>
   );
 }
