@@ -6,6 +6,7 @@ import {
   landingEyebrowClass,
   landingPrimaryCalloutClass,
 } from "@/lib/landing-ui";
+import { LandingReportRoadmapMock } from "./landing-report-mock";
 
 function DiagnosisHowItWorksInner() {
   return (
@@ -13,7 +14,7 @@ function DiagnosisHowItWorksInner() {
       id={ANCHOR_COMO}
       className={`py-16 md:py-20 ${LANDING_SECTION_SCROLL}`}
     >
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-4xl">
         <span className={landingEyebrowClass}>
           <Workflow className="h-3.5 w-3.5" aria-hidden />
           {howItWorksSection.eyebrow}
@@ -62,6 +63,19 @@ function DiagnosisHowItWorksInner() {
             </li>
           ))}
         </ol>
+
+        <div className="mt-12">
+          <h3 className="text-lg font-semibold tracking-tight md:text-xl">
+            {howItWorksSection.roadmapTitle}
+          </h3>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground md:text-base">
+            {howItWorksSection.roadmapSubtitle}
+          </p>
+          <div className="mt-6">
+            <LandingReportRoadmapMock />
+          </div>
+        </div>
+
         <div className={`mt-8 p-5 md:p-6 ${landingPrimaryCalloutClass}`}>
           <p className="font-bold text-foreground">
             {howItWorksSection.summaryCalloutTitle}

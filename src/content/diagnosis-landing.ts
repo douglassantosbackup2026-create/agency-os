@@ -12,34 +12,6 @@ export const ANCHOR_FAQ = "faq";
 
 export const PRICE_LABEL = "R$ 37";
 
-/** Vazamento anualizado indicativo para CTA (leak mensal × 12). */
-export function formatAnnualizedLeakNote(monthlyLeakBrl: number): string {
-  const annual = Math.round(monthlyLeakBrl * 12);
-  const formatted = annual.toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-    maximumFractionDigits: 0,
-  });
-  return `Vazamento indicativo: até ${formatted}/ano se nada for corrigido — cenário conservador, não garantia.`;
-}
-
-/** Cenário de upside anualizado para copy comercial (indicativo). */
-export function formatAnnualizedGrowthNote(
-  growthProbablePct: number,
-  monthlyRevenueBrl?: number | null,
-): string {
-  if (monthlyRevenueBrl != null && monthlyRevenueBrl > 0) {
-    const annual = Math.round(monthlyRevenueBrl * (growthProbablePct / 100) * 12);
-    const formatted = annual.toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-      maximumFractionDigits: 0,
-    });
-    return `Cenário provável (+${growthProbablePct}%): upside indicativo de até ${formatted}/ano sobre a receita rastreada — não é garantia.`;
-  }
-  return `Cenário provável de crescimento: +${growthProbablePct}% (indicativo, não garantia de resultado).`;
-}
-
 /** Amostra v12 — maturidade, vazamento e crescimento para preview da landing. */
 const PREVIEW_LEAK_MONTHLY_BRL = 4_200;
 
@@ -50,42 +22,191 @@ export const seniorReportPreview = {
   leakMonthlyBrl: PREVIEW_LEAK_MONTHLY_BRL,
   growthProbablePct: 18,
   growthProbableFormatted: "+18%",
-  annualizedGrowthNote: formatAnnualizedGrowthNote(18, 35_000),
-  annualizedLeakNote: formatAnnualizedLeakNote(PREVIEW_LEAK_MONTHLY_BRL),
-  /** Hero / CTA: growth + leak anualizados */
-  annualizedNote: `${formatAnnualizedGrowthNote(18, 35_000)} ${formatAnnualizedLeakNote(PREVIEW_LEAK_MONTHLY_BRL)}`,
+};
+
+/** Amostra visual do relatório executivo na landing (conta demo anonimizada). */
+export const reportPreviewDemo = {
+  score: 43,
+  scoreLabel: "Necessita atenção",
+  heroOpportunityRange: "R$ 4.200 – R$ 8.400",
+  stats: {
+    invested: {
+      label: "Investimento analisado",
+      value: "R$ 28.400",
+      hint: "Últimos 30 dias",
+    },
+    revenue: {
+      label: "Receita gerada",
+      value: "R$ 79.520",
+      hint: "ROAS 2,8x",
+      positive: true,
+    },
+    potential: {
+      label: "Potencial identificado",
+      value: "R$ 8.400",
+      hint: "Recuperável em 60–90 dias",
+      accent: true,
+    },
+    gap: {
+      label: "Gap de crescimento",
+      value: "R$ 4.200",
+      hint: "Por mês — se nada mudar",
+      negative: true,
+    },
+  },
+  topLeak: {
+    title: "Campanha de Vendas com ROAS abaixo do ideal",
+    impact: "−R$ 2.400/mês",
+    body: "62% do gasto concentrado em 1 conjunto com frequência alta e CTR em queda.",
+  },
+  topOpp: {
+    title: "Renovar criativos nos top 3 conjuntos",
+    impact: "+R$ 3.200/mês",
+    body: "Benchmark do nicho indica headroom de +18% com novos formatos UGC.",
+  },
+  leaks: [
+    {
+      title: "Campanha Vendas — ROAS 1,9x vs ideal 5x",
+      impact: "−R$ 2.400/mês",
+      priority: "Alta",
+    },
+    {
+      title: "CTR 0,7% (referência ≥ 2%) em 4 anúncios do top gasto",
+      impact: "−R$ 1.100/mês",
+      priority: "Alta",
+    },
+    {
+      title: "CPM R$ 67 vs referência R$ 32 do nicho",
+      impact: "−R$ 700/mês",
+      priority: "Média",
+    },
+  ],
+  totalLeakFormatted: "R$ 4.200",
+  pillars: [
+    { label: "Estrutura", score: 38 },
+    { label: "Criativo", score: 29 },
+    { label: "Públicos", score: 61 },
+    { label: "Escala", score: 44 },
+    { label: "Financeiro", score: 35 },
+  ],
+  benchmarks: [
+    {
+      metric: "ROAS",
+      yours: "2,8x",
+      market: "4,2x",
+      top10: "6,0x",
+      delta: "−53%",
+      bad: true,
+    },
+    {
+      metric: "CPM",
+      yours: "R$ 67",
+      market: "R$ 45",
+      top10: "R$ 32",
+      delta: "+49%",
+      bad: true,
+    },
+    {
+      metric: "CTR",
+      yours: "0,7%",
+      market: "1,4%",
+      top10: "2,1%",
+      delta: "−50%",
+      bad: true,
+    },
+  ],
+  benchmarkNiche: "E-commerce — moda & lifestyle",
+  roadmapPhases: [
+    {
+      phase: "Fase 1",
+      title: "Estancar perdas",
+      eta: "Semana 1–2",
+      items: [
+        "Pausar conjuntos com ROAS < 2x",
+        "Cortar overlap entre campanhas de prospecção",
+        "Excluir compradores dos públicos frios",
+      ],
+    },
+    {
+      phase: "Fase 2",
+      title: "Otimizar base",
+      eta: "Semana 3–4",
+      items: [
+        "Renovar criativos nos top 3 conjuntos",
+        "Rebalancear budget para campanhas saudáveis",
+        "Testar lookalike de compradores 60d",
+      ],
+    },
+    {
+      phase: "Fase 3",
+      title: "Escalar com controle",
+      eta: "Mês 2+",
+      items: [
+        "Incremento de 15–20% nas vencedoras",
+        "Expandir formatos UGC validados",
+        "Monitorar ROAS e frequência semanalmente",
+      ],
+    },
+  ],
+  projection: {
+    before: [
+      { label: "ROAS", value: "2,8x" },
+      { label: "Receita/mês", value: "R$ 79,5k" },
+      { label: "Vazamento", value: "R$ 4,2k" },
+    ],
+    after: [
+      { label: "ROAS", value: "5,2x" },
+      { label: "Receita/mês", value: "R$ 118k" },
+      { label: "Vazamento", value: "R$ 1,1k" },
+    ],
+  },
+  mockHeroSub:
+    "Loja de e-commerce — campanhas, criativos e públicos · últimos 30 dias.",
 };
 
 export const hero = {
   eyebrow: "Diagnóstico Meta Ads para e-commerce",
+  brandLabel: "Diagnóstico Meta Ads · E-commerce",
   headline: "Descubra EXATAMENTE onde você está perdendo dinheiro no Meta Ads",
   headlineHighlight: "perdendo dinheiro",
-  subheadline: "Diagnóstico completo da sua conta em cerca de 5 minutos",
+  subheadline:
+    "Auditoria da sua loja de e-commerce (Meta Ads) em cerca de 5 minutos",
   priceLine: `Por apenas ${PRICE_LABEL}`,
   supportingLines: [
     "Análise técnica + IA de última geração",
     "Feita por quem já gerenciou R$ 30 milhões em tráfego pago",
   ],
   ctaPrimary: "ANALISAR MINHA CONTA AGORA",
-  ctaSub: seniorReportPreview.annualizedNote,
+  mockCaption:
+    "Amostra anonimizada · seu relatório usa os dados da sua loja",
   trustBadges: [
     "Resultado em ~5 minutos",
+    "Feito para e-commerce",
     "Pagamento seguro",
-    "Sem compromisso",
   ],
   stickyCtaLabel: `ANALISAR · ${PRICE_LABEL}`,
 };
 
+export const reportPreviewSection = {
+  eyebrow: "Amostra do Relatório",
+  title: "Veja o que o diagnóstico revela sobre sua loja",
+  intro:
+    "Recorte real do relatório executivo — score, vazamentos em R$, benchmark do nicho e plano priorizado. Abaixo, conta demo anonimizada; o seu usa os dados reais da sua loja de e-commerce no Meta Ads.",
+  footerNote:
+    "+ módulos de criativos, públicos, oportunidades e projeção 30 dias — tudo interativo na web após conectar a conta de anúncios da sua loja.",
+  ctaSublabel: "Relatório completo em ~5 minutos",
+};
+
 export const whatIsSection = {
   eyebrow: "O que é",
-  title: "O que é o Diagnóstico de Meta Ads?",
+  title: "O que é o Diagnóstico de Meta Ads para e-commerce?",
   introParagraphs: [
-    "É uma auditoria técnica completa da sua conta de Meta Ads (Facebook + Instagram).",
+    "É uma auditoria técnica completa da sua conta de Meta Ads (Facebook + Instagram) da sua loja online.",
     'Não é consultoria genérica. Não é checklist básico. Não é "dicas de marketing".',
     "É uma análise CIRÚRGICA dos SEUS dados reais:",
   ],
   dataPoints: [
-    "Suas campanhas dos últimos 90 dias",
+    "Suas campanhas de vendas/compras dos últimos 90 dias",
     "Seus criativos e performance",
     "Seus públicos e segmentações",
     "Suas métricas comparadas com o mercado",
@@ -93,13 +214,13 @@ export const whatIsSection = {
   resultsIntro: "Resultado: Você descobre EXATAMENTE:",
   results: [
     "Quais campanhas estão desperdiçando dinheiro",
-    "Por que seu ROAS não sobe",
+    "Por que seu ROAS de vendas não sobe",
     "Onde seu CPM está alto demais",
     "Que ajustes fazer para melhorar (com prioridades)",
   ],
   summaryCalloutTitle: "EM RESUMO:",
   summaryCalloutBody:
-    'É como fazer um "raio-X" da sua conta de Meta Ads. Você vai ver cada problema, quanto cada um está custando, e o que fazer para corrigir. Tudo baseado nos SEUS números reais.',
+    'É como fazer um "raio-X" da operação de tráfego da sua loja. Você vai ver cada problema, quanto cada um está custando, e o que fazer para corrigir. Tudo baseado nos SEUS números reais.',
 };
 
 export const forWhoSection = {
@@ -137,8 +258,8 @@ export type WhatItDoesModule = {
 
 export const whatItDoesSection = {
   eyebrow: "O que faz",
-  title: "O que o diagnóstico faz pela sua conta?",
-  subtitle: "Você recebe uma análise completa em 9 módulos:",
+  title: "O que o diagnóstico faz pela sua loja?",
+  subtitle: "Você recebe uma análise completa de e-commerce em 9 módulos:",
   modules: [
     {
       number: 1,
@@ -230,7 +351,7 @@ export const howItWorksSection = {
     },
     {
       step: 2,
-      title: "CONECTA SUA CONTA DO META ADS",
+      title: "CONECTA A CONTA DO META ADS DA LOJA",
       description:
         "Leva 30 segundos. Totalmente seguro. Você autoriza acesso de LEITURA:",
       bullets: [
@@ -246,7 +367,7 @@ export const howItWorksSection = {
       step: 3,
       title: "NOSSA IA + EXPERTISE ANALISA TUDO",
       description:
-        "Inteligência artificial avançada + revisão humana processam campanhas ativas e pausadas, métricas dos últimos 90 dias, criativos, públicos e benchmarks do seu nicho. Isso leva de 5 a 15 minutos.",
+        "Inteligência artificial avançada + revisão humana processam campanhas de vendas ativas e pausadas, métricas dos últimos 90 dias, criativos, públicos e benchmarks do seu nicho de e-commerce. Isso leva de 5 a 15 minutos.",
     },
     {
       step: 4,
@@ -270,6 +391,10 @@ export const howItWorksSection = {
   summaryCalloutTitle: "EM RESUMO:",
   summaryCalloutBody:
     "Você paga R$ 37 → Conecta sua conta → Aguarda ~5 minutos → Acessa o diagnóstico completo → Decide o que fazer. Simples. Rápido. Direto.",
+  roadmapTitle: "Plano de execução que você recebe",
+  roadmapSubtitle:
+    "Além do diagnóstico, o relatório entrega sequência priorizada — o que fazer primeiro, depois e quando escalar vendas da loja.",
+  roadmapPhases: reportPreviewDemo.roadmapPhases,
 };
 
 export const authorSection = {
@@ -385,11 +510,11 @@ export const faqItems: FaqItem[] = [
 ];
 
 export const finalCta = {
-  title: "Descubra onde você está perdendo dinheiro",
+  title: "Descubra onde sua loja está perdendo dinheiro",
   subtitle: "(antes de perder ainda mais)",
   paragraphs: [
     "Se você chegou até aqui, é porque você SABE que algo está errado nas suas campanhas.",
-    'Talvez seja o ROAS que não sobe. Talvez seja o CPM que não para de subir. Talvez seja aquela sensação de "estou gastando mas não vale a pena".',
+    'Talvez seja o ROAS de vendas que não sobe. Talvez seja o CPM que não para de subir. Talvez seja aquela sensação de que o faturamento da loja não acompanha o investimento em anúncios.',
     "Você está certo em desconfiar.",
     `Por ${PRICE_LABEL}, você descobre onde está o problema, quanto está desperdiçando, o que fazer e quanto pode melhorar em 30 dias.`,
     "Em cerca de 5 minutos. Sem risco (garantia total). Sem compromisso (não precisa contratar nada).",
@@ -406,12 +531,11 @@ export const finalCta = {
     "EXATAMENTE onde está o problema",
     "QUANTO você está desperdiçando",
     "O QUE fazer para corrigir",
-    "QUANTO pode melhorar em 30 dias",
+    "QUANTO sua loja pode melhorar em 30 dias",
   ],
   closing:
     "Ou você age agora... ou continua no escuro, desperdiçando dinheiro todo mês, sem saber onde está o buraco. A escolha é sua.",
   ctaPrimary: `ANALISAR MINHA CONTA POR ${PRICE_LABEL}`,
-  ctaSub: `${seniorReportPreview.annualizedNote} · Acesso em ~5 minutos`,
   trustLines: [
     "Pagamento 100% seguro (Mercado Pago)",
     "Resultado em ~5 minutos",
@@ -424,14 +548,15 @@ export const finalCta = {
 export const footerSection = {
   signature: "Douglas Santos",
   tagline:
-    "Especialista em Meta e Google Ads | Ex-Ogilvy | +R$ 30 milhões gerenciados",
+    "Especialista em Meta e Google Ads para E-commerce | Ex-Ogilvy | +R$ 30 milhões gerenciados",
   copyright: "© 2026 — Todos os direitos reservados",
 };
 
 export const seoDefaults = {
-  title: "Diagnóstico Meta Ads — Onde você está perdendo dinheiro | R$ 37",
+  title:
+    "Diagnóstico Meta Ads para E-commerce — Onde você está perdendo dinheiro | R$ 37",
   description:
-    "Auditoria técnica da sua conta Meta Ads em ~5 minutos: 9 módulos, score, problemas críticos e plano de ação. Por R$ 37. Pagamento seguro.",
+    "Auditoria da sua loja online no Meta Ads em ~5 minutos: produto físico, campanhas de vendas, score, vazamentos e plano de ação. Por R$ 37. Pagamento seguro.",
 };
 
 export function diagnosisFaqJsonLd(): Record<string, unknown> {

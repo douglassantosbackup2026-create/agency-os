@@ -60,7 +60,6 @@ function DiagnosisFinalCtaInner({ onCheckout, loading, error }: Props) {
           <DiagnosisCta
             size="large"
             label={finalCta.ctaPrimary}
-            sublabel={finalCta.ctaSub}
             loading={loading}
             onClick={onCheckout}
           />

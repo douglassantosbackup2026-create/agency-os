@@ -9,6 +9,7 @@ import {
   ANCHOR_PARA_QUEM,
   ANCHOR_PREVIEW,
   ANCHOR_RESULTADOS,
+  hero,
 } from "@/content/diagnosis-landing";
 import {
   landingNavAnchorClass,
@@ -32,7 +33,7 @@ function DiagnosisLandingHeaderInner({ onCtaClick }: Props) {
             <BarChart2 className="h-4 w-4" aria-hidden />
           </div>
           <span className="truncate text-sm font-bold tracking-tight sm:text-base">
-            Diagnóstico Meta Ads
+            {hero.brandLabel}
           </span>
         </a>
         <nav className="flex items-center gap-1 sm:gap-2">
