@@ -13,6 +13,12 @@ import { DiagnosisExecutiveReport } from "@/components/diagnosis-report/executiv
 import { InlineErrorBanner } from "@/components/diagnosis-funnel/InlineErrorBanner";
 import { DiagnosisFailedPanel } from "@/components/diagnosis-funnel/DiagnosisFailedPanel";
 import { parseDiagnosisFailedReason } from "@/lib/diagnosis-failed-reason";
+import {
+  DIAGNOSIS_PRODUCT,
+  GESTAO_PRODUCT,
+  trackMetaInitiateCheckout,
+  trackMetaViewContentOnce,
+} from "@/lib/meta-pixel";
 import { reportFunnelError } from "@/lib/report-error";
 import "@/styles/diagnosis-executive.css";
 import "@/styles/diagnosis.css";
@@ -138,6 +144,14 @@ function DiagnosticoReportPage() {
 
   const analysis = data?.report?.analysis_json;
 
+  useEffect(() => {
+    if (data?.diagnosis?.status !== "completed" || !analysis) return;
+    trackMetaViewContentOnce(DIAGNOSIS_PRODUCT, diagnosisId, {
+      content_name: "Relatório Diagnóstico Meta Ads",
+      content_ids: [diagnosisId],
+    });
+  }, [data?.diagnosis?.status, analysis, diagnosisId]);
+
   async function trackCta() {
     if (!s) return;
     try {
@@ -168,6 +182,10 @@ function DiagnosticoReportPage() {
   function goToGestaoCheckout(gapFormatted?: string | null) {
     if (!s) return;
     void trackCta();
+    trackMetaInitiateCheckout(GESTAO_PRODUCT, {
+      source: "report_cta",
+      content_ids: [diagnosisId],
+    });
     navigate({
       to: "/gestao-checkout",
       search: gestaoCheckoutSearch({

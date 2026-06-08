@@ -7,6 +7,7 @@ import {
 } from "@/lib/gestao-whatsapp";
 import { useDiagnosisPoll } from "@/hooks/use-diagnosis-poll";
 import { InlineErrorBanner } from "@/components/diagnosis-funnel/InlineErrorBanner";
+import { GESTAO_PRODUCT, trackMetaPurchase } from "@/lib/meta-pixel";
 import { reportFunnelError } from "@/lib/report-error";
 import "@/styles/diagnosis.css";
 
@@ -71,6 +72,11 @@ function GestaoObrigadoPage() {
       reportFunnelError("gestao.status_poll_failed", pollError);
     }
   }, [pollError]);
+
+  useEffect(() => {
+    if (!d || snapshot?.management_status !== "paid") return;
+    trackMetaPurchase(GESTAO_PRODUCT, d);
+  }, [d, snapshot?.management_status]);
 
   const waHref = useMemo(() => {
     if (!d) return "";

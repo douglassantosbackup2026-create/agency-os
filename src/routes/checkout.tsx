@@ -20,6 +20,11 @@ import { callDiagnosisApi } from "@/lib/diagnosis-api";
 import { useDiagnosisPoll } from "@/hooks/use-diagnosis-poll";
 import { useMercadoPago, type MpInstance } from "@/hooks/use-mercadopago-sdk";
 import { InlineErrorBanner } from "@/components/diagnosis-funnel/InlineErrorBanner";
+import {
+  DIAGNOSIS_PRODUCT,
+  trackMetaAddPaymentInfo,
+  trackMetaPurchase,
+} from "@/lib/meta-pixel";
 import { reportFunnelError } from "@/lib/report-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -279,6 +284,9 @@ function CheckoutPage() {
     try {
       const r = await apiStart(parsed.data);
       setStarted(r);
+      trackMetaAddPaymentInfo(DIAGNOSIS_PRODUCT, {
+        order_id: r.diagnosis_id,
+      });
       return r;
     } catch (err) {
       setGlobalError(err instanceof Error ? err.message : "Erro ao iniciar pagamento");
@@ -289,11 +297,13 @@ function CheckoutPage() {
   }, [payer, started]);
 
   const onApproved = useCallback(
-    (d: string, s: string, t?: string | null) =>
+    (d: string, s: string, t?: string | null) => {
+      trackMetaPurchase(DIAGNOSIS_PRODUCT, d);
       navigate({
         to: "/obrigado",
         search: { d, s, ...(t ? { t } : {}) } as never,
-      }),
+      });
+    },
     [navigate],
   );
 

@@ -6,6 +6,12 @@ import { useDiagnosisPoll } from "@/hooks/use-diagnosis-poll";
 import { InlineErrorBanner } from "@/components/diagnosis-funnel/InlineErrorBanner";
 import { DiagnosisFailedPanel } from "@/components/diagnosis-funnel/DiagnosisFailedPanel";
 import { parseDiagnosisFailedReason } from "@/lib/diagnosis-failed-reason";
+import {
+  DIAGNOSIS_PRODUCT,
+  isDiagnosisPaidStatus,
+  trackMetaCompleteRegistration,
+  trackMetaPurchase,
+} from "@/lib/meta-pixel";
 import { reportFunnelError } from "@/lib/report-error";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -121,6 +127,22 @@ function ObrigadoPage() {
       reportFunnelError("obrigado.status_poll_failed", pollError);
     }
   }, [pollError]);
+
+  useEffect(() => {
+    if (!d || !s || !isDiagnosisPaidStatus(status?.status)) return;
+    trackMetaPurchase(DIAGNOSIS_PRODUCT, d);
+  }, [d, s, status?.status]);
+
+  useEffect(() => {
+    if (!d) return;
+    const st = status?.status;
+    if (st !== "processing" && st !== "completed") return;
+    trackMetaCompleteRegistration(
+      "Meta Ads conectado",
+      { content_ids: [d] },
+      d,
+    );
+  }, [d, status?.status]);
 
   useEffect(() => {
     if (status?.status !== "failed" || !status.failed_reason) return;

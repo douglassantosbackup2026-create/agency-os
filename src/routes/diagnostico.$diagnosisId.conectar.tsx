@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { callDiagnosisApi } from "@/lib/diagnosis-api";
 import { InlineErrorBanner } from "@/components/diagnosis-funnel/InlineErrorBanner";
+import { trackMetaCompleteRegistration } from "@/lib/meta-pixel";
 
 type PendingAccount = {
   id?: string;
@@ -101,6 +102,11 @@ function ConnectAccountPage() {
         setSubmitting(null);
         return;
       }
+      trackMetaCompleteRegistration(
+        "Conta Meta Ads selecionada",
+        { content_ids: [diagnosisId] },
+        diagnosisId,
+      );
       navigate({
         to: "/obrigado",
         search: { d: diagnosisId, s },

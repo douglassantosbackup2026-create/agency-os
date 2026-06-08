@@ -1,3 +1,4 @@
+import { DIAGNOSIS_PRODUCT, trackMetaInitiateCheckout } from "@/lib/meta-pixel";
 import { useCallback, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 
@@ -10,6 +11,7 @@ export function useDiagnosisCheckout() {
     setError(null);
     setLoading(true);
     try {
+      trackMetaInitiateCheckout(DIAGNOSIS_PRODUCT, { source: "landing_cta" });
       await navigate({ to: "/checkout" });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro");

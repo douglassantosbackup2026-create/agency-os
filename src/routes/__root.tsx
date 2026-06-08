@@ -16,13 +16,13 @@ import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { AppErrorBoundary } from "@/components/app-error-boundary";
 import { DiagnosisFunnelErrorBoundary } from "@/components/diagnosis-funnel/DiagnosisFunnelErrorBoundary";
+import { MetaPixelTracker } from "@/components/meta-pixel-tracker";
+import { META_PIXEL_ID, META_PIXEL_INIT_SCRIPT } from "@/lib/meta-pixel";
 import { reportError } from "@/lib/report-error";
 import { useEffect, useSyncExternalStore } from "react";
 import { getSnapshotTheme, subscribeTheme } from "@/lib/theme";
 
 const THEME_INIT_SCRIPT = `(function(){try{var k='theme';var r=document.documentElement;var s=localStorage.getItem(k);var d;if(s==='dark')d=!0;else if(s==='light')d=!1;else d=window.matchMedia('(prefers-color-scheme: dark)').matches;if(d)r.classList.add('dark');else r.classList.remove('dark');}catch(e){}})();`;
-
-const META_PIXEL_SCRIPT = `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','1014878304387575');fbq('track','PageView');`;
 
 function NotFoundComponent() {
   return (
@@ -184,11 +184,10 @@ function RootShell({ children }: { children: React.ReactNode }) {
           // Aplica tema antes da primeira pintura (alinhar com src/lib/theme.ts)
           dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
         />
-        <script dangerouslySetInnerHTML={{ __html: META_PIXEL_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: META_PIXEL_INIT_SCRIPT }} />
         <noscript
           dangerouslySetInnerHTML={{
-            __html:
-              '<img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=1014878304387575&ev=PageView&noscript=1" />',
+            __html: `<img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=${META_PIXEL_ID}&ev=PageView&noscript=1" />`,
           }}
         />
         <HeadContent />
@@ -246,6 +245,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <AppErrorBoundary>
+          <MetaPixelTracker />
           <FunnelAwareOutlet />
         </AppErrorBoundary>
         <Toaster position="top-right" theme={colorMode} />

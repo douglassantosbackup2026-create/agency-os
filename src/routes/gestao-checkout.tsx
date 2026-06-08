@@ -34,6 +34,11 @@ import {
   formatManagementPrice,
   gestaoUrgencyText,
 } from "@/content/gestao-checkout";
+import {
+  GESTAO_PRODUCT,
+  trackMetaAddPaymentInfo,
+  trackMetaPurchase,
+} from "@/lib/meta-pixel";
 import { whatsappGestaoHref } from "@/lib/gestao-whatsapp";
 
 type GestaoSearch = { d?: string; s?: string; gap?: string };
@@ -225,6 +230,7 @@ function GestaoCheckoutPage() {
 
   const onApproved = useCallback(() => {
     if (!d || !s) return;
+    trackMetaPurchase(GESTAO_PRODUCT, d);
     navigate({ to: "/gestao-obrigado", search: { d, s } });
   }, [d, s, navigate]);
 
@@ -271,6 +277,7 @@ function GestaoCheckoutPage() {
         }),
       });
       setStarted(r);
+      trackMetaAddPaymentInfo(GESTAO_PRODUCT, { order_id: d });
       return r;
     } catch (err) {
       setGlobalError(err instanceof Error ? err.message : "Erro ao iniciar pagamento");
