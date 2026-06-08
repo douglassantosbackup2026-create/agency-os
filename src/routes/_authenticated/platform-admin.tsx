@@ -22,6 +22,7 @@ import {
   Empty,
   PageSkeleton,
 } from "@/components/operational-ui";
+import { PlatformDiagnosisSection } from "@/components/platform-admin/PlatformDiagnosisSection";
 
 export const Route = createFileRoute("/_authenticated/platform-admin")({
   beforeLoad: async () => {
@@ -278,6 +279,8 @@ function PlatformAdmin() {
           </div>
         </div>
       </Card>
+
+      <PlatformDiagnosisSection />
 
       <Card>
         <CardHeader title="Referência" />

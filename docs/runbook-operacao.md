@@ -23,7 +23,8 @@ WHERE email = 'seu-email@exemplo.com';
 ```
 
 - Depois do login, o menu mostra **Plataforma** e a rota `/platform-admin` (visão global de agências + estado das secrets OAuth via função `oauth-env-status`).
-- Fazer deploy da Edge Function `oauth-env-status` junto com as alterações de funções, e aplicar a migração com `npx supabase db push` (ou migrações equivalentes).
+- Na mesma página, a secção **Funil Diagnóstico Meta** (`#diagnostico-funil`) consome RPCs `platform_diagnosis_*` e Edge Functions `diagnosis-env-status` / `diagnosis-platform-ops` (retry, reprocessar, limpar processing preso). Atalho no command palette: **Funil Diagnóstico**.
+- Fazer deploy das Edge Functions (`oauth-env-status`, `diagnosis-env-status`, `diagnosis-platform-ops`) e aplicar migrações com `npx supabase db push` (incl. `20260608140000_platform_diagnosis_ops.sql`).
 
 ## Variáveis de limite / custo IA
 

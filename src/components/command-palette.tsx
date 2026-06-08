@@ -33,6 +33,7 @@ import {
   Activity as ActivityIcon,
   Image as ImageIcon,
   Radar,
+  Stethoscope,
 } from "lucide-react";
 import { toggleTheme as applyToggleTheme } from "@/lib/theme";
 import { invokeWithToast } from "@/lib/supabase-invoke";
@@ -242,9 +243,25 @@ export function CommandPalette({
             <Sparkles className="mr-2 h-4 w-4" /> Onboarding
           </CommandItem>
           {isPlatformAdmin && (
-            <CommandItem onSelect={() => go("/platform-admin")}>
-              <Globe className="mr-2 h-4 w-4" /> Plataforma
-            </CommandItem>
+            <>
+              <CommandItem onSelect={() => go("/platform-admin")}>
+                <Globe className="mr-2 h-4 w-4" /> Plataforma
+              </CommandItem>
+              <CommandItem
+                onSelect={() => {
+                  close();
+                  void navigate({ to: "/platform-admin" }).then(() => {
+                    window.setTimeout(() => {
+                      document
+                        .getElementById("diagnostico-funil")
+                        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }, 400);
+                  });
+                }}
+              >
+                <Stethoscope className="mr-2 h-4 w-4" /> Funil Diagnóstico
+              </CommandItem>
+            </>
           )}
           <CommandItem onSelect={() => go("/admin")}>
             <ShieldAlert className="mr-2 h-4 w-4" /> Equipa e auditoria
