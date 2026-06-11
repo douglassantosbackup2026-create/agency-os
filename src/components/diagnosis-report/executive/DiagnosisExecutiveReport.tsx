@@ -339,7 +339,10 @@ export function DiagnosisExecutiveReport({
             <div className="exec-maturity-grid">
               <div>
                 <ScoreRing value={scoreVal} />
-                {maturity?.label ? <div className="exec-score-level">{maturity.label}</div> : null}
+                {(() => {
+                  const label = maturity && "label" in maturity ? maturity.label : maturity?.enterpriseLabel;
+                  return label ? <div className="exec-score-level">{label}</div> : null;
+                })()}
               </div>
               <div className="exec-pillars">
                 {pillars.map((p) => {
