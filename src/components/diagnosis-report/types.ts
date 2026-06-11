@@ -400,6 +400,8 @@ export type GrowthIntelligenceDerived = {
     roasActualFormatted: string;
     gapMonthlyFormatted: string;
     headlinePt: string;
+    gapMonthlyBrl?: number;
+    gapAnnualBrl?: number;
   };
   moneyLeaks: MoneyLeakItem[];
   growthOpportunities: {
