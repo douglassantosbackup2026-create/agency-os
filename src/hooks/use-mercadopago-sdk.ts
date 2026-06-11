@@ -31,7 +31,7 @@ declare global {
 
 export function useMercadoPago(
   publicKey: string | null,
-  errorContext = "checkout.mp_sdk_failed",
+  errorContext: "checkout.mp_sdk_failed" | "gestao_checkout.mp_sdk_failed" = "checkout.mp_sdk_failed",
 ): {
   mp: MpInstance | null;
   sdkError: string | null;

@@ -37,6 +37,7 @@ export function reportFunnelError(
   event:
     | "checkout.pix_poll_failed"
     | "checkout.mp_sdk_failed"
+    | "gestao_checkout.mp_sdk_failed"
     | "obrigado.status_poll_failed"
     | "gestao.status_poll_failed"
     | "diagnosis.report_fetch_failed"

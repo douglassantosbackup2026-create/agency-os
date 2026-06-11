@@ -78,6 +78,7 @@ export type DiagnosisAnalysis = {
     headline?: string;
     lossMonthlyFormatted?: string;
     recoveryRangeFormatted?: string;
+    heroRangeFormatted?: string;
     problemCount?: number;
     quickWinCount?: number;
   };
@@ -400,6 +401,8 @@ export type GrowthIntelligenceDerived = {
     roasActualFormatted: string;
     gapMonthlyFormatted: string;
     headlinePt: string;
+    gapMonthlyBrl?: number;
+    gapAnnualBrl?: number;
   };
   moneyLeaks: MoneyLeakItem[];
   growthOpportunities: {
