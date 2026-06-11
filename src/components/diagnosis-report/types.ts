@@ -78,6 +78,7 @@ export type DiagnosisAnalysis = {
     headline?: string;
     lossMonthlyFormatted?: string;
     recoveryRangeFormatted?: string;
+    heroRangeFormatted?: string;
     problemCount?: number;
     quickWinCount?: number;
   };
