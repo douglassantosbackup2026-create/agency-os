@@ -102,7 +102,7 @@ export function PlatformDiagnosisSection() {
         supabase.rpc("platform_diagnosis_list_recent", {
           p_limit: pageSize,
           p_offset: page * pageSize,
-          p_status: statusFilter || null,
+          p_status: statusFilter || undefined,
           p_failed_only_24h: failedOnly24h,
         }),
         supabase.rpc("platform_diagnosis_revenue_summary", {
