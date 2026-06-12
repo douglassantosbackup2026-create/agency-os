@@ -34,10 +34,37 @@ Redirect URI Meta: `https://uvuotaxikuxejfeitlaw.supabase.co/functions/v1/meta-o
 ## Cron `process-diagnosis`
 
 - Job SQL: `process-diagnosis-batch` (ver [`ops-cron-deploy-checklist.md`](ops-cron-deploy-checklist.md)).
+- **Schedule actual:** `*/1 * * * *` (cada 1 min) com `PROCESS_DIAGNOSIS_BATCH_SIZE=4` — calibrado para rajadas de ~10 diagnósticos simultâneos vindos de tráfego pago, sem estourar TPM Anthropic.
 - Aplicar: `npm run ops:apply-crons` (requer `SUPABASE_SERVICE_ROLE_KEY` ou bearer em `retentio_ops_config`).
 - Invocação manual: `POST .../functions/v1/process-diagnosis` com `Authorization: Bearer <CRON_SECRET>` e `apikey: <ANON_KEY>`.
 
 No início de cada batch, a função chama `cleanup_stale_diagnosis_processing(30)` (migration `20260605120000`).
+
+## Monitoring durante tráfego pago
+
+Queries rápidas para acompanhar a primeira hora de campanhas Meta Ads:
+
+```sql
+-- Funil de diagnósticos da última hora
+SELECT status, COUNT(*) FROM diagnoses
+WHERE created_at > now() - interval '1 hour'
+GROUP BY status
+ORDER BY COUNT(*) DESC;
+
+-- Diagnósticos presos em processing (> 10 min)
+SELECT id, status, updated_at FROM diagnoses
+WHERE status = 'processing'
+  AND updated_at < now() - interval '10 minutes';
+
+-- Tempo médio awaiting_payment → completed (últimas 24h)
+SELECT AVG(EXTRACT(EPOCH FROM (updated_at - created_at))/60) AS minutos_medios
+FROM diagnoses
+WHERE status = 'completed' AND updated_at > now() - interval '24 hours';
+```
+
+Também: `SELECT public.get_resilience_ops_snapshot();` e logs de `process-diagnosis` (Supabase Dashboard → Edge Functions).
+
+
 
 ## Diagnóstico por objetivo de campanha (v8)
 
