@@ -93,9 +93,11 @@ SELECT cron.schedule(
   $$
 );
 
+-- Roda a cada 1 min para absorver rajadas de tráfego pago (~10 diagnósticos simultâneos)
+-- sem estourar TPM Anthropic. Combinar com PROCESS_DIAGNOSIS_BATCH_SIZE=4.
 SELECT cron.schedule(
   'process-diagnosis-batch',
-  '*/5 * * * *',
+  '*/1 * * * *',
   $$
   SELECT net.http_post(
     url := 'https://uvuotaxikuxejfeitlaw.supabase.co/functions/v1/process-diagnosis',
