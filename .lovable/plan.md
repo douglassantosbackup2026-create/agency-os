@@ -1,78 +1,95 @@
-# Por que a receita das campanhas de conversão não aparece
 
-## Diagnóstico (causa raiz confirmada nos dados)
+# Plano: pronto para anúncios Meta Ads (10 diagnósticos simultâneos)
 
-Diagnóstico inspecionado: `7e8e3d16-306f-4960-ace3-56de6a3f0b6a` (status `completed`).
+Objetivo: garantir que o funil aguenta uma rajada de ~10 diagnósticos concorrentes sem 429 da Anthropic, sem timeout de Meta Graph, e com observabilidade mínima para a primeira hora de tráfego.
 
-Na campanha **[GM] - Conversão 1** (`campaign_id 6910581785226`):
+## 1. Ajuste de capacidade do worker IA (mudança principal)
 
-- `campaigns_insights[].action_values` contém **R$ 30.949,28** em `purchase`, `omni_purchase`, `offsite_conversion.fb_pixel_purchase`, `onsite_web_purchase` (gasto R$ 7.446,41 → ROAS real ≈ 4,16x).
-- Em `campaigns_enriched[]` essa mesma campanha aparece como:
-  - `objective_raw: "UNKNOWN"`
-  - `family: "other"` → `family_label_pt: "Outro"`
-  - `roas: null`
-  - `kpi_status: "sem dados"` / `kpi_status_reason: "Objetivo não mapeado — verifique no Gerenciador de Anúncios."`
+Hoje: `PROCESS_DIAGNOSIS_BATCH_SIZE=10` + cron `process-diagnosis-batch` a cada 5 min.
+Problema: 10 diagnósticos pagos juntos viram 10 chamadas Claude no mesmo tick → 429 quase certo.
 
-Ou seja: a receita **existe** nos dados crus, mas é descartada na etapa de enriquecimento.
+Mudar para:
+- `PROCESS_DIAGNOSIS_BATCH_SIZE=4` (Supabase Edge Functions secrets)
+- `DIAGNOSIS_AI_MAX_TOKENS=6000` (folga em TPM)
+- Cron `process-diagnosis-batch`: de `*/5 * * * *` → `*/1 * * * *` (atualizar em `supabase/cron-jobs.deploy-trafego.sql` + reaplicar via SQL Editor)
 
-### Por quê
+Resultado esperado: 10 diagnósticos processados em ~3 min com janela de retry para fallback Gemini.
 
-1. `campaigns_sample` salvo em `facts_json` traz somente `{id, name, status, effective_status}` — **sem `objective`, `daily_budget`, `lifetime_budget`**, apesar de `fetchCampaigns` em `supabase/functions/process-diagnosis/index.ts:406` pedir esses campos. A API Meta está omitindo `objective` para essa conta/token (provável: token sem escopo `ads_management` completo, ou campanhas antigas com objective herdado / ODAX migrado).
-2. Em `supabase/functions/_shared/diagnosis/campaign-objective.ts:406-407`, sem `meta.objective`, cai para `"UNKNOWN"` → `mapObjectiveToFamily` devolve `"other"`.
-3. Na linha 423-424 a receita só é calculada quando `family === "sales"`:
-   ```ts
-   const roas = family === "sales" ? computeRoas(action_values, spend) : null;
-   ```
-4. Como consequência:
-   - `roas = null`
-   - `kpi_status = "sem dados"`
-   - Toda a cadeia downstream (`derive-commercial`, `derive-top-findings`, `derive-meta-senior`, `derive-analysis` totals, prompt do LLM) filtra por `family === "sales"` e ignora a campanha.
-   - O agregado da conta mostra "sem receita" mesmo havendo R$ 30k+ rastreados pelo pixel.
-5. Há ainda um caminho de cache em `process-diagnosis/index.ts:762-764`: se `factsForAnalysis.campaigns_sample` já existir no `diagnosis_reports`, ele é reutilizado **sem refetch**, perpetuando o sample minimalista entre tentativas.
+## 2. Throttle Meta Graph mais conservador
 
-## Plano de ajuste
+Atualizar secrets das Edge Functions:
+- `META_FETCH_DELAY_MS=400` (hoje 300)
+- `META_FETCH_MAX_RETRIES=3` (hoje 2)
 
-Tudo em backend (edge functions), sem mudar UI. Escopo cirúrgico no pipeline de enriquecimento.
+`MetaGraphCircuitBreaker` já existe — só folga no throttle por conta.
 
-### 1. Inferir family por sinais quando `objective` vier vazio
-Arquivo: `supabase/functions/_shared/diagnosis/campaign-objective.ts`
+## 3. Checklist de secrets de produção (bloqueante)
 
-- Em `enrichCampaigns`, quando `mapObjectiveToFamily(objective_raw) === "other"`, aplicar fallback nesta ordem (apenas se objective ausente/UNKNOWN — não sobrescrever objective explícito da API):
-  1. Se `action_values` contém qualquer um de `purchase`, `omni_purchase`, `offsite_conversion.fb_pixel_purchase`, `onsite_web_purchase`, `onsite_web_app_purchase` com valor > 0 → `family = "sales"` (`family_inferred_from = "purchase_action_values"`).
-  2. Se `actions` contém `lead`, `onsite_conversion.lead_grouped` ou `offsite_conversion.fb_pixel_lead` com count > 0 e sem purchase → `family = "leads"`.
-  3. Caso contrário, manter `"other"`.
-- Computar `roas` quando `family === "sales"` **independentemente** de o objective ter vindo do Meta ou da inferência.
-- Anotar `objective_source: "meta" | "inferred"` em `CampaignEnriched` para auditoria (não muda o contrato, só adiciona campo opcional).
-- Quando `family` foi inferido, ajustar `kpi_status_reason` para algo como `"Objetivo da API ausente — classificada como Vendas por presença de compras rastreadas."` em vez de "sem dados".
+Rodar `npm run ops:diagnosis-health` e validar via `diagnosis-env-status`:
+- MercadoPago: `MERCADOPAGO_ACCESS_TOKEN`, `MERCADOPAGO_WEBHOOK_SECRET`, `MERCADOPAGO_PUBLIC_KEY`
+- Meta: `META_APP_ID`, `META_APP_SECRET`, `OAUTH_STATE_SECRET` (≥16)
+- Infra: `CRON_SECRET` (≥8), `PUBLIC_SITE_URL` = host do Worker publicado
+- IA: `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` (fallback obrigatório p/ rajada)
+- `META_TEST_ENABLED` deve estar ausente ou `false`
 
-### 2. Garantir refetch do sample com `objective` em retries
-Arquivo: `supabase/functions/process-diagnosis/index.ts` (linhas 762-764)
+Se faltar algum: pedir ao utilizador (via `secrets--add_secret` em build mode).
 
-- Trocar o `??` que reaproveita `factsForAnalysis.campaigns_sample` por uma checagem: só reutilizar se o sample contiver pelo menos um item com chave `objective` definida. Caso contrário, refetch via `fetchCampaigns`.
-- Continua barato: 1 chamada Graph extra apenas quando o cache está incompleto.
+## 4. App Meta em Live Mode
 
-### 3. Tornar o prompt e o agregador resilientes a `objective_source = "inferred"`
-Arquivos: `supabase/functions/process-diagnosis/index.ts` (bloco DADOS/REGRAS) e `supabase/functions/_shared/diagnosis/derive-analysis.ts`
+Verificar em developers.facebook.com:
+- App em **Live**, não Development
+- Permissões `ads_read` + `business_management` **aprovadas** (não apenas pedidas)
+- Redirect URI `https://uvuotaxikuxejfeitlaw.supabase.co/functions/v1/meta-oauth-callback` registado
 
-- Atualizar a regra #10 do prompt para reconhecer `objective_source` e permitir ROAS/receita quando family foi inferida por purchase action_values (mantendo a proibição de inventar receita).
-- Em `deriveAccountSummary` e `derive-commercial`, somar receita/ROAS agregada sobre **todas** campanhas com `roas != null`, não apenas as com `objective_raw` mapeado por nome.
+(Ação fora do código — incluir no checklist do utilizador.)
 
-### 4. Testes
-- Adicionar caso em `campaign-objective.test.ts`: fixture com `objective: ""` e `action_values` com `purchase` → espera `family === "sales"`, `roas` > 0, `kpi_status` ∈ {`bom`,`atenção`,`alerta`}.
-- Adicionar caso oposto: sem purchase nem leads → mantém `family === "other"`.
+## 5. Webhook Mercado Pago de produção
 
-### 5. Reprocessar diagnósticos afetados
-- Após deploy, re-enfileirar diagnósticos onde existir em `diagnosis_reports.facts_json -> 'campaigns_enriched'` algum item com `family = "other"` mas cujo `campaigns_insights` correspondente tenha `purchase` em `action_values`. Migração: `UPDATE diagnoses SET status='processing', failed_reason=NULL, updated_at=now() WHERE id IN (...)`. Mostro a query final para você aprovar antes de rodar.
+- Confirmar webhook configurado no painel MP → `https://uvuotaxikuxejfeitlaw.supabase.co/functions/v1/mercadopago-webhook`
+- HMAC com `MERCADOPAGO_WEBHOOK_SECRET` (fail-closed já implementado)
+- 1 compra real com cartão de teste para validar fluxo `awaiting_payment → awaiting_connection`
 
-## Detalhes técnicos (resumo)
+## 6. Observabilidade para a primeira hora
 
-- Arquivos editados: `_shared/diagnosis/campaign-objective.ts`, `process-diagnosis/index.ts`, `_shared/diagnosis/derive-analysis.ts`, `_shared/diagnosis/derive-commercial.ts` (apenas o agregado), `_shared/diagnosis/campaign-objective.test.ts`.
-- Deploy: `process-diagnosis`.
-- Sem mudanças de schema, sem migração de tabela. Sem mudanças de UI.
-- Impacto colateral: contas que **realmente** não são de vendas, mas têm pixel de view_content disparando como purchase por erro de tag, podem ser reclassificadas. Mitigação: gatilho exige `purchase`/`omni_purchase` **com valor monetário > 0** e gasto > 0 — não basta presença em `actions`.
+Adicionar dois recursos leves:
 
-## Pós-deploy / verificação
-- Reprocessar o diagnóstico `7e8e3d16-...` e conferir:
-  - `campaigns_enriched[campaign_id=6910581785226].family === "sales"`
-  - `roas ≈ 4.16`
-  - Bloco de receita no relatório executivo passa a mostrar R$ 30.949,28.
+a) **Query rápida de status** documentada em `docs/diagnostico-meta-runbook.md`:
+```sql
+SELECT status, COUNT(*) FROM diagnoses
+WHERE created_at > now() - interval '1 hour'
+GROUP BY status;
+```
+
+b) **Health snapshot**: garantir que `get_resilience_ops_snapshot()` cobre também `diagnoses` recentes (adicionar contagem por status na função, se ainda não cobre).
+
+## 7. Smoke E2E pré-tráfego
+
+Executar antes de ligar campanhas:
+1. `npm run ops:diagnosis-health` — landing + checkout 200
+2. 1 fluxo real ponta-a-ponta: `/` → `/checkout` (cartão MP teste) → `/obrigado` → OAuth Meta → relatório em `/diagnostico/$id`
+3. Validar Pixel `Purchase` no Events Manager (Test Events)
+4. Registar resultado em `docs/diagnostico-smoke-log.md`
+
+## Detalhes técnicos (resumo das mudanças no código/config)
+
+| Arquivo / Local | Mudança |
+|---|---|
+| Supabase Edge Function Secrets | `PROCESS_DIAGNOSIS_BATCH_SIZE=4`, `DIAGNOSIS_AI_MAX_TOKENS=6000`, `META_FETCH_DELAY_MS=400`, `META_FETCH_MAX_RETRIES=3` |
+| `supabase/cron-jobs.deploy-trafego.sql` | `process-diagnosis-batch` schedule `*/5` → `*/1` |
+| `docs/diagnostico-meta-runbook.md` | Adicionar bloco "queries de monitoring durante tráfego" |
+| `docs/diagnostico-smoke-log.md` | Linha nova após smoke pré-anúncios |
+
+Sem alterações de schema, RLS, ou código de aplicação — todo o trabalho é configuração + ops + 1 smoke.
+
+## Fora de escopo (não fazer agora)
+
+- Migrar prompt para Gemini por padrão
+- Aumentar TPM Anthropic via Tier upgrade (depende da conta do utilizador)
+- Mudar arquitetura do worker para fila persistente externa (overkill p/ 10 simultâneos)
+
+## Critério de "pronto"
+
+- `ops:diagnosis-health` verde
+- Smoke E2E completo + Purchase no Pixel
+- Cron a 1 min ativo (`SELECT jobname, schedule FROM cron.job WHERE jobname='process-diagnosis-batch'`)
+- Todos os secrets da seção 3 retornam `*_ok: true` em `diagnosis-env-status`
