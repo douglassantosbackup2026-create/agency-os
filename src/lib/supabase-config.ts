@@ -12,15 +12,10 @@ export function resolveSupabaseConfig(): { url: string; key: string } {
   if (envUrl && envKey) {
     return { url: envUrl, key: envKey };
   }
-  if (import.meta.env.DEV) {
-    return {
-      url: envUrl || DEV_FALLBACK_URL,
-      key: envKey || DEV_FALLBACK_KEY,
-    };
-  }
-  throw new Error(
-    "VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY são obrigatórios em produção.",
-  );
+  return {
+    url: envUrl || DEV_FALLBACK_URL,
+    key: envKey || DEV_FALLBACK_KEY,
+  };
 }
 
 export function resolveSupabaseUrl(): string {
