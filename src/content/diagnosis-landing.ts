@@ -170,83 +170,82 @@ export const hero = {
   headline: "Descubra EXATAMENTE onde você está perdendo dinheiro no Meta Ads",
   headlineHighlight: "perdendo dinheiro",
   subheadline:
-    "Auditoria da sua loja de e-commerce (Meta Ads) em cerca de 5 minutos",
+    "Auditoria da sua loja de e-commerce, com os dados reais da sua conta.",
   priceLine: `Por apenas ${PRICE_LABEL}`,
   supportingLines: [
-    "Análise técnica + IA de última geração",
-    "Feita por quem já gerenciou R$ 30 milhões em tráfego pago",
+    "Análise técnica com IA, feita por quem já gerenciou R$ 30 milhões em tráfego pago.",
   ],
-  ctaPrimary: "ANALISAR MINHA CONTA AGORA",
+  ctaPrimary: "Analisar minha conta agora",
   mockCaption:
     "Amostra anonimizada · seu relatório usa os dados da sua loja",
   trustBadges: [
-    "Resultado em ~5 minutos",
     "Feito para e-commerce",
     "Pagamento seguro",
+    "Garantia de 7 dias",
   ],
-  stickyCtaLabel: `ANALISAR · ${PRICE_LABEL}`,
+  stickyCtaLabel: `Analisar · ${PRICE_LABEL}`,
 };
 
 export const reportPreviewSection = {
-  eyebrow: "Amostra do Relatório",
+  eyebrow: "Amostra do relatório",
   title: "Veja o que o diagnóstico revela sobre sua loja",
   intro:
-    "Recorte real do relatório executivo — score, vazamentos em R$, benchmark do nicho e plano priorizado. Abaixo, conta demo anonimizada; o seu usa os dados reais da sua loja de e-commerce no Meta Ads.",
+    "Recorte real do relatório: score, vazamentos em R$, benchmark do nicho e plano priorizado. Abaixo, uma conta demo anonimizada — o seu relatório usa os dados da sua conta.",
   footerNote:
-    "+ módulos de criativos, públicos, oportunidades e projeção 30 dias — tudo interativo na web após conectar a conta de anúncios da sua loja.",
+    "+ módulos de criativos, públicos, oportunidades e projeção 30 dias — tudo interativo no navegador depois que você conecta a conta.",
   ctaSublabel: "Relatório completo em ~5 minutos",
 };
 
 export const whatIsSection = {
   eyebrow: "O que é",
-  title: "O que é o Diagnóstico de Meta Ads para e-commerce?",
+  title: "Uma auditoria cirúrgica, não uma consultoria genérica",
   introParagraphs: [
-    "É uma auditoria técnica completa da sua conta de Meta Ads (Facebook + Instagram) da sua loja online.",
-    'Não é consultoria genérica. Não é checklist básico. Não é "dicas de marketing".',
-    "É uma análise CIRÚRGICA dos SEUS dados reais:",
+    "Antes de gastar mais um real em mídia, vale entender o que você vai receber.",
+    "É uma auditoria técnica da sua conta de Meta Ads (Facebook + Instagram), feita sobre os seus dados — não sobre boas práticas genéricas.",
+    "Olhamos para:",
   ],
   dataPoints: [
-    "Suas campanhas de vendas/compras dos últimos 90 dias",
-    "Seus criativos e performance",
+    "Suas campanhas de vendas dos últimos 90 dias",
+    "Seus criativos e a performance de cada um",
     "Seus públicos e segmentações",
     "Suas métricas comparadas com o mercado",
   ],
-  resultsIntro: "Resultado: Você descobre EXATAMENTE:",
+  resultsIntro: "No fim, você sabe:",
   results: [
     "Quais campanhas estão desperdiçando dinheiro",
-    "Por que seu ROAS de vendas não sobe",
-    "Onde seu CPM está alto demais",
-    "Que ajustes fazer para melhorar (com prioridades)",
+    "Por que o ROAS não sobe",
+    "Onde o CPM está alto demais",
+    "Que ajustes fazer primeiro, com prioridade",
   ],
-  summaryCalloutTitle: "EM RESUMO:",
+  summaryCalloutTitle: "Em resumo",
   summaryCalloutBody:
-    'É como fazer um "raio-X" da operação de tráfego da sua loja. Você vai ver cada problema, quanto cada um está custando, e o que fazer para corrigir. Tudo baseado nos SEUS números reais.',
+    "É um raio-X da operação de tráfego da loja: cada problema, quanto está custando e o que fazer. Tudo a partir dos seus números reais.",
 };
 
 export const forWhoSection = {
   eyebrow: "Para quem é",
-  title: "Para quem é esse diagnóstico?",
+  title: "Mas isso não serve para todo mundo",
   intro:
-    "Esse diagnóstico foi feito especificamente para donos de e-commerce que:",
-  forYouTitle: "É PARA VOCÊ SE:",
+    "O diagnóstico foi desenhado para um perfil específico de operação. Confira antes de comprar.",
+  forYouTitle: "É para você se",
   forYou: [
     "Você tem um e-commerce ativo vendendo produtos físicos",
     "Investe pelo menos R$ 5.000/mês em Meta Ads",
     "Já tem campanhas rodando ou rodou nos últimos 30 dias",
-    "Está frustrado com os resultados atuais: ROAS abaixo de 5-6x, CPM subindo, conversões que não acontecem, ou não sabe onde está o problema",
-    "Quer dados concretos (não achismo) sobre o que está errado na conta",
-    `Está disposto a investir ${PRICE_LABEL} para descobrir se está perdendo milhares/mês`,
+    "Está frustrado com ROAS baixo, CPM subindo ou conversões que não vêm",
+    "Quer dados concretos sobre o que está errado — não achismo",
+    `Topa investir ${PRICE_LABEL} para descobrir se está perdendo milhares por mês`,
   ],
-  notForYouTitle: "NÃO É PARA VOCÊ SE:",
+  notForYouTitle: "Não é para você se",
   notForYou: [
-    "Você vende infoprodutos, serviços ou afiliados (somos especializados em e-commerce físico)",
+    "Você vende infoproduto, serviço ou afiliado (somos focados em e-commerce físico)",
     "Investe menos de R$ 5.000/mês (o diagnóstico funciona, mas o ROI é menor)",
-    "Nunca rodou Meta Ads ou não tem dados recentes (precisamos de histórico para analisar)",
-    "Está 100% satisfeito com os resultados atuais (se tudo está ótimo, não precisa)",
+    "Nunca rodou Meta Ads ou não tem dados recentes (precisamos de histórico)",
+    "Está 100% satisfeito com os resultados atuais",
   ],
-  importantCalloutTitle: "IMPORTANTE:",
+  importantCalloutTitle: "Por que esse corte importa",
   importantCalloutBody:
-    "Se você investe R$ 10.000/mês e descobre que está desperdiçando 30% (R$ 3.000), são R$ 36.000/ano jogados fora. O diagnóstico custa R$ 37. Faz sentido ou não faz?",
+    "Em uma conta que investe R$ 10.000/mês, desperdiçar 30% são R$ 36.000 por ano. O diagnóstico custa R$ 37 — a conta fecha sozinha quando o problema existe.",
 };
 
 export type WhatItDoesModule = {
@@ -258,76 +257,73 @@ export type WhatItDoesModule = {
 
 export const whatItDoesSection = {
   eyebrow: "O que faz",
-  title: "O que o diagnóstico faz pela sua loja?",
-  subtitle: "Você recebe uma análise completa de e-commerce em 9 módulos:",
+  title: "O que entra no relatório",
+  subtitle:
+    "Uma análise em 9 frentes — todas no mesmo relatório, na ordem em que você precisa ler.",
   modules: [
     {
       number: 1,
-      title: "SCORE DE SAÚDE (0-100)",
+      title: "Score de saúde (0–100)",
       description:
-        "Avaliação geral da sua conta baseada em 15+ critérios técnicos. Você descobre se sua conta está Crítica (0-30), Necessita Atenção (31-60), Razoável (61-80) ou Excelente (81-100).",
+        "Nota geral da conta a partir de critérios técnicos, com faixa (crítica, atenção, razoável, excelente).",
       example:
-        'Exemplo: "67/100 - Necessita Atenção. Sua conta tem estrutura razoável mas está perdendo dinheiro com públicos saturados e criativos fracos."',
+        'Ex.: "67/100 — atenção. Estrutura razoável, mas perdendo dinheiro em públicos saturados e criativos fracos."',
     },
     {
       number: 2,
-      title: "TOP 5 PROBLEMAS CRÍTICOS",
+      title: "Top 5 problemas críticos",
       description:
-        "Os maiores problemas que estão matando suas conversões, com impacto quantificado em reais.",
-      example:
-        "Ex.: Campanha com frequência 8.7 → R$ 2.400/mês desperdiçado; CTR 0.7% vs ideal 2%+; públicos com 73% de sobreposição.",
+        "Os maiores ofensores da conta, com impacto quantificado em reais por mês.",
     },
     {
       number: 3,
-      title: "MAPA DE VAZAMENTOS DE BUDGET",
+      title: "Mapa de vazamentos de budget",
       description:
-        "Identificação exata de onde cada real está indo: campanhas que sangram, conjuntos com ROAS abaixo de 2x, onde cortar sem perder resultados.",
+        "Onde cada real está indo: campanhas que sangram, conjuntos com ROAS baixo e onde cortar sem perder resultado.",
       example:
-        'Ex.: "Conjunto Público Amplo Brasil gastou R$ 4.200 em 30 dias com ROAS 1.3x. Recomendação: PAUSAR e redirecionar para remarketing."',
+        'Ex.: "Conjunto Público Amplo Brasil — R$ 4.200 em 30 dias com ROAS 1,3x. Pausar e redirecionar para remarketing."',
     },
     {
       number: 4,
-      title: "ANÁLISE DE CRIATIVOS",
+      title: "Análise de criativos",
       description:
-        "O que está funcionando e o que está flopando: melhor e pior criativo (CTR, CPA, por quê) e o que criar/testar agora.",
+        "Melhor e pior criativo (CTR, CPA, por quê) e o que testar a seguir.",
     },
     {
       number: 5,
-      title: "DIAGNÓSTICO DE PÚBLICOS",
+      title: "Diagnóstico de públicos",
       description:
-        "Saturação, sobreposição, estrutura de funil (cold/warm/hot), tamanho dos públicos e recomendações específicas de ajuste.",
+        "Saturação, sobreposição, funil (cold/warm/hot) e ajustes específicos por público.",
     },
     {
       number: 6,
-      title: "BENCHMARKS DO SEU NICHO",
+      title: "Benchmarks do seu nicho",
       description:
-        "Comparação dos seus números com o padrão do mercado: ROAS, CPM, CTR e CPA acima/abaixo do ideal.",
-      example:
-        'Ex.: "Seu ROAS de 2.8x está 53% abaixo do ideal para e-commerce de moda (6.0x)."',
+        "Seus números (ROAS, CPM, CTR, CPA) comparados com o padrão do mercado e o top 10%.",
     },
     {
       number: 7,
-      title: "OPORTUNIDADES PRIORIZADAS",
+      title: "Oportunidades priorizadas",
       description:
-        "Melhorias ordenadas por impacto e facilidade: Quick Wins (hoje), Médio Prazo (1-2 semanas) e Estratégicas (reestruturação), cada uma com ganho estimado.",
+        "Melhorias ordenadas por impacto: quick wins, médio prazo e estratégicas — cada uma com ganho estimado.",
     },
     {
       number: 8,
-      title: "PLANO DE AÇÃO DETALHADO",
+      title: "Plano de ação detalhado",
       description:
-        "O que fazer primeiro, segundo, terceiro — com descrição, impacto esperado, tempo de implementação e resultado esperado.",
+        "O que fazer primeiro, depois e por último — com descrição, esforço e resultado esperado.",
     },
     {
       number: 9,
-      title: "ESTIMATIVA DE MELHORIA EM 30 DIAS",
+      title: "Projeção de melhoria em 30 dias",
       description:
-        "Projeção realista: ROAS atual → potencial, economia mensal em R$, aumento de conversões e nível de confiança.",
+        "ROAS atual vs. potencial, economia mensal estimada e nível de confiança da projeção.",
       example:
-        'Ex.: "Com as otimizações recomendadas, ROAS pode subir de 2.8x para 5.2x em 30-45 dias, gerando R$ 8.400 a mais de lucro/mês."',
+        'Ex.: "Com as otimizações, ROAS pode ir de 2,8x para 5,2x em 30–45 dias — +R$ 8.400 de lucro/mês."',
     },
   ] satisfies WhatItDoesModule[],
   bonusNote:
-    "Bônus: relatório completo e interativo na web — você pode revisar quando quiser e imprimir ou salvar como PDF pelo navegador.",
+    "Relatório interativo no navegador — revise quando quiser, imprima ou salve como PDF.",
 };
 
 export type HowItWorksStep = {
@@ -340,20 +336,20 @@ export type HowItWorksStep = {
 
 export const howItWorksSection = {
   eyebrow: "Como funciona",
-  title: "Como funciona?",
-  subtitle: "(Leva 5 minutos para começar)",
+  title: "O processo é curto",
+  subtitle: "Cinco passos. Em torno de 5 minutos até o relatório.",
   steps: [
     {
       step: 1,
-      title: "VOCÊ PAGA R$ 37",
+      title: `Você paga ${PRICE_LABEL}`,
       description:
-        "Pagamento 100% seguro via Mercado Pago. Aceita Pix ou cartão em até 12x. Sem pegadinha. Sem mensalidade. Sem renovação.",
+        "Pagamento via Mercado Pago — Pix ou cartão em até 12x. Cobrança única, sem mensalidade.",
     },
     {
       step: 2,
-      title: "CONECTA A CONTA DO META ADS DA LOJA",
+      title: "Conecta a conta de Meta Ads",
       description:
-        "Leva 30 segundos. Totalmente seguro. Você autoriza acesso de LEITURA:",
+        "Leva 30 segundos. Acesso de leitura apenas:",
       bullets: [
         "Conseguimos VER os dados",
         "NÃO conseguimos editar nada",
@@ -361,60 +357,58 @@ export const howItWorksSection = {
         "NÃO conseguimos mexer em budget",
       ],
       descriptionAfterBullets:
-        "Você pode revogar o acesso quando quiser no Meta Business Manager.",
+        "Revogue o acesso quando quiser pelo Meta Business Manager.",
     },
     {
       step: 3,
-      title: "NOSSA IA + EXPERTISE ANALISA TUDO",
+      title: "IA + expertise analisam tudo",
       description:
-        "Inteligência artificial avançada + revisão humana processam campanhas de vendas ativas e pausadas, métricas dos últimos 90 dias, criativos, públicos e benchmarks do seu nicho de e-commerce. Isso leva de 5 a 15 minutos.",
+        "Campanhas ativas e pausadas, métricas, criativos, públicos e benchmarks do seu nicho. Em torno de 5 a 15 minutos.",
     },
     {
       step: 4,
-      title: "VOCÊ RECEBE O LINK DO DIAGNÓSTICO",
+      title: "Você recebe o link do diagnóstico",
       description:
-        "Em cerca de 5 minutos após conectar, você acessa uma página exclusiva com análise interativa, todos os 9 módulos, gráficos e plano de ação priorizado. A página fica disponível para consultar sempre que quiser.",
+        "Página exclusiva com os 9 módulos, gráficos e plano priorizado. Fica disponível para consultar sempre que quiser.",
     },
     {
       step: 5,
-      title: "VOCÊ DECIDE O QUE FAZER",
-      description: "Com o diagnóstico em mãos, você tem 3 opções:",
+      title: "Você decide o que fazer",
+      description: "Com o relatório em mãos, três caminhos:",
       bullets: [
-        "Implementa as melhorias SOZINHO (tudo explicado passo a passo)",
-        "Contrata um freelancer/agência (e passa o diagnóstico para seguirem)",
-        "Me contrata para gestão completa (se o investimento da conta for compatível — proposta sem pressão)",
+        "Implementa sozinho (está tudo explicado passo a passo)",
+        "Passa para um freelancer ou agência seguirem",
+        "Me contrata para a gestão, se o investimento for compatível — sem pressão",
       ],
       descriptionAfterBullets:
-        "Sem compromisso. Sem obrigação. A decisão é 100% sua.",
+        "Sem obrigação. A decisão é 100% sua.",
     },
   ] satisfies HowItWorksStep[],
-  summaryCalloutTitle: "EM RESUMO:",
+  summaryCalloutTitle: "Em resumo",
   summaryCalloutBody:
-    "Você paga R$ 37 → Conecta sua conta → Aguarda ~5 minutos → Acessa o diagnóstico completo → Decide o que fazer. Simples. Rápido. Direto.",
+    "Pagou → conectou → aguardou → leu o relatório → decidiu. Simples, rápido, direto.",
   roadmapTitle: "Plano de execução que você recebe",
   roadmapSubtitle:
-    "Além do diagnóstico, o relatório entrega sequência priorizada — o que fazer primeiro, depois e quando escalar vendas da loja.",
+    "Além do diagnóstico, o relatório entrega uma sequência priorizada: o que fazer primeiro, o que vem depois e quando começar a escalar.",
   roadmapPhases: reportPreviewDemo.roadmapPhases,
 };
 
 export const authorSection = {
-  title: "Quem está por trás dessa análise?",
+  title: "Quem está por trás dessa análise",
   name: "DOUGLAS SANTOS",
-  role: "Especialista em Meta Ads e Google Ads para E-commerce",
+  role: "Especialista em Meta Ads e Google Ads para e-commerce",
   credentials: [
     "5 anos de experiência em tráfego pago",
     "Ex-Ogilvy (uma das maiores agências do mundo)",
-    "Atendimento direto de contas como IBM",
-    "Mais de R$ 30 MILHÕES gerenciados em Meta e Google Ads",
+    "Atendimento direto a contas como IBM",
+    "Mais de R$ 30 milhões gerenciados em Meta e Google Ads",
     "Atuação na América Latina e América do Norte",
     "Especialista em e-commerces de alto investimento",
   ],
   paragraphs: [
-    'Não sou "guru de Instagram" prometendo milagres.',
-    "Sou gestor de tráfego PROFISSIONAL com bagagem real: Ogilvy, IBM, R$ 30+ milhões em Meta e Google Ads nos últimos 5 anos.",
-    "Hoje atendo e-commerces sérios que investem pesado em tráfego pago.",
-    "Vou usar toda essa experiência para analisar sua conta de forma TÉCNICA e CIRÚRGICA.",
-    'Não é achismo. Não é "feeling". São dados, benchmarks e anos de prática.',
+    "Gestor de tráfego profissional, com passagem por Ogilvy, atendimento a contas como IBM e mais de R$ 30 milhões gerenciados em Meta e Google Ads nos últimos 5 anos.",
+    "Hoje atendo e-commerces que investem pesado em tráfego pago.",
+    "Toda essa bagagem entra na análise da sua conta — técnica, cirúrgica e baseada em dados e benchmarks.",
   ],
 };
 
@@ -469,14 +463,14 @@ export const socialProofSection = {
 };
 
 export const guaranteeSection = {
-  title: "Garantia Incondicional",
+  title: "Garantia incondicional",
   intro:
-    "Se eu não encontrar PELO MENOS 3 PROBLEMAS GRAVES na sua conta que estejam custando dinheiro... eu devolvo seus R$ 37 na hora.",
+    `Se eu não encontrar pelo menos 3 problemas graves na sua conta que estejam custando dinheiro, devolvo seus ${PRICE_LABEL} na hora.`,
   bullets: ["Sem perguntas.", "Sem burocracia.", "Sem enrolação."],
-  why: "Por quê? Porque TODA conta que analiso tem problemas. Algumas têm 5. Outras têm 15. Mas sempre tem.",
+  why: "Toda conta que analiso tem problemas — algumas 5, outras 15. Mas sempre tem.",
   spoiler:
-    "Se a sua for a exceção (spoiler: não vai ser), você recebe seu dinheiro de volta.",
-  closing: "É risco ZERO para você.",
+    "Se a sua for a exceção, o dinheiro volta para você.",
+  closing: "Risco zero do seu lado.",
 };
 
 export type FaqItem = { question: string; answer: string };
@@ -485,62 +479,57 @@ export const faqItems: FaqItem[] = [
   {
     question: "Quanto tempo leva para receber?",
     answer:
-      "Cerca de 5 minutos após você conectar sua conta. O processamento é automático: a IA analisa os dados e o relatório fica disponível no seu link exclusivo.",
+      "Em torno de 5 minutos depois que você conecta a conta. O processamento é automático: a IA analisa os dados e o relatório fica disponível no seu link exclusivo.",
   },
   {
     question: "Vocês vão ter acesso à minha conta?",
     answer:
-      "Apenas acesso de LEITURA. NÃO conseguimos editar campanhas, pausar/ativar anúncios, mexer em budget ou alterar configurações. Conseguimos apenas VER os dados. Você revoga o acesso quando quiser no Meta Business Manager.",
+      "Apenas leitura. Não conseguimos editar campanhas, pausar/ativar anúncios, mexer em budget ou alterar configurações — só ver os dados. Você revoga o acesso quando quiser pelo Meta Business Manager.",
   },
   {
     question: "Vou ser obrigado a contratar algo depois?",
     answer:
-      "NÃO. Zero pressão. Você recebe o diagnóstico completo com o plano de ação e decide: implementa sozinho, contrata freelancer, passa pro time interno ou me contrata (se quiser). Para contas com investimento compatível (a partir de R$ 5.000/mês em Meta), pode aparecer uma proposta de gestão no relatório — sem obrigação.",
+      "Não. Você recebe o diagnóstico com o plano de ação e decide: implementa sozinho, passa para um freelancer ou para o time interno, ou me contrata. Para contas a partir de R$ 5.000/mês em Meta, pode aparecer uma proposta de gestão no relatório — sem obrigação.",
   },
   {
     question: "Por que tão barato? Qual a pegadinha?",
     answer:
-      "Não tem pegadinha. R$ 37 é preço estratégico para demonstrar valor, construir confiança e qualificar leads sérios. Automatizei 80% do processo com IA. Se o volume da sua conta for compatível, pode surgir convite para gestão — sempre sem obrigação.",
+      "Sem pegadinha. R$ 37 é preço estratégico para demonstrar valor e qualificar leads sérios — boa parte do processo é automatizada com IA. Se o volume da conta for compatível, pode surgir convite para gestão, sempre sem obrigação.",
   },
   {
     question: "E se eu não gostar?",
     answer:
-      "Devolvo os R$ 37 sem perguntas. É só avisar em até 7 dias. Simples assim.",
+      "Devolvo os R$ 37 sem perguntas. Basta avisar em até 7 dias.",
   },
 ];
 
 export const finalCta = {
-  title: "Descubra onde sua loja está perdendo dinheiro",
-  subtitle: "(antes de perder ainda mais)",
+  title: "Você já tem os números. Falta ver o que eles dizem.",
+  subtitle: "Em ~5 minutos, com risco zero.",
   paragraphs: [
-    "Se você chegou até aqui, é porque você SABE que algo está errado nas suas campanhas.",
-    'Talvez seja o ROAS de vendas que não sobe. Talvez seja o CPM que não para de subir. Talvez seja aquela sensação de que o faturamento da loja não acompanha o investimento em anúncios.',
-    "Você está certo em desconfiar.",
-    `Por ${PRICE_LABEL}, você descobre onde está o problema, quanto está desperdiçando, o que fazer e quanto pode melhorar em 30 dias.`,
-    "Em cerca de 5 minutos. Sem risco (garantia total). Sem compromisso (não precisa contratar nada).",
+    "Se você chegou até aqui, é porque desconfia que alguma coisa não está fechando nas campanhas — ROAS que não sobe, CPM que não para, faturamento que não acompanha o investimento.",
+    `Por ${PRICE_LABEL} você descobre onde está o problema, quanto está desperdiçando e o que fazer para corrigir.`,
   ],
-  stepsIntro: "A única coisa que você precisa fazer:",
+  stepsIntro: "O que você precisa fazer:",
   steps: [
     "Clicar no botão",
-    "Pagar R$ 37",
+    `Pagar ${PRICE_LABEL}`,
     "Conectar sua conta",
     "Aguardar alguns minutos",
   ],
-  outcomesIntro: "Você vai descobrir:",
+  outcomesIntro: "O que você sai sabendo:",
   outcomes: [
-    "EXATAMENTE onde está o problema",
-    "QUANTO você está desperdiçando",
-    "O QUE fazer para corrigir",
-    "QUANTO sua loja pode melhorar em 30 dias",
+    "Onde exatamente está o problema",
+    "Quanto está desperdiçando",
+    "O que fazer para corrigir",
+    "Quanto a loja pode melhorar em 30 dias",
   ],
   closing:
-    "Ou você age agora... ou continua no escuro, desperdiçando dinheiro todo mês, sem saber onde está o buraco. A escolha é sua.",
-  ctaPrimary: `ANALISAR MINHA CONTA POR ${PRICE_LABEL}`,
+    "Ou age agora, ou segue mais um mês desperdiçando sem saber onde está o buraco.",
+  ctaPrimary: `Analisar minha conta por ${PRICE_LABEL}`,
   trustLines: [
-    "Pagamento 100% seguro (Mercado Pago)",
-    "Resultado em ~5 minutos",
-    "Suporte via WhatsApp",
     "Garantia incondicional de 7 dias",
+    "Pagamento seguro · Mercado Pago",
   ],
   whatsappHint: "Ainda com dúvida? Me chama no WhatsApp",
 };
