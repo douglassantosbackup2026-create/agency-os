@@ -1,95 +1,68 @@
 
-# Plano: pronto para anúncios Meta Ads (10 diagnósticos simultâneos)
+# Plano — deixar a copy da home fluida
 
-Objetivo: garantir que o funil aguenta uma rajada de ~10 diagnósticos concorrentes sem 429 da Anthropic, sem timeout de Meta Graph, e com observabilidade mínima para a primeira hora de tráfego.
+Objetivo: manter o conteúdo (oferta, prova, garantia) e ajustar **só texto** em `src/content/diagnosis-landing.ts` para a leitura fluir de cima até o CTA final sem repetição, sem caps lock excessivo e com transições claras entre seções.
 
-## 1. Ajuste de capacidade do worker IA (mudança principal)
+## O que está travando a fluidez hoje
 
-Hoje: `PROCESS_DIAGNOSIS_BATCH_SIZE=10` + cron `process-diagnosis-batch` a cada 5 min.
-Problema: 10 diagnósticos pagos juntos viram 10 chamadas Claude no mesmo tick → 429 quase certo.
+1. **Repetição da promessa central** ("perdendo dinheiro", "EXATAMENTE onde", "~5 minutos", "R$ 37", "sem pegadinha") aparece em hero, what-is, how-it-works, final-cta e FAQ com quase as mesmas palavras. O leitor sente que está lendo a mesma frase 4 vezes.
+2. **CAPS LOCK em excesso**: títulos de módulo, passos do "como funciona" e bullets do "para quem" estão todos em maiúsculas. Quebra ritmo de leitura e parece grito.
+3. **Hero sobrecarregado**: eyebrow + headline + subheadline + priceLine + 2 supportingLines + 3 trustBadges + 3 heroStats antes do scroll. São 5 blocos de texto competindo. Falta hierarquia.
+4. **Sem ponte entre seções**: cada bloco começa do zero ("O que é", "Para quem é", "O que faz", "Como funciona"). Não há frase de transição que conecte a dor levantada no hero com a solução nas seções seguintes.
+5. **"O que faz" lista 9 módulos com título + descrição + exemplo cada** — é o trecho mais pesado da página e quebra o fluxo bem no meio. Hoje funciona como spec sheet, não como narrativa.
+6. **Voz oscila** entre formal ("auditoria técnica cirúrgica") e coloquial ("não é guru", "spoiler: não vai ser", "faz sentido ou não faz?"). Escolher um registro.
+7. **Final CTA repete o hero quase literal** (mesma headline reformulada, mesmos 4 trust badges, mesmo preço). Deveria fechar com algo novo: urgência ou síntese.
+8. **Números soltos**: "R$ 30 milhões", "5 anos", "~5 minutos", "R$ 37", "7 dias", "9 módulos", "15+ critérios", "90 dias", "5.000/mês" aparecem espalhados sem hierarquia. Fluidez melhora quando se escolhem 3 âncoras numéricas e o resto vira contexto.
 
-Mudar para:
-- `PROCESS_DIAGNOSIS_BATCH_SIZE=4` (Supabase Edge Functions secrets)
-- `DIAGNOSIS_AI_MAX_TOKENS=6000` (folga em TPM)
-- Cron `process-diagnosis-batch`: de `*/5 * * * *` → `*/1 * * * *` (atualizar em `supabase/cron-jobs.deploy-trafego.sql` + reaplicar via SQL Editor)
+## Mudanças propostas (todas em `src/content/diagnosis-landing.ts`)
 
-Resultado esperado: 10 diagnósticos processados em ~3 min com janela de retry para fallback Gemini.
+### A. Hero enxuto
+- `headline`: manter (é a âncora da página).
+- `subheadline`: cortar "em cerca de 5 minutos" (já está no badge + heroStats).
+- `supportingLines`: reduzir para 1 linha unindo as duas atuais ("Análise técnica com IA, feita por quem já gerenciou R$ 30 milhões em tráfego pago").
+- `trustBadges`: remover "Resultado em ~5 minutos" (duplica heroStats).
 
-## 2. Throttle Meta Graph mais conservador
+### B. Tirar CAPS das listas
+Converter para Sentence case e usar **negrito** só na palavra-chave:
+- `whatItDoesSection.modules[*].title`
+- `howItWorksSection.steps[*].title`
+- `forWhoSection.forYou` / `notForYou` (primeiras palavras)
+- `finalCta.outcomes`
+Mantém CAPS apenas em: headline do hero (já é convenção), nome do autor.
 
-Atualizar secrets das Edge Functions:
-- `META_FETCH_DELAY_MS=400` (hoje 300)
-- `META_FETCH_MAX_RETRIES=3` (hoje 2)
+### C. Frases-ponte entre seções (campo novo `bridge` opcional, renderizado como parágrafo curto antes do título)
+- Antes de `whatIsSection`: "Antes de você gastar mais um real, entenda o que vai receber."
+- Antes de `forWhoSection`: "Mas isso não serve para todo mundo."
+- Antes de `whatItDoesSection`: "Quando serve, o que entra no relatório é isso:"
+- Antes de `howItWorksSection`: "O processo é curto."
+- Antes de `finalCtaSection`: "Resumindo."
 
-`MetaGraphCircuitBreaker` já existe — só folga no throttle por conta.
+### D. "O que faz" mais leve
+- Reduzir cada `description` para 1 frase (máx ~140 chars).
+- Mover `example` para um campo `proof` opcional que só aparece nos 3 módulos mais impactantes (1, 3 e 9). Os outros 6 ficam só título + descrição curta.
+- Trocar `subtitle` "9 módulos" por "uma análise em 9 frentes — todas no mesmo relatório".
 
-## 3. Checklist de secrets de produção (bloqueante)
+### E. Voz consistente
+Padronizar em registro **direto-profissional** (mantém o "você", corta gírias):
+- `authorSection.paragraphs`: remover "Não sou guru de Instagram prometendo milagres" e "Não é feeling".
+- `guaranteeSection`: remover "(spoiler: não vai ser)".
+- `forWhoSection.importantCalloutBody`: remover "Faz sentido ou não faz?".
 
-Rodar `npm run ops:diagnosis-health` e validar via `diagnosis-env-status`:
-- MercadoPago: `MERCADOPAGO_ACCESS_TOKEN`, `MERCADOPAGO_WEBHOOK_SECRET`, `MERCADOPAGO_PUBLIC_KEY`
-- Meta: `META_APP_ID`, `META_APP_SECRET`, `OAUTH_STATE_SECRET` (≥16)
-- Infra: `CRON_SECRET` (≥8), `PUBLIC_SITE_URL` = host do Worker publicado
-- IA: `ANTHROPIC_API_KEY`, `GEMINI_API_KEY` (fallback obrigatório p/ rajada)
-- `META_TEST_ENABLED` deve estar ausente ou `false`
+### F. Final CTA com fechamento novo
+- `title` + `subtitle`: trocar por algo que sintetize, não que repita ("Você já tem os números. Falta só ver o que eles dizem.").
+- `paragraphs`: reduzir de 5 para 2 (a desconfiança + a oferta).
+- `trustLines`: cortar para 2 ("Garantia de 7 dias" + "Pagamento seguro Mercado Pago"), o resto já foi dito.
 
-Se faltar algum: pedir ao utilizador (via `secrets--add_secret` em build mode).
+### G. Hierarquia numérica
+Escolher 3 âncoras que se repetem com propósito: **R$ 37**, **~5 minutos**, **R$ 30M gerenciados**. Remover menções secundárias soltas ("15+ critérios", "90 dias", "80% automatizado") do corpo da landing — manter só no FAQ se relevante.
 
-## 4. App Meta em Live Mode
+## Fora de escopo
+- Sem mudanças em componentes, layout, estilos ou lógica.
+- Sem mudanças em SEO meta (`seoDefaults`) — copy já está OK lá.
+- Sem mexer no mock do relatório nem em números do `reportPreviewDemo`.
 
-Verificar em developers.facebook.com:
-- App em **Live**, não Development
-- Permissões `ads_read` + `business_management` **aprovadas** (não apenas pedidas)
-- Redirect URI `https://uvuotaxikuxejfeitlaw.supabase.co/functions/v1/meta-oauth-callback` registado
+## Entregável
+Um único PR editando `src/content/diagnosis-landing.ts` com as alterações A–G. Se um componente precisar de um campo novo (`bridge`, `proof`), incluo a mudança mínima do componente correspondente para renderizá-lo.
 
-(Ação fora do código — incluir no checklist do utilizador.)
-
-## 5. Webhook Mercado Pago de produção
-
-- Confirmar webhook configurado no painel MP → `https://uvuotaxikuxejfeitlaw.supabase.co/functions/v1/mercadopago-webhook`
-- HMAC com `MERCADOPAGO_WEBHOOK_SECRET` (fail-closed já implementado)
-- 1 compra real com cartão de teste para validar fluxo `awaiting_payment → awaiting_connection`
-
-## 6. Observabilidade para a primeira hora
-
-Adicionar dois recursos leves:
-
-a) **Query rápida de status** documentada em `docs/diagnostico-meta-runbook.md`:
-```sql
-SELECT status, COUNT(*) FROM diagnoses
-WHERE created_at > now() - interval '1 hour'
-GROUP BY status;
-```
-
-b) **Health snapshot**: garantir que `get_resilience_ops_snapshot()` cobre também `diagnoses` recentes (adicionar contagem por status na função, se ainda não cobre).
-
-## 7. Smoke E2E pré-tráfego
-
-Executar antes de ligar campanhas:
-1. `npm run ops:diagnosis-health` — landing + checkout 200
-2. 1 fluxo real ponta-a-ponta: `/` → `/checkout` (cartão MP teste) → `/obrigado` → OAuth Meta → relatório em `/diagnostico/$id`
-3. Validar Pixel `Purchase` no Events Manager (Test Events)
-4. Registar resultado em `docs/diagnostico-smoke-log.md`
-
-## Detalhes técnicos (resumo das mudanças no código/config)
-
-| Arquivo / Local | Mudança |
-|---|---|
-| Supabase Edge Function Secrets | `PROCESS_DIAGNOSIS_BATCH_SIZE=4`, `DIAGNOSIS_AI_MAX_TOKENS=6000`, `META_FETCH_DELAY_MS=400`, `META_FETCH_MAX_RETRIES=3` |
-| `supabase/cron-jobs.deploy-trafego.sql` | `process-diagnosis-batch` schedule `*/5` → `*/1` |
-| `docs/diagnostico-meta-runbook.md` | Adicionar bloco "queries de monitoring durante tráfego" |
-| `docs/diagnostico-smoke-log.md` | Linha nova após smoke pré-anúncios |
-
-Sem alterações de schema, RLS, ou código de aplicação — todo o trabalho é configuração + ops + 1 smoke.
-
-## Fora de escopo (não fazer agora)
-
-- Migrar prompt para Gemini por padrão
-- Aumentar TPM Anthropic via Tier upgrade (depende da conta do utilizador)
-- Mudar arquitetura do worker para fila persistente externa (overkill p/ 10 simultâneos)
-
-## Critério de "pronto"
-
-- `ops:diagnosis-health` verde
-- Smoke E2E completo + Purchase no Pixel
-- Cron a 1 min ativo (`SELECT jobname, schedule FROM cron.job WHERE jobname='process-diagnosis-batch'`)
-- Todos os secrets da seção 3 retornam `*_ok: true` em `diagnosis-env-status`
+## Pergunta antes de implementar
+Quer que eu aplique **tudo** (A–G) ou prefere começar só pelo hero + final CTA (A + F + G), que são as duas mudanças com maior impacto percebido em ~10 min de leitura?
