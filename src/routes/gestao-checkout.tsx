@@ -380,7 +380,7 @@ function GestaoCheckoutPage() {
             </div>
           </div>
           <p className="mt-3 rounded-md bg-muted/50 px-3 py-2 text-xs leading-snug text-muted-foreground">
-            {GESTAO_RECURRENCE_NOTE}
+            {method === "card" ? GESTAO_RECURRENCE_NOTE_CARD : GESTAO_RECURRENCE_NOTE_PIX}
           </p>
         </section>
 
