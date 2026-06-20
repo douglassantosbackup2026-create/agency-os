@@ -425,7 +425,32 @@ function buildMoneyLeaks(
   }
 
   leaks.sort((a, b) => b.monthlyImpactBrl - a.monthlyImpactBrl);
-  return leaks.map((l, i) => ({ ...l, priority: i + 1 }));
+  const diversified = diversifyTopLeaks(leaks, 3);
+  return diversified.map((l, i) => ({ ...l, priority: i + 1 }));
+}
+
+/**
+ * Reordena para que o top-N cubra pelo menos 2 categorias quando possível,
+ * preservando #1 (maior impacto) e promovendo a próxima categoria distinta para #2.
+ */
+function diversifyTopLeaks(
+  leaks: MoneyLeakItem[],
+  topN: number,
+): MoneyLeakItem[] {
+  if (leaks.length <= 1) return leaks;
+  const out = [...leaks];
+  for (let i = 1; i < Math.min(topN, out.length); i++) {
+    const prevCategories = new Set(out.slice(0, i).map((l) => l.category));
+    if (!prevCategories.has(out[i].category)) continue;
+    // Procurar a partir de i+1 a primeira entrada de categoria nova
+    const swapIdx = out.findIndex(
+      (l, idx) => idx > i && !prevCategories.has(l.category),
+    );
+    if (swapIdx === -1) continue;
+    const [picked] = out.splice(swapIdx, 1);
+    out.splice(i, 0, picked);
+  }
+  return out;
 }
 
 function buildGrowthOpportunities(
