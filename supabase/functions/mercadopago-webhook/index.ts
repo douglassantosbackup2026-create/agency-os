@@ -114,7 +114,23 @@ Deno.serve(async (req) => {
       ? (body.data as { id: string }).id
       : null;
 
-  if (topic !== "payment" || !dataId) {
+  const isPreapprovalTopic =
+    topic === "preapproval" || topic === "subscription_preapproval";
+  const isRecurringChargeTopic =
+    topic === "authorized_payment" || topic === "subscription_authorized_payment";
+
+  if (
+    topic !== "payment" &&
+    !isPreapprovalTopic &&
+    !isRecurringChargeTopic
+  ) {
+    return new Response(JSON.stringify({ ok: true, ignored: true }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  if (!dataId) {
     return new Response(JSON.stringify({ ok: true, ignored: true }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
