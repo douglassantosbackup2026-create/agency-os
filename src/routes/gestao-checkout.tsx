@@ -573,7 +573,7 @@ function GestaoPixSection({ d, s, started, ensureStarted, starting, onApproved }
       <div className="space-y-3">
         {err ? <p className="text-sm text-destructive">{err}</p> : null}
         <Button onClick={generate} disabled={loading || starting} className="h-12 w-full">
-          {loading || starting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Gerando Pix…</> : "Gerar Pix e contratar gestão"}
+          {loading || starting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Gerando Pix…</> : "Pagar 1ª mensalidade com Pix — R$ 1.997/mês"}
         </Button>
       </div>
     );
