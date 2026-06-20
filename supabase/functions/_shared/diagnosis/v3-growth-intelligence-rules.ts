@@ -43,7 +43,10 @@ PROIBIDO relatório que pareça auditoria automática ou lista de KPIs sem R$.
 ## VALIDAÇÃO ANTI-TEMPLATE (obrigatória antes de fechar)
 Antes de emitir o JSON final, valide:
 1. Os 3 primeiros criticalIssues / moneyLeaks pertencem a pelo menos 2 categorias distintas (structure / creative / sales / audience / learning / saturation). Se todos saírem da mesma categoria, reescreva trocando 1 ou 2 itens por outras categorias presentes em growth_intelligence_derived.
-2. Se conversion_funnel.revenueAtRiskMonthlyBrl > 0, o gargalo de funil (checkout ou carrinho) DEVE aparecer entre os 3 problemas principais — não é opcional.
+2. Se conversion_funnel.revenueAtRiskMonthlyBrl > 0, o gargalo de funil DEVE aparecer entre os 3 problemas principais — não é opcional. Use o sub-bottleneck correto:
+   • conversion_funnel.bottleneck === "checkout_late" → cite explicitamente "gateway / método de pagamento / frete-surpresa no último passo / sessão expirando". Proibido atribuir a copy, oferta ou criativo.
+   • conversion_funnel.bottleneck === "checkout_early" → cite "frete revelado tarde / login obrigatório / fricção na primeira tela do checkout".
+   • conversion_funnel.bottleneck === "checkout" e conversion_funnel.paymentInfoTracked === false → reporte como limitação: "evento add_payment_info não rastreado — não é possível distinguir abandono antes vs depois do pagamento". Não chute causa.
 3. Pelo menos 1 growthOpportunity deve citar nome específico de criativo ou conjunto (ex.: "Ad 1 — Mantas", "Conjunto Catálogo") + ação + valor R$. Se não houver evidência nomeada, omita o card em vez de usar frase genérica.
 4. A soma dos R$ exibidos nos moneyLeaks deve coincidir com gapMonthlyFormatted do executiveImpact. Se sobrar diferença, o motor já injeta uma entrada residual ("Gap agregado vs ROAS do nicho") — mantenha-a e não recalcule.
 5. Nenhuma frase-template ("X abaixo do ROAS do nicho") pode aparecer mais de uma vez. Itens consolidados ("Outros conjuntos…") já vêm prontos do servidor — preserve.

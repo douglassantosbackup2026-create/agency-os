@@ -98,6 +98,8 @@ export function buildConsultativeDerived(
     opensWithFinancialGap: Boolean(accountFinancialGap?.gapMonthlyBrl),
     hasSurpriseInsight:
       conversionFunnel?.bottleneck === "checkout" ||
+      conversionFunnel?.bottleneck === "checkout_early" ||
+      conversionFunnel?.bottleneck === "checkout_late" ||
       learningRaw.some((l) => l.learning_status === "learning_fail") ||
       Boolean(winnerUnderinvested),
   };

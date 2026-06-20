@@ -75,7 +75,11 @@ export function deriveAccountScore(
   }
 
   const funnel = facts?.conversion_funnel as { bottleneck?: string } | undefined;
-  if (funnel?.bottleneck === "checkout") {
+  if (
+    funnel?.bottleneck === "checkout" ||
+    funnel?.bottleneck === "checkout_early" ||
+    funnel?.bottleneck === "checkout_late"
+  ) {
     score -= 10;
   }
 

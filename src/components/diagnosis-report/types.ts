@@ -325,12 +325,17 @@ export type ConversionFunnelView = {
   lpv: number;
   atc: number;
   checkout: number;
+  paymentInfo?: number;
   purchase: number;
   atcRate: number | null;
   checkoutRate: number | null;
+  paymentInfoRate?: number | null;
+  purchaseFromPaymentRate?: number | null;
   purchaseRate: number | null;
+  paymentInfoTracked?: boolean;
   bottleneck: string;
   bottleneckLabel: string;
+  bottleneckDetail?: string | null;
   revenueAtRiskMonthlyBrl: number | null;
 };
 

@@ -645,7 +645,13 @@ export function normalizeAnalysisV2(
     obj.executiveConclusion = {
       isHealthy: gap < 500 && leakSum < 800 && scoreDerived.score >= 70,
       primaryProblemDomain:
-        funnel?.bottleneck === "checkout" ? "structure" : leakSum > 0 ? "meta" : "mixed",
+        funnel?.bottleneck === "checkout" ||
+        funnel?.bottleneck === "checkout_early" ||
+        funnel?.bottleneck === "checkout_late"
+          ? "structure"
+          : leakSum > 0
+            ? "meta"
+            : "mixed",
       moneyLostMonthlyBrl: leakSum > 0 ? leakSum : gap > 0 ? gap : null,
       recoverableMonthlyBrl: recover > 0 ? recover : null,
       generatableMonthlyBrl:
@@ -746,6 +752,11 @@ const CHECKOUT_PATTERNS = [
   /offsite_conversion\.fb_pixel_initiate_checkout/i,
   /fb_pixel_initiate_checkout/i,
 ];
+const PAYMENT_INFO_PATTERNS = [
+  /^add_payment_info$/i,
+  /offsite_conversion\.fb_pixel_add_payment_info/i,
+  /fb_pixel_add_payment_info/i,
+];
 const PURCHASE_PATTERNS = [
   /^purchase$/i,
   /^omni_purchase$/i,
@@ -768,12 +779,24 @@ export type ConversionFunnel = {
   lpv: number;
   atc: number;
   checkout: number;
+  paymentInfo: number;
   purchase: number;
   atcRate: number | null;
   checkoutRate: number | null;
+  paymentInfoRate: number | null;
+  purchaseFromPaymentRate: number | null;
   purchaseRate: number | null;
-  bottleneck: "lpv" | "atc" | "checkout" | "none" | "insufficient_data";
+  paymentInfoTracked: boolean;
+  bottleneck:
+    | "lpv"
+    | "atc"
+    | "checkout"
+    | "checkout_early"
+    | "checkout_late"
+    | "none"
+    | "insufficient_data";
   bottleneckLabel: string;
+  bottleneckDetail: string | null;
   revenueAtRiskMonthlyBrl: number | null;
 };
 
@@ -789,13 +812,14 @@ export function deriveFunnelAnalysis(
   );
   if (salesIds.size === 0) return null;
 
-  let lpv = 0, atc = 0, checkout = 0, purchase = 0;
+  let lpv = 0, atc = 0, checkout = 0, paymentInfo = 0, purchase = 0;
   for (const ci of campaignInsights) {
     if (!salesIds.has(String(ci.campaign_id ?? ""))) continue;
     const actions = ci.actions;
     lpv += extractFunnelActionCount(actions, LPV_PATTERNS);
     atc += extractFunnelActionCount(actions, ATC_PATTERNS);
     checkout += extractFunnelActionCount(actions, CHECKOUT_PATTERNS);
+    paymentInfo += extractFunnelActionCount(actions, PAYMENT_INFO_PATTERNS);
     purchase += extractFunnelActionCount(actions, PURCHASE_PATTERNS);
   }
 
@@ -808,13 +832,44 @@ export function deriveFunnelAnalysis(
   const atcRate = lpv > 0 && atc > 0 ? (atc / lpv) * 100 : null;
   const checkoutRate = atc > 0 && checkout > 0 ? (checkout / atc) * 100 : null;
   const purchaseRate = checkout > 0 && purchase > 0 ? (purchase / checkout) * 100 : null;
+  const paymentInfoTracked = paymentInfo > 0;
+  const paymentInfoRate =
+    paymentInfoTracked && checkout > 0 ? (paymentInfo / checkout) * 100 : null;
+  const purchaseFromPaymentRate =
+    paymentInfoTracked && purchase > 0 ? (purchase / paymentInfo) * 100 : null;
 
   let bottleneck: ConversionFunnel["bottleneck"] = "none";
   let bottleneckLabel = "Funil sem gargalo identificado no período.";
+  let bottleneckDetail: string | null = null;
 
-  if (purchaseRate != null && purchaseRate < 35 && checkout >= 10) {
+  // Sub-bottleneck do checkout (Perfil A vs B) — só quando add_payment_info está rastreado.
+  if (
+    paymentInfoTracked &&
+    checkout >= 5 &&
+    paymentInfoRate != null &&
+    paymentInfoRate < 60
+  ) {
+    bottleneck = "checkout_early";
+    bottleneckLabel = `Abandono no início do checkout — só ${paymentInfoRate.toFixed(0)}% de quem inicia chega a inserir o pagamento.`;
+    bottleneckDetail =
+      "Causas prováveis: frete revelado tarde demais, login obrigatório antes do preço final, ou fricção na primeira tela do checkout.";
+  } else if (
+    paymentInfoTracked &&
+    paymentInfo >= 5 &&
+    purchaseFromPaymentRate != null &&
+    purchaseFromPaymentRate < 50
+  ) {
+    bottleneck = "checkout_late";
+    bottleneckLabel = `Abandono na finalização — ${purchaseFromPaymentRate.toFixed(0)}% de quem inseriu pagamento conclui a compra.`;
+    bottleneckDetail =
+      "Causas prováveis: gateway recusando cartões, falta de Pix/parcelamento, frete-surpresa no último passo ou erro técnico/sessão expirando. Quem chegou aqui já decidiu comprar — é o gargalo mais caro de ignorar.";
+  } else if (purchaseRate != null && purchaseRate < 35 && checkout >= 10) {
+    // Fallback legado (sem add_payment_info rastreado).
     bottleneck = "checkout";
     bottleneckLabel = `Alta taxa de abandono no checkout: ${purchaseRate.toFixed(0)}% finalizam (referência saudável: ${checkoutRefPct}% em ${niche.nicheLabel}).`;
+    bottleneckDetail = paymentInfoTracked
+      ? null
+      : "Evento add_payment_info não rastreado no Pixel — não é possível distinguir abandono antes vs depois do pagamento. Instale o evento para isolar a causa.";
   } else if (checkoutRate != null && checkoutRate < 20 && atc >= 20) {
     bottleneck = "atc";
     bottleneckLabel = `Alta taxa de abandono de carrinho: ${checkoutRate.toFixed(0)}% avançam ao checkout.`;
@@ -837,7 +892,22 @@ export function deriveFunnelAnalysis(
       if (totalRevenue > 0) ticket = totalRevenue / purchase;
     }
     ticket = ticket ?? ticketMedioReferencia(niche.nicheKey) ?? 200;
-    if (bottleneck === "checkout" && checkout >= 5) {
+    if (bottleneck === "checkout_late") {
+      // Base = quem já inseriu pagamento (já decidiu comprar).
+      const refPurchaseFromPayment = 0.7; // ~70% finaliza quando passou do pagamento.
+      const potencial = paymentInfo * refPurchaseFromPayment;
+      const perdidas = Math.max(0, potencial - purchase);
+      const receita = Math.round(perdidas * ticket);
+      if (receita >= 30) revenueAtRiskMonthlyBrl = receita;
+    } else if (bottleneck === "checkout_early") {
+      // Base = quem iniciou checkout mas não chegou ao pagamento.
+      const refPaymentFromCheckout = 0.6;
+      const refPurchaseFromPayment = 0.7;
+      const potencial = checkout * refPaymentFromCheckout * refPurchaseFromPayment;
+      const perdidas = Math.max(0, potencial - purchase);
+      const receita = Math.round(perdidas * ticket);
+      if (receita >= 30) revenueAtRiskMonthlyBrl = receita;
+    } else if (bottleneck === "checkout" && checkout >= 5) {
       const impact = calcularImpactoCheckout({
         checkouts: checkout,
         comprasReais: purchase,
@@ -848,7 +918,6 @@ export function deriveFunnelAnalysis(
         revenueAtRiskMonthlyBrl = impact.receitaPerdidaEstimada;
       }
     } else if (bottleneck === "atc" && atc >= 10) {
-      // Compras perdidas = atc * taxaCheckoutRef * taxaCompraRef - compras reais
       const refAtcCheckout = (referenciaIdeal(niche.nicheKey, "taxa_atc_checkout") ?? 30) / 100;
       const refCheckoutCompra = checkoutRefPct / 100;
       const potencial = atc * refAtcCheckout * refCheckoutCompra;
@@ -858,7 +927,23 @@ export function deriveFunnelAnalysis(
     }
   }
 
-  return { lpv, atc, checkout, purchase, atcRate, checkoutRate, purchaseRate, bottleneck, bottleneckLabel, revenueAtRiskMonthlyBrl };
+  return {
+    lpv,
+    atc,
+    checkout,
+    paymentInfo,
+    purchase,
+    atcRate,
+    checkoutRate,
+    paymentInfoRate,
+    purchaseFromPaymentRate,
+    purchaseRate,
+    paymentInfoTracked,
+    bottleneck,
+    bottleneckLabel,
+    bottleneckDetail,
+    revenueAtRiskMonthlyBrl,
+  };
 }
 
 // ── Learning Status dos Ad Sets ───────────────────────────────────────────────
