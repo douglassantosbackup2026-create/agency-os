@@ -525,14 +525,25 @@ function buildGrowthOpportunities(
   }
 
   if (consultative?.conversionFunnel?.revenueAtRiskMonthlyBrl) {
-    const r = consultative.conversionFunnel.revenueAtRiskMonthlyBrl;
+    const cf = consultative.conversionFunnel;
+    const r = cf.revenueAtRiskMonthlyBrl!;
+    const isLate = cf.bottleneck === "checkout_late";
+    const isEarly = cf.bottleneck === "checkout_early";
     out.push({
-      id: "funnel-checkout",
-      title: "Recuperar compras no checkout (site)",
+      id: isLate ? "funnel-checkout-late" : isEarly ? "funnel-checkout-early" : "funnel-checkout",
+      title: isLate
+        ? "Recuperar compras travadas na finalização"
+        : isEarly
+          ? "Reduzir abandono antes do pagamento"
+          : "Recuperar compras no checkout (site)",
       potentialMonthlyBrl: r,
       potentialFormatted: fmtBrl(r),
-      whyExists: consultative.conversionFunnel.bottleneckLabel,
-      howToCapture: "Otimizar checkout/UX — o Meta já entrega intenção; o gargalo está fora dos anúncios.",
+      whyExists: cf.bottleneckLabel,
+      howToCapture: isLate
+        ? "Auditar gateway, adicionar Pix/parcelamento e revelar frete antes do último passo."
+        : isEarly
+          ? "Simplificar primeira tela do checkout, mostrar frete antes e remover cadastro obrigatório."
+          : "Otimizar checkout/UX — o Meta já entrega intenção; o gargalo está fora dos anúncios.",
       estimatedEta: "2–4 semanas",
     });
   }
