@@ -387,6 +387,19 @@ export type ExecutiveConclusion = {
   firstDecisionIfIHired: string;
 };
 
+export type EvidenceStrength = {
+  purchases: number;
+  tier: "high" | "medium" | "low";
+};
+
+export type LeakTrend = {
+  direction: "improving" | "stable" | "deteriorating" | "unknown";
+  metric: "roas" | "cpa" | "ctr" | "cpm" | null;
+  deltaPct: number | null;
+  summaryPt: string | null;
+  badge: string;
+};
+
 export type MoneyLeakItem = {
   id: string;
   title: string;
@@ -397,6 +410,15 @@ export type MoneyLeakItem = {
   action: string;
   priority: number;
   category: string;
+  entityName?: string;
+  entityId?: string;
+  evidenceStrength?: EvidenceStrength;
+  trend?: LeakTrend;
+};
+
+export type AccountHealthVerdict = {
+  isHealthy: boolean;
+  reasons: string[];
 };
 
 export type GrowthIntelligenceDerived = {
@@ -417,6 +439,7 @@ export type GrowthIntelligenceDerived = {
     whyExists: string;
     howToCapture: string;
     estimatedEta: string;
+    evidenceStrength?: EvidenceStrength;
   }[];
   risks: {
     id: string;
