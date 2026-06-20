@@ -17,6 +17,12 @@ type GestaoObrigadoSearch = { d?: string; s?: string };
 type StatusPayload = {
   management_status?: string | null;
   management_business_name?: string | null;
+  management_payment_method?: string | null;
+  subscription?: {
+    status: string;
+    next_payment_date: string | null;
+    cancelled_at: string | null;
+  } | null;
 };
 
 const POLL_MS = 5000;
