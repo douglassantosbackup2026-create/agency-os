@@ -585,22 +585,51 @@ function buildGrowthOpportunities(
   consultative: ConsultativeDerived | null,
   commercial: CommercialDerived,
   senior: SeniorDerived | undefined,
+  facts: Record<string, unknown>,
+  health: AccountHealthVerdict,
 ): GrowthOpportunityItem[] {
   const out: GrowthOpportunityItem[] = [];
   const recovery = commercial.recovery.conservativeMonthlyBrl;
-  const winner = consultative?.winnerUnderinvested;
+  const winnerRaw = facts.adset_winner_underinvested as
+    | { adId?: string; adName?: string; roas?: number; spend?: number; spendNote?: string }
+    | undefined;
+  const winner = consultative?.winnerUnderinvested ?? null;
 
   if (winner) {
-    const uplift = Math.round(winner.spend * Math.max(0, winner.roas - 1) * 2);
+    // Item 1 — confiança estatística por número de compras do criativo vencedor.
+    const adsTop = Array.isArray(facts.ads_insights_top)
+      ? (facts.ads_insights_top as Record<string, unknown>[])
+      : [];
+    const adId = winnerRaw?.adId ?? null;
+    const matched = adId
+      ? adsTop.find((a) => String(a.ad_id ?? "") === adId)
+      : adsTop.find((a) => String(a.ad_name ?? "") === winner.adName);
+    const purchases = matched ? countPurchasesFromActions(matched.actions) : 0;
+    const ev = evidenceStrengthFromPurchases(purchases);
+
+    const winnerSpend = (winnerRaw?.spend ?? 0) || 0;
+    const uplift = Math.round(winnerSpend * Math.max(0, winner.roas - 1) * 2);
+    const titleVerb =
+      ev.tier === "high"
+        ? "Escalar criativo vencedor"
+        : ev.tier === "medium"
+          ? "Validar e escalar criativo promissor"
+          : "Validar sinal inicial do criativo";
+    const howToCapture =
+      ev.tier === "low"
+        ? `Sinal direcional (${ev.purchases} compra${ev.purchases === 1 ? "" : "s"} no período). Subir verba em +30% por 7 dias antes de escalar agressivamente; manter conjunto dedicado a ${winner.adName} (ROAS ${winner.roas.toFixed(1)}×).`
+        : ev.tier === "medium"
+          ? `Evidência média (${ev.purchases} compras). Isolar ${winner.adName} em conjunto dedicado com orçamento próprio (ROAS ${winner.roas.toFixed(1)}×) e dobrar verba apenas após +14 dias estáveis.`
+          : `Criar conjunto dedicado com orçamento exclusivo para ${winner.adName} (ROAS ${winner.roas.toFixed(1)}×); evidência sólida (${ev.purchases} compras) — pode escalar agora.`;
     out.push({
       id: "winner-underinvested",
-      title: `Isolar criativo vencedor: ${winner.adName}`,
+      title: `${titleVerb}: ${winner.adName}`,
       potentialMonthlyBrl: uplift > 0 ? uplift : null,
       potentialFormatted: uplift > 0 ? fmtBrl(uplift) : "—",
       whyExists: winner.spendNote,
-      howToCapture:
-        `Criar conjunto dedicado com orçamento exclusivo para ${winner.adName} (ROAS ${winner.roas.toFixed(1)}×).`,
-      estimatedEta: "3–7 dias",
+      howToCapture,
+      estimatedEta: ev.tier === "low" ? "7–14 dias (validação)" : "3–7 dias",
+      evidenceStrength: ev,
     });
   }
 
@@ -609,22 +638,28 @@ function buildGrowthOpportunities(
   const namedAxis = (senior?.leakByAxis ?? []).find((a) =>
     a.evidence && /[A-Za-zÀ-ÿ]/.test(a.evidence) && a.monthlyBrl > 0,
   );
+  // Item 3 — em conta saudável, troca o enquadramento de "recuperar eficiência"
+  // para "subir do bom para o excepcional".
   if (gs && recovery > 0 && (winner || namedBleeds.length >= 2 || namedAxis)) {
     const targets = namedBleeds.slice(0, 2).map((b) => b.adsetName).join(", ");
-    const title = targets
-      ? `Realocar verba dos conjuntos ${targets} para vencedores`
-      : namedAxis
-        ? `Recuperar eficiência no eixo ${namedAxis.axisLabel}`
-        : "Reinvestir verba liberada no criativo vencedor";
+    const title = health.isHealthy
+      ? "Subir do bom para o excepcional — teto disponível"
+      : targets
+        ? `Realocar verba dos conjuntos ${targets} para vencedores`
+        : namedAxis
+          ? `Recuperar eficiência no eixo ${namedAxis.axisLabel}`
+          : "Reinvestir verba liberada no criativo vencedor";
     out.push({
       id: "recovery-headroom",
       title,
       potentialMonthlyBrl: recovery,
       potentialFormatted: fmtBrl(recovery),
       whyExists: gs.basisNote,
-      howToCapture: targets
-        ? `Pausar/reduzir ${targets} e realocar verba para conjuntos com ROAS acima do nicho.`
-        : "Executar plano de correção nos eixos com maior vazamento antes de escalar.",
+      howToCapture: health.isHealthy
+        ? "Conta já no top do nicho — usar verba liberada para testar novos públicos/criativos e ampliar teto, não para corrigir."
+        : targets
+          ? `Pausar/reduzir ${targets} e realocar verba para conjuntos com ROAS acima do nicho.`
+          : "Executar plano de correção nos eixos com maior vazamento antes de escalar.",
       estimatedEta: "30 dias",
     });
   }
