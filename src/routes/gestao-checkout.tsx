@@ -26,10 +26,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import {
+  GESTAO_AVAILABLE_SLOTS,
   GESTAO_DELIVERABLES,
-  GESTAO_GUARANTEE,
   GESTAO_PRODUCT_NAME,
   GESTAO_PRODUCT_TAGLINE,
+  GESTAO_RECURRENCE_NOTE,
   DEFAULT_MANAGEMENT_PRICE_CENTS,
   formatManagementPrice,
   gestaoUrgencyText,
@@ -40,6 +41,12 @@ import {
   trackMetaPurchase,
 } from "@/lib/meta-pixel";
 import { whatsappGestaoHref } from "@/lib/gestao-whatsapp";
+import {
+  GestaoGuaranteeBlock,
+  GestaoNextSteps,
+  GestaoOperatorCard,
+  GestaoSocialProof,
+} from "@/components/gestao/GestaoCheckoutBlocks";
 
 type GestaoSearch = { d?: string; s?: string; gap?: string };
 
