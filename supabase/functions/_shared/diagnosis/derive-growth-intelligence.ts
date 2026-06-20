@@ -239,19 +239,42 @@ function buildMoneyLeaks(
 
   const funnel = consultative?.conversionFunnel;
   if (funnel?.revenueAtRiskMonthlyBrl && funnel.revenueAtRiskMonthlyBrl >= 30) {
-    const isAtc = funnel.bottleneck === "atc";
+    const bn = funnel.bottleneck;
+    let id = "funnel:checkout";
+    let title = "Abandono no checkout — receita não capturada";
+    let action =
+      "Otimizar checkout/UX — o Meta já entrega intenção; o gargalo está no site.";
+    let rootCause = funnel.bottleneckLabel;
+    if (bn === "atc") {
+      id = "funnel:atc";
+      title = "Abandono no carrinho — receita não capturada";
+      action = "Reduzir atrito entre carrinho e checkout — frete, login, cupons.";
+    } else if (bn === "checkout_late") {
+      id = "funnel:checkout_late";
+      title = "Abandono na finalização (após inserir pagamento)";
+      rootCause =
+        `${funnel.bottleneckLabel} Quem chegou até aqui já decidiu comprar — perda mais cara do funil. ` +
+        (funnel.bottleneckDetail ?? "");
+      action =
+        "Auditar gateway de pagamento, adicionar Pix/parcelamento, revelar frete antes do último passo e revisar timeout de sessão.";
+    } else if (bn === "checkout_early") {
+      id = "funnel:checkout_early";
+      title = "Abandono no início do checkout (antes do pagamento)";
+      rootCause = `${funnel.bottleneckLabel} ${funnel.bottleneckDetail ?? ""}`.trim();
+      action =
+        "Simplificar primeira tela do checkout, mostrar frete antes de pedir dados e remover exigência de cadastro obrigatório.";
+    } else if (bn === "checkout" && !funnel.paymentInfoTracked) {
+      rootCause =
+        `${funnel.bottleneckLabel} Evento add_payment_info não rastreado — instale no Pixel/CAPI para distinguir abandono antes vs depois do pagamento.`;
+    }
     leaks.push({
-      id: isAtc ? "funnel:atc" : "funnel:checkout",
-      title: isAtc
-        ? "Abandono no carrinho — receita não capturada"
-        : "Abandono no checkout — receita não capturada",
+      id,
+      title,
       monthlyImpactBrl: funnel.revenueAtRiskMonthlyBrl,
       monthlyImpactFormatted: fmtBrl(funnel.revenueAtRiskMonthlyBrl),
       confidence: "high",
-      rootCause: funnel.bottleneckLabel,
-      action: isAtc
-        ? "Reduzir atrito entre carrinho e checkout — frete, login, cupons."
-        : "Otimizar checkout/UX — o Meta já entrega intenção; o gargalo está no site.",
+      rootCause,
+      action,
       priority: 0,
       category: "structure",
     });
