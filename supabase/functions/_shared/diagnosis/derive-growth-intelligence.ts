@@ -146,6 +146,11 @@ export type GrowthProjections = {
   scenarios: GrowthProjectionScenario[];
 };
 
+export type AccountHealthVerdict = {
+  isHealthy: boolean;
+  reasons: string[];
+};
+
 export type GrowthIntelligenceDerived = {
   executiveImpact: ExecutiveImpact;
   moneyLeaks: MoneyLeakItem[];
@@ -155,6 +160,8 @@ export type GrowthIntelligenceDerived = {
   maturity: EnterpriseMaturity;
   decisionActions: DecisionActionItem[];
   projections: GrowthProjections;
+  accountHealth: AccountHealthVerdict;
+  accountTrend?: LeakTrend | null;
 };
 
 function fmtBrl(n: number): string {
