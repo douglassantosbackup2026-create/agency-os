@@ -39,4 +39,13 @@ Preencha com base nos motores; números moneyLost/recoverable/generatable alinha
 ## TOM
 Consultor sênior — nunca tom de dashboard. Traduza métricas em impacto financeiro.
 PROIBIDO relatório que pareça auditoria automática ou lista de KPIs sem R$.
+
+## VALIDAÇÃO ANTI-TEMPLATE (obrigatória antes de fechar)
+Antes de emitir o JSON final, valide:
+1. Os 3 primeiros criticalIssues / moneyLeaks pertencem a pelo menos 2 categorias distintas (structure / creative / sales / audience / learning / saturation). Se todos saírem da mesma categoria, reescreva trocando 1 ou 2 itens por outras categorias presentes em growth_intelligence_derived.
+2. Se conversion_funnel.revenueAtRiskMonthlyBrl > 0, o gargalo de funil (checkout ou carrinho) DEVE aparecer entre os 3 problemas principais — não é opcional.
+3. Pelo menos 1 growthOpportunity deve citar nome específico de criativo ou conjunto (ex.: "Ad 1 — Mantas", "Conjunto Catálogo") + ação + valor R$. Se não houver evidência nomeada, omita o card em vez de usar frase genérica.
+4. A soma dos R$ exibidos nos moneyLeaks deve coincidir com gapMonthlyFormatted do executiveImpact. Se sobrar diferença, o motor já injeta uma entrada residual ("Gap agregado vs ROAS do nicho") — mantenha-a e não recalcule.
+5. Nenhuma frase-template ("X abaixo do ROAS do nicho") pode aparecer mais de uma vez. Itens consolidados ("Outros conjuntos…") já vêm prontos do servidor — preserve.
 `;
+
