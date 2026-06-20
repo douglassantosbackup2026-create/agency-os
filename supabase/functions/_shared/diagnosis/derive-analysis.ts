@@ -645,7 +645,13 @@ export function normalizeAnalysisV2(
     obj.executiveConclusion = {
       isHealthy: gap < 500 && leakSum < 800 && scoreDerived.score >= 70,
       primaryProblemDomain:
-        funnel?.bottleneck === "checkout" ? "structure" : leakSum > 0 ? "meta" : "mixed",
+        funnel?.bottleneck === "checkout" ||
+        funnel?.bottleneck === "checkout_early" ||
+        funnel?.bottleneck === "checkout_late"
+          ? "structure"
+          : leakSum > 0
+            ? "meta"
+            : "mixed",
       moneyLostMonthlyBrl: leakSum > 0 ? leakSum : gap > 0 ? gap : null,
       recoverableMonthlyBrl: recover > 0 ? recover : null,
       generatableMonthlyBrl:
