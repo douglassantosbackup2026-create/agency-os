@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { callDiagnosisApi } from "@/lib/diagnosis-api";
 import {
   buildGestaoIntroMessage,
@@ -9,6 +9,7 @@ import { useDiagnosisPoll } from "@/hooks/use-diagnosis-poll";
 import { InlineErrorBanner } from "@/components/diagnosis-funnel/InlineErrorBanner";
 import { GESTAO_PRODUCT, trackMetaPurchase } from "@/lib/meta-pixel";
 import { reportFunnelError } from "@/lib/report-error";
+import { logManagementHandoff } from "@/lib/log-management-handoff";
 import "@/styles/diagnosis.css";
 
 type GestaoObrigadoSearch = { d?: string; s?: string };
