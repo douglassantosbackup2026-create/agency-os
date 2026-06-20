@@ -477,14 +477,26 @@ function buildGrowthOpportunities(
   }
 
   const gs = senior?.growthScenarios;
-  if (gs && recovery > 0) {
+  const namedBleeds = (consultative?.adsetBleedRanking ?? []).filter((r) => r.bleedBrl >= 50);
+  const namedAxis = (senior?.leakByAxis ?? []).find((a) =>
+    a.evidence && /[A-Za-zÀ-ÿ]/.test(a.evidence) && a.monthlyBrl > 0,
+  );
+  if (gs && recovery > 0 && (winner || namedBleeds.length >= 2 || namedAxis)) {
+    const targets = namedBleeds.slice(0, 2).map((b) => b.adsetName).join(", ");
+    const title = targets
+      ? `Realocar verba dos conjuntos ${targets} para vencedores`
+      : namedAxis
+        ? `Recuperar eficiência no eixo ${namedAxis.axisLabel}`
+        : "Reinvestir verba liberada no criativo vencedor";
     out.push({
       id: "recovery-headroom",
-      title: "Recuperar eficiência de verba já investida",
+      title,
       potentialMonthlyBrl: recovery,
       potentialFormatted: fmtBrl(recovery),
       whyExists: gs.basisNote,
-      howToCapture: "Executar plano de correção nos eixos com maior vazamento antes de escalar.",
+      howToCapture: targets
+        ? `Pausar/reduzir ${targets} e realocar verba para conjuntos com ROAS acima do nicho.`
+        : "Executar plano de correção nos eixos com maior vazamento antes de escalar.",
       estimatedEta: "30 dias",
     });
   }
