@@ -1,68 +1,60 @@
+# Plano: corrigir regressão de conteúdo no diagnóstico v4
 
-# Plano — deixar a copy da home fluida
+A causa raiz não é o prompt da IA — os 8 motores em `derive-growth-intelligence.ts` e `derive-analysis.ts` (deterministas, servidor) estão gerando entradas redundantes, escondendo o funil de checkout e somando valores que não batem com o headline. A IA só repete o que recebe. Vamos corrigir na fonte e adicionar guarda anti-redundância.
 
-Objetivo: manter o conteúdo (oferta, prova, garantia) e ajustar **só texto** em `src/content/diagnosis-landing.ts` para a leitura fluir de cima até o CTA final sem repetição, sem caps lock excessivo e com transições claras entre seções.
+## Arquivos a alterar (somente servidor)
 
-## O que está travando a fluidez hoje
+- `supabase/functions/_shared/diagnosis/derive-growth-intelligence.ts` (`buildMoneyLeaks`, `buildGrowthOpportunities`, `buildExecutiveImpact`)
+- `supabase/functions/_shared/diagnosis/derive-analysis.ts` (`deriveFunnelAnalysis` — ampliar gargalos elegíveis)
+- `supabase/functions/_shared/diagnosis/v3-growth-intelligence-rules.ts` (acrescentar regra de validação anti-template ao prompt da IA, como rede de segurança narrativa)
+- Novos testes em `supabase/functions/_shared/diagnosis/derive-growth-intelligence.test.ts` (criar se não existir)
 
-1. **Repetição da promessa central** ("perdendo dinheiro", "EXATAMENTE onde", "~5 minutos", "R$ 37", "sem pegadinha") aparece em hero, what-is, how-it-works, final-cta e FAQ com quase as mesmas palavras. O leitor sente que está lendo a mesma frase 4 vezes.
-2. **CAPS LOCK em excesso**: títulos de módulo, passos do "como funciona" e bullets do "para quem" estão todos em maiúsculas. Quebra ritmo de leitura e parece grito.
-3. **Hero sobrecarregado**: eyebrow + headline + subheadline + priceLine + 2 supportingLines + 3 trustBadges + 3 heroStats antes do scroll. São 5 blocos de texto competindo. Falta hierarquia.
-4. **Sem ponte entre seções**: cada bloco começa do zero ("O que é", "Para quem é", "O que faz", "Como funciona"). Não há frase de transição que conecte a dor levantada no hero com a solução nas seções seguintes.
-5. **"O que faz" lista 9 módulos com título + descrição + exemplo cada** — é o trecho mais pesado da página e quebra o fluxo bem no meio. Hoje funciona como spec sheet, não como narrativa.
-6. **Voz oscila** entre formal ("auditoria técnica cirúrgica") e coloquial ("não é guru", "spoiler: não vai ser", "faz sentido ou não faz?"). Escolher um registro.
-7. **Final CTA repete o hero quase literal** (mesma headline reformulada, mesmos 4 trust badges, mesmo preço). Deveria fechar com algo novo: urgência ou síntese.
-8. **Números soltos**: "R$ 30 milhões", "5 anos", "~5 minutos", "R$ 37", "7 dias", "9 módulos", "15+ critérios", "90 dias", "5.000/mês" aparecem espalhados sem hierarquia. Fluidez melhora quando se escolhem 3 âncoras numéricas e o resto vira contexto.
+Nenhuma mudança em UI, layout, estilos, schema, edge functions de borda ou prompt principal além das regras adicionais.
 
-## Mudanças propostas (todas em `src/content/diagnosis-landing.ts`)
+## Correções
 
-### A. Hero enxuto
-- `headline`: manter (é a âncora da página).
-- `subheadline`: cortar "em cerca de 5 minutos" (já está no badge + heroStats).
-- `supportingLines`: reduzir para 1 linha unindo as duas atuais ("Análise técnica com IA, feita por quem já gerenciou R$ 30 milhões em tráfego pago").
-- `trustBadges`: remover "Resultado em ~5 minutos" (duplica heroStats).
+### 1. Diversidade obrigatória nos top vazamentos
+No final de `buildMoneyLeaks`, após ordenar por impacto:
+- Agrupar por `category`.
+- Se as 3 primeiras entradas pertencem à mesma categoria, intercalar: manter a #1, e promover a próxima de categoria diferente para a posição #2 (e assim por diante até cobrir ≥2 categorias no top 3, ≥3 categorias no top 5 quando houver).
+- Dentro da mesma categoria/template, manter no máximo 1 entrada no top 3 (as demais ficam abaixo, ou são consolidadas).
 
-### B. Tirar CAPS das listas
-Converter para Sentence case e usar **negrito** só na palavra-chave:
-- `whatItDoesSection.modules[*].title`
-- `howItWorksSection.steps[*].title`
-- `forWhoSection.forYou` / `notForYou` (primeiras palavras)
-- `finalCta.outcomes`
-Mantém CAPS apenas em: headline do hero (já é convenção), nome do autor.
+### 2. Consolidar "X — abaixo do ROAS do nicho"
+Loop em `adsetBleedRanking` (linhas 319–333) hoje cria 1 leak por adset com o mesmo template.
+- Manter apenas o pior bleed como item individual ("[nome] — ROAS X× vs Y× do nicho, –R$…/mês").
+- Os demais bleeds da mesma família agregar em **um único** item "Outros conjuntos de Vendas abaixo do nicho (n=…)" com `monthlyImpactBrl` = soma e `rootCause` listando até 3 nomes. Isso elimina os três cards idênticos do exemplo do usuário.
 
-### C. Frases-ponte entre seções (campo novo `bridge` opcional, renderizado como parágrafo curto antes do título)
-- Antes de `whatIsSection`: "Antes de você gastar mais um real, entenda o que vai receber."
-- Antes de `forWhoSection`: "Mas isso não serve para todo mundo."
-- Antes de `whatItDoesSection`: "Quando serve, o que entra no relatório é isso:"
-- Antes de `howItWorksSection`: "O processo é curto."
-- Antes de `finalCtaSection`: "Resumindo."
+### 3. Retomar bloco de funil/checkout
+Em `deriveFunnelAnalysis` (derive-analysis.ts) o `revenueAtRiskMonthlyBrl` só é calculado quando `bottleneck === "checkout"` AND `purchaseRate < 35` AND `checkout >= 10`. Em contas pequenas (8k/mês) os thresholds escondem o gargalo.
+- Reduzir `checkout >= 10` para `>= 5`.
+- Calcular `revenueAtRiskMonthlyBrl` também para `bottleneck === "atc"` (compras perdidas = atc × refAtcRate − checkout, × ticket).
+- Em `buildMoneyLeaks`, baixar gate de `>= 50` para `>= 30` e usar título contextual (`Abandono no checkout` ou `Abandono no carrinho`) conforme o bottleneck.
 
-### D. "O que faz" mais leve
-- Reduzir cada `description` para 1 frase (máx ~140 chars).
-- Mover `example` para um campo `proof` opcional que só aparece nos 3 módulos mais impactantes (1, 3 e 9). Os outros 6 ficam só título + descrição curta.
-- Trocar `subtitle` "9 módulos" por "uma análise em 9 frentes — todas no mesmo relatório".
+### 4. Eliminar opportunity vaga "Recuperar eficiência de verba já investida"
+Em `buildGrowthOpportunities`, só emitir esse item se houver pelo menos UMA destas evidências concretas: vencedor subinvestido, axis com nome de campanha, ou pelo menos 2 bleeds com nome — e reescrever o título para refletir o quê ("Realocar verba dos conjuntos X, Y para vencedores"). Se nada concreto, omitir o item.
 
-### E. Voz consistente
-Padronizar em registro **direto-profissional** (mantém o "você", corta gírias):
-- `authorSection.paragraphs`: remover "Não sou guru de Instagram prometendo milagres" e "Não é feeling".
-- `guaranteeSection`: remover "(spoiler: não vai ser)".
-- `forWhoSection.importantCalloutBody`: remover "Faz sentido ou não faz?".
+### 5. Conciliar números entre headline, leaks e gap
+Em `buildExecutiveImpact` o `primaryGap` é `max(gapFromMeta, wasteGap, leakSum)`. Depois de aplicar (1) e (2), o `leakSum` exibido no relatório (top 3) pode ficar menor que `primaryGap`. Mudanças:
+- Calcular `topLeakSum` = soma do top N exibido e expor `gapMonthlyBrl = max(gapFromMeta, topLeakSum)`.
+- Quando `gapFromMeta > topLeakSum`, adicionar **uma única** entrada residual "Gap agregado vs ROAS do nicho — não atribuído a conjuntos específicos" com o delta (`gapFromMeta − topLeakSum`), categoria `sales`, confidence `medium`. Isso elimina a sensação de dupla contagem.
+- Garantir invariante: `executiveImpact.gapMonthlyBrl == sum(moneyLeaks.monthlyImpactBrl)` (testado).
 
-### F. Final CTA com fechamento novo
-- `title` + `subtitle`: trocar por algo que sintetize, não que repita ("Você já tem os números. Falta só ver o que eles dizem.").
-- `paragraphs`: reduzir de 5 para 2 (a desconfiança + a oferta).
-- `trustLines`: cortar para 2 ("Garantia de 7 dias" + "Pagamento seguro Mercado Pago"), o resto já foi dito.
+### 6. Regra anti-redundância no prompt (rede de segurança)
+Em `V3_GROWTH_INTELLIGENCE_RULES` adicionar bloco "VALIDAÇÃO ANTI-TEMPLATE" com as 5 checagens do usuário (categorias distintas, gargalo de funil quando há dados, oportunidade com nome+ação+valor, soma bate com headline, sem frase-template repetida). Não troca os motores — só impede a IA de re-redigir tudo como "abaixo do ROAS".
 
-### G. Hierarquia numérica
-Escolher 3 âncoras que se repetem com propósito: **R$ 37**, **~5 minutos**, **R$ 30M gerenciados**. Remover menções secundárias soltas ("15+ critérios", "90 dias", "80% automatizado") do corpo da landing — manter só no FAQ se relevante.
+## Testes
+- `buildMoneyLeaks`: dada uma conta com 5 bleeds + 1 checkout, top 3 retorna ≥2 categorias e funil aparece quando `revenueAtRiskMonthlyBrl > 0`.
+- `buildMoneyLeaks`: bleeds repetidos viram 1 item "Outros conjuntos…".
+- `buildExecutiveImpact`: `gapMonthlyBrl` == soma dos `moneyLeaks` exibidos.
+- `deriveFunnelAnalysis`: bottleneck `atc` agora preenche `revenueAtRiskMonthlyBrl`.
 
 ## Fora de escopo
-- Sem mudanças em componentes, layout, estilos ou lógica.
-- Sem mudanças em SEO meta (`seoDefaults`) — copy já está OK lá.
-- Sem mexer no mock do relatório nem em números do `reportPreviewDemo`.
+- Bloco "Douglas + prova social" (o usuário pediu — entra em plano separado, é trabalho de UI/layout no relatório, não de motor de conteúdo).
+- Mudanças no prompt principal além da seção de validação.
+- Visual, estilos, design tokens.
 
-## Entregável
-Um único PR editando `src/content/diagnosis-landing.ts` com as alterações A–G. Se um componente precisar de um campo novo (`bridge`, `proof`), incluo a mudança mínima do componente correspondente para renderizá-lo.
-
-## Pergunta antes de implementar
-Quer que eu aplique **tudo** (A–G) ou prefere começar só pelo hero + final CTA (A + F + G), que são as duas mudanças com maior impacto percebido em ~10 min de leitura?
+## Validação após implementar
+Rodar `bunx vitest run supabase/functions/_shared/diagnosis/derive-growth-intelligence` e reprocessar 1 diagnóstico real via `scripts/ops-reprocess-diagnosis.mjs` para confirmar:
+- top 3 vazamentos cobrem ≥2 categorias
+- checkout/ATC volta a aparecer quando há dados
+- soma dos vazamentos = headline = gap
