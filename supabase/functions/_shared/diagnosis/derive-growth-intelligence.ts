@@ -238,15 +238,20 @@ function buildMoneyLeaks(
   let rank = 0;
 
   const funnel = consultative?.conversionFunnel;
-  if (funnel?.revenueAtRiskMonthlyBrl && funnel.revenueAtRiskMonthlyBrl >= 50) {
+  if (funnel?.revenueAtRiskMonthlyBrl && funnel.revenueAtRiskMonthlyBrl >= 30) {
+    const isAtc = funnel.bottleneck === "atc";
     leaks.push({
-      id: "funnel:checkout",
-      title: "Abandono no checkout — receita não capturada",
+      id: isAtc ? "funnel:atc" : "funnel:checkout",
+      title: isAtc
+        ? "Abandono no carrinho — receita não capturada"
+        : "Abandono no checkout — receita não capturada",
       monthlyImpactBrl: funnel.revenueAtRiskMonthlyBrl,
       monthlyImpactFormatted: fmtBrl(funnel.revenueAtRiskMonthlyBrl),
       confidence: "high",
       rootCause: funnel.bottleneckLabel,
-      action: "Otimizar checkout/UX — o Meta já entrega intenção; o gargalo está no site.",
+      action: isAtc
+        ? "Reduzir atrito entre carrinho e checkout — frete, login, cupons."
+        : "Otimizar checkout/UX — o Meta já entrega intenção; o gargalo está no site.",
       priority: 0,
       category: "structure",
     });
@@ -316,20 +321,37 @@ function buildMoneyLeaks(
     });
   }
 
-  for (const row of consultative?.adsetBleedRanking ?? []) {
-    if (row.bleedBrl < 50) continue;
+  const bleedRows = (consultative?.adsetBleedRanking ?? []).filter((r) => r.bleedBrl >= 50);
+  if (bleedRows.length) {
+    const [worst, ...rest] = bleedRows;
     leaks.push({
-      id: `bleed:${row.adsetId}`,
-      title: `${row.adsetName} — abaixo do ROAS do nicho`,
-      monthlyImpactBrl: row.bleedBrl,
-      monthlyImpactFormatted: row.bleedFormatted,
-      confidence: row.bleedBrl >= 500 ? "high" : "medium",
-      rootCause: `ROAS ${row.roasFormatted} vs referência do nicho em campanha de Vendas.`,
+      id: `bleed:${worst.adsetId}`,
+      title: `${worst.adsetName} — ROAS ${worst.roasFormatted} vs nicho`,
+      monthlyImpactBrl: worst.bleedBrl,
+      monthlyImpactFormatted: worst.bleedFormatted,
+      confidence: worst.bleedBrl >= 500 ? "high" : "medium",
+      rootCause: `ROAS ${worst.roasFormatted} em campanha de Vendas; ${worst.spendFormatted} investidos no período.`,
       action: "Reduzir verba, pausar ou reestruturar público/criativo neste conjunto.",
       priority: 0,
       category: "sales",
-      entityName: row.adsetName,
+      entityName: worst.adsetName,
     });
+    if (rest.length) {
+      const sum = rest.reduce((s, r) => s + r.bleedBrl, 0);
+      const names = rest.slice(0, 3).map((r) => r.adsetName).join(", ");
+      const suffix = rest.length > 3 ? ` e mais ${rest.length - 3}` : "";
+      leaks.push({
+        id: "bleed:rest",
+        title: `Outros conjuntos de Vendas abaixo do nicho (n=${rest.length})`,
+        monthlyImpactBrl: sum,
+        monthlyImpactFormatted: fmtBrl(sum),
+        confidence: "medium",
+        rootCause: `${names}${suffix}.`,
+        action: "Consolidar verba nos vencedores ou pausar os ineficientes em bloco.",
+        priority: 0,
+        category: "sales",
+      });
+    }
   }
 
   for (const line of commercial.waste.lines) {
@@ -403,7 +425,32 @@ function buildMoneyLeaks(
   }
 
   leaks.sort((a, b) => b.monthlyImpactBrl - a.monthlyImpactBrl);
-  return leaks.map((l, i) => ({ ...l, priority: i + 1 }));
+  const diversified = diversifyTopLeaks(leaks, 3);
+  return diversified.map((l, i) => ({ ...l, priority: i + 1 }));
+}
+
+/**
+ * Reordena para que o top-N cubra pelo menos 2 categorias quando possível,
+ * preservando #1 (maior impacto) e promovendo a próxima categoria distinta para #2.
+ */
+function diversifyTopLeaks(
+  leaks: MoneyLeakItem[],
+  topN: number,
+): MoneyLeakItem[] {
+  if (leaks.length <= 1) return leaks;
+  const out = [...leaks];
+  for (let i = 1; i < Math.min(topN, out.length); i++) {
+    const prevCategories = new Set(out.slice(0, i).map((l) => l.category));
+    if (!prevCategories.has(out[i].category)) continue;
+    // Procurar a partir de i+1 a primeira entrada de categoria nova
+    const swapIdx = out.findIndex(
+      (l, idx) => idx > i && !prevCategories.has(l.category),
+    );
+    if (swapIdx === -1) continue;
+    const [picked] = out.splice(swapIdx, 1);
+    out.splice(i, 0, picked);
+  }
+  return out;
 }
 
 function buildGrowthOpportunities(
@@ -430,14 +477,26 @@ function buildGrowthOpportunities(
   }
 
   const gs = senior?.growthScenarios;
-  if (gs && recovery > 0) {
+  const namedBleeds = (consultative?.adsetBleedRanking ?? []).filter((r) => r.bleedBrl >= 50);
+  const namedAxis = (senior?.leakByAxis ?? []).find((a) =>
+    a.evidence && /[A-Za-zÀ-ÿ]/.test(a.evidence) && a.monthlyBrl > 0,
+  );
+  if (gs && recovery > 0 && (winner || namedBleeds.length >= 2 || namedAxis)) {
+    const targets = namedBleeds.slice(0, 2).map((b) => b.adsetName).join(", ");
+    const title = targets
+      ? `Realocar verba dos conjuntos ${targets} para vencedores`
+      : namedAxis
+        ? `Recuperar eficiência no eixo ${namedAxis.axisLabel}`
+        : "Reinvestir verba liberada no criativo vencedor";
     out.push({
       id: "recovery-headroom",
-      title: "Recuperar eficiência de verba já investida",
+      title,
       potentialMonthlyBrl: recovery,
       potentialFormatted: fmtBrl(recovery),
       whyExists: gs.basisNote,
-      howToCapture: "Executar plano de correção nos eixos com maior vazamento antes de escalar.",
+      howToCapture: targets
+        ? `Pausar/reduzir ${targets} e realocar verba para conjuntos com ROAS acima do nicho.`
+        : "Executar plano de correção nos eixos com maior vazamento antes de escalar.",
       estimatedEta: "30 dias",
     });
   }
@@ -617,9 +676,29 @@ export function buildGrowthIntelligenceDerived(
   const senior = commercial.seniorDerived;
   const gap = consultative?.accountFinancialGap ?? null;
 
-  const moneyLeaks = buildMoneyLeaks(consultative ?? null, commercial, senior, facts);
+  const moneyLeaksRaw = buildMoneyLeaks(consultative ?? null, commercial, senior, facts);
+  // Conciliar com gap da conta — se gap agregado > soma dos leaks atribuídos,
+  // adicionar UMA entrada residual para o leitor não fazer dupla contagem.
+  const gapFromMeta = gap?.gapMonthlyBrl ?? 0;
+  const attributedSum = sumMoneyLeaks(moneyLeaksRaw);
+  const moneyLeaks = [...moneyLeaksRaw];
+  if (gapFromMeta > 0 && gapFromMeta - attributedSum >= 100) {
+    const residual = gapFromMeta - attributedSum;
+    moneyLeaks.push({
+      id: "gap:residual",
+      title: "Gap agregado vs ROAS do nicho — não atribuído a conjuntos específicos",
+      monthlyImpactBrl: residual,
+      monthlyImpactFormatted: fmtBrl(residual),
+      confidence: "medium",
+      rootCause:
+        "Diferença entre o gap total da conta (spend × ROAS_nicho − receita) e os vazamentos atribuídos a conjuntos/criativos.",
+      action: "Reduzir verba das campanhas com ROAS abaixo do nicho enquanto isola vencedores.",
+      priority: moneyLeaks.length + 1,
+      category: "sales",
+    });
+  }
   const leakSum = sumMoneyLeaks(moneyLeaks);
-  syncStoryExecutiveGap(commercial, Math.max(gap?.gapMonthlyBrl ?? 0, commercial.waste.totalMonthlyBrl, leakSum));
+  syncStoryExecutiveGap(commercial, Math.max(gapFromMeta, commercial.waste.totalMonthlyBrl, leakSum));
   const executiveImpact = buildExecutiveImpact(gap, commercial, leakSum);
   const growthOpportunities = buildGrowthOpportunities(consultative ?? null, commercial, senior);
   const risks = buildRisks(senior, consultative?.deliverySummary ?? null, commercial);
