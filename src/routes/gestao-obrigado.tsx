@@ -156,11 +156,21 @@ function GestaoObrigadoPage() {
                 teu diagnóstico (ID <code>{d}</code>). Próximo passo: WhatsApp
                 connosco para iniciar o onboarding em até 24h.
               </p>
-              <p className="muted">
-                A próxima cobrança acontece daqui a 30 dias — enviaremos um novo
-                link de pagamento pelo WhatsApp. Sem fidelidade: cancele quando
-                quiser antes do próximo ciclo.
-              </p>
+              {snapshot?.management_payment_method === "card" && snapshot?.subscription?.status === "authorized" ? (
+                <p className="muted">
+                  <strong>Renovação automática ativa.</strong>{" "}
+                  {snapshot.subscription.next_payment_date
+                    ? `Próxima cobrança em ${new Date(snapshot.subscription.next_payment_date).toLocaleDateString("pt-BR")}.`
+                    : "Próxima cobrança em 30 dias."}{" "}
+                  Sem fidelidade: para cancelar, basta nos avisar pelo WhatsApp antes do próximo ciclo.
+                </p>
+              ) : (
+                <p className="muted">
+                  A próxima cobrança acontece daqui a 30 dias — enviaremos um novo
+                  link de pagamento pelo WhatsApp. Sem fidelidade: cancele quando
+                  quiser antes do próximo ciclo.
+                </p>
+              )}
             </>
           )}
           {pollError ? (
