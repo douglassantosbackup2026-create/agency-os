@@ -196,7 +196,11 @@ export function DiagnosisPresentationLayout({
       ) : null}
 
       {hasMoneyLeaks ? (
-        <DiagnosisMoneyLeakGrid leaks={gi!.moneyLeaks} totalFormatted={leakTotalFormatted} />
+        <DiagnosisMoneyLeakGrid
+          leaks={gi!.moneyLeaks}
+          totalFormatted={leakTotalFormatted}
+          isHealthy={gi?.accountHealth?.isHealthy}
+        />
       ) : hasLeakAxis ? (
         <DiagnosisLossGrid
           items={seniorDerived!.leakByAxis}
