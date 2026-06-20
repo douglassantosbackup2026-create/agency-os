@@ -321,20 +321,37 @@ function buildMoneyLeaks(
     });
   }
 
-  for (const row of consultative?.adsetBleedRanking ?? []) {
-    if (row.bleedBrl < 50) continue;
+  const bleedRows = (consultative?.adsetBleedRanking ?? []).filter((r) => r.bleedBrl >= 50);
+  if (bleedRows.length) {
+    const [worst, ...rest] = bleedRows;
     leaks.push({
-      id: `bleed:${row.adsetId}`,
-      title: `${row.adsetName} — abaixo do ROAS do nicho`,
-      monthlyImpactBrl: row.bleedBrl,
-      monthlyImpactFormatted: row.bleedFormatted,
-      confidence: row.bleedBrl >= 500 ? "high" : "medium",
-      rootCause: `ROAS ${row.roasFormatted} vs referência do nicho em campanha de Vendas.`,
+      id: `bleed:${worst.adsetId}`,
+      title: `${worst.adsetName} — ROAS ${worst.roasFormatted} vs nicho`,
+      monthlyImpactBrl: worst.bleedBrl,
+      monthlyImpactFormatted: worst.bleedFormatted,
+      confidence: worst.bleedBrl >= 500 ? "high" : "medium",
+      rootCause: `ROAS ${worst.roasFormatted} em campanha de Vendas; ${worst.spendFormatted} investidos no período.`,
       action: "Reduzir verba, pausar ou reestruturar público/criativo neste conjunto.",
       priority: 0,
       category: "sales",
-      entityName: row.adsetName,
+      entityName: worst.adsetName,
     });
+    if (rest.length) {
+      const sum = rest.reduce((s, r) => s + r.bleedBrl, 0);
+      const names = rest.slice(0, 3).map((r) => r.adsetName).join(", ");
+      const suffix = rest.length > 3 ? ` e mais ${rest.length - 3}` : "";
+      leaks.push({
+        id: "bleed:rest",
+        title: `Outros conjuntos de Vendas abaixo do nicho (n=${rest.length})`,
+        monthlyImpactBrl: sum,
+        monthlyImpactFormatted: fmtBrl(sum),
+        confidence: "medium",
+        rootCause: `${names}${suffix}.`,
+        action: "Consolidar verba nos vencedores ou pausar os ineficientes em bloco.",
+        priority: 0,
+        category: "sales",
+      });
+    }
   }
 
   for (const line of commercial.waste.lines) {
