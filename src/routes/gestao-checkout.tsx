@@ -509,15 +509,16 @@ function Field({
   );
 }
 
-function MethodButton({ active, onClick, icon: Icon, label }: {
+function MethodButton({ active, onClick, icon: Icon, label, hint }: {
   active: boolean; onClick: () => void;
-  icon: React.ComponentType<{ className?: string }>; label: string;
+  icon: React.ComponentType<{ className?: string }>; label: string; hint?: string;
 }) {
   return (
     <button type="button" onClick={onClick}
-      className={cn("flex items-center justify-center gap-2 rounded-lg border-2 px-4 py-3 text-sm font-semibold",
+      className={cn("flex flex-col items-center justify-center gap-1 rounded-lg border-2 px-4 py-3 text-sm font-semibold",
         active ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground")}>
-      <Icon className="h-4 w-4" />{label}
+      <span className="flex items-center gap-2"><Icon className="h-4 w-4" />{label}</span>
+      {hint ? <span className="text-[10px] font-medium opacity-80">{hint}</span> : null}
     </button>
   );
 }
