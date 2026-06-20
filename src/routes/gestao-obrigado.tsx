@@ -172,6 +172,19 @@ function GestaoObrigadoPage() {
               href={waHref}
               target="_blank"
               rel="noreferrer"
+              onClick={() => {
+                logManagementHandoff({
+                  diagnosisId: d,
+                  secretSlug: s,
+                  kind: "whatsapp_click",
+                  payload: {
+                    business_name:
+                      snapshot?.management_business_name ?? null,
+                    timed_out: timedOut,
+                    confirmed,
+                  },
+                });
+              }}
             >
               WhatsApp — próximos passos
             </a>
@@ -181,6 +194,13 @@ function GestaoObrigadoPage() {
                 params={{ diagnosisId: d }}
                 search={{ s }}
                 className="btn btn-outline"
+                onClick={() => {
+                  logManagementHandoff({
+                    diagnosisId: d,
+                    secretSlug: s,
+                    kind: "report_back_click",
+                  });
+                }}
               >
                 Voltar ao relatório
               </Link>
