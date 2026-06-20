@@ -688,6 +688,4 @@ function GestaoCardSection({ started, ensureStarted, starting, mp, sdkError, amo
     </form>
   );
 }
-    </form>
-  );
-}
+
