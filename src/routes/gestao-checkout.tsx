@@ -662,7 +662,7 @@ function GestaoCardSection({ started, ensureStarted, starting, mp, sdkError, amo
       {err ? <p className="text-sm text-destructive">{err}</p> : null}
       <Button type="submit" disabled={loading || starting} className="h-12 w-full">
         {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-        Pagar {formatManagementPrice(amount)} e contratar gestão
+        Pagar 1ª mensalidade — {formatManagementPrice(amount)}/mês
       </Button>
     </form>
   );
