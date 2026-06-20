@@ -827,7 +827,7 @@ export function deriveFunnelAnalysis(
   }
 
   let revenueAtRiskMonthlyBrl: number | null = null;
-  if (bottleneck === "checkout" && purchase > 0 && checkout > 0) {
+  if (purchase > 0) {
     let ticket = bizCtx?.avg_ticket_brl ?? null;
     if (ticket == null) {
       let totalRevenue = 0;
@@ -837,14 +837,24 @@ export function deriveFunnelAnalysis(
       if (totalRevenue > 0) ticket = totalRevenue / purchase;
     }
     ticket = ticket ?? ticketMedioReferencia(niche.nicheKey) ?? 200;
-    const impact = calcularImpactoCheckout({
-      checkouts: checkout,
-      comprasReais: purchase,
-      taxaReferenciaPct: checkoutRefPct,
-      ticketMedioBrl: ticket,
-    });
-    if (impact.receitaPerdidaEstimada >= 50) {
-      revenueAtRiskMonthlyBrl = impact.receitaPerdidaEstimada;
+    if (bottleneck === "checkout" && checkout >= 5) {
+      const impact = calcularImpactoCheckout({
+        checkouts: checkout,
+        comprasReais: purchase,
+        taxaReferenciaPct: checkoutRefPct,
+        ticketMedioBrl: ticket,
+      });
+      if (impact.receitaPerdidaEstimada >= 30) {
+        revenueAtRiskMonthlyBrl = impact.receitaPerdidaEstimada;
+      }
+    } else if (bottleneck === "atc" && atc >= 10) {
+      // Compras perdidas = atc * taxaCheckoutRef * taxaCompraRef - compras reais
+      const refAtcCheckout = (referenciaIdeal(niche.nicheKey, "taxa_atc_checkout") ?? 30) / 100;
+      const refCheckoutCompra = checkoutRefPct / 100;
+      const potencial = atc * refAtcCheckout * refCheckoutCompra;
+      const perdidas = Math.max(0, potencial - purchase);
+      const receita = Math.round(perdidas * ticket);
+      if (receita >= 30) revenueAtRiskMonthlyBrl = receita;
     }
   }
 
