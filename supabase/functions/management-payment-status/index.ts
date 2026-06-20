@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
   const { data } = await sb
     .from("diagnoses")
     .select(
-      "secret_slug, management_status, management_mp_payment_id, management_business_name",
+      "secret_slug, management_status, management_mp_payment_id, management_business_name, management_payment_method",
     )
     .eq("id", d)
     .maybeSingle();
@@ -74,7 +74,8 @@ Deno.serve(async (req) => {
   let managementStatus = data.management_status as string | null;
   if (
     managementStatus === "awaiting_payment" &&
-    data.management_mp_payment_id
+    data.management_mp_payment_id &&
+    data.management_payment_method !== "card"
   ) {
     const reconciled = await reconcileManagementWithMp(
       sb,
@@ -84,9 +85,32 @@ Deno.serve(async (req) => {
     if (reconciled) managementStatus = reconciled;
   }
 
+  // Devolve info da assinatura recorrente (se houver).
+  let subscription: {
+    status: string;
+    next_payment_date: string | null;
+    cancelled_at: string | null;
+  } | null = null;
+  const { data: sub } = await sb
+    .from("management_subscriptions")
+    .select("status, next_payment_date, cancelled_at")
+    .eq("diagnosis_id", d)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (sub) {
+    subscription = {
+      status: sub.status as string,
+      next_payment_date: (sub.next_payment_date as string | null) ?? null,
+      cancelled_at: (sub.cancelled_at as string | null) ?? null,
+    };
+  }
+
   trace.done({ management_status: managementStatus });
   return jsonResponse({
     management_status: managementStatus,
     management_business_name: data.management_business_name ?? null,
+    management_payment_method: data.management_payment_method ?? null,
+    subscription,
   });
 });
