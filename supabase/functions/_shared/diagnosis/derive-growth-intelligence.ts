@@ -676,9 +676,29 @@ export function buildGrowthIntelligenceDerived(
   const senior = commercial.seniorDerived;
   const gap = consultative?.accountFinancialGap ?? null;
 
-  const moneyLeaks = buildMoneyLeaks(consultative ?? null, commercial, senior, facts);
+  const moneyLeaksRaw = buildMoneyLeaks(consultative ?? null, commercial, senior, facts);
+  // Conciliar com gap da conta — se gap agregado > soma dos leaks atribuídos,
+  // adicionar UMA entrada residual para o leitor não fazer dupla contagem.
+  const gapFromMeta = gap?.gapMonthlyBrl ?? 0;
+  const attributedSum = sumMoneyLeaks(moneyLeaksRaw);
+  const moneyLeaks = [...moneyLeaksRaw];
+  if (gapFromMeta > 0 && gapFromMeta - attributedSum >= 100) {
+    const residual = gapFromMeta - attributedSum;
+    moneyLeaks.push({
+      id: "gap:residual",
+      title: "Gap agregado vs ROAS do nicho — não atribuído a conjuntos específicos",
+      monthlyImpactBrl: residual,
+      monthlyImpactFormatted: fmtBrl(residual),
+      confidence: "medium",
+      rootCause:
+        "Diferença entre o gap total da conta (spend × ROAS_nicho − receita) e os vazamentos atribuídos a conjuntos/criativos.",
+      action: "Reduzir verba das campanhas com ROAS abaixo do nicho enquanto isola vencedores.",
+      priority: moneyLeaks.length + 1,
+      category: "sales",
+    });
+  }
   const leakSum = sumMoneyLeaks(moneyLeaks);
-  syncStoryExecutiveGap(commercial, Math.max(gap?.gapMonthlyBrl ?? 0, commercial.waste.totalMonthlyBrl, leakSum));
+  syncStoryExecutiveGap(commercial, Math.max(gapFromMeta, commercial.waste.totalMonthlyBrl, leakSum));
   const executiveImpact = buildExecutiveImpact(gap, commercial, leakSum);
   const growthOpportunities = buildGrowthOpportunities(consultative ?? null, commercial, senior);
   const risks = buildRisks(senior, consultative?.deliverySummary ?? null, commercial);
