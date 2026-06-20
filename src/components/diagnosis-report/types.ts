@@ -479,6 +479,8 @@ export type GrowthIntelligenceDerived = {
       estimatedEta: string;
     }[];
   };
+  accountHealth?: AccountHealthVerdict;
+  accountTrend?: LeakTrend | null;
 };
 
 export type SeniorDerived = {
