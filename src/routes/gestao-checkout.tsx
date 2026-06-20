@@ -8,10 +8,6 @@ import {
   Copy,
   Check,
   CircleCheck,
-  ShieldCheck,
-  Lock,
-  Zap,
-  Sparkles,
   Clock,
   TrendingUp,
 } from "lucide-react";
