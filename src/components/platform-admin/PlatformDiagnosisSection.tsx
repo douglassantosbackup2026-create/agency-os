@@ -609,6 +609,34 @@ export function PlatformDiagnosisSection() {
                             Reprocessar
                           </button>
                         ) : null}
+                        {row.management_status === "paid" ? (
+                          <button
+                            type="button"
+                            className="rounded border border-destructive/40 px-1.5 py-0.5 text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                            disabled={cancelSubMutation.isPending}
+                            onClick={() => {
+                              if (typeof window === "undefined") return;
+                              const reason = window.prompt(
+                                "Motivo do cancelamento (será registrado):",
+                                "Solicitação via WhatsApp",
+                              );
+                              if (reason === null) return;
+                              if (
+                                !window.confirm(
+                                  "Cancelar assinatura recorrente no Mercado Pago? O cliente não será mais cobrado.",
+                                )
+                              ) {
+                                return;
+                              }
+                              cancelSubMutation.mutate({
+                                diagnosis_id: row.id,
+                                reason,
+                              });
+                            }}
+                          >
+                            Cancelar gestão
+                          </button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
