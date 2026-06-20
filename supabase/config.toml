@@ -84,6 +84,9 @@ verify_jwt = false
 [functions.mercadopago-webhook]
 verify_jwt = false
 
+[functions.cancel-management-subscription]
+verify_jwt = true
+
 [functions.meta-oauth-start]
 verify_jwt = false
 
