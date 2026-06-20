@@ -842,6 +842,78 @@ function buildProjections(
   };
 }
 
+/** Item 3 — Detecta conta saudável (sem gargalo crítico, ROAS dentro/acima do nicho). */
+function evaluateAccountHealth(
+  facts: Record<string, unknown>,
+  commercial: CommercialDerived,
+  gapFromMeta: number,
+  score: number,
+  consultative: ConsultativeDerived | null,
+): AccountHealthVerdict {
+  const reasons: string[] = [];
+  const econ = commercial.accountEconomics;
+  const revenue = econ.revenue30d ?? 0;
+  const gapShare = revenue > 0 ? gapFromMeta / revenue : 1;
+
+  const roasGap = commercial.benchmarkComparison.gaps.find(
+    (g) => /roas/i.test(g.metric),
+  );
+  const roasOk = !roasGap || !roasGap.isBad;
+
+  const funnel = consultative?.conversionFunnel;
+  const hasFunnelLeak =
+    !!funnel?.revenueAtRiskMonthlyBrl && funnel.revenueAtRiskMonthlyBrl >= 100;
+
+  const criticalRisks =
+    (commercial.seniorDerived?.risks ?? []).filter((r) => r.severity === "critical").length;
+
+  const isHealthy =
+    score >= 80 &&
+    roasOk &&
+    gapShare <= 0.1 &&
+    !hasFunnelLeak &&
+    criticalRisks === 0;
+
+  if (score >= 80) reasons.push(`Score ${score} ≥ 80`);
+  if (roasOk) reasons.push("ROAS dentro ou acima do nicho");
+  if (gapShare <= 0.1) reasons.push("Gap ≤ 10% da receita mensal");
+  if (!hasFunnelLeak) reasons.push("Sem gargalo de funil relevante");
+  if (criticalRisks === 0) reasons.push("Sem risco crítico aberto");
+
+  return { isHealthy, reasons };
+}
+
+/** Anexa trend a cada leak com entityId (adset). */
+function attachTrendsToLeaks(
+  leaks: MoneyLeakItem[],
+  facts: Record<string, unknown>,
+): void {
+  for (const l of leaks) {
+    if (!l.entityId) continue;
+    const v = getAdsetTrend(facts, l.entityId);
+    if (v.direction === "unknown") continue;
+    l.trend = trendFromVerdict(v);
+    // 🔻 prefixar título quando em deterioração, sem duplicar
+    if (
+      v.direction === "deteriorating" &&
+      !l.title.startsWith("🔻") &&
+      !l.title.startsWith("📊")
+    ) {
+      l.title = `🔻 ${l.title}`;
+    } else if (
+      v.direction === "stable" &&
+      !l.title.startsWith("🔻") &&
+      !l.title.startsWith("📊")
+    ) {
+      l.title = `📊 ${l.title}`;
+    }
+    // Embute a frase de tendência na rootCause para a IA citar.
+    if (l.trend.summaryPt && !l.rootCause.includes(l.trend.summaryPt)) {
+      l.rootCause = `${l.rootCause} ${l.trend.summaryPt}.`.trim();
+    }
+  }
+}
+
 export function buildGrowthIntelligenceDerived(
   facts: Record<string, unknown>,
   commercial: CommercialDerived,
@@ -849,13 +921,17 @@ export function buildGrowthIntelligenceDerived(
   const consultative = facts.consultative_derived as ConsultativeDerived | undefined;
   const senior = commercial.seniorDerived;
   const gap = consultative?.accountFinancialGap ?? null;
+  const scoreVal = deriveAccountScore(facts).score;
 
   const moneyLeaksRaw = buildMoneyLeaks(consultative ?? null, commercial, senior, facts);
+  // Item 2 — trends por adset
+  attachTrendsToLeaks(moneyLeaksRaw, facts);
+
   // Conciliar com gap da conta — se gap agregado > soma dos leaks atribuídos,
   // adicionar UMA entrada residual para o leitor não fazer dupla contagem.
   const gapFromMeta = gap?.gapMonthlyBrl ?? 0;
   const attributedSum = sumMoneyLeaks(moneyLeaksRaw);
-  const moneyLeaks = [...moneyLeaksRaw];
+  let moneyLeaks = [...moneyLeaksRaw];
   if (gapFromMeta > 0 && gapFromMeta - attributedSum >= 100) {
     const residual = gapFromMeta - attributedSum;
     moneyLeaks.push({
@@ -871,10 +947,43 @@ export function buildGrowthIntelligenceDerived(
       category: "sales",
     });
   }
+
+  // Item 3 — modo conta saudável: limitar leaks a no máximo 1.
+  const health = evaluateAccountHealth(
+    facts,
+    commercial,
+    gapFromMeta,
+    scoreVal,
+    consultative ?? null,
+  );
+  if (health.isHealthy && moneyLeaks.length > 1) {
+    moneyLeaks = moneyLeaks.slice(0, 1);
+  }
+
   const leakSum = sumMoneyLeaks(moneyLeaks);
   syncStoryExecutiveGap(commercial, Math.max(gapFromMeta, commercial.waste.totalMonthlyBrl, leakSum));
   const executiveImpact = buildExecutiveImpact(gap, commercial, leakSum);
-  const growthOpportunities = buildGrowthOpportunities(consultative ?? null, commercial, senior);
+
+  // Item 3 — headline da conta saudável.
+  if (health.isHealthy) {
+    const roasOk = commercial.accountEconomics.roasFormatted;
+    const ceilingBrl =
+      commercial.recovery.conservativeMonthlyBrl > 0
+        ? commercial.recovery.conservativeMonthlyBrl
+        : leakSum;
+    executiveImpact.headlinePt =
+      ceilingBrl > 0
+        ? `Conta no top do nicho (ROAS ${roasOk}) — teto disponível de ${fmtBrl(ceilingBrl)}/mês para subir do bom para o excepcional.`
+        : `Conta no top do nicho (ROAS ${roasOk}) — sem vazamentos críticos. Foco em escala, não em correção.`;
+  }
+
+  const growthOpportunities = buildGrowthOpportunities(
+    consultative ?? null,
+    commercial,
+    senior,
+    facts,
+    health,
+  );
   const risks = buildRisks(senior, consultative?.deliverySummary ?? null, commercial);
   const benchmarkImpacts = buildBenchmarkImpacts(commercial);
   const maturity = buildEnterpriseMaturity(
@@ -884,10 +993,15 @@ export function buildGrowthIntelligenceDerived(
       summary: "Dados limitados para maturidade.",
       pillars: [],
     },
-    deriveAccountScore(facts).score,
+    scoreVal,
   );
   const decisionActions = buildDecisionActions(senior, facts);
   const projections = buildProjections(commercial, senior?.growthScenarios);
+
+  // Item 2 — trend da conta no payload.
+  const accountVerdict = getAccountTrend(facts);
+  const accountTrend =
+    accountVerdict.direction === "unknown" ? null : trendFromVerdict(accountVerdict);
 
   const out: GrowthIntelligenceDerived = {
     executiveImpact,
@@ -898,6 +1012,8 @@ export function buildGrowthIntelligenceDerived(
     maturity,
     decisionActions,
     projections,
+    accountHealth: health,
+    accountTrend,
   };
   facts.growth_intelligence_derived = out;
   return out;
