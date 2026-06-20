@@ -1046,6 +1046,12 @@ Deno.serve(async (req) => {
         } catch (e) {
           console.warn(`[process-diagnosis] ad insights falhou: ${String(e).slice(0, 200)}`);
         }
+        let trends: Record<string, unknown> | null = null;
+        try {
+          trends = await fetchTrendsBundle(actId, token, metaSession);
+        } catch (e) {
+          console.warn(`[process-diagnosis] trends falhou: ${String(e).slice(0, 200)}`);
+        }
         const { campaigns_enriched, objective_spend_mix } = buildFactsEnrichment(
           campaigns.slice(0, 40),
           campaigns_insights.slice(0, 50),
@@ -1061,6 +1067,7 @@ Deno.serve(async (req) => {
           ads_insights_top: ads_insights_top.slice(0, 25),
           adsets_insights: adsets_insights.slice(0, 80),
           adsets_targeting_sample: adsets_targeting_sample.slice(0, 60),
+          trends,
           generated_at: new Date().toISOString(),
         };
         const facts = {
