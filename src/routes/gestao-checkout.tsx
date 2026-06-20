@@ -349,6 +349,16 @@ function GestaoCheckoutPage() {
       </header>
 
       <main className="mx-auto max-w-xl px-4 pb-12 pt-6">
+        {GESTAO_AVAILABLE_SLOTS > 0 ? (
+          <div className="mb-4 flex items-center justify-center gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-xs font-semibold text-warning-foreground">
+            <Clock className="h-3.5 w-3.5" />
+            <span>
+              Apenas {GESTAO_AVAILABLE_SLOTS}{" "}
+              {GESTAO_AVAILABLE_SLOTS === 1 ? "vaga disponível" : "vagas disponíveis"} neste mês
+            </span>
+          </div>
+        ) : null}
+
         {gap ? (
           <p className="mb-4 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
             Oportunidade identificada no diagnóstico:{" "}
@@ -358,12 +368,21 @@ function GestaoCheckoutPage() {
 
         <section className="rounded-xl border bg-card p-5 shadow-sm">
           <h2 className="text-sm font-semibold text-muted-foreground">Resumo do pedido</h2>
-          <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-sm">{GESTAO_PRODUCT_NAME}</span>
-            <span className="text-2xl font-bold text-primary tabular-nums">
-              {formatManagementPrice(amount)}
-            </span>
+          <div className="mt-3 flex items-baseline justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium">{GESTAO_PRODUCT_NAME}</p>
+              <p className="text-xs text-muted-foreground">1ª mensalidade · cobrança mensal</p>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold text-primary tabular-nums leading-none">
+                {formatManagementPrice(amount)}
+              </div>
+              <div className="text-xs font-semibold text-primary/80">/mês</div>
+            </div>
           </div>
+          <p className="mt-3 rounded-md bg-muted/50 px-3 py-2 text-xs leading-snug text-muted-foreground">
+            {GESTAO_RECURRENCE_NOTE}
+          </p>
         </section>
 
         <section className="mt-4 rounded-xl border bg-gradient-to-br from-primary/10 via-card to-card p-6 text-center">
@@ -383,11 +402,13 @@ function GestaoCheckoutPage() {
           </ul>
         </section>
 
-        <section className="mt-6 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm">
-          <div className="flex gap-2">
-            <ShieldCheck className="h-4 w-4 shrink-0 text-primary" />
-            <p>{GESTAO_GUARANTEE}</p>
-          </div>
+        <section className="mt-6 space-y-3">
+          <GestaoSocialProof />
+          <GestaoOperatorCard />
+        </section>
+
+        <section className="mt-6">
+          <GestaoNextSteps />
         </section>
 
         {globalError ? (
@@ -398,6 +419,9 @@ function GestaoCheckoutPage() {
 
         <section className="mt-8">
           <h3 className="text-lg font-semibold">Dados da loja</h3>
+          <p className="text-xs text-muted-foreground">
+            Confirme os dados detectados do seu diagnóstico ou edite se algo estiver desatualizado.
+          </p>
           <div className="mt-4 space-y-4">
             <Field label="Nome da loja" id="business_name" value={store.business_name}
               onChange={(v) => setStore((p) => ({ ...p, business_name: v }))}
@@ -429,13 +453,14 @@ function GestaoCheckoutPage() {
           </div>
         </section>
 
-        <section className="mt-8">
+        <section className="mt-8 space-y-4">
+          <GestaoGuaranteeBlock />
           <h3 className="text-lg font-semibold">Pagamento</h3>
-          <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2">
             <MethodButton active={method === "pix"} onClick={() => setMethod("pix")} icon={QrCode} label="Pix" />
             <MethodButton active={method === "card"} onClick={() => setMethod("card")} icon={CreditCard} label="Cartão" />
           </div>
-          <div className="mt-5">
+          <div>
             {method === "pix" ? (
               <GestaoPixSection d={d} s={s} started={started} ensureStarted={ensureStarted}
                 starting={submitting} onApproved={onApproved} />
@@ -445,10 +470,13 @@ function GestaoCheckoutPage() {
                 onApproved={onApproved} />
             )}
           </div>
+          <p className="text-center text-xs text-muted-foreground">
+            Sem fidelidade · Cancele a qualquer momento · Pagamento seguro Mercado Pago
+          </p>
         </section>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          {gestaoUrgencyText()} · 2 vagas disponíveis
+          {gestaoUrgencyText()}
         </p>
 
         <div className="mt-6 text-center">
