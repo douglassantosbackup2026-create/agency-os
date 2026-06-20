@@ -106,3 +106,24 @@ export async function fetchMpAuthorizedPayment(
   if (!res.ok) return null;
   return (await res.json()) as MpAuthorizedPaymentResponse;
 }
+
+export async function cancelMpPreapproval(
+  preapprovalId: string,
+): Promise<{ ok: true; json: MpPreapprovalResponse } | { ok: false; status: number; json: MpPreapprovalResponse }> {
+  const token = Deno.env.get("MERCADOPAGO_ACCESS_TOKEN");
+  if (!token) throw new Error("MP token ausente");
+  const res = await fetch(
+    `https://api.mercadopago.com/preapproval/${preapprovalId}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status: "cancelled" }),
+    },
+  );
+  const json = (await res.json().catch(() => ({}))) as MpPreapprovalResponse;
+  if (!res.ok) return { ok: false, status: res.status, json };
+  return { ok: true, json };
+}
