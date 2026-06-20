@@ -176,6 +176,33 @@ export function PlatformDiagnosisSection() {
     },
   });
 
+  const cancelSubMutation = useMutation({
+    mutationFn: async (payload: { diagnosis_id: string; reason: string }) => {
+      const res = await supabase.functions.invoke("cancel-management-subscription", {
+        body: payload,
+      });
+      if (res.error) {
+        throw new Error(
+          await edgeFunctionErrorMessage(res.error, res.error.message),
+        );
+      }
+      const body = res.data as { error?: string; ok?: boolean; already_cancelled?: boolean };
+      if (body?.error) throw new Error(body.error);
+      return body;
+    },
+    onSuccess: (body) => {
+      toast.success(
+        body?.already_cancelled
+          ? "Assinatura já estava cancelada."
+          : "Assinatura cancelada no Mercado Pago.",
+      );
+      void queryClient.invalidateQueries({ queryKey: ["platform-diagnosis"] });
+    },
+    onError: (e) => {
+      toast.error(e instanceof Error ? e.message : "Falha ao cancelar assinatura");
+    },
+  });
+
   const funnelChart = useMemo(() => {
     const map = new Map(data?.funnel.map((f) => [f.status, Number(f.cnt)]));
     return FUNNEL_STATUS_ORDER.map((status) => ({
@@ -580,6 +607,34 @@ export function PlatformDiagnosisSection() {
                             }
                           >
                             Reprocessar
+                          </button>
+                        ) : null}
+                        {row.management_status === "paid" ? (
+                          <button
+                            type="button"
+                            className="rounded border border-destructive/40 px-1.5 py-0.5 text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                            disabled={cancelSubMutation.isPending}
+                            onClick={() => {
+                              if (typeof window === "undefined") return;
+                              const reason = window.prompt(
+                                "Motivo do cancelamento (será registrado):",
+                                "Solicitação via WhatsApp",
+                              );
+                              if (reason === null) return;
+                              if (
+                                !window.confirm(
+                                  "Cancelar assinatura recorrente no Mercado Pago? O cliente não será mais cobrado.",
+                                )
+                              ) {
+                                return;
+                              }
+                              cancelSubMutation.mutate({
+                                diagnosis_id: row.id,
+                                reason,
+                              });
+                            }}
+                          >
+                            Cancelar gestão
                           </button>
                         ) : null}
                       </div>
