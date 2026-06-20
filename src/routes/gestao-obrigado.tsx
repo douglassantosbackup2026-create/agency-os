@@ -79,6 +79,20 @@ function GestaoObrigadoPage() {
     trackMetaPurchase(GESTAO_PRODUCT, d);
   }, [d, snapshot?.management_status]);
 
+  // Regista 1× que o cliente visualizou o estado pago (botão de WhatsApp visível).
+  const viewLoggedRef = useRef(false);
+  useEffect(() => {
+    if (!d || !s) return;
+    if (snapshot?.management_status !== "paid") return;
+    if (viewLoggedRef.current) return;
+    viewLoggedRef.current = true;
+    logManagementHandoff({
+      diagnosisId: d,
+      secretSlug: s,
+      kind: "whatsapp_view",
+    });
+  }, [d, s, snapshot?.management_status]);
+
   const waHref = useMemo(() => {
     if (!d) return "";
     const name =
