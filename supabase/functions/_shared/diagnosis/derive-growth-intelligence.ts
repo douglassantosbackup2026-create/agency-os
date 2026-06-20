@@ -238,15 +238,20 @@ function buildMoneyLeaks(
   let rank = 0;
 
   const funnel = consultative?.conversionFunnel;
-  if (funnel?.revenueAtRiskMonthlyBrl && funnel.revenueAtRiskMonthlyBrl >= 50) {
+  if (funnel?.revenueAtRiskMonthlyBrl && funnel.revenueAtRiskMonthlyBrl >= 30) {
+    const isAtc = funnel.bottleneck === "atc";
     leaks.push({
-      id: "funnel:checkout",
-      title: "Abandono no checkout — receita não capturada",
+      id: isAtc ? "funnel:atc" : "funnel:checkout",
+      title: isAtc
+        ? "Abandono no carrinho — receita não capturada"
+        : "Abandono no checkout — receita não capturada",
       monthlyImpactBrl: funnel.revenueAtRiskMonthlyBrl,
       monthlyImpactFormatted: fmtBrl(funnel.revenueAtRiskMonthlyBrl),
       confidence: "high",
       rootCause: funnel.bottleneckLabel,
-      action: "Otimizar checkout/UX — o Meta já entrega intenção; o gargalo está no site.",
+      action: isAtc
+        ? "Reduzir atrito entre carrinho e checkout — frete, login, cupons."
+        : "Otimizar checkout/UX — o Meta já entrega intenção; o gargalo está no site.",
       priority: 0,
       category: "structure",
     });
