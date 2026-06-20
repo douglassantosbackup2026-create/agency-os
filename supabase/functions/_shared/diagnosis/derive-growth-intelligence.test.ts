@@ -61,3 +61,73 @@ describe("Growth Intelligence v3", () => {
   });
 });
 
+import { deriveFunnelAnalysis } from "./derive-analysis.ts";
+
+function makeFunnelFacts(opts: {
+  lpv: number;
+  atc: number;
+  checkout: number;
+  paymentInfo: number;
+  purchase: number;
+}): Record<string, unknown> {
+  const actions = [
+    { action_type: "landing_page_view", value: String(opts.lpv) },
+    { action_type: "add_to_cart", value: String(opts.atc) },
+    { action_type: "initiate_checkout", value: String(opts.checkout) },
+    ...(opts.paymentInfo > 0
+      ? [{ action_type: "add_payment_info", value: String(opts.paymentInfo) }]
+      : []),
+    { action_type: "purchase", value: String(opts.purchase) },
+  ];
+  return {
+    campaigns_enriched: [
+      { campaign_id: "c1", family: "sales", spend: 1000, roas: 2 },
+    ],
+    campaigns_insights: [
+      {
+        campaign_id: "c1",
+        actions,
+        action_values: [{ action_type: "purchase", value: String(opts.purchase * 200) }],
+      },
+    ],
+    business_context: { avg_ticket_brl: 200 },
+  };
+}
+
+describe("Funnel sub-bottlenecks (add_payment_info)", () => {
+  it("detecta checkout_late quando paymentInfo alto e purchase baixo", () => {
+    const f = deriveFunnelAnalysis(
+      makeFunnelFacts({ lpv: 5000, atc: 800, checkout: 300, paymentInfo: 250, purchase: 60 }),
+    );
+    expect(f?.bottleneck).toBe("checkout_late");
+    expect(f?.paymentInfoTracked).toBe(true);
+    expect((f?.revenueAtRiskMonthlyBrl ?? 0)).toBeGreaterThan(0);
+  });
+
+  it("detecta checkout_early quando paymentInfo é baixo em relação ao checkout", () => {
+    const f = deriveFunnelAnalysis(
+      makeFunnelFacts({ lpv: 5000, atc: 800, checkout: 400, paymentInfo: 80, purchase: 40 }),
+    );
+    expect(f?.bottleneck).toBe("checkout_early");
+    expect((f?.paymentInfoRate ?? 100)).toBeLessThan(60);
+  });
+
+  it("usa fallback 'checkout' quando add_payment_info não está rastreado", () => {
+    const f = deriveFunnelAnalysis(
+      makeFunnelFacts({ lpv: 5000, atc: 800, checkout: 300, paymentInfo: 0, purchase: 60 }),
+    );
+    expect(f?.bottleneck).toBe("checkout");
+    expect(f?.paymentInfoTracked).toBe(false);
+    expect(f?.bottleneckDetail).toMatch(/add_payment_info/);
+  });
+
+  it("não marca gargalo quando ambas as taxas pós-checkout estão saudáveis", () => {
+    const f = deriveFunnelAnalysis(
+      makeFunnelFacts({ lpv: 5000, atc: 800, checkout: 300, paymentInfo: 250, purchase: 200 }),
+    );
+    expect(f?.bottleneck).not.toBe("checkout_late");
+    expect(f?.bottleneck).not.toBe("checkout_early");
+  });
+});
+
+
