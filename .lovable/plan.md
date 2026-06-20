@@ -1,87 +1,75 @@
 ## Objetivo
-Subir a credibilidade do diagnóstico em três frentes do motor: (1) confiança estatística antes de prescrever ação agressiva, (2) tendência temporal real (14d vs 14d anteriores) e (3) modo "conta saudável" sem inventar problemas.
 
-Tudo acontece no motor (`supabase/functions/_shared/diagnosis/*`) + uma camada extra de coleta na `process-diagnosis`. UI ganha 2 micro-elementos (badge de evidência e badge de tendência) sem mudança de layout.
+Aumentar a conversão e reduzir chargebacks na página `/gestao-checkout` aplicando os 6 ajustes priorizados (1, 2, 3, 4, 5 e 7).
 
----
+## Decisão importante sobre recorrência
 
-## Item 1 — Confiança estatística por volume de compras
+Você disse que o produto é **mensal recorrente**, mas hoje o fluxo Mercado Pago cobra **pagamento único** (Pix/cartão à vista, sem subscription). Trocar para subscription real é uma mudança grande no backend (MP Preapproval, webhook, gerenciamento de status mensal, cancelamento). Proponho dividir em duas fases:
 
-**Regra:** o `confidence` de cada `MoneyLeak` / `GrowthOpportunity` / `decisionAction` que se apoia num criativo, ad set ou campanha específica passa a ser função do volume de compras da evidência:
+- **Fase 1 (este plano):** comunicar honestamente como "1ª mensalidade — R$1.997/mês", explicar que a renovação acontece por cobrança manual mensal (link novo) até a subscription estar pronta, e adicionar todos os outros ajustes.
+- **Fase 2 (plano separado):** implementar Mercado Pago Preapproval (subscription real com cobrança automática).
 
-```
-purchases ≥ 30 → confidence: "high"   → linguagem "escale agora", "duplique verba"
-10 ≤ purchases < 30 → confidence: "medium" → "promissor, valide com +R$X em 7 dias"
-purchases < 10 → confidence: "low"    → "sinal inicial, ainda precisa de dados"
-```
-
-**Arquivos:**
-- `derive-growth-intelligence.ts`
-  - Nova função `confidenceFromPurchases(n)` aplicada em todos os leaks/opportunities que carregam um ator nomeado (criativos, ad sets, campanhas).
-  - Substituir os `confidence: "high"|"medium"` hardcoded nos blocos de `buildMoneyLeaks` e `buildGrowthOpportunities` quando houver `purchases` na evidência.
-  - Acrescentar campo `evidenceStrength: { purchases: number; tier: "high"|"medium"|"low" }` em `MoneyLeakItem` e `GrowthOpportunityItem`.
-- `v3-growth-intelligence-rules.ts`
-  - Nova regra na seção "VALIDAÇÃO ANTI-TEMPLATE": "Se `evidenceStrength.tier === 'low'`, proibido usar verbos imperativos de escala (escale, duplique, dobre). Use linguagem condicional (sinal inicial, validar com mais dados)."
-  - Para `'high'`, manter linguagem direta.
-- `types.ts` (front): adicionar `evidenceStrength` opcional nos tipos.
-- `DiagnosisMoneyLeakGrid.tsx` / `DiagnosisOpportunityGrid.tsx`: pequeno badge "Evidência: 3 compras" quando `tier === 'low'`.
-
-**Testes (`derive-growth-intelligence.test.ts`):** fixture com criativo de 3 compras → leak rebaixado para `low` e narrativa sem imperativo de escala; fixture com 50 compras → `high`.
+Se preferir, posso já incluir a Fase 2 neste plano — só me diga.
 
 ---
 
-## Item 2 — Tendência temporal (14d vs 14d anteriores)
+## Mudanças (Fase 1)
 
-**Coleta:** em `process-diagnosis/index.ts`, ampliar `fetchAccountInsights`, `fetchCampaignInsights` e `fetchAdSetInsights` para fazer 2 chamadas em paralelo, trocando `date_preset=last_30d` por `time_range` explícito:
-- atual: `{since: T-14d, until: T-1d}`
-- anterior: `{since: T-28d, until: T-15d}`
+### 1. Recorrência explícita (`/gestao-checkout` + `/gestao-obrigado`)
+- Resumo do pedido: preço grande "**R$1.997**" com sublinha "**/mês — 1ª mensalidade**".
+- Bloco curto abaixo do resumo: "Cobrança mensal. Hoje você paga a 1ª mensalidade; nos próximos meses enviaremos um novo link de pagamento (ainda não há débito automático)."
+- CTA dos botões: "Pagar 1ª mensalidade com Pix — R$1.997/mês" e equivalente no cartão.
+- Página de obrigado: confirmar "1ª mensalidade recebida" e quando virá a próxima.
+- Pixel/Meta Purchase: manter valor, adicionar `content_category: "subscription_first_charge"`.
 
-Mantém a chamada `last_30d` existente como base (foto agregada). Adiciona um bloco `trends` ao payload bruto: `{ accountTrend, campaignTrends[], adsetTrends[] }` com `roas`, `spend`, `cpa`, `ctr` em cada janela + `deltaPct`.
+### 2. Garantia / política de cancelamento
+- Editar `GESTAO_GUARANTEE` em `src/content/gestao-checkout.ts` para algo como: "Sem fidelidade. Cancele quando quiser — basta avisar no WhatsApp antes do próximo ciclo."
+- Mover o bloco para logo acima do botão de pagamento (hoje fica entre entregáveis e formulário; perde força).
+- Adicionar microcopy abaixo do botão: "Sem fidelidade · Cancele a qualquer momento".
 
-**Análise (`derive-analysis.ts`):**
-- Nova função `classifyTrend(metric, current, previous)`:
-  - `deltaPct ≤ -15%` em métrica boa (ROAS, CTR) ou `≥ +15%` em ruim (CPA, CPM) → `"deteriorating"`
-  - `|deltaPct| < 15%` → `"stable"`
-  - oposto → `"improving"`
-- Anexar `trend` a cada `criticalIssue`, `moneyLeak` e ao bloco executivo (campo `accountTrend`).
-- Quando `trend === "deteriorating"`, elevar `priority`/`urgency` (`now`), adicionar marcador `🔻 Em deterioração` no título.
-- Quando `trend === "stable"` num problema crônico, marcar `📊 Crônico` e suavizar urgência.
+### 3. Elemento humano (Douglas + prova social)
+- Novo componente `GestaoOperatorCard` ao lado/abaixo do formulário de pagamento:
+  - Foto do Douglas (asset já existente, usar a do relatório v1; se não houver, peço para você subir).
+  - Nome + cargo: "Douglas — Gestor responsável pela sua conta".
+  - 1 linha de credencial curta.
+- Novo componente `GestaoSocialProof`: 1 depoimento curto (cliente + resultado) acima ou abaixo do bloco de garantia.
+- Conteúdo (foto, bio, depoimento) vai em `src/content/gestao-checkout.ts` para você editar fácil.
 
-**Rules (`v3-growth-intelligence-rules.ts`):** regra nova "TENDÊNCIA OBRIGATÓRIA" — cada item do top 3 deve citar tendência se disponível ("ROAS caiu de 7,2× para 5,1× nas últimas 2 semanas"); se `trend === null` (conta nova, <28d de histórico), declarar limitação.
+### 4. Pré-preencher site/Instagram
+- **Já existe parcialmente** (linhas 207-217): se `management_business_name/website/instagram` vierem do diagnóstico, são pré-preenchidos.
+- Gap atual: quando o diagnóstico **não** tem esses campos salvos mas tem `business_name`, `website` ou `instagram_handle` no próprio `diagnoses` (campos do funil), eles não são usados.
+- Ajuste no endpoint `diagnosis-report` (server function): se `management_*` for null, fazer fallback para os campos originais do diagnóstico (`business_name`, `website_url`, `instagram`).
+- UX: mostrar badge "Detectado da sua conta Meta" ao lado dos campos pré-preenchidos, com link "editar".
 
-**UI:** badge de tendência (▲ melhorando / ▬ estável / 🔻 piorando) em `DiagnosisMoneyLeakGrid` e `DiagnosisProblemsMasterDetail`. Sem mudança de layout.
+### 5. O que acontece depois de pagar
+- Novo bloco "Depois do pagamento" abaixo da garantia, com 3 passos curtos:
+  1. Confirmação por e-mail em segundos.
+  2. Em até 24h, Douglas chama você no WhatsApp para onboarding.
+  3. Primeiras campanhas no ar em até 5 dias úteis.
+- Reforçar o mesmo conteúdo na `/gestao-obrigado` (já existe parcial, alinhar texto).
 
-**Testes:** nova fixture de trends; classifyTrend cobrindo as 3 saídas + edge case `previous = 0`.
-
----
-
-## Item 3 — Modo "conta saudável"
-
-**Detecção (`derive-account-score.ts` / `derive-growth-intelligence.ts`):** flag `accountIsHealthy` true se TODAS:
-- `executiveImpact.gapMonthlyBrl ≤ 10% da receita mensal` **e**
-- ROAS conta ≥ ROAS de referência do nicho **e**
-- nenhum `criticalIssue` com `severity === "critical"` **e**
-- score ≥ 80.
-
-**Comportamento quando `accountIsHealthy`:**
-- `buildMoneyLeaks` retorna no máximo 1 item (o maior); resto vira "oportunidades de teto", não "vazamentos".
-- `buildGrowthOpportunities` muda enquadramento: títulos viram "Para chegar ao top 5% do nicho falta X" em vez de "Recuperar eficiência".
-- `executiveConclusion.isHealthy = true`, `firstDecisionIfIHired` foca em escala (não em correção).
-- `executiveImpact.headlinePt` muda template para "Conta no top 20% do nicho — teto disponível de R$X/mês".
-
-**Rules:** seção nova "MODO CONTA SAUDÁVEL" — proibido inventar 3 problemas; mínimo de 1 e máximo de 2 itens no top; linguagem de consultoria de escala, não resgate.
-
-**UI:** `DiagnosisPresentationHero` já tem `scoreTier === "high"` — adicionar variante de eyebrow "Acima do nicho" quando `accountIsHealthy`. `DiagnosisMoneyLeakGrid` esconde título "Quanto está na mesa" e usa "Teto de crescimento" quando `accountIsHealthy`.
-
-**Testes:** fixture de conta saudável (ROAS 9×, gap 4%) → 1 leak, headline de teto, sem urgência "now".
+### 7. Escassez visível ("2 vagas")
+- Hoje: `gestaoUrgencyText() · 2 vagas disponíveis` em cinza no rodapé.
+- Mudança: badge destacado no topo do resumo do pedido — "**Apenas 2 vagas neste mês**" com ícone, cor de alerta sutil (não vermelho berrante).
+- Remover do rodapé para não duplicar.
+- **Pergunta:** a escassez é real (controlada manualmente) ou fixa em "2"? Se for manual, deixo o número editável via `src/content/gestao-checkout.ts`. Se quiser dinâmico (contar pagamentos do mês no banco), me avise.
 
 ---
 
-## Fora de escopo (combinado)
-- Item 4 (Audience Overlap real via API).
-- Item 5 (sequência de e-mails D+1/D+5/D+10).
+## Arquivos afetados
 
-## Validação
-- `bunx vitest run supabase/functions/_shared/diagnosis`
-- Reprocessar 2 diagnósticos reais via `scripts/ops-reprocess-diagnosis.mjs`: um com poucas compras (esperar `low`/linguagem suave) e um com ROAS acima do nicho (esperar modo saudável).
-- Conferir que a soma dos leaks continua batendo com `gapMonthlyFormatted` (regra #4 anti-template existente).
+- `src/routes/gestao-checkout.tsx` — reordenação de seções, novos blocos, CTA, badge de vaga.
+- `src/routes/gestao-obrigado.tsx` — confirmação de 1ª mensalidade, próximos passos.
+- `src/content/gestao-checkout.ts` — copy de garantia, operador, depoimento, vagas, próximos passos.
+- `src/components/gestao/GestaoOperatorCard.tsx` (novo).
+- `src/components/gestao/GestaoSocialProof.tsx` (novo).
+- `src/components/gestao/GestaoNextSteps.tsx` (novo).
+- Server function `diagnosis-report` (`src/lib/diagnosis-api.functions.ts` ou similar) — fallback de pré-preenchimento.
+
+## Fora deste plano
+
+- Subscription real no Mercado Pago (Fase 2).
+- Parcelamento no cartão (item 6) — você não selecionou; posso adicionar se quiser.
+- Reescrita do CTA com valor do gap (item 8) — não selecionado.
+
+Quer que eu inclua a Fase 2 (subscription real) ou seguimos só com a Fase 1?
