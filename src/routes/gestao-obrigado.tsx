@@ -146,12 +146,14 @@ function GestaoObrigadoPage() {
           ) : (
             <>
               <p>
-                Pagamento confirmado para o pedido ligado ao teu diagnóstico (ID{" "}
-                <code>{d}</code>). Próximo passo: WhatsApp connosco.
+                <strong>1ª mensalidade confirmada</strong> para o pedido ligado ao
+                teu diagnóstico (ID <code>{d}</code>). Próximo passo: WhatsApp
+                connosco para iniciar o onboarding em até 24h.
               </p>
               <p className="muted">
-                Se o botão não abrir, volta ao relatório através do link que
-                guardaste.
+                A próxima cobrança acontece daqui a 30 dias — enviaremos um novo
+                link de pagamento pelo WhatsApp. Sem fidelidade: cancele quando
+                quiser antes do próximo ciclo.
               </p>
             </>
           )}
