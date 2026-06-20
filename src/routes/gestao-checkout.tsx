@@ -456,8 +456,8 @@ function GestaoCheckoutPage() {
           <GestaoGuaranteeBlock />
           <h3 className="text-lg font-semibold">Pagamento</h3>
           <div className="grid grid-cols-2 gap-2">
-            <MethodButton active={method === "pix"} onClick={() => setMethod("pix")} icon={QrCode} label="Pix" />
-            <MethodButton active={method === "card"} onClick={() => setMethod("card")} icon={CreditCard} label="Cartão" />
+            <MethodButton active={method === "pix"} onClick={() => setMethod("pix")} icon={QrCode} label="Pix" hint={GESTAO_PAYMENT_METHOD_HINTS.pix} />
+            <MethodButton active={method === "card"} onClick={() => setMethod("card")} icon={CreditCard} label="Cartão" hint={GESTAO_PAYMENT_METHOD_HINTS.card} />
           </div>
           <div>
             {method === "pix" ? (
