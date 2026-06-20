@@ -50,5 +50,27 @@ Antes de emitir o JSON final, valide:
 3. Pelo menos 1 growthOpportunity deve citar nome específico de criativo ou conjunto (ex.: "Ad 1 — Mantas", "Conjunto Catálogo") + ação + valor R$. Se não houver evidência nomeada, omita o card em vez de usar frase genérica.
 4. A soma dos R$ exibidos nos moneyLeaks deve coincidir com gapMonthlyFormatted do executiveImpact. Se sobrar diferença, o motor já injeta uma entrada residual ("Gap agregado vs ROAS do nicho") — mantenha-a e não recalcule.
 5. Nenhuma frase-template ("X abaixo do ROAS do nicho") pode aparecer mais de uma vez. Itens consolidados ("Outros conjuntos…") já vêm prontos do servidor — preserve.
+
+## CONFIANÇA ESTATÍSTICA (evidenceStrength — OBRIGATÓRIO)
+Cada moneyLeak e growthOpportunity carrega evidenceStrength = { purchases, tier } quando há evidência de criativo/conjunto.
+Adapte a linguagem ao tier — NUNCA prescreva ação agressiva sem volume:
+- tier === "high" (≥30 compras): use verbos diretos — "escale", "duplique a verba", "isole agora em conjunto dedicado". Convicção total.
+- tier === "medium" (10–29 compras): use linguagem de validação curta — "sinal promissor, suba +30% por 7 dias antes de dobrar verba". Sem imperativo de escala.
+- tier === "low" (<10 compras): PROIBIDO os verbos "escale", "duplique", "dobre", "agora". Use SEMPRE "sinal inicial — validar com mais dados", "promissor mas precisa de mais 7 dias", "ainda direcional". Para criativos com ROAS alto e <10 compras, escreva explicitamente que o número de compras é baixo demais para decisão definitiva.
+- Se mencionar um ROAS de criativo/conjunto com tier "low", inclua o número de compras entre parênteses (ex.: "ROAS 15× — porém apenas 3 compras no período").
+
+## TENDÊNCIA TEMPORAL (accountTrend + moneyLeak.trend)
+Quando growth_intelligence_derived.accountTrend OU moneyLeak.trend está presente (não-null):
+- direction === "deteriorating" → eleve urgência para "now" e cite a frase de trend.summaryPt na narrativa do problema. Ex.: "ROAS caiu de 7,2× para 5,1× nas últimas 2 semanas — corrigir esta semana antes de cristalizar".
+- direction === "stable" → enquadre como problema crônico ("custa R$X/mês há ≥2 semanas, sem deterioração — pode entrar no plano de 30d sem virar emergência").
+- direction === "improving" → reconheça evolução antes de prescrever ("recuperando: ROAS subiu de 4,2× para 5,8× — manter ação atual ou ampliar").
+- Quando accountTrend é null (conta nova ou janela insuficiente), declare a limitação UMA vez ("histórico de <28 dias — não foi possível classificar tendência") e não invente comparação.
+
+## MODO CONTA SAUDÁVEL (accountHealth.isHealthy === true)
+Quando o servidor classifica a conta como saudável:
+- PROIBIDO inventar 3 problemas críticos para preencher o relatório. Limite-se ao número de moneyLeaks que o motor devolveu (geralmente ≤1).
+- Mude o enquadramento de "o que está quebrado" para "o que falta para sair do top 20% e chegar ao top 5%". Use as palavras "teto", "subir do bom para o excepcional", "escala", "ampliar".
+- executiveConclusion.isHealthy DEVE ser true; scaleNow normalmente "yes"; firstDecisionIfIHired deve focar em escala de criativos/públicos, nunca em correção.
+- O headline (executiveImpact.headlinePt) já vem com framing de teto — preserve.
 `;
 
