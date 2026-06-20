@@ -1103,6 +1103,7 @@ export type Database = {
           management_pix_qr_code_base64: string | null
           management_status: string
           management_website: string | null
+          management_whatsapp_clicked_at: string | null
           meta_ad_account_id: string | null
           meta_user_id: string | null
           mp_payment_id: string | null
@@ -1144,6 +1145,7 @@ export type Database = {
           management_pix_qr_code_base64?: string | null
           management_status?: string
           management_website?: string | null
+          management_whatsapp_clicked_at?: string | null
           meta_ad_account_id?: string | null
           meta_user_id?: string | null
           mp_payment_id?: string | null
@@ -1185,6 +1187,7 @@ export type Database = {
           management_pix_qr_code_base64?: string | null
           management_status?: string
           management_website?: string | null
+          management_whatsapp_clicked_at?: string | null
           meta_ad_account_id?: string | null
           meta_user_id?: string | null
           mp_payment_id?: string | null
@@ -1234,6 +1237,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "diagnosis_followup_jobs_diagnosis_id_fkey"
+            columns: ["diagnosis_id"]
+            isOneToOne: false
+            referencedRelation: "diagnoses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      diagnosis_handoff_events: {
+        Row: {
+          created_at: string
+          diagnosis_id: string
+          id: string
+          ip: string | null
+          kind: string
+          payload: Json | null
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          diagnosis_id: string
+          id?: string
+          ip?: string | null
+          kind: string
+          payload?: Json | null
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          diagnosis_id?: string
+          id?: string
+          ip?: string | null
+          kind?: string
+          payload?: Json | null
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diagnosis_handoff_events_diagnosis_id_fkey"
             columns: ["diagnosis_id"]
             isOneToOne: false
             referencedRelation: "diagnoses"
@@ -2287,18 +2328,21 @@ export type Database = {
       retentio_ops_config: {
         Row: {
           cron_bearer: string
+          diagnosis_funnel_agency_id: string | null
           dispatch_state: Json
           id: number
           updated_at: string
         }
         Insert: {
           cron_bearer: string
+          diagnosis_funnel_agency_id?: string | null
           dispatch_state?: Json
           id?: number
           updated_at?: string
         }
         Update: {
           cron_bearer?: string
+          diagnosis_funnel_agency_id?: string | null
           dispatch_state?: Json
           id?: number
           updated_at?: string
