@@ -9,6 +9,10 @@ import {
   managementPriceCentsFromEnv,
   paymentAmountCents,
 } from "../_shared/mercadopago-webhook-helpers.ts";
+import {
+  fetchMpAuthorizedPayment,
+  fetchMpPreapproval,
+} from "../_shared/mp-preapproval.ts";
 import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 
 async function fetchPayment(
