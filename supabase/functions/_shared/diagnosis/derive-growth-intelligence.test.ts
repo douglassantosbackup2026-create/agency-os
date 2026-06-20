@@ -174,11 +174,26 @@ describe("classifyTrend (Item 2 — tendência temporal)", () => {
 
 describe("Ad-bleed leak (Item 1 integração)", () => {
   it("criativo de alto spend e 0 compras vira leak 'low' sem imperativo de escala", () => {
+    const campaigns = [
+      { id: "c1", name: "Vendas", objective: "OUTCOME_SALES" },
+    ];
+    const campaigns_insights = [
+      {
+        campaign_id: "c1",
+        spend: 1000,
+        actions: [{ action_type: "purchase", value: "5" }],
+        action_values: [{ action_type: "purchase", value: "1000" }],
+      },
+    ];
+    const { campaigns_enriched, objective_spend_mix } = buildFactsEnrichment(
+      campaigns,
+      campaigns_insights,
+    );
     const facts: Record<string, unknown> = {
-      campaigns_enriched: [{ campaign_id: "c1", family: "sales", spend: 1000, roas: 1 }],
-      campaigns_insights: [
-        { campaign_id: "c1", actions: [{ action_type: "purchase", value: "5" }] },
-      ],
+      campaigns_sample: campaigns,
+      campaigns_insights,
+      campaigns_enriched,
+      objective_spend_mix,
       ads_insights_top: [
         {
           ad_id: "a1",
@@ -200,6 +215,7 @@ describe("Ad-bleed leak (Item 1 integração)", () => {
     expect(adLeak?.action).toMatch(/Sinal inicial|validar/i);
   });
 });
+
 
 
 
