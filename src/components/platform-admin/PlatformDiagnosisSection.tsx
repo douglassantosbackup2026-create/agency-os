@@ -176,6 +176,33 @@ export function PlatformDiagnosisSection() {
     },
   });
 
+  const cancelSubMutation = useMutation({
+    mutationFn: async (payload: { diagnosis_id: string; reason: string }) => {
+      const res = await supabase.functions.invoke("cancel-management-subscription", {
+        body: payload,
+      });
+      if (res.error) {
+        throw new Error(
+          await edgeFunctionErrorMessage(res.error, res.error.message),
+        );
+      }
+      const body = res.data as { error?: string; ok?: boolean; already_cancelled?: boolean };
+      if (body?.error) throw new Error(body.error);
+      return body;
+    },
+    onSuccess: (body) => {
+      toast.success(
+        body?.already_cancelled
+          ? "Assinatura já estava cancelada."
+          : "Assinatura cancelada no Mercado Pago.",
+      );
+      void queryClient.invalidateQueries({ queryKey: ["platform-diagnosis"] });
+    },
+    onError: (e) => {
+      toast.error(e instanceof Error ? e.message : "Falha ao cancelar assinatura");
+    },
+  });
+
   const funnelChart = useMemo(() => {
     const map = new Map(data?.funnel.map((f) => [f.status, Number(f.cnt)]));
     return FUNNEL_STATUS_ORDER.map((status) => ({
