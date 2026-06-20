@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { callDiagnosisApi } from "@/lib/diagnosis-api";
 import {
   buildGestaoIntroMessage,
@@ -9,6 +9,7 @@ import { useDiagnosisPoll } from "@/hooks/use-diagnosis-poll";
 import { InlineErrorBanner } from "@/components/diagnosis-funnel/InlineErrorBanner";
 import { GESTAO_PRODUCT, trackMetaPurchase } from "@/lib/meta-pixel";
 import { reportFunnelError } from "@/lib/report-error";
+import { logManagementHandoff } from "@/lib/log-management-handoff";
 import "@/styles/diagnosis.css";
 
 type GestaoObrigadoSearch = { d?: string; s?: string };
@@ -77,6 +78,20 @@ function GestaoObrigadoPage() {
     if (!d || snapshot?.management_status !== "paid") return;
     trackMetaPurchase(GESTAO_PRODUCT, d);
   }, [d, snapshot?.management_status]);
+
+  // Regista 1× que o cliente visualizou o estado pago (botão de WhatsApp visível).
+  const viewLoggedRef = useRef(false);
+  useEffect(() => {
+    if (!d || !s) return;
+    if (snapshot?.management_status !== "paid") return;
+    if (viewLoggedRef.current) return;
+    viewLoggedRef.current = true;
+    logManagementHandoff({
+      diagnosisId: d,
+      secretSlug: s,
+      kind: "whatsapp_view",
+    });
+  }, [d, s, snapshot?.management_status]);
 
   const waHref = useMemo(() => {
     if (!d) return "";
@@ -157,6 +172,19 @@ function GestaoObrigadoPage() {
               href={waHref}
               target="_blank"
               rel="noreferrer"
+              onClick={() => {
+                logManagementHandoff({
+                  diagnosisId: d,
+                  secretSlug: s,
+                  kind: "whatsapp_click",
+                  payload: {
+                    business_name:
+                      snapshot?.management_business_name ?? null,
+                    timed_out: timedOut,
+                    confirmed,
+                  },
+                });
+              }}
             >
               WhatsApp — próximos passos
             </a>
@@ -166,6 +194,13 @@ function GestaoObrigadoPage() {
                 params={{ diagnosisId: d }}
                 search={{ s }}
                 className="btn btn-outline"
+                onClick={() => {
+                  logManagementHandoff({
+                    diagnosisId: d,
+                    secretSlug: s,
+                    kind: "report_back_click",
+                  });
+                }}
               >
                 Voltar ao relatório
               </Link>

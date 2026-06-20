@@ -118,3 +118,6 @@ verify_jwt = false
 # NÃO deployar em produção com META_TEST_ENABLED=true.
 [functions.meta-api-test]
 verify_jwt = false
+
+[functions.log-management-handoff]
+verify_jwt = false
