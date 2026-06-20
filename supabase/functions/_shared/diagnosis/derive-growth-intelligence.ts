@@ -51,6 +51,19 @@ export type MoneyLeakCategory =
   | "budget"
   | "sales";
 
+export type EvidenceStrength = {
+  purchases: number;
+  tier: "high" | "medium" | "low";
+};
+
+export type LeakTrend = {
+  direction: "improving" | "stable" | "deteriorating" | "unknown";
+  metric: "roas" | "cpa" | "ctr" | "cpm" | null;
+  deltaPct: number | null;
+  summaryPt: string | null;
+  badge: string;
+};
+
 export type MoneyLeakItem = {
   id: string;
   title: string;
@@ -62,6 +75,9 @@ export type MoneyLeakItem = {
   priority: number;
   category: MoneyLeakCategory;
   entityName?: string;
+  entityId?: string;
+  evidenceStrength?: EvidenceStrength;
+  trend?: LeakTrend;
 };
 
 export type GrowthOpportunityItem = {
@@ -72,6 +88,7 @@ export type GrowthOpportunityItem = {
   whyExists: string;
   howToCapture: string;
   estimatedEta: string;
+  evidenceStrength?: EvidenceStrength;
 };
 
 export type GrowthRiskItem = {
