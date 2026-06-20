@@ -1832,6 +1832,128 @@ export type Database = {
           },
         ]
       }
+      management_subscription_charges: {
+        Row: {
+          amount_cents: number
+          charged_at: string | null
+          created_at: string
+          diagnosis_id: string
+          id: string
+          mp_payment_id: string | null
+          payload: Json | null
+          status: string
+          subscription_id: string
+        }
+        Insert: {
+          amount_cents: number
+          charged_at?: string | null
+          created_at?: string
+          diagnosis_id: string
+          id?: string
+          mp_payment_id?: string | null
+          payload?: Json | null
+          status: string
+          subscription_id: string
+        }
+        Update: {
+          amount_cents?: number
+          charged_at?: string | null
+          created_at?: string
+          diagnosis_id?: string
+          id?: string
+          mp_payment_id?: string | null
+          payload?: Json | null
+          status?: string
+          subscription_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "management_subscription_charges_diagnosis_id_fkey"
+            columns: ["diagnosis_id"]
+            isOneToOne: false
+            referencedRelation: "diagnoses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "management_subscription_charges_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "management_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      management_subscriptions: {
+        Row: {
+          amount_cents: number
+          cancelled_at: string | null
+          card_last4: string | null
+          created_at: string
+          currency: string
+          diagnosis_id: string
+          frequency: number
+          frequency_type: string
+          id: string
+          last_charge_at: string | null
+          last_charge_status: string | null
+          last_event_at: string | null
+          last_payload: Json | null
+          mp_preapproval_id: string | null
+          next_payment_date: string | null
+          payer_email: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          cancelled_at?: string | null
+          card_last4?: string | null
+          created_at?: string
+          currency?: string
+          diagnosis_id: string
+          frequency?: number
+          frequency_type?: string
+          id?: string
+          last_charge_at?: string | null
+          last_charge_status?: string | null
+          last_event_at?: string | null
+          last_payload?: Json | null
+          mp_preapproval_id?: string | null
+          next_payment_date?: string | null
+          payer_email?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          cancelled_at?: string | null
+          card_last4?: string | null
+          created_at?: string
+          currency?: string
+          diagnosis_id?: string
+          frequency?: number
+          frequency_type?: string
+          id?: string
+          last_charge_at?: string | null
+          last_charge_status?: string | null
+          last_event_at?: string | null
+          last_payload?: Json | null
+          mp_preapproval_id?: string | null
+          next_payment_date?: string | null
+          payer_email?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "management_subscriptions_diagnosis_id_fkey"
+            columns: ["diagnosis_id"]
+            isOneToOne: false
+            referencedRelation: "diagnoses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meeting_reports: {
         Row: {
           agency_id: string

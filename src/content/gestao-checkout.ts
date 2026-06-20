@@ -15,8 +15,19 @@ export const GESTAO_DELIVERABLES = [
 export const GESTAO_GUARANTEE =
   "Sem fidelidade. Cancele quando quiser — basta avisar pelo WhatsApp antes do próximo ciclo mensal.";
 
-export const GESTAO_RECURRENCE_NOTE =
-  "Cobrança mensal de R$ 1.997. Hoje você paga a 1ª mensalidade; nos próximos meses enviamos um novo link de pagamento (ainda não há débito automático).";
+export const GESTAO_RECURRENCE_NOTE_PIX =
+  "Pix paga a 1ª mensalidade hoje. Nos meses seguintes, enviamos um novo link de Pix pelo WhatsApp 3 dias antes do vencimento — você decide quando confirmar.";
+
+export const GESTAO_RECURRENCE_NOTE_CARD =
+  "Cartão ativa a cobrança automática mensal de R$ 1.997 pelo Mercado Pago. A 1ª cobrança acontece agora; as próximas são automáticas todo mês na mesma data. Cancele quando quiser.";
+
+export const GESTAO_PAYMENT_METHOD_HINTS = {
+  pix: "Renovação manual",
+  card: "Renovação automática",
+} as const;
+
+export const GESTAO_CARD_CONSENT =
+  "Autorizo o Mercado Pago a cobrar R$ 1.997 mensalmente no meu cartão até eu cancelar.";
 
 export const DEFAULT_MANAGEMENT_PRICE_CENTS = 199700;
 

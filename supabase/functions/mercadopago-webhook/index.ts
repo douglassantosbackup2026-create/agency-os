@@ -9,6 +9,10 @@ import {
   managementPriceCentsFromEnv,
   paymentAmountCents,
 } from "../_shared/mercadopago-webhook-helpers.ts";
+import {
+  fetchMpAuthorizedPayment,
+  fetchMpPreapproval,
+} from "../_shared/mp-preapproval.ts";
 import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 
 async function fetchPayment(
@@ -110,7 +114,23 @@ Deno.serve(async (req) => {
       ? (body.data as { id: string }).id
       : null;
 
-  if (topic !== "payment" || !dataId) {
+  const isPreapprovalTopic =
+    topic === "preapproval" || topic === "subscription_preapproval";
+  const isRecurringChargeTopic =
+    topic === "authorized_payment" || topic === "subscription_authorized_payment";
+
+  if (
+    topic !== "payment" &&
+    !isPreapprovalTopic &&
+    !isRecurringChargeTopic
+  ) {
+    return new Response(JSON.stringify({ ok: true, ignored: true }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  if (!dataId) {
     return new Response(JSON.stringify({ ok: true, ignored: true }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
@@ -129,6 +149,147 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "invalid signature" }, 401);
   }
 
+  const sbEarly = diagnosisServiceClient();
+
+  // ============================================================
+  // PREAPPROVAL — atualização de status da assinatura recorrente.
+  // ============================================================
+  if (isPreapprovalTopic) {
+    const pre = await fetchMpPreapproval(dataId);
+    if (!pre) return jsonResponse({ ok: true, note: "preapproval fetch failed" }, 200);
+
+    const extRefPre = pre.external_reference as string | undefined;
+    const status = pre.status ?? "unknown";
+
+    const { data: sub } = await sbEarly
+      .from("management_subscriptions")
+      .select("id, diagnosis_id, status")
+      .eq("mp_preapproval_id", dataId)
+      .maybeSingle();
+
+    if (sub) {
+      const update: Record<string, unknown> = {
+        status,
+        next_payment_date: pre.next_payment_date ?? null,
+        last_event_at: new Date().toISOString(),
+        last_payload: pre as unknown as Record<string, unknown>,
+      };
+      if (status === "cancelled") update.cancelled_at = new Date().toISOString();
+      await sbEarly.from("management_subscriptions").update(update).eq("id", sub.id);
+
+      // Se a assinatura foi autorizada (e o diagnóstico ainda não foi marcado), marca como pago.
+      if (status === "authorized") {
+        await sbEarly
+          .from("diagnoses")
+          .update({
+            management_status: "paid",
+            management_paid_at: new Date().toISOString(),
+          })
+          .eq("id", sub.diagnosis_id)
+          .eq("management_status", "awaiting_payment");
+      }
+    }
+
+    traceLog("mercadopago_webhook.preapproval", { id: dataId, status, ext_ref: extRefPre }, traceId);
+    return jsonResponse({ ok: true, branch: "preapproval", status }, 200);
+  }
+
+  // ============================================================
+  // AUTHORIZED_PAYMENT — cobrança mensal individual da assinatura.
+  // ============================================================
+  if (isRecurringChargeTopic) {
+    const ap = await fetchMpAuthorizedPayment(dataId);
+    if (!ap) return jsonResponse({ ok: true, note: "authorized_payment fetch failed" }, 200);
+
+    const preapprovalId = ap.preapproval_id ?? null;
+    if (!preapprovalId) {
+      return jsonResponse({ ok: true, note: "no preapproval_id" }, 200);
+    }
+
+    const { data: sub } = await sbEarly
+      .from("management_subscriptions")
+      .select("id, diagnosis_id, amount_cents")
+      .eq("mp_preapproval_id", preapprovalId)
+      .maybeSingle();
+
+    if (!sub) {
+      return jsonResponse({ ok: true, note: "unknown subscription" }, 200);
+    }
+
+    const status = ap.status ?? ap.payment?.status ?? "unknown";
+    const amountCents = Math.round(((ap.transaction_amount ?? 0) as number) * 100);
+    const paymentId = ap.payment?.id ? String(ap.payment.id) : String(ap.id ?? dataId);
+    const chargedAt = ap.debit_date ?? ap.date_created ?? new Date().toISOString();
+
+    // Idempotência: ignora se já registado.
+    const { data: existingCharge } = await sbEarly
+      .from("management_subscription_charges")
+      .select("id")
+      .eq("mp_payment_id", paymentId)
+      .maybeSingle();
+
+    if (!existingCharge) {
+      await sbEarly.from("management_subscription_charges").insert({
+        subscription_id: sub.id,
+        diagnosis_id: sub.diagnosis_id,
+        mp_payment_id: paymentId,
+        status,
+        amount_cents: amountCents,
+        charged_at: chargedAt,
+        payload: ap as unknown as Record<string, unknown>,
+      });
+
+      await sbEarly
+        .from("management_subscriptions")
+        .update({
+          last_charge_at: chargedAt,
+          last_charge_status: status,
+          last_event_at: new Date().toISOString(),
+        })
+        .eq("id", sub.id);
+
+      // Alerta interno se a cobrança recorrente falhou.
+      if (status !== "approved" && status !== "processed") {
+        try {
+          const { data: cfg } = await sbEarly
+            .from("retentio_ops_config")
+            .select("diagnosis_funnel_agency_id")
+            .eq("id", 1)
+            .maybeSingle();
+          const funnelAgencyId = (cfg as { diagnosis_funnel_agency_id?: string | null } | null)
+            ?.diagnosis_funnel_agency_id ?? null;
+          if (funnelAgencyId) {
+            await sbEarly.from("alerts").insert({
+              agency_id: funnelAgencyId,
+              type: "management_recurring_charge_failed",
+              title: `Cobrança recorrente falhou — diagnóstico ${sub.diagnosis_id.slice(0, 8)}`,
+              description: `Status: ${status}. Preapproval ${preapprovalId}. Contactar cliente para regularizar cartão.`,
+              priority: "high",
+              recommended_action:
+                "Liga para o cliente nas próximas horas. Verifica se o cartão expirou ou se há limite disponível.",
+              should_create_task: true,
+              task_title: `Recuperar cobrança falhada — ${sub.diagnosis_id.slice(0, 8)}`,
+              time_to_act: "Próximas 24h",
+              why_line: "Cobrança recorrente recusada pelo emissor — receita em risco.",
+            });
+          }
+        } catch (e) {
+          console.error("alert insert (recurring failed)", e);
+        }
+      }
+    }
+
+    traceLog(
+      "mercadopago_webhook.authorized_payment",
+      { id: dataId, status, preapproval_id: preapprovalId },
+      traceId,
+    );
+    return jsonResponse({ ok: true, branch: "authorized_payment", status }, 200);
+  }
+
+  // ============================================================
+  // PAYMENT — fluxo original (Pix / pagamento único de diagnóstico).
+  // ============================================================
   const payment = await fetchPayment(dataId, token);
   if (!payment) {
     return jsonResponse({ error: "payment fetch failed" }, 502);

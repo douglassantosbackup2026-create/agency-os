@@ -23,10 +23,13 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import {
   GESTAO_AVAILABLE_SLOTS,
+  GESTAO_CARD_CONSENT,
   GESTAO_DELIVERABLES,
+  GESTAO_PAYMENT_METHOD_HINTS,
   GESTAO_PRODUCT_NAME,
   GESTAO_PRODUCT_TAGLINE,
-  GESTAO_RECURRENCE_NOTE,
+  GESTAO_RECURRENCE_NOTE_CARD,
+  GESTAO_RECURRENCE_NOTE_PIX,
   DEFAULT_MANAGEMENT_PRICE_CENTS,
   formatManagementPrice,
   gestaoUrgencyText,
@@ -377,7 +380,7 @@ function GestaoCheckoutPage() {
             </div>
           </div>
           <p className="mt-3 rounded-md bg-muted/50 px-3 py-2 text-xs leading-snug text-muted-foreground">
-            {GESTAO_RECURRENCE_NOTE}
+            {method === "card" ? GESTAO_RECURRENCE_NOTE_CARD : GESTAO_RECURRENCE_NOTE_PIX}
           </p>
         </section>
 
@@ -453,8 +456,8 @@ function GestaoCheckoutPage() {
           <GestaoGuaranteeBlock />
           <h3 className="text-lg font-semibold">Pagamento</h3>
           <div className="grid grid-cols-2 gap-2">
-            <MethodButton active={method === "pix"} onClick={() => setMethod("pix")} icon={QrCode} label="Pix" />
-            <MethodButton active={method === "card"} onClick={() => setMethod("card")} icon={CreditCard} label="Cartão" />
+            <MethodButton active={method === "pix"} onClick={() => setMethod("pix")} icon={QrCode} label="Pix" hint={GESTAO_PAYMENT_METHOD_HINTS.pix} />
+            <MethodButton active={method === "card"} onClick={() => setMethod("card")} icon={CreditCard} label="Cartão" hint={GESTAO_PAYMENT_METHOD_HINTS.card} />
           </div>
           <div>
             {method === "pix" ? (
@@ -506,15 +509,16 @@ function Field({
   );
 }
 
-function MethodButton({ active, onClick, icon: Icon, label }: {
+function MethodButton({ active, onClick, icon: Icon, label, hint }: {
   active: boolean; onClick: () => void;
-  icon: React.ComponentType<{ className?: string }>; label: string;
+  icon: React.ComponentType<{ className?: string }>; label: string; hint?: string;
 }) {
   return (
     <button type="button" onClick={onClick}
-      className={cn("flex items-center justify-center gap-2 rounded-lg border-2 px-4 py-3 text-sm font-semibold",
+      className={cn("flex flex-col items-center justify-center gap-1 rounded-lg border-2 px-4 py-3 text-sm font-semibold",
         active ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground")}>
-      <Icon className="h-4 w-4" />{label}
+      <span className="flex items-center gap-2"><Icon className="h-4 w-4" />{label}</span>
+      {hint ? <span className="text-[10px] font-medium opacity-80">{hint}</span> : null}
     </button>
   );
 }
@@ -609,12 +613,17 @@ function GestaoCardSection({ started, ensureStarted, starting, mp, sdkError, amo
   const [holder, setHolder] = useState("");
   const [expiry, setExpiry] = useState("");
   const [cvv, setCvv] = useState("");
+  const [consent, setConsent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
+    if (!consent) {
+      setErr("Confirme a autorização da cobrança mensal para continuar.");
+      return;
+    }
     const st = await ensureStarted();
     if (!st || !mp) return;
     setLoading(true);
@@ -659,11 +668,24 @@ function GestaoCardSection({ started, ensureStarted, starting, mp, sdkError, amo
         <Input placeholder="MM/AA" value={maskExpiry(expiry)} onChange={(e) => setExpiry(e.target.value)} className="h-11" />
         <Input placeholder="CVV" value={onlyDigits(cvv).slice(0, 4)} onChange={(e) => setCvv(e.target.value)} className="h-11" />
       </div>
+      <label className="flex items-start gap-2 rounded-md border bg-muted/30 p-3 text-xs cursor-pointer">
+        <input
+          type="checkbox"
+          checked={consent}
+          onChange={(e) => setConsent(e.target.checked)}
+          className="mt-0.5 h-4 w-4 cursor-pointer"
+        />
+        <span className="leading-snug text-muted-foreground">{GESTAO_CARD_CONSENT}</span>
+      </label>
       {err ? <p className="text-sm text-destructive">{err}</p> : null}
-      <Button type="submit" disabled={loading || starting} className="h-12 w-full">
+      <Button type="submit" disabled={loading || starting || !consent} className="h-12 w-full">
         {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-        Pagar 1ª mensalidade — {formatManagementPrice(amount)}/mês
+        Ativar assinatura — {formatManagementPrice(amount)}/mês
       </Button>
+      <p className="text-center text-[11px] text-muted-foreground">
+        Cobrança automática mensal pelo Mercado Pago · Cancele quando quiser
+      </p>
     </form>
   );
 }
+
