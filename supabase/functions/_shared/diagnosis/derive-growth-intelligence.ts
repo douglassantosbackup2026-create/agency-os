@@ -21,6 +21,11 @@ import type {
   SeniorDerived,
   SeniorRisk,
 } from "./derive-senior-types.ts";
+import {
+  getAccountTrend,
+  getAdsetTrend,
+  type TrendVerdict,
+} from "./derive-trends.ts";
 export type ExecutiveImpact = {
   invested30d: number;
   investedFormatted: string;
