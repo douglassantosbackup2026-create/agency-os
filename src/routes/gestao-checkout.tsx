@@ -613,12 +613,17 @@ function GestaoCardSection({ started, ensureStarted, starting, mp, sdkError, amo
   const [holder, setHolder] = useState("");
   const [expiry, setExpiry] = useState("");
   const [cvv, setCvv] = useState("");
+  const [consent, setConsent] = useState(false);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
+    if (!consent) {
+      setErr("Confirme a autorização da cobrança mensal para continuar.");
+      return;
+    }
     const st = await ensureStarted();
     if (!st || !mp) return;
     setLoading(true);
@@ -663,11 +668,26 @@ function GestaoCardSection({ started, ensureStarted, starting, mp, sdkError, amo
         <Input placeholder="MM/AA" value={maskExpiry(expiry)} onChange={(e) => setExpiry(e.target.value)} className="h-11" />
         <Input placeholder="CVV" value={onlyDigits(cvv).slice(0, 4)} onChange={(e) => setCvv(e.target.value)} className="h-11" />
       </div>
+      <label className="flex items-start gap-2 rounded-md border bg-muted/30 p-3 text-xs cursor-pointer">
+        <input
+          type="checkbox"
+          checked={consent}
+          onChange={(e) => setConsent(e.target.checked)}
+          className="mt-0.5 h-4 w-4 cursor-pointer"
+        />
+        <span className="leading-snug text-muted-foreground">{GESTAO_CARD_CONSENT}</span>
+      </label>
       {err ? <p className="text-sm text-destructive">{err}</p> : null}
-      <Button type="submit" disabled={loading || starting} className="h-12 w-full">
+      <Button type="submit" disabled={loading || starting || !consent} className="h-12 w-full">
         {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-        Pagar 1ª mensalidade — {formatManagementPrice(amount)}/mês
+        Ativar assinatura — {formatManagementPrice(amount)}/mês
       </Button>
+      <p className="text-center text-[11px] text-muted-foreground">
+        Cobrança automática mensal pelo Mercado Pago · Cancele quando quiser
+      </p>
+    </form>
+  );
+}
     </form>
   );
 }
