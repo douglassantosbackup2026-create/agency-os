@@ -583,6 +583,173 @@ async function fetchTopAdsInsights(
   return [];
 }
 
+// ── Tendências temporais (14d vs 14d anteriores) ─────────────────────────────
+
+function isoDate(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+function buildTrendWindows(): {
+  current: { since: string; until: string };
+  previous: { since: string; until: string };
+} {
+  const today = new Date();
+  // "ontem" como until — evita janela parcial do dia corrente
+  const yesterday = new Date(today);
+  yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+  const currentSince = new Date(yesterday);
+  currentSince.setUTCDate(currentSince.getUTCDate() - 13);
+  const previousUntil = new Date(currentSince);
+  previousUntil.setUTCDate(previousUntil.getUTCDate() - 1);
+  const previousSince = new Date(previousUntil);
+  previousSince.setUTCDate(previousSince.getUTCDate() - 13);
+  return {
+    current: { since: isoDate(currentSince), until: isoDate(yesterday) },
+    previous: { since: isoDate(previousSince), until: isoDate(previousUntil) },
+  };
+}
+
+function purchasesFromActions(actions: unknown): number {
+  if (!Array.isArray(actions)) return 0;
+  let total = 0;
+  for (const a of actions as { action_type?: string; value?: string }[]) {
+    if (/^purchase$|^omni_purchase$/i.test(a.action_type ?? "")) {
+      total += Number(a.value ?? 0);
+    }
+  }
+  return total;
+}
+
+function purchaseValueFromActionValues(actionValues: unknown): number {
+  if (!Array.isArray(actionValues)) return 0;
+  let total = 0;
+  for (const a of actionValues as { action_type?: string; value?: string }[]) {
+    if (/^purchase$|^omni_purchase$/i.test(a.action_type ?? "")) {
+      total += Number(a.value ?? 0);
+    }
+  }
+  return total;
+}
+
+type TrendSnapshot = {
+  roas?: { current: number | null; previous: number | null; deltaPct: number | null };
+  ctr?: { current: number | null; previous: number | null; deltaPct: number | null };
+  cpm?: { current: number | null; previous: number | null; deltaPct: number | null };
+  cpa?: { current: number | null; previous: number | null; deltaPct: number | null };
+  spend?: { current: number | null; previous: number | null; deltaPct: number | null };
+};
+
+function deltaPct(curr: number | null, prev: number | null): number | null {
+  if (curr == null || prev == null || prev === 0) return null;
+  return ((curr - prev) / prev) * 100;
+}
+
+function snapshotFromRow(row: Record<string, unknown> | undefined): {
+  roas: number | null;
+  ctr: number | null;
+  cpm: number | null;
+  cpa: number | null;
+  spend: number | null;
+} {
+  if (!row) return { roas: null, ctr: null, cpm: null, cpa: null, spend: null };
+  const spend = Number(row.spend ?? 0) || null;
+  const purchases = purchasesFromActions(row.actions);
+  const revenue = purchaseValueFromActionValues(row.action_values);
+  const roas = spend && revenue > 0 ? revenue / spend : null;
+  const ctr = row.ctr != null ? Number(row.ctr) : null;
+  const cpm = row.cpm != null ? Number(row.cpm) : null;
+  const cpa = spend && purchases > 0 ? spend / purchases : null;
+  return { roas, ctr, cpm, cpa, spend };
+}
+
+function buildSnapshot(
+  curr: Record<string, unknown> | undefined,
+  prev: Record<string, unknown> | undefined,
+): TrendSnapshot {
+  const c = snapshotFromRow(curr);
+  const p = snapshotFromRow(prev);
+  return {
+    roas: { current: c.roas, previous: p.roas, deltaPct: deltaPct(c.roas, p.roas) },
+    ctr: { current: c.ctr, previous: p.ctr, deltaPct: deltaPct(c.ctr, p.ctr) },
+    cpm: { current: c.cpm, previous: p.cpm, deltaPct: deltaPct(c.cpm, p.cpm) },
+    cpa: { current: c.cpa, previous: p.cpa, deltaPct: deltaPct(c.cpa, p.cpa) },
+    spend: { current: c.spend, previous: p.spend, deltaPct: deltaPct(c.spend, p.spend) },
+  };
+}
+
+async function fetchInsightsWindow(
+  actId: string,
+  token: string,
+  metaSession: MetaGraphSession,
+  level: "account" | "adset",
+  range: { since: string; until: string },
+  limit = 80,
+): Promise<Record<string, unknown>[]> {
+  if (metaSession.skipOptional()) return [];
+  const u = new URL(`https://graph.facebook.com/v21.0/${actId}/insights`);
+  if (level === "adset") {
+    u.searchParams.set("level", "adset");
+    u.searchParams.set(
+      "fields",
+      "adset_id,adset_name,spend,ctr,cpm,actions,action_values",
+    );
+    u.searchParams.set("limit", String(limit));
+  } else {
+    u.searchParams.set(
+      "fields",
+      "spend,ctr,cpm,actions,action_values",
+    );
+  }
+  u.searchParams.set("time_range", JSON.stringify(range));
+  u.searchParams.set("access_token", token);
+  try {
+    const j = await metaGraphFetchJson<{
+      data?: Record<string, unknown>[];
+      error?: { message: string };
+    }>(u, metaSession);
+    return j.data ?? [];
+  } catch (e) {
+    console.warn(
+      `[process-diagnosis] trend fetch (${level}) falhou: ${String(e).slice(0, 200)}`,
+    );
+    return [];
+  }
+}
+
+async function fetchTrendsBundle(
+  actId: string,
+  token: string,
+  metaSession: MetaGraphSession,
+): Promise<Record<string, unknown> | null> {
+  const windows = buildTrendWindows();
+  try {
+    const [accountCurr, accountPrev, adsetCurr, adsetPrev] = await Promise.all([
+      fetchInsightsWindow(actId, token, metaSession, "account", windows.current),
+      fetchInsightsWindow(actId, token, metaSession, "account", windows.previous),
+      fetchInsightsWindow(actId, token, metaSession, "adset", windows.current, 80),
+      fetchInsightsWindow(actId, token, metaSession, "adset", windows.previous, 80),
+    ]);
+    const account = buildSnapshot(accountCurr[0], accountPrev[0]);
+    const adsetsCurrMap = new Map<string, Record<string, unknown>>();
+    for (const r of adsetCurr) adsetsCurrMap.set(String(r.adset_id ?? ""), r);
+    const adsetsPrevMap = new Map<string, Record<string, unknown>>();
+    for (const r of adsetPrev) adsetsPrevMap.set(String(r.adset_id ?? ""), r);
+    const adsets: Record<string, TrendSnapshot> = {};
+    const ids = new Set<string>([
+      ...adsetsCurrMap.keys(),
+      ...adsetsPrevMap.keys(),
+    ]);
+    for (const id of ids) {
+      if (!id) continue;
+      adsets[id] = buildSnapshot(adsetsCurrMap.get(id), adsetsPrevMap.get(id));
+    }
+    return { windows, account, adsets };
+  } catch (e) {
+    console.warn(`[process-diagnosis] fetchTrendsBundle: ${String(e).slice(0, 200)}`);
+    return null;
+  }
+}
+
 // ── AI Providers ─────────────────────────────────────────────────────────────
 
 async function callAnthropic(facts: Record<string, unknown>): Promise<unknown> {
@@ -879,6 +1046,12 @@ Deno.serve(async (req) => {
         } catch (e) {
           console.warn(`[process-diagnosis] ad insights falhou: ${String(e).slice(0, 200)}`);
         }
+        let trends: Record<string, unknown> | null = null;
+        try {
+          trends = await fetchTrendsBundle(actId, token, metaSession);
+        } catch (e) {
+          console.warn(`[process-diagnosis] trends falhou: ${String(e).slice(0, 200)}`);
+        }
         const { campaigns_enriched, objective_spend_mix } = buildFactsEnrichment(
           campaigns.slice(0, 40),
           campaigns_insights.slice(0, 50),
@@ -894,6 +1067,7 @@ Deno.serve(async (req) => {
           ads_insights_top: ads_insights_top.slice(0, 25),
           adsets_insights: adsets_insights.slice(0, 80),
           adsets_targeting_sample: adsets_targeting_sample.slice(0, 60),
+          trends,
           generated_at: new Date().toISOString(),
         };
         const facts = {

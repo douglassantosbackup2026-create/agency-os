@@ -130,4 +130,92 @@ describe("Funnel sub-bottlenecks (add_payment_info)", () => {
   });
 });
 
+import { evidenceStrengthFromPurchases } from "./derive-growth-intelligence.ts";
+import { classifyTrend } from "./derive-trends.ts";
+
+describe("evidenceStrengthFromPurchases (Item 1 — confiança estatística)", () => {
+  it("classifica <10 compras como low", () => {
+    expect(evidenceStrengthFromPurchases(3).tier).toBe("low");
+    expect(evidenceStrengthFromPurchases(9).tier).toBe("low");
+  });
+  it("classifica 10–29 compras como medium", () => {
+    expect(evidenceStrengthFromPurchases(10).tier).toBe("medium");
+    expect(evidenceStrengthFromPurchases(29).tier).toBe("medium");
+  });
+  it("classifica ≥30 compras como high", () => {
+    expect(evidenceStrengthFromPurchases(30).tier).toBe("high");
+    expect(evidenceStrengthFromPurchases(120).tier).toBe("high");
+  });
+});
+
+describe("classifyTrend (Item 2 — tendência temporal)", () => {
+  it("ROAS caindo ≥15% → deteriorating", () => {
+    const r = classifyTrend("roas", 5, 7);
+    expect(r.direction).toBe("deteriorating");
+    expect(r.deltaPct).toBeLessThan(0);
+  });
+  it("ROAS subindo ≥15% → improving", () => {
+    expect(classifyTrend("roas", 7, 5).direction).toBe("improving");
+  });
+  it("variação <15% → stable", () => {
+    expect(classifyTrend("roas", 5.3, 5).direction).toBe("stable");
+  });
+  it("CPA subindo é deteriorating (métrica ruim)", () => {
+    expect(classifyTrend("cpa", 100, 70).direction).toBe("deteriorating");
+  });
+  it("CPA caindo é improving (métrica ruim invertida)", () => {
+    expect(classifyTrend("cpa", 60, 100).direction).toBe("improving");
+  });
+  it("previous=0 ou null → unknown", () => {
+    expect(classifyTrend("roas", 5, 0).direction).toBe("unknown");
+    expect(classifyTrend("roas", null, 5).direction).toBe("unknown");
+  });
+});
+
+describe("Ad-bleed leak (Item 1 integração)", () => {
+  it("criativo de alto spend e 0 compras vira leak 'low' sem imperativo de escala", () => {
+    const campaigns = [
+      { id: "c1", name: "Vendas", objective: "OUTCOME_SALES" },
+    ];
+    const campaigns_insights = [
+      {
+        campaign_id: "c1",
+        spend: 1000,
+        actions: [{ action_type: "purchase", value: "5" }],
+        action_values: [{ action_type: "purchase", value: "1000" }],
+      },
+    ];
+    const { campaigns_enriched, objective_spend_mix } = buildFactsEnrichment(
+      campaigns,
+      campaigns_insights,
+    );
+    const facts: Record<string, unknown> = {
+      campaigns_sample: campaigns,
+      campaigns_insights,
+      campaigns_enriched,
+      objective_spend_mix,
+      ads_insights_top: [
+        {
+          ad_id: "a1",
+          ad_name: "Mantas — vídeo",
+          campaign_name: "Vendas",
+          spend: 400,
+          actions: [],
+          action_values: [],
+          ctr: 1.0,
+        },
+      ],
+    };
+    attachCommercialToFacts(facts);
+    const gi = facts.growth_intelligence_derived as GrowthIntelligenceDerived;
+    const adLeak = gi.moneyLeaks.find((l) => l.id.startsWith("ad-bleed:"));
+    expect(adLeak).toBeDefined();
+    expect(adLeak?.evidenceStrength?.tier).toBe("low");
+    expect(adLeak?.confidence).toBe("low");
+    expect(adLeak?.action).toMatch(/Sinal inicial|validar/i);
+  });
+});
+
+
+
 

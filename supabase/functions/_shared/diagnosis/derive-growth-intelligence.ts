@@ -21,6 +21,11 @@ import type {
   SeniorDerived,
   SeniorRisk,
 } from "./derive-senior-types.ts";
+import {
+  getAccountTrend,
+  getAdsetTrend,
+  type TrendVerdict,
+} from "./derive-trends.ts";
 export type ExecutiveImpact = {
   invested30d: number;
   investedFormatted: string;
@@ -46,6 +51,19 @@ export type MoneyLeakCategory =
   | "budget"
   | "sales";
 
+export type EvidenceStrength = {
+  purchases: number;
+  tier: "high" | "medium" | "low";
+};
+
+export type LeakTrend = {
+  direction: "improving" | "stable" | "deteriorating" | "unknown";
+  metric: "roas" | "cpa" | "ctr" | "cpm" | null;
+  deltaPct: number | null;
+  summaryPt: string | null;
+  badge: string;
+};
+
 export type MoneyLeakItem = {
   id: string;
   title: string;
@@ -57,6 +75,9 @@ export type MoneyLeakItem = {
   priority: number;
   category: MoneyLeakCategory;
   entityName?: string;
+  entityId?: string;
+  evidenceStrength?: EvidenceStrength;
+  trend?: LeakTrend;
 };
 
 export type GrowthOpportunityItem = {
@@ -67,6 +88,7 @@ export type GrowthOpportunityItem = {
   whyExists: string;
   howToCapture: string;
   estimatedEta: string;
+  evidenceStrength?: EvidenceStrength;
 };
 
 export type GrowthRiskItem = {
@@ -124,6 +146,11 @@ export type GrowthProjections = {
   scenarios: GrowthProjectionScenario[];
 };
 
+export type AccountHealthVerdict = {
+  isHealthy: boolean;
+  reasons: string[];
+};
+
 export type GrowthIntelligenceDerived = {
   executiveImpact: ExecutiveImpact;
   moneyLeaks: MoneyLeakItem[];
@@ -133,6 +160,8 @@ export type GrowthIntelligenceDerived = {
   maturity: EnterpriseMaturity;
   decisionActions: DecisionActionItem[];
   projections: GrowthProjections;
+  accountHealth: AccountHealthVerdict;
+  accountTrend?: LeakTrend | null;
 };
 
 function fmtBrl(n: number): string {
@@ -162,6 +191,67 @@ function mapSeniorSeverity(s: SeniorRisk["severity"]): GrowthRiskItem["severity"
 function sumMoneyLeaks(leaks: MoneyLeakItem[]): number {
   return leaks.reduce((sum, leak) => sum + leak.monthlyImpactBrl, 0);
 }
+
+/** Item 1 — confiança estatística por volume de compras observado na evidência. */
+export function evidenceStrengthFromPurchases(purchases: number): EvidenceStrength {
+  const p = Math.max(0, Math.round(purchases));
+  if (p >= 30) return { purchases: p, tier: "high" };
+  if (p >= 10) return { purchases: p, tier: "medium" };
+  return { purchases: p, tier: "low" };
+}
+
+function confidenceFromTier(
+  tier: EvidenceStrength["tier"],
+): MoneyLeakItem["confidence"] {
+  if (tier === "high") return "high";
+  if (tier === "medium") return "medium";
+  return "low";
+}
+
+/** Conta compras (purchase / omni_purchase) num row de insights. */
+function countPurchasesFromActions(actions: unknown): number {
+  if (!Array.isArray(actions)) return 0;
+  let total = 0;
+  for (const a of actions as { action_type?: string; value?: string }[]) {
+    if (/^purchase$|^omni_purchase$/i.test(a.action_type ?? "")) {
+      total += num(a.value) ?? 0;
+    }
+  }
+  return total;
+}
+
+/** Purchases atribuídas a um adset via facts.adsets_insights. */
+function purchasesForAdset(
+  facts: Record<string, unknown>,
+  adsetId: string | null | undefined,
+): number {
+  if (!adsetId) return 0;
+  const list = Array.isArray(facts.adsets_insights)
+    ? (facts.adsets_insights as Record<string, unknown>[])
+    : [];
+  const row = list.find((r) => String(r.adset_id ?? "") === adsetId);
+  return row ? countPurchasesFromActions(row.actions) : 0;
+}
+
+function trendFromVerdict(v: TrendVerdict): LeakTrend {
+  const badge =
+    v.direction === "deteriorating"
+      ? "🔻 Em deterioração"
+      : v.direction === "improving"
+        ? "▲ Melhorando"
+        : v.direction === "stable"
+          ? "📊 Crônico"
+          : "";
+  return {
+    direction: v.direction,
+    metric: v.metric,
+    deltaPct: v.deltaPct,
+    summaryPt: v.summaryPt,
+    badge,
+  };
+}
+
+
 
 function syncStoryExecutiveGap(
   commercial: CommercialDerived,
@@ -294,17 +384,21 @@ function buildMoneyLeaks(
     const spend = spendByAdset.get(row.adset_id) ?? 0;
     if (spend < 100) continue;
     const impact = Math.round(spend * 0.5);
+    const purchases = purchasesForAdset(facts, row.adset_id);
+    const ev = evidenceStrengthFromPurchases(purchases);
     leaks.push({
       id: `learning:${row.adset_id}`,
       title: `Learning fail — ${row.adset_name.slice(0, 60)}`,
       monthlyImpactBrl: impact,
       monthlyImpactFormatted: fmtBrl(impact),
-      confidence: "high",
+      confidence: confidenceFromTier(ev.tier),
       rootCause: row.issues_summary?.join("; ") || "Conjunto saiu do aprendizado sem otimização plena.",
       action: "Consolidar volume, revisar público/criativo ou pausar antes de escalar.",
       priority: 0,
       category: "learning",
       entityName: row.adset_name,
+      entityId: row.adset_id,
+      evidenceStrength: ev,
     });
   }
 
@@ -314,50 +408,61 @@ function buildMoneyLeaks(
   for (const ad of adsTop) {
     const spend = num(ad.spend) ?? 0;
     if (spend < 200) continue;
-    const purchases = Array.isArray(ad.actions)
-      ? (ad.actions as { action_type?: string; value?: string }[]).reduce((s, a) => {
-          if (/^purchase$|^omni_purchase$/i.test(a.action_type ?? "")) {
-            return s + (num(a.value) ?? 0);
-          }
-          return s;
-        }, 0)
-      : 0;
+    const purchases = countPurchasesFromActions(ad.actions);
     const roas = computeRoas(ad.action_values, spend);
     if (purchases > 1) continue;
     const impact = Math.round(spend * (purchases === 0 ? 0.85 : 0.55));
     if (impact < 80) continue;
     const adName = String(ad.ad_name ?? ad.ad_id ?? "anúncio").slice(0, 60);
+    const ev = evidenceStrengthFromPurchases(purchases);
     leaks.push({
       id: `ad-bleed:${String(ad.ad_id ?? adName)}`,
       title: `Criativo ineficiente — ${adName}`,
       monthlyImpactBrl: impact,
       monthlyImpactFormatted: fmtBrl(impact),
-      confidence: "medium",
+      // Sem compras é evidência baixa — não prescrever escala.
+      confidence: confidenceFromTier(ev.tier),
       rootCause:
         purchases === 0
-          ? `${fmtBrl(spend)} gastos sem compra rastreada no período.`
+          ? `${fmtBrl(spend)} gastos sem compra rastreada no período (evidência ainda inicial).`
           : `${fmtBrl(spend)} para ${purchases} compra — ROAS ${roas != null ? `${roas.toFixed(1)}×` : "baixo"}.`,
-      action: "Pausar ou substituir criativo; redistribuir verba para vencedores.",
+      action:
+        ev.tier === "low"
+          ? "Sinal inicial — validar com +7 dias antes de pausar ou substituir o criativo."
+          : "Pausar ou substituir criativo; redistribuir verba para vencedores.",
       priority: 0,
       category: "creative",
       entityName: adName,
+      evidenceStrength: ev,
     });
   }
 
   const bleedRows = (consultative?.adsetBleedRanking ?? []).filter((r) => r.bleedBrl >= 50);
   if (bleedRows.length) {
     const [worst, ...rest] = bleedRows;
+    const worstPurchases = purchasesForAdset(facts, worst.adsetId);
+    const worstEv = evidenceStrengthFromPurchases(worstPurchases);
     leaks.push({
       id: `bleed:${worst.adsetId}`,
       title: `${worst.adsetName} — ROAS ${worst.roasFormatted} vs nicho`,
       monthlyImpactBrl: worst.bleedBrl,
       monthlyImpactFormatted: worst.bleedFormatted,
-      confidence: worst.bleedBrl >= 500 ? "high" : "medium",
-      rootCause: `ROAS ${worst.roasFormatted} em campanha de Vendas; ${worst.spendFormatted} investidos no período.`,
-      action: "Reduzir verba, pausar ou reestruturar público/criativo neste conjunto.",
+      confidence:
+        worst.bleedBrl >= 500 && worstEv.tier !== "low"
+          ? "high"
+          : worstEv.tier === "low"
+            ? "low"
+            : "medium",
+      rootCause: `ROAS ${worst.roasFormatted} em campanha de Vendas; ${worst.spendFormatted} investidos no período${worstPurchases > 0 ? ` (${worstPurchases} compra${worstPurchases > 1 ? "s" : ""} observada${worstPurchases > 1 ? "s" : ""})` : " — ainda sem compras rastreadas suficientes"}.`,
+      action:
+        worstEv.tier === "low"
+          ? "Sinal direcional — coletar +7 dias antes de pausar ou reestruturar."
+          : "Reduzir verba, pausar ou reestruturar público/criativo neste conjunto.",
       priority: 0,
       category: "sales",
       entityName: worst.adsetName,
+      entityId: worst.adsetId,
+      evidenceStrength: worstEv,
     });
     if (rest.length) {
       const sum = rest.reduce((s, r) => s + r.bleedBrl, 0);
@@ -480,22 +585,51 @@ function buildGrowthOpportunities(
   consultative: ConsultativeDerived | null,
   commercial: CommercialDerived,
   senior: SeniorDerived | undefined,
+  facts: Record<string, unknown>,
+  health: AccountHealthVerdict,
 ): GrowthOpportunityItem[] {
   const out: GrowthOpportunityItem[] = [];
   const recovery = commercial.recovery.conservativeMonthlyBrl;
-  const winner = consultative?.winnerUnderinvested;
+  const winnerRaw = facts.adset_winner_underinvested as
+    | { adId?: string; adName?: string; roas?: number; spend?: number; spendNote?: string }
+    | undefined;
+  const winner = consultative?.winnerUnderinvested ?? null;
 
   if (winner) {
-    const uplift = Math.round(winner.spend * Math.max(0, winner.roas - 1) * 2);
+    // Item 1 — confiança estatística por número de compras do criativo vencedor.
+    const adsTop = Array.isArray(facts.ads_insights_top)
+      ? (facts.ads_insights_top as Record<string, unknown>[])
+      : [];
+    const adId = winnerRaw?.adId ?? null;
+    const matched = adId
+      ? adsTop.find((a) => String(a.ad_id ?? "") === adId)
+      : adsTop.find((a) => String(a.ad_name ?? "") === winner.adName);
+    const purchases = matched ? countPurchasesFromActions(matched.actions) : 0;
+    const ev = evidenceStrengthFromPurchases(purchases);
+
+    const winnerSpend = (winnerRaw?.spend ?? 0) || 0;
+    const uplift = Math.round(winnerSpend * Math.max(0, winner.roas - 1) * 2);
+    const titleVerb =
+      ev.tier === "high"
+        ? "Escalar criativo vencedor"
+        : ev.tier === "medium"
+          ? "Validar e escalar criativo promissor"
+          : "Validar sinal inicial do criativo";
+    const howToCapture =
+      ev.tier === "low"
+        ? `Sinal direcional (${ev.purchases} compra${ev.purchases === 1 ? "" : "s"} no período). Subir verba em +30% por 7 dias antes de escalar agressivamente; manter conjunto dedicado a ${winner.adName} (ROAS ${winner.roas.toFixed(1)}×).`
+        : ev.tier === "medium"
+          ? `Evidência média (${ev.purchases} compras). Isolar ${winner.adName} em conjunto dedicado com orçamento próprio (ROAS ${winner.roas.toFixed(1)}×) e dobrar verba apenas após +14 dias estáveis.`
+          : `Criar conjunto dedicado com orçamento exclusivo para ${winner.adName} (ROAS ${winner.roas.toFixed(1)}×); evidência sólida (${ev.purchases} compras) — pode escalar agora.`;
     out.push({
       id: "winner-underinvested",
-      title: `Isolar criativo vencedor: ${winner.adName}`,
+      title: `${titleVerb}: ${winner.adName}`,
       potentialMonthlyBrl: uplift > 0 ? uplift : null,
       potentialFormatted: uplift > 0 ? fmtBrl(uplift) : "—",
       whyExists: winner.spendNote,
-      howToCapture:
-        `Criar conjunto dedicado com orçamento exclusivo para ${winner.adName} (ROAS ${winner.roas.toFixed(1)}×).`,
-      estimatedEta: "3–7 dias",
+      howToCapture,
+      estimatedEta: ev.tier === "low" ? "7–14 dias (validação)" : "3–7 dias",
+      evidenceStrength: ev,
     });
   }
 
@@ -504,22 +638,28 @@ function buildGrowthOpportunities(
   const namedAxis = (senior?.leakByAxis ?? []).find((a) =>
     a.evidence && /[A-Za-zÀ-ÿ]/.test(a.evidence) && a.monthlyBrl > 0,
   );
+  // Item 3 — em conta saudável, troca o enquadramento de "recuperar eficiência"
+  // para "subir do bom para o excepcional".
   if (gs && recovery > 0 && (winner || namedBleeds.length >= 2 || namedAxis)) {
     const targets = namedBleeds.slice(0, 2).map((b) => b.adsetName).join(", ");
-    const title = targets
-      ? `Realocar verba dos conjuntos ${targets} para vencedores`
-      : namedAxis
-        ? `Recuperar eficiência no eixo ${namedAxis.axisLabel}`
-        : "Reinvestir verba liberada no criativo vencedor";
+    const title = health.isHealthy
+      ? "Subir do bom para o excepcional — teto disponível"
+      : targets
+        ? `Realocar verba dos conjuntos ${targets} para vencedores`
+        : namedAxis
+          ? `Recuperar eficiência no eixo ${namedAxis.axisLabel}`
+          : "Reinvestir verba liberada no criativo vencedor";
     out.push({
       id: "recovery-headroom",
       title,
       potentialMonthlyBrl: recovery,
       potentialFormatted: fmtBrl(recovery),
       whyExists: gs.basisNote,
-      howToCapture: targets
-        ? `Pausar/reduzir ${targets} e realocar verba para conjuntos com ROAS acima do nicho.`
-        : "Executar plano de correção nos eixos com maior vazamento antes de escalar.",
+      howToCapture: health.isHealthy
+        ? "Conta já no top do nicho — usar verba liberada para testar novos públicos/criativos e ampliar teto, não para corrigir."
+        : targets
+          ? `Pausar/reduzir ${targets} e realocar verba para conjuntos com ROAS acima do nicho.`
+          : "Executar plano de correção nos eixos com maior vazamento antes de escalar.",
       estimatedEta: "30 dias",
     });
   }
@@ -702,6 +842,78 @@ function buildProjections(
   };
 }
 
+/** Item 3 — Detecta conta saudável (sem gargalo crítico, ROAS dentro/acima do nicho). */
+function evaluateAccountHealth(
+  facts: Record<string, unknown>,
+  commercial: CommercialDerived,
+  gapFromMeta: number,
+  score: number,
+  consultative: ConsultativeDerived | null,
+): AccountHealthVerdict {
+  const reasons: string[] = [];
+  const econ = commercial.accountEconomics;
+  const revenue = econ.revenue30d ?? 0;
+  const gapShare = revenue > 0 ? gapFromMeta / revenue : 1;
+
+  const roasGap = commercial.benchmarkComparison.gaps.find(
+    (g) => /roas/i.test(g.metric),
+  );
+  const roasOk = !roasGap || !roasGap.isBad;
+
+  const funnel = consultative?.conversionFunnel;
+  const hasFunnelLeak =
+    !!funnel?.revenueAtRiskMonthlyBrl && funnel.revenueAtRiskMonthlyBrl >= 100;
+
+  const criticalRisks =
+    (commercial.seniorDerived?.risks ?? []).filter((r) => r.severity === "critical").length;
+
+  const isHealthy =
+    score >= 80 &&
+    roasOk &&
+    gapShare <= 0.1 &&
+    !hasFunnelLeak &&
+    criticalRisks === 0;
+
+  if (score >= 80) reasons.push(`Score ${score} ≥ 80`);
+  if (roasOk) reasons.push("ROAS dentro ou acima do nicho");
+  if (gapShare <= 0.1) reasons.push("Gap ≤ 10% da receita mensal");
+  if (!hasFunnelLeak) reasons.push("Sem gargalo de funil relevante");
+  if (criticalRisks === 0) reasons.push("Sem risco crítico aberto");
+
+  return { isHealthy, reasons };
+}
+
+/** Anexa trend a cada leak com entityId (adset). */
+function attachTrendsToLeaks(
+  leaks: MoneyLeakItem[],
+  facts: Record<string, unknown>,
+): void {
+  for (const l of leaks) {
+    if (!l.entityId) continue;
+    const v = getAdsetTrend(facts, l.entityId);
+    if (v.direction === "unknown") continue;
+    l.trend = trendFromVerdict(v);
+    // 🔻 prefixar título quando em deterioração, sem duplicar
+    if (
+      v.direction === "deteriorating" &&
+      !l.title.startsWith("🔻") &&
+      !l.title.startsWith("📊")
+    ) {
+      l.title = `🔻 ${l.title}`;
+    } else if (
+      v.direction === "stable" &&
+      !l.title.startsWith("🔻") &&
+      !l.title.startsWith("📊")
+    ) {
+      l.title = `📊 ${l.title}`;
+    }
+    // Embute a frase de tendência na rootCause para a IA citar.
+    if (l.trend.summaryPt && !l.rootCause.includes(l.trend.summaryPt)) {
+      l.rootCause = `${l.rootCause} ${l.trend.summaryPt}.`.trim();
+    }
+  }
+}
+
 export function buildGrowthIntelligenceDerived(
   facts: Record<string, unknown>,
   commercial: CommercialDerived,
@@ -709,13 +921,17 @@ export function buildGrowthIntelligenceDerived(
   const consultative = facts.consultative_derived as ConsultativeDerived | undefined;
   const senior = commercial.seniorDerived;
   const gap = consultative?.accountFinancialGap ?? null;
+  const scoreVal = deriveAccountScore(facts).score;
 
   const moneyLeaksRaw = buildMoneyLeaks(consultative ?? null, commercial, senior, facts);
+  // Item 2 — trends por adset
+  attachTrendsToLeaks(moneyLeaksRaw, facts);
+
   // Conciliar com gap da conta — se gap agregado > soma dos leaks atribuídos,
   // adicionar UMA entrada residual para o leitor não fazer dupla contagem.
   const gapFromMeta = gap?.gapMonthlyBrl ?? 0;
   const attributedSum = sumMoneyLeaks(moneyLeaksRaw);
-  const moneyLeaks = [...moneyLeaksRaw];
+  let moneyLeaks = [...moneyLeaksRaw];
   if (gapFromMeta > 0 && gapFromMeta - attributedSum >= 100) {
     const residual = gapFromMeta - attributedSum;
     moneyLeaks.push({
@@ -731,10 +947,43 @@ export function buildGrowthIntelligenceDerived(
       category: "sales",
     });
   }
+
+  // Item 3 — modo conta saudável: limitar leaks a no máximo 1.
+  const health = evaluateAccountHealth(
+    facts,
+    commercial,
+    gapFromMeta,
+    scoreVal,
+    consultative ?? null,
+  );
+  if (health.isHealthy && moneyLeaks.length > 1) {
+    moneyLeaks = moneyLeaks.slice(0, 1);
+  }
+
   const leakSum = sumMoneyLeaks(moneyLeaks);
   syncStoryExecutiveGap(commercial, Math.max(gapFromMeta, commercial.waste.totalMonthlyBrl, leakSum));
   const executiveImpact = buildExecutiveImpact(gap, commercial, leakSum);
-  const growthOpportunities = buildGrowthOpportunities(consultative ?? null, commercial, senior);
+
+  // Item 3 — headline da conta saudável.
+  if (health.isHealthy) {
+    const roasOk = commercial.accountEconomics.roasFormatted;
+    const ceilingBrl =
+      commercial.recovery.conservativeMonthlyBrl > 0
+        ? commercial.recovery.conservativeMonthlyBrl
+        : leakSum;
+    executiveImpact.headlinePt =
+      ceilingBrl > 0
+        ? `Conta no top do nicho (ROAS ${roasOk}) — teto disponível de ${fmtBrl(ceilingBrl)}/mês para subir do bom para o excepcional.`
+        : `Conta no top do nicho (ROAS ${roasOk}) — sem vazamentos críticos. Foco em escala, não em correção.`;
+  }
+
+  const growthOpportunities = buildGrowthOpportunities(
+    consultative ?? null,
+    commercial,
+    senior,
+    facts,
+    health,
+  );
   const risks = buildRisks(senior, consultative?.deliverySummary ?? null, commercial);
   const benchmarkImpacts = buildBenchmarkImpacts(commercial);
   const maturity = buildEnterpriseMaturity(
@@ -744,10 +993,15 @@ export function buildGrowthIntelligenceDerived(
       summary: "Dados limitados para maturidade.",
       pillars: [],
     },
-    deriveAccountScore(facts).score,
+    scoreVal,
   );
   const decisionActions = buildDecisionActions(senior, facts);
   const projections = buildProjections(commercial, senior?.growthScenarios);
+
+  // Item 2 — trend da conta no payload.
+  const accountVerdict = getAccountTrend(facts);
+  const accountTrend =
+    accountVerdict.direction === "unknown" ? null : trendFromVerdict(accountVerdict);
 
   const out: GrowthIntelligenceDerived = {
     executiveImpact,
@@ -758,6 +1012,8 @@ export function buildGrowthIntelligenceDerived(
     maturity,
     decisionActions,
     projections,
+    accountHealth: health,
+    accountTrend,
   };
   facts.growth_intelligence_derived = out;
   return out;
