@@ -384,17 +384,21 @@ function buildMoneyLeaks(
     const spend = spendByAdset.get(row.adset_id) ?? 0;
     if (spend < 100) continue;
     const impact = Math.round(spend * 0.5);
+    const purchases = purchasesForAdset(facts, row.adset_id);
+    const ev = evidenceStrengthFromPurchases(purchases);
     leaks.push({
       id: `learning:${row.adset_id}`,
       title: `Learning fail — ${row.adset_name.slice(0, 60)}`,
       monthlyImpactBrl: impact,
       monthlyImpactFormatted: fmtBrl(impact),
-      confidence: "high",
+      confidence: confidenceFromTier(ev.tier),
       rootCause: row.issues_summary?.join("; ") || "Conjunto saiu do aprendizado sem otimização plena.",
       action: "Consolidar volume, revisar público/criativo ou pausar antes de escalar.",
       priority: 0,
       category: "learning",
       entityName: row.adset_name,
+      entityId: row.adset_id,
+      evidenceStrength: ev,
     });
   }
 
@@ -404,50 +408,61 @@ function buildMoneyLeaks(
   for (const ad of adsTop) {
     const spend = num(ad.spend) ?? 0;
     if (spend < 200) continue;
-    const purchases = Array.isArray(ad.actions)
-      ? (ad.actions as { action_type?: string; value?: string }[]).reduce((s, a) => {
-          if (/^purchase$|^omni_purchase$/i.test(a.action_type ?? "")) {
-            return s + (num(a.value) ?? 0);
-          }
-          return s;
-        }, 0)
-      : 0;
+    const purchases = countPurchasesFromActions(ad.actions);
     const roas = computeRoas(ad.action_values, spend);
     if (purchases > 1) continue;
     const impact = Math.round(spend * (purchases === 0 ? 0.85 : 0.55));
     if (impact < 80) continue;
     const adName = String(ad.ad_name ?? ad.ad_id ?? "anúncio").slice(0, 60);
+    const ev = evidenceStrengthFromPurchases(purchases);
     leaks.push({
       id: `ad-bleed:${String(ad.ad_id ?? adName)}`,
       title: `Criativo ineficiente — ${adName}`,
       monthlyImpactBrl: impact,
       monthlyImpactFormatted: fmtBrl(impact),
-      confidence: "medium",
+      // Sem compras é evidência baixa — não prescrever escala.
+      confidence: confidenceFromTier(ev.tier),
       rootCause:
         purchases === 0
-          ? `${fmtBrl(spend)} gastos sem compra rastreada no período.`
+          ? `${fmtBrl(spend)} gastos sem compra rastreada no período (evidência ainda inicial).`
           : `${fmtBrl(spend)} para ${purchases} compra — ROAS ${roas != null ? `${roas.toFixed(1)}×` : "baixo"}.`,
-      action: "Pausar ou substituir criativo; redistribuir verba para vencedores.",
+      action:
+        ev.tier === "low"
+          ? "Sinal inicial — validar com +7 dias antes de pausar ou substituir o criativo."
+          : "Pausar ou substituir criativo; redistribuir verba para vencedores.",
       priority: 0,
       category: "creative",
       entityName: adName,
+      evidenceStrength: ev,
     });
   }
 
   const bleedRows = (consultative?.adsetBleedRanking ?? []).filter((r) => r.bleedBrl >= 50);
   if (bleedRows.length) {
     const [worst, ...rest] = bleedRows;
+    const worstPurchases = purchasesForAdset(facts, worst.adsetId);
+    const worstEv = evidenceStrengthFromPurchases(worstPurchases);
     leaks.push({
       id: `bleed:${worst.adsetId}`,
       title: `${worst.adsetName} — ROAS ${worst.roasFormatted} vs nicho`,
       monthlyImpactBrl: worst.bleedBrl,
       monthlyImpactFormatted: worst.bleedFormatted,
-      confidence: worst.bleedBrl >= 500 ? "high" : "medium",
-      rootCause: `ROAS ${worst.roasFormatted} em campanha de Vendas; ${worst.spendFormatted} investidos no período.`,
-      action: "Reduzir verba, pausar ou reestruturar público/criativo neste conjunto.",
+      confidence:
+        worst.bleedBrl >= 500 && worstEv.tier !== "low"
+          ? "high"
+          : worstEv.tier === "low"
+            ? "low"
+            : "medium",
+      rootCause: `ROAS ${worst.roasFormatted} em campanha de Vendas; ${worst.spendFormatted} investidos no período${worstPurchases > 0 ? ` (${worstPurchases} compra${worstPurchases > 1 ? "s" : ""} observada${worstPurchases > 1 ? "s" : ""})` : " — ainda sem compras rastreadas suficientes"}.`,
+      action:
+        worstEv.tier === "low"
+          ? "Sinal direcional — coletar +7 dias antes de pausar ou reestruturar."
+          : "Reduzir verba, pausar ou reestruturar público/criativo neste conjunto.",
       priority: 0,
       category: "sales",
       entityName: worst.adsetName,
+      entityId: worst.adsetId,
+      evidenceStrength: worstEv,
     });
     if (rest.length) {
       const sum = rest.reduce((s, r) => s + r.bleedBrl, 0);
