@@ -192,6 +192,67 @@ function sumMoneyLeaks(leaks: MoneyLeakItem[]): number {
   return leaks.reduce((sum, leak) => sum + leak.monthlyImpactBrl, 0);
 }
 
+/** Item 1 — confiança estatística por volume de compras observado na evidência. */
+export function evidenceStrengthFromPurchases(purchases: number): EvidenceStrength {
+  const p = Math.max(0, Math.round(purchases));
+  if (p >= 30) return { purchases: p, tier: "high" };
+  if (p >= 10) return { purchases: p, tier: "medium" };
+  return { purchases: p, tier: "low" };
+}
+
+function confidenceFromTier(
+  tier: EvidenceStrength["tier"],
+): MoneyLeakItem["confidence"] {
+  if (tier === "high") return "high";
+  if (tier === "medium") return "medium";
+  return "low";
+}
+
+/** Conta compras (purchase / omni_purchase) num row de insights. */
+function countPurchasesFromActions(actions: unknown): number {
+  if (!Array.isArray(actions)) return 0;
+  let total = 0;
+  for (const a of actions as { action_type?: string; value?: string }[]) {
+    if (/^purchase$|^omni_purchase$/i.test(a.action_type ?? "")) {
+      total += num(a.value) ?? 0;
+    }
+  }
+  return total;
+}
+
+/** Purchases atribuídas a um adset via facts.adsets_insights. */
+function purchasesForAdset(
+  facts: Record<string, unknown>,
+  adsetId: string | null | undefined,
+): number {
+  if (!adsetId) return 0;
+  const list = Array.isArray(facts.adsets_insights)
+    ? (facts.adsets_insights as Record<string, unknown>[])
+    : [];
+  const row = list.find((r) => String(r.adset_id ?? "") === adsetId);
+  return row ? countPurchasesFromActions(row.actions) : 0;
+}
+
+function trendFromVerdict(v: TrendVerdict): LeakTrend {
+  const badge =
+    v.direction === "deteriorating"
+      ? "🔻 Em deterioração"
+      : v.direction === "improving"
+        ? "▲ Melhorando"
+        : v.direction === "stable"
+          ? "📊 Crônico"
+          : "";
+  return {
+    direction: v.direction,
+    metric: v.metric,
+    deltaPct: v.deltaPct,
+    summaryPt: v.summaryPt,
+    badge,
+  };
+}
+
+
+
 function syncStoryExecutiveGap(
   commercial: CommercialDerived,
   primaryGap: number,
