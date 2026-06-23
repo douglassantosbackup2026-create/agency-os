@@ -132,16 +132,7 @@ function ObrigadoPage() {
     trackMetaPurchase(DIAGNOSIS_PRODUCT, d);
   }, [d, s, status?.status]);
 
-  useEffect(() => {
-    if (!d) return;
-    const st = status?.status;
-    if (st !== "processing" && st !== "completed") return;
-    trackMetaCompleteRegistration(
-      "Meta Ads conectado",
-      { content_ids: [d] },
-      d,
-    );
-  }, [d, status?.status]);
+  // CompleteRegistration agora dispara em /diagnostico/:id/conectar, evitando duplicidade.
 
   useEffect(() => {
     if (status?.status !== "failed" || !status.failed_reason) return;
