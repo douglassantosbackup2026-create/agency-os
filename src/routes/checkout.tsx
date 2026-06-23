@@ -23,7 +23,7 @@ import { InlineErrorBanner } from "@/components/diagnosis-funnel/InlineErrorBann
 import {
   DIAGNOSIS_PRODUCT,
   trackMetaAddPaymentInfo,
-  trackMetaPurchase,
+  trackMetaLead,
 } from "@/lib/meta-pixel";
 import { reportFunnelError } from "@/lib/report-error";
 import { Button } from "@/components/ui/button";
