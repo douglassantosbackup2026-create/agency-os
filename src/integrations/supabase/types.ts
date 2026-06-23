@@ -3035,6 +3035,29 @@ export type Database = {
       is_member_of: { Args: { _agency_id: string }; Returns: boolean }
       is_owner_or_admin: { Args: { _agency_id: string }; Returns: boolean }
       max_alerts_for_agency: { Args: { _agency: string }; Returns: number }
+      platform_diagnosis_buyers_list: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_since?: string
+        }
+        Returns: {
+          amount_cents: number
+          completed_at: string
+          created_at: string
+          id: string
+          management_paid_at: string
+          management_status: string
+          payer_cpf: string
+          payer_email: string
+          payer_name: string
+          payer_phone: string
+          payment_method: string
+          secret_slug: string
+          status: string
+        }[]
+      }
       platform_diagnosis_failures_summary: {
         Args: { p_days?: number }
         Returns: Json
@@ -3084,6 +3107,35 @@ export type Database = {
           id: string
           name: string
           slug: string
+        }[]
+      }
+      platform_management_subscribers_kpis: { Args: never; Returns: Json }
+      platform_management_subscribers_list: {
+        Args: {
+          p_limit?: number
+          p_offset?: number
+          p_search?: string
+          p_status?: string
+        }
+        Returns: {
+          amount_cents: number
+          business_name: string
+          cancelled_at: string
+          card_last4: string
+          diagnosis_id: string
+          instagram: string
+          last_charge_at: string
+          last_charge_status: string
+          management_paid_at: string
+          mp_preapproval_id: string
+          next_payment_date: string
+          payer_cpf: string
+          payer_email: string
+          payer_name: string
+          payer_phone: string
+          sub_status: string
+          subscription_id: string
+          website: string
         }[]
       }
       platform_overview_counts: {
