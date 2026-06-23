@@ -173,7 +173,7 @@ export const hero = {
   headlineHighlight: "perdendo dinheiro",
   subheadline:
     "Auditoria da sua loja de e-commerce, com os dados reais da sua conta.",
-  priceLine: `Por apenas ${PRICE_LABEL}`,
+  priceLine: PRICE_DISPLAY_TEXT,
   supportingLines: [
     "Análise técnica com IA, feita por quem já gerenciou R$ 30 milhões em tráfego pago.",
   ],
@@ -185,7 +185,7 @@ export const hero = {
     "Pagamento seguro",
     "Garantia de 7 dias",
   ],
-  stickyCtaLabel: `Analisar · ${PRICE_LABEL}`,
+  stickyCtaLabel: `Analisar · ${PRICE_DISPLAY_TEXT}`,
 };
 
 export const reportPreviewSection = {
