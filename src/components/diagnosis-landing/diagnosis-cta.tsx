@@ -7,7 +7,7 @@ import {
 import { cn } from "@/lib/utils";
 
 type DiagnosisCtaProps = {
-  label: React.ReactNode;
+  label: ReactNode;
   sublabel?: string;
   loading?: boolean;
   disabled?: boolean;
