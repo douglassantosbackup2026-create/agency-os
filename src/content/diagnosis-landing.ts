@@ -496,7 +496,7 @@ export const faqItems: FaqItem[] = [
   {
     question: "Por que tão barato? Qual a pegadinha?",
     answer:
-      "Sem pegadinha. R$ 37 é preço estratégico para demonstrar valor e qualificar leads sérios — boa parte do processo é automatizada com IA. Se o volume da conta for compatível, pode surgir convite para gestão, sempre sem obrigação.",
+      "Sem pegadinha. De R$ 199,90 por R$ 37 é preço estratégico para demonstrar valor e qualificar leads sérios — boa parte do processo é automatizada com IA. Se o volume da conta for compatível, pode surgir convite para gestão, sempre sem obrigação.",
   },
   {
     question: "E se eu não gostar?",
