@@ -100,6 +100,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
             name: "facebook-domain-verification",
             content: "rqya1e2l4vihrvte9x5kzpscr035rk",
           },
+          {
+            name: "facebook-domain-verification",
+            content: "uf8868fgtby21yorxefxipn5nw1fvf",
+          },
 
           {
             title: seoDefaults.title,
