@@ -3,6 +3,7 @@ import { CheckCircle2, Sparkles } from "lucide-react";
 import { hero, seniorReportPreview } from "@/content/diagnosis-landing";
 import { DiagnosisCta } from "./diagnosis-cta";
 import { LandingReportHeroMock } from "./landing-report-mock";
+import { PriceDisplay } from "./price-display";
 
 type Props = {
   onCheckout: () => void;
