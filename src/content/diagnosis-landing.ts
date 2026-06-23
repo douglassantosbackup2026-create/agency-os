@@ -501,7 +501,7 @@ export const faqItems: FaqItem[] = [
   {
     question: "E se eu não gostar?",
     answer:
-      "Devolvo os R$ 37 sem perguntas. Basta avisar em até 7 dias.",
+      "Devolvo os R$ 37 sem perguntas (preço promocional de R$ 199,90 por R$ 37). Basta avisar em até 7 dias.",
   },
 ];
 
