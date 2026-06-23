@@ -37,7 +37,7 @@ import {
 import {
   GESTAO_PRODUCT,
   trackMetaAddPaymentInfo,
-  trackMetaPurchase,
+  trackMetaLead,
 } from "@/lib/meta-pixel";
 import { whatsappGestaoHref } from "@/lib/gestao-whatsapp";
 import {
