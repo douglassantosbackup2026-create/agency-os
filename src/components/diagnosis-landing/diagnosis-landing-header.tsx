@@ -23,7 +23,7 @@ type Props = {
 
 function DiagnosisLandingHeaderInner({ onCtaClick }: Props) {
   return (
-    <header className="sticky top-0 z-50 border-b border-border/70 bg-background/85 backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
+    <header className="dark sticky top-0 z-50 border-b border-border/70 bg-background/85 text-foreground backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-3.5">
         <a
           href="#top"
