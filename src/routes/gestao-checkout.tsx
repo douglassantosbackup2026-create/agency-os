@@ -283,6 +283,7 @@ function GestaoCheckoutPage() {
         }),
       });
       setStarted(r);
+      trackMetaLead(GESTAO_PRODUCT, d, { order_id: d });
       trackMetaAddPaymentInfo(GESTAO_PRODUCT, { order_id: d });
       return r;
     } catch (err) {
