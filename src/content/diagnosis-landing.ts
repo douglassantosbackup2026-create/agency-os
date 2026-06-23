@@ -11,6 +11,8 @@ export const ANCHOR_GARANTIA = "garantia";
 export const ANCHOR_FAQ = "faq";
 
 export const PRICE_LABEL = "R$ 37";
+export const PRICE_ANCHOR_LABEL = "R$ 199,90";
+export const PRICE_DISPLAY_TEXT = `de ${PRICE_ANCHOR_LABEL} por ${PRICE_LABEL}`;
 
 /** Amostra v12 — maturidade, vazamento e crescimento para preview da landing. */
 const PREVIEW_LEAK_MONTHLY_BRL = 4_200;
