@@ -81,8 +81,8 @@ export function PlatformDiagnosisBuyers() {
       const res = await supabase.rpc("platform_diagnosis_buyers_list", {
         p_limit: PAGE_SIZE,
         p_offset: page * PAGE_SIZE,
-        p_search: search || null,
-        p_since: since ?? null,
+        p_search: search || undefined,
+        p_since: since,
       });
       throwIfSupabaseError(res.error, "platform.buyers.list");
       return (res.data ?? []) as DiagnosisBuyerRow[];
