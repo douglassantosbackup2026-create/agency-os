@@ -16,7 +16,7 @@ import { parseDiagnosisFailedReason } from "@/lib/diagnosis-failed-reason";
 import {
   DIAGNOSIS_PRODUCT,
   GESTAO_PRODUCT,
-  trackMetaInitiateCheckout,
+  trackMetaAddToCart,
   trackMetaViewContentOnce,
 } from "@/lib/meta-pixel";
 import { reportFunnelError } from "@/lib/report-error";
