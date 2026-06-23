@@ -50,8 +50,8 @@ function DiagnosisHeroInner({ onCheckout, loading, error }: Props) {
           <p className="mt-5 text-balance text-lg font-medium text-foreground md:text-xl">
             {hero.subheadline}
           </p>
-          <p className="mt-2 text-balance text-lg font-semibold text-primary md:text-xl">
-            {hero.priceLine}
+          <p className="mt-2 text-lg font-semibold text-primary md:text-xl">
+            <PriceDisplay />
           </p>
           <div className="mx-auto mt-4 max-w-xl space-y-1 text-base leading-relaxed text-muted-foreground lg:mx-0">
             {hero.supportingLines.map((line) => (
