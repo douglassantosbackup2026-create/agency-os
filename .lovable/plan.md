@@ -1,101 +1,48 @@
-## Fase 2 — Subscription real no Mercado Pago
+## Plano: ancoragem de preço "de ~~R$ 199,90~~ por R$ 37"
 
-Antes de implementar, preciso confirmar decisões importantes — algumas mudam radicalmente o escopo.
+Aplicar o preço-âncora em todos os pontos da landing do diagnóstico, com o valor antigo riscado.
 
-## Restrições reais do Mercado Pago (Brasil)
+### Constantes novas em `src/content/diagnosis-landing.ts`
+- `PRICE_ANCHOR_LABEL = "R$ 199,90"`
+- `PRICE_LABEL` continua `"R$ 37"`
+- `PRICE_DISPLAY_HTML = 'de <s>R$ 199,90</s> por R$ 37'` (componentes usam JSX)
+- `PRICE_DISPLAY_TEXT = "de R$ 199,90 por R$ 37"` (textos planos, SEO, alt)
 
-A API de assinaturas do MP é a **Preapproval** (`/preapproval`). Hoje ela tem limitações que afetam diretamente o seu fluxo atual:
+### Substituições
 
-| Método | Suporte a recorrência automática? |
-|---|---|
-| **Cartão de crédito** | Sim — débito automático mensal real |
-| **Pix** | Não para assinatura tradicional. Existe "Pix Automático" do BCB (novo, em rollout), mas o MP ainda não expõe via Preapproval clássica de forma estável |
-| **Boleto** | Não |
+**1. Header (`diagnosis-landing-header.tsx`)**
+Botão "R$ 37" vira:
+```
+de <s class="opacity-70 text-xs">R$ 199,90</s> por R$ 37
+```
 
-**Consequência:** se quiser cobrança automática mensal de verdade, hoje só dá com cartão. O Pix continua existindo como "1ª mensalidade" e nos meses seguintes você manda link novo manualmente (o que já está comunicado na Fase 1).
+**2. `src/content/diagnosis-landing.ts` — strings textuais**
+Trocar para `PRICE_DISPLAY_TEXT` ("de R$ 199,90 por R$ 37") em:
+- `priceLine` (hero)
+- `stickyCtaLabel` → `Analisar · de R$ 199,90 por R$ 37`
+- `qualificationCta` (linha 237)
+- `comparisonCard.title` (linha 344) → `Você paga de R$ 199,90 por R$ 37`
+- `guaranteeText` (linha 468)
+- `finalCtaSubline` (linha 511)
+- `finalCtaButton` (linha 516) → `Pagar de R$ 199,90 por R$ 37`
+- `ctaPrimary` (linha 529) → `Analisar minha conta por de R$ 199,90 por R$ 37` → ajustar para `Analisar minha conta — de R$ 199,90 por R$ 37`
+- FAQ (linhas 248, 497, 502): substituir "R$ 37" cru por "de R$ 199,90 por R$ 37" mantendo a frase fluida
+- SEO `title` (546): `Diagnóstico Meta Ads para E-commerce — Onde você está perdendo dinheiro | de R$ 199,90 por R$ 37`
+- SEO `description` (548): `... Por R$ 37 (de R$ 199,90). Pagamento seguro.`
 
-## Caminhos possíveis
+**3. Componentes com renderização visual com riscado**
+Onde aparece em destaque como preço (não dentro de frase corrida), renderizar com `<span>de <s>R$ 199,90</s> por R$ 37</span>`:
+- Header (item 1)
+- `diagnosis-report-preview.tsx` botão `ANALISAR MINHA CONTA — ${PRICE_LABEL}` → usa novo helper JSX `<PriceDisplay/>` ou string `PRICE_DISPLAY_TEXT`
+- hero `priceLine`
 
-### Opção A — Híbrido (recomendado)
-- **Cartão:** vira assinatura real (Preapproval). Cobrança automática mensal pelo MP. Cliente pode cancelar.
-- **Pix:** continua como "1ª mensalidade" e o time envia link novo todo mês via WhatsApp (como já está comunicado).
-- **UX:** mantém os dois métodos lado a lado, mas o cartão ganha selo "Renovação automática" e o Pix ganha "Renovação manual mensal".
+Demais ocorrências em parágrafos longos (FAQ, garantia, comparativo) usam o texto plano sem riscado para não quebrar leitura.
 
-### Opção B — Só cartão
-- Remove Pix. Todo mundo entra como assinatura real.
-- Mais simples no backend, mas perde 50%+ das conversões no Brasil (Pix tem altíssima preferência).
+### Fora do escopo (não alterar)
+- `src/lib/meta-pixel.ts` `value: 37` (preço real pago, métrica de evento)
+- `src/routes/checkout.tsx` `DEFAULT_AMOUNT_CENTS = 3700` (valor cobrado)
+- Lógica de pagamento Mercado Pago
 
-### Opção C — Manter Fase 1 e adiar Fase 2
-- Você opera Fase 1 por 1–2 meses, mede churn e fricção da cobrança manual, e decide depois.
-
-**Minha recomendação: Opção A.** Quer prosseguir com ela? (Se preferir B ou C, me diga e ajusto o plano.)
-
----
-
-## Escopo da Opção A
-
-### Backend (Supabase + edge functions)
-
-1. **Nova tabela `management_subscriptions`** (migração):
-   - `id`, `diagnosis_id` (FK), `mp_preapproval_id`, `status` (`pending` | `authorized` | `paused` | `cancelled`), `amount_cents`, `frequency` (1 = mensal), `next_payment_date`, `last_event_at`, `card_last4`, timestamps.
-   - GRANTs + RLS (service_role only; leitura por `secret_slug` via server function).
-
-2. **`process-management-payment` (cartão)** — atualizar:
-   - Quando `method === "card"`, em vez de criar `payment` único, cria um **`preapproval`** no MP com:
-     - `reason: "Gestão de Tráfego Meta Ads — mensal"`
-     - `auto_recurring: { frequency: 1, frequency_type: "months", transaction_amount: 1997.00, currency_id: "BRL" }`
-     - `card_token_id` do MP SDK
-     - `payer_email`
-     - `back_url` (página de obrigado)
-   - Salva `mp_preapproval_id` em `management_subscriptions` e marca `diagnoses.management_status = 'pending_authorization'`.
-   - Quando o MP retorna `authorized`, marca `paid` (1ª cobrança acontece imediatamente).
-
-3. **`mercadopago-webhook`** — adicionar handlers:
-   - `preapproval` events: atualizar `management_subscriptions.status`.
-   - `authorized_payment` events (cobranças mensais subsequentes): inserir em `diagnosis_handoff_events` ou nova tabela `subscription_charges`, atualizar `next_payment_date`, disparar alerta interno em caso de falha (`recurring_charge_failed`).
-
-4. **Nova server function `cancel-management-subscription`**:
-   - Cliente pode cancelar via página `/gestao-obrigado` ou link enviado no WhatsApp.
-   - Chama `PUT /preapproval/{id}` com `status: "cancelled"` no MP.
-   - Atualiza tabela local + dispara alerta interno para a agência.
-
-5. **Alerta interno** quando uma cobrança recorrente falha (card expired, insufficient funds): cria entrada em `alerts` para o time agir (já temos o padrão da Fase 1).
-
-### Frontend
-
-6. **`/gestao-checkout`** ajustes:
-   - Toggle Pix/Cartão ganha sub-rótulos: "Pix — renovação manual" / "Cartão — renovação automática mensal".
-   - No cartão, abaixo do botão: "Ao confirmar, você autoriza a cobrança mensal recorrente de R$ 1.997 pelo Mercado Pago. Cancele quando quiser."
-   - Checkbox opcional de consentimento (recomendado para reduzir chargeback): "Autorizo cobranças mensais de R$ 1.997 até eu cancelar".
-
-7. **`/gestao-obrigado`** ajustes:
-   - Quando `subscription.status === 'authorized'`: mostrar bloco "Próxima cobrança em DD/MM/AAAA" e botão "Gerenciar assinatura" (modal ou link → server fn de cancelamento com confirmação).
-   - Quando Pix: mantém a copy atual ("link manual no WhatsApp").
-
-8. **Nova rota `/gestao-assinatura?d=...&s=...`** (opcional, mas recomendada):
-   - Cliente vê status, próxima cobrança, histórico, e pode cancelar.
-   - Mesma proteção por `secret_slug` que o resto do funil.
-
-### Configuração / secrets
-
-- O MP token já existe (`MERCADOPAGO_ACCESS_TOKEN`). Preapproval usa o mesmo token, sem segredo novo.
-- Configurar no painel MP: URL de webhook para receber `preapproval` e `subscription_authorized_payment` events.
-
-## Arquivos afetados
-
-- Migração: `management_subscriptions` table + GRANTs/RLS.
-- Edge functions: `process-management-payment/index.ts`, `mercadopago-webhook/index.ts`, novas `cancel-management-subscription/index.ts` e `management-subscription-status/index.ts`.
-- Frontend: `src/routes/gestao-checkout.tsx`, `src/routes/gestao-obrigado.tsx`, novo `src/routes/gestao-assinatura.tsx` (se quiser).
-- Conteúdo: pequenas adições em `src/content/gestao-checkout.ts` (copy de consentimento, sub-rótulos).
-
-## Fora deste plano
-
-- Pix Automático (BCB) — esperar maturidade do MP.
-- Migração dos pagamentos únicos já feitos para assinatura (faria caso a caso, manualmente).
-- Cobrança de setup separado (tudo entra no mesmo valor mensal).
-
-## O que preciso de você antes de executar
-
-1. Confirmar **Opção A** (híbrido) — ou escolher B/C.
-2. Você quer a página `/gestao-assinatura` para self-service de cancelamento, ou prefere que o cancelamento seja só via WhatsApp/equipe (mais simples)?
-3. O webhook do MP precisa ser configurado no painel — você consegue acessar ou quer que eu te passe instruções passo a passo depois?
+### Riscos
+- O `stickyCtaLabel` mobile fica longo ("Analisar · de R$ 199,90 por R$ 37") — pode quebrar em telas pequenas. Mitigação: encurtar para `de R$ 199 por R$ 37 — Analisar` no mobile via classe truncate.
+- SEO title pode passar de 60 chars. Vou usar versão curta: `Diagnóstico Meta Ads | de R$ 199,90 por R$ 37` (~50 chars).

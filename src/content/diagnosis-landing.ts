@@ -11,6 +11,8 @@ export const ANCHOR_GARANTIA = "garantia";
 export const ANCHOR_FAQ = "faq";
 
 export const PRICE_LABEL = "R$ 37";
+export const PRICE_ANCHOR_LABEL = "R$ 199,90";
+export const PRICE_DISPLAY_TEXT = `de ${PRICE_ANCHOR_LABEL} por ${PRICE_LABEL}`;
 
 /** Amostra v12 — maturidade, vazamento e crescimento para preview da landing. */
 const PREVIEW_LEAK_MONTHLY_BRL = 4_200;
@@ -171,7 +173,7 @@ export const hero = {
   headlineHighlight: "perdendo dinheiro",
   subheadline:
     "Auditoria da sua loja de e-commerce, com os dados reais da sua conta.",
-  priceLine: `Por apenas ${PRICE_LABEL}`,
+  priceLine: PRICE_DISPLAY_TEXT,
   supportingLines: [
     "Análise técnica com IA, feita por quem já gerenciou R$ 30 milhões em tráfego pago.",
   ],
@@ -183,7 +185,7 @@ export const hero = {
     "Pagamento seguro",
     "Garantia de 7 dias",
   ],
-  stickyCtaLabel: `Analisar · ${PRICE_LABEL}`,
+  stickyCtaLabel: `Analisar · ${PRICE_DISPLAY_TEXT}`,
 };
 
 export const reportPreviewSection = {
@@ -234,7 +236,7 @@ export const forWhoSection = {
     "Já tem campanhas rodando ou rodou nos últimos 30 dias",
     "Está frustrado com ROAS baixo, CPM subindo ou conversões que não vêm",
     "Quer dados concretos sobre o que está errado — não achismo",
-    `Topa investir ${PRICE_LABEL} para descobrir se está perdendo milhares por mês`,
+    `Topa investir ${PRICE_DISPLAY_TEXT} para descobrir se está perdendo milhares por mês`,
   ],
   notForYouTitle: "Não é para você se",
   notForYou: [
@@ -245,7 +247,7 @@ export const forWhoSection = {
   ],
   importantCalloutTitle: "Por que esse corte importa",
   importantCalloutBody:
-    "Em uma conta que investe R$ 10.000/mês, desperdiçar 30% são R$ 36.000 por ano. O diagnóstico custa R$ 37 — a conta fecha sozinha quando o problema existe.",
+    "Em uma conta que investe R$ 10.000/mês, desperdiçar 30% são R$ 36.000 por ano. O diagnóstico custa de R$ 199,90 por R$ 37 — a conta fecha sozinha quando o problema existe.",
 };
 
 export type WhatItDoesModule = {
@@ -341,7 +343,7 @@ export const howItWorksSection = {
   steps: [
     {
       step: 1,
-      title: `Você paga ${PRICE_LABEL}`,
+      title: `Você paga ${PRICE_DISPLAY_TEXT}`,
       description:
         "Pagamento via Mercado Pago — Pix ou cartão em até 12x. Cobrança única, sem mensalidade.",
     },
@@ -465,7 +467,7 @@ export const socialProofSection = {
 export const guaranteeSection = {
   title: "Garantia incondicional",
   intro:
-    `Se eu não encontrar pelo menos 3 problemas graves na sua conta que estejam custando dinheiro, devolvo seus ${PRICE_LABEL} na hora.`,
+    `Se eu não encontrar pelo menos 3 problemas graves na sua conta que estejam custando dinheiro, devolvo seus ${PRICE_LABEL} na hora (de ${PRICE_ANCHOR_LABEL} por ${PRICE_LABEL}).`,
   bullets: ["Sem perguntas.", "Sem burocracia.", "Sem enrolação."],
   why: "Toda conta que analiso tem problemas — algumas 5, outras 15. Mas sempre tem.",
   spoiler:
@@ -494,12 +496,12 @@ export const faqItems: FaqItem[] = [
   {
     question: "Por que tão barato? Qual a pegadinha?",
     answer:
-      "Sem pegadinha. R$ 37 é preço estratégico para demonstrar valor e qualificar leads sérios — boa parte do processo é automatizada com IA. Se o volume da conta for compatível, pode surgir convite para gestão, sempre sem obrigação.",
+      "Sem pegadinha. De R$ 199,90 por R$ 37 é preço estratégico para demonstrar valor e qualificar leads sérios — boa parte do processo é automatizada com IA. Se o volume da conta for compatível, pode surgir convite para gestão, sempre sem obrigação.",
   },
   {
     question: "E se eu não gostar?",
     answer:
-      "Devolvo os R$ 37 sem perguntas. Basta avisar em até 7 dias.",
+      "Devolvo os R$ 37 sem perguntas (preço promocional de R$ 199,90 por R$ 37). Basta avisar em até 7 dias.",
   },
 ];
 
@@ -508,12 +510,12 @@ export const finalCta = {
   subtitle: "Em ~5 minutos, com risco zero.",
   paragraphs: [
     "Se você chegou até aqui, é porque desconfia que alguma coisa não está fechando nas campanhas — ROAS que não sobe, CPM que não para, faturamento que não acompanha o investimento.",
-    `Por ${PRICE_LABEL} você descobre onde está o problema, quanto está desperdiçando e o que fazer para corrigir.`,
+    `Por ${PRICE_DISPLAY_TEXT} você descobre onde está o problema, quanto está desperdiçando e o que fazer para corrigir.`,
   ],
   stepsIntro: "O que você precisa fazer:",
   steps: [
     "Clicar no botão",
-    `Pagar ${PRICE_LABEL}`,
+    `Pagar ${PRICE_DISPLAY_TEXT}`,
     "Conectar sua conta",
     "Aguardar alguns minutos",
   ],
@@ -526,7 +528,7 @@ export const finalCta = {
   ],
   closing:
     "Ou age agora, ou segue mais um mês desperdiçando sem saber onde está o buraco.",
-  ctaPrimary: `Analisar minha conta por ${PRICE_LABEL}`,
+  ctaPrimary: `Analisar minha conta — ${PRICE_DISPLAY_TEXT}`,
   trustLines: [
     "Garantia incondicional de 7 dias",
     "Pagamento seguro · Mercado Pago",
@@ -543,9 +545,9 @@ export const footerSection = {
 
 export const seoDefaults = {
   title:
-    "Diagnóstico Meta Ads para E-commerce — Onde você está perdendo dinheiro | R$ 37",
+    "Diagnóstico Meta Ads E-commerce | de R$ 199,90 por R$ 37",
   description:
-    "Auditoria da sua loja online no Meta Ads em ~5 minutos: produto físico, campanhas de vendas, score, vazamentos e plano de ação. Por R$ 37. Pagamento seguro.",
+    "Auditoria da sua loja online no Meta Ads em ~5 minutos: produto físico, campanhas de vendas, score, vazamentos e plano de ação. De R$ 199,90 por R$ 37. Pagamento seguro.",
 };
 
 export function diagnosisFaqJsonLd(): Record<string, unknown> {

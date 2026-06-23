@@ -69,9 +69,10 @@ function DiagnosisLandingHeaderInner({ onCtaClick }: Props) {
           <button
             type="button"
             onClick={onCtaClick}
-            className={cn(landingPrimaryCtaClass, "px-3 sm:px-3.5")}
+            className={cn(landingPrimaryCtaClass, "px-3 sm:px-3.5 inline-flex items-center gap-1.5")}
           >
-            R$ 37
+            <span className="text-[0.7rem] opacity-70 line-through">R$ 199,90</span>
+            <span>R$ 37</span>
           </button>
         </nav>
       </div>
