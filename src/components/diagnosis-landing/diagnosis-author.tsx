@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { Award, CheckCircle2 } from "lucide-react";
+import authorPhoto from "@/assets/author-daniel.jpg.asset.json";
 import { ANCHOR_AUTOR, authorSection } from "@/content/diagnosis-landing";
 import {
   LANDING_SECTION_SCROLL,
