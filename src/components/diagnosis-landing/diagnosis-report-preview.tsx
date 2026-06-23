@@ -2,7 +2,7 @@ import { memo } from "react";
 import { Eye } from "lucide-react";
 import {
   ANCHOR_PREVIEW,
-  PRICE_LABEL,
+  PRICE_DISPLAY_TEXT,
   reportPreviewSection,
 } from "@/content/diagnosis-landing";
 import {
