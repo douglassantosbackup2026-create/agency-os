@@ -545,9 +545,9 @@ export const footerSection = {
 
 export const seoDefaults = {
   title:
-    "Diagnóstico Meta Ads para E-commerce — Onde você está perdendo dinheiro | R$ 37",
+    "Diagnóstico Meta Ads E-commerce | de R$ 199,90 por R$ 37",
   description:
-    "Auditoria da sua loja online no Meta Ads em ~5 minutos: produto físico, campanhas de vendas, score, vazamentos e plano de ação. Por R$ 37. Pagamento seguro.",
+    "Auditoria da sua loja online no Meta Ads em ~5 minutos: produto físico, campanhas de vendas, score, vazamentos e plano de ação. De R$ 199,90 por R$ 37. Pagamento seguro.",
 };
 
 export function diagnosisFaqJsonLd(): Record<string, unknown> {
