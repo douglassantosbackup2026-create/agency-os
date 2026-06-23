@@ -9,7 +9,6 @@ import { parseDiagnosisFailedReason } from "@/lib/diagnosis-failed-reason";
 import {
   DIAGNOSIS_PRODUCT,
   isDiagnosisPaidStatus,
-  trackMetaCompleteRegistration,
   trackMetaPurchase,
 } from "@/lib/meta-pixel";
 import { reportFunnelError } from "@/lib/report-error";
