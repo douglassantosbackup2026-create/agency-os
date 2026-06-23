@@ -247,7 +247,7 @@ export const forWhoSection = {
   ],
   importantCalloutTitle: "Por que esse corte importa",
   importantCalloutBody:
-    "Em uma conta que investe R$ 10.000/mês, desperdiçar 30% são R$ 36.000 por ano. O diagnóstico custa R$ 37 — a conta fecha sozinha quando o problema existe.",
+    "Em uma conta que investe R$ 10.000/mês, desperdiçar 30% são R$ 36.000 por ano. O diagnóstico custa de R$ 199,90 por R$ 37 — a conta fecha sozinha quando o problema existe.",
 };
 
 export type WhatItDoesModule = {
