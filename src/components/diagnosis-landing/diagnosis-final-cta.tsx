@@ -60,7 +60,12 @@ function DiagnosisFinalCtaInner({ onCheckout, loading, error }: Props) {
         <div className="mt-8">
           <DiagnosisCta
             size="large"
-            label={finalCta.ctaPrimary}
+            label={
+              <span className="inline-flex items-center justify-center gap-1.5">
+                <span>Analisar minha conta —</span>
+                <PriceDisplay />
+              </span>
+            }
             loading={loading}
             onClick={onCheckout}
           />
