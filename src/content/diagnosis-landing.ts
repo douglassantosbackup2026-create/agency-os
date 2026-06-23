@@ -467,7 +467,7 @@ export const socialProofSection = {
 export const guaranteeSection = {
   title: "Garantia incondicional",
   intro:
-    `Se eu não encontrar pelo menos 3 problemas graves na sua conta que estejam custando dinheiro, devolvo seus ${PRICE_LABEL} na hora.`,
+    `Se eu não encontrar pelo menos 3 problemas graves na sua conta que estejam custando dinheiro, devolvo seus ${PRICE_LABEL} na hora (de ${PRICE_ANCHOR_LABEL} por ${PRICE_LABEL}).`,
   bullets: ["Sem perguntas.", "Sem burocracia.", "Sem enrolação."],
   why: "Toda conta que analiso tem problemas — algumas 5, outras 15. Mas sempre tem.",
   spoiler:
