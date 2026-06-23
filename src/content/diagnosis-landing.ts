@@ -236,7 +236,7 @@ export const forWhoSection = {
     "Já tem campanhas rodando ou rodou nos últimos 30 dias",
     "Está frustrado com ROAS baixo, CPM subindo ou conversões que não vêm",
     "Quer dados concretos sobre o que está errado — não achismo",
-    `Topa investir ${PRICE_LABEL} para descobrir se está perdendo milhares por mês`,
+    `Topa investir ${PRICE_DISPLAY_TEXT} para descobrir se está perdendo milhares por mês`,
   ],
   notForYouTitle: "Não é para você se",
   notForYou: [
