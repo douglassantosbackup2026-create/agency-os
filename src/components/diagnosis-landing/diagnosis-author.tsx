@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { Award, CheckCircle2 } from "lucide-react";
+import authorPhoto from "@/assets/author-daniel.jpg.asset.json";
 import { ANCHOR_AUTOR, authorSection } from "@/content/diagnosis-landing";
 import {
   LANDING_SECTION_SCROLL,
@@ -30,12 +31,12 @@ function DiagnosisAuthorInner() {
         <div
           className={`mt-8 flex flex-col gap-6 p-6 sm:flex-row sm:items-start md:p-8 ${landingSurfaceCardClass}`}
         >
-          <div
-            className="mx-auto flex h-28 w-28 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/60 text-2xl font-bold text-primary-foreground ring-4 ring-primary/15 ring-offset-2 sm:mx-0"
-            aria-hidden
-          >
-            DS
-          </div>
+          <img
+            src={authorPhoto.url}
+            alt={authorSection.name}
+            loading="lazy"
+            className="mx-auto h-28 w-28 shrink-0 rounded-full object-cover ring-4 ring-primary/15 ring-offset-2 sm:mx-0"
+          />
           <div className="min-w-0 flex-1 text-center sm:text-left">
             <p className="text-xl font-bold">{authorSection.name}</p>
             <p className="mt-1 text-sm font-medium text-primary">
