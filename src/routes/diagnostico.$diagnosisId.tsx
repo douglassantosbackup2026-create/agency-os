@@ -182,7 +182,7 @@ function DiagnosticoReportPage() {
   function goToGestaoCheckout(gapFormatted?: string | null) {
     if (!s) return;
     void trackCta();
-    trackMetaInitiateCheckout(GESTAO_PRODUCT, {
+    trackMetaAddToCart(GESTAO_PRODUCT, {
       source: "report_cta",
       content_ids: [diagnosisId],
     });
