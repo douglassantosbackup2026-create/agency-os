@@ -1,7 +1,7 @@
 import { memo } from "react";
-import { hero } from "@/content/diagnosis-landing";
 import { landingPrimaryCtaClass } from "@/lib/landing-ui";
 import { cn } from "@/lib/utils";
+import { PriceDisplay } from "./price-display";
 
 type Props = {
   onCheckout: () => void;
@@ -15,9 +15,16 @@ function DiagnosisStickyCtaInner({ onCheckout, loading }: Props) {
         type="button"
         disabled={loading}
         onClick={onCheckout}
-        className={cn(landingPrimaryCtaClass, "flex-1")}
+        className={cn(landingPrimaryCtaClass, "flex-1 inline-flex items-center justify-center gap-1.5")}
       >
-        {loading ? "A redirecionar…" : hero.stickyCtaLabel}
+        {loading ? (
+          "A redirecionar…"
+        ) : (
+          <>
+            <span>Analisar ·</span>
+            <PriceDisplay />
+          </>
+        )}
       </button>
     </div>
   );
