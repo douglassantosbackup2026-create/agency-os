@@ -2,7 +2,6 @@ import { memo } from "react";
 import { Eye } from "lucide-react";
 import {
   ANCHOR_PREVIEW,
-  PRICE_DISPLAY_TEXT,
   reportPreviewSection,
 } from "@/content/diagnosis-landing";
 import {
@@ -11,6 +10,7 @@ import {
 } from "@/lib/landing-ui";
 import { DiagnosisCta } from "./diagnosis-cta";
 import { LandingReportPreviewMock } from "./landing-report-mock";
+import { PriceDisplay } from "./price-display";
 
 type Props = {
   onCheckout: () => void;
