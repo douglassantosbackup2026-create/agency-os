@@ -510,12 +510,12 @@ export const finalCta = {
   subtitle: "Em ~5 minutos, com risco zero.",
   paragraphs: [
     "Se você chegou até aqui, é porque desconfia que alguma coisa não está fechando nas campanhas — ROAS que não sobe, CPM que não para, faturamento que não acompanha o investimento.",
-    `Por ${PRICE_LABEL} você descobre onde está o problema, quanto está desperdiçando e o que fazer para corrigir.`,
+    `Por ${PRICE_DISPLAY_TEXT} você descobre onde está o problema, quanto está desperdiçando e o que fazer para corrigir.`,
   ],
   stepsIntro: "O que você precisa fazer:",
   steps: [
     "Clicar no botão",
-    `Pagar ${PRICE_LABEL}`,
+    `Pagar ${PRICE_DISPLAY_TEXT}`,
     "Conectar sua conta",
     "Aguardar alguns minutos",
   ],
@@ -528,7 +528,7 @@ export const finalCta = {
   ],
   closing:
     "Ou age agora, ou segue mais um mês desperdiçando sem saber onde está o buraco.",
-  ctaPrimary: `Analisar minha conta por ${PRICE_LABEL}`,
+  ctaPrimary: `Analisar minha conta — ${PRICE_DISPLAY_TEXT}`,
   trustLines: [
     "Garantia incondicional de 7 dias",
     "Pagamento seguro · Mercado Pago",
