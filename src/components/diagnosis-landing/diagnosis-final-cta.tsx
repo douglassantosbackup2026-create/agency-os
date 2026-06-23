@@ -3,6 +3,7 @@ import { CheckCircle2, Lock, MessageCircle, Shield, Zap } from "lucide-react";
 import { diagnosisWhatsAppUrl, finalCta } from "@/content/diagnosis-landing";
 import { LANDING_SECTION_SCROLL } from "@/lib/landing-ui";
 import { DiagnosisCta } from "./diagnosis-cta";
+import { PriceDisplay } from "./price-display";
 
 type Props = {
   onCheckout: () => void;
@@ -59,7 +60,12 @@ function DiagnosisFinalCtaInner({ onCheckout, loading, error }: Props) {
         <div className="mt-8">
           <DiagnosisCta
             size="large"
-            label={finalCta.ctaPrimary}
+            label={
+              <span className="inline-flex items-center justify-center gap-1.5">
+                <span>Analisar minha conta —</span>
+                <PriceDisplay />
+              </span>
+            }
             loading={loading}
             onClick={onCheckout}
           />

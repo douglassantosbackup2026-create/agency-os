@@ -2,7 +2,6 @@ import { memo } from "react";
 import { Eye } from "lucide-react";
 import {
   ANCHOR_PREVIEW,
-  PRICE_DISPLAY_TEXT,
   reportPreviewSection,
 } from "@/content/diagnosis-landing";
 import {
@@ -11,6 +10,7 @@ import {
 } from "@/lib/landing-ui";
 import { DiagnosisCta } from "./diagnosis-cta";
 import { LandingReportPreviewMock } from "./landing-report-mock";
+import { PriceDisplay } from "./price-display";
 
 type Props = {
   onCheckout: () => void;
@@ -45,7 +45,12 @@ function DiagnosisReportPreviewInner({ onCheckout, loading }: Props) {
           </p>
           <DiagnosisCta
             size="large"
-            label={`ANALISAR MINHA CONTA — ${PRICE_DISPLAY_TEXT.toUpperCase()}`}
+            label={
+              <span className="inline-flex items-center justify-center gap-1.5 uppercase">
+                <span>Analisar minha conta —</span>
+                <PriceDisplay uppercase />
+              </span>
+            }
             sublabel={reportPreviewSection.ctaSublabel}
             loading={loading}
             onClick={onCheckout}
