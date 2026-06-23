@@ -23,6 +23,9 @@ import {
   PageSkeleton,
 } from "@/components/operational-ui";
 import { PlatformDiagnosisSection } from "@/components/platform-admin/PlatformDiagnosisSection";
+import { PlatformDiagnosisBuyers } from "@/components/platform-admin/PlatformDiagnosisBuyers";
+import { PlatformManagementSubscribers } from "@/components/platform-admin/PlatformManagementSubscribers";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/_authenticated/platform-admin")({
   beforeLoad: async () => {
