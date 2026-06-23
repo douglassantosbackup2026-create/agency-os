@@ -3,6 +3,7 @@ import { CheckCircle2, Lock, MessageCircle, Shield, Zap } from "lucide-react";
 import { diagnosisWhatsAppUrl, finalCta } from "@/content/diagnosis-landing";
 import { LANDING_SECTION_SCROLL } from "@/lib/landing-ui";
 import { DiagnosisCta } from "./diagnosis-cta";
+import { PriceDisplay } from "./price-display";
 
 type Props = {
   onCheckout: () => void;
