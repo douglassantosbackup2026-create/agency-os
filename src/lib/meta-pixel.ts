@@ -120,6 +120,24 @@ export function trackMetaAddPaymentInfo(
   trackMetaPixel("AddPaymentInfo", productParams(product, extra));
 }
 
+export function trackMetaAddToCart(
+  product: MetaPixelProduct,
+  extra?: Record<string, unknown>,
+): void {
+  trackMetaPixel("AddToCart", productParams(product, extra));
+}
+
+/** Lead: usuário submeteu form de qualificação (pré-pagamento). */
+export function trackMetaLead(
+  product: MetaPixelProduct,
+  dedupId: string,
+  extra?: Record<string, unknown>,
+): void {
+  const dedupKey = `${DEDUP_PREFIX}lead_${product.id}_${dedupId}`;
+  if (!markOnce(dedupKey)) return;
+  trackMetaPixel("Lead", productParams(product, extra));
+}
+
 export function trackMetaPurchase(
   product: MetaPixelProduct,
   orderId: string,

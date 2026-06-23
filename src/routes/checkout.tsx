@@ -23,7 +23,7 @@ import { InlineErrorBanner } from "@/components/diagnosis-funnel/InlineErrorBann
 import {
   DIAGNOSIS_PRODUCT,
   trackMetaAddPaymentInfo,
-  trackMetaPurchase,
+  trackMetaLead,
 } from "@/lib/meta-pixel";
 import { reportFunnelError } from "@/lib/report-error";
 import { Button } from "@/components/ui/button";
@@ -284,6 +284,9 @@ function CheckoutPage() {
     try {
       const r = await apiStart(parsed.data);
       setStarted(r);
+      trackMetaLead(DIAGNOSIS_PRODUCT, r.diagnosis_id, {
+        order_id: r.diagnosis_id,
+      });
       trackMetaAddPaymentInfo(DIAGNOSIS_PRODUCT, {
         order_id: r.diagnosis_id,
       });
@@ -298,7 +301,7 @@ function CheckoutPage() {
 
   const onApproved = useCallback(
     (d: string, s: string, t?: string | null) => {
-      trackMetaPurchase(DIAGNOSIS_PRODUCT, d);
+      // Purchase dispara em /obrigado para evitar duplicidade.
       navigate({
         to: "/obrigado",
         search: { d, s, ...(t ? { t } : {}) } as never,

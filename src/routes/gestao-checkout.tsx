@@ -37,7 +37,7 @@ import {
 import {
   GESTAO_PRODUCT,
   trackMetaAddPaymentInfo,
-  trackMetaPurchase,
+  trackMetaLead,
 } from "@/lib/meta-pixel";
 import { whatsappGestaoHref } from "@/lib/gestao-whatsapp";
 import {
@@ -236,7 +236,7 @@ function GestaoCheckoutPage() {
 
   const onApproved = useCallback(() => {
     if (!d || !s) return;
-    trackMetaPurchase(GESTAO_PRODUCT, d);
+    // Purchase dispara em /gestao-obrigado para evitar duplicidade.
     navigate({ to: "/gestao-obrigado", search: { d, s } });
   }, [d, s, navigate]);
 
@@ -283,6 +283,7 @@ function GestaoCheckoutPage() {
         }),
       });
       setStarted(r);
+      trackMetaLead(GESTAO_PRODUCT, d, { order_id: d });
       trackMetaAddPaymentInfo(GESTAO_PRODUCT, { order_id: d });
       return r;
     } catch (err) {
