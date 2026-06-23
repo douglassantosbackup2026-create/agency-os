@@ -45,7 +45,7 @@ function DiagnosisReportPreviewInner({ onCheckout, loading }: Props) {
           </p>
           <DiagnosisCta
             size="large"
-            label={`ANALISAR MINHA CONTA — ${PRICE_LABEL}`}
+            label={`ANALISAR MINHA CONTA — ${PRICE_DISPLAY_TEXT.toUpperCase()}`}
             sublabel={reportPreviewSection.ctaSublabel}
             loading={loading}
             onClick={onCheckout}
