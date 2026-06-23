@@ -1,196 +1,55 @@
 ## Objetivo
 
-Adicionar abas no `/platform-admin` para visualizar compradores do diagnóstico (R$ 37 one-shot) e assinantes da gestão de tráfego (recorrente), com PII completo (nome, e-mail, telefone, CPF) restrito a `is_platform_admin`.
+Fechar a brecha apontada pelo scanner: hoje membros restritos por `client_member_scopes` conseguem ler dados de clientes fora do seu escopo em várias tabelas, e podem inserir `whatsapp_logs` para qualquer cliente da agência. Vou alinhar essas políticas ao padrão já usado em `campaigns`, `metrics_daily`, `alerts` (combinação `is_member_of(agency_id) AND user_can_access_client(client_id)`).
 
-## Layout final da página `/platform-admin`
+## Mudanças (uma migração só)
 
-Tabs no topo da página, abaixo do header "Administração da plataforma":
+### 1. Tabelas com `client_id` por linha
+Atualizar SELECT/INSERT/UPDATE para exigir também `user_can_access_client(client_id)`:
 
-```text
-[ Visão geral ] [ Funil Diagnóstico ] [ Compradores Diagnóstico ] [ Assinantes Gestão ]
+- `ga4_daily` (client_id NOT NULL)
+- `ga4_funnel_daily` (NOT NULL)
+- `ga4_channel_daily` (NOT NULL)
+- `ga4_tracking_health_daily` (NOT NULL)
+- `sync_runs` (nullable → usar `(client_id IS NULL OR user_can_access_client(client_id))`)
+- `ai_jobs` (nullable, só SELECT existe; INSERT continua negado)
+
+### 2. `action_center_events` (sem client_id direto)
+Filtrar via join na ação-mãe:
+
+```
+EXISTS (
+  SELECT 1 FROM public.action_center ac
+  WHERE ac.id = action_id
+    AND (ac.client_id IS NULL OR public.user_can_access_client(ac.client_id))
+)
 ```
 
-- **Visão geral**: o que já existe hoje (KPIs de agências, lista de agências, integrações OAuth, referência).
-- **Funil Diagnóstico**: a seção `PlatformDiagnosisSection` atual, intacta.
-- **Compradores Diagnóstico** (nova): todos que pagaram R$ 37, com PII completo.
-- **Assinantes Gestão** (nova): só quem ativou a gestão recorrente, com foco em MRR e status no Mercado Pago.
+Aplicado a SELECT e ao WITH CHECK do INSERT.
 
-## Aba "Compradores Diagnóstico"
+### 3. `agency_briefings` (dados agregados, sem client_id)
+São briefings de toda a agência. Para não vazar visão consolidada a um membro restrito, restringir SELECT/UPDATE/INSERT a membros **sem escopo** ativo na agência (ou owner/admin):
 
-KPIs no topo:
-- Total de compradores (histórico)
-- Pagantes nos últimos 7 / 30 dias
-- Receita 30d (soma `amount_cents`)
-- % que converteu para gestão
-
-Tabela paginada (50/página), busca por nome/e-mail/CPF, filtro por período:
-
-| Coluna | Origem |
-|---|---|
-| Pago em | `diagnoses` (derivado: created_at do pagamento aprovado) |
-| Nome | `payer_name` |
-| E-mail | `payer_email` |
-| Telefone | `payer_phone` |
-| CPF | `payer_cpf` |
-| Método | `payment_method` |
-| Valor | `amount_cents` |
-| Status diagnóstico | `status` |
-| Virou gestão? | `management_status = 'paid'` → badge "Sim" |
-| Ações | Link QA do relatório, copiar WhatsApp |
-
-## Aba "Assinantes Gestão"
-
-KPIs:
-- Assinantes ativos (`management_subscriptions.status = 'authorized'`)
-- MRR (soma `amount_cents` dos ativos)
-- Novos no mês
-- Cancelados no mês
-
-Tabela:
-
-| Coluna | Origem |
-|---|---|
-| Ativada em | `management_paid_at` |
-| Nome | `payer_name` |
-| E-mail | `payer_email` |
-| Telefone | `payer_phone` |
-| CPF | `payer_cpf` |
-| Negócio | `management_business_name` |
-| Website / IG | `management_website`, `management_instagram` |
-| Valor mensal | `management_subscriptions.amount_cents` |
-| Cartão | `card_last4` |
-| Próxima cobrança | `next_payment_date` |
-| Última cobrança | `last_charge_at` + `last_charge_status` |
-| Status MP | `management_subscriptions.status` (authorized / paused / cancelled) |
-| Ações | Cancelar (reutiliza `cancel-management-subscription`), copiar WhatsApp, ver charges |
-
-## Detalhes técnicos
-
-### Migration
-
-Duas novas RPCs `security definer` que checam `auth_is_platform_admin()` e retornam PII completo:
-
-```sql
-create or replace function public.platform_diagnosis_buyers_list(
-  p_limit int default 50,
-  p_offset int default 0,
-  p_search text default null,
-  p_since timestamptz default null
-) returns table (
-  id uuid, created_at timestamptz, status text, secret_slug text,
-  payer_name text, payer_email text, payer_phone text, payer_cpf text,
-  payment_method text, amount_cents int,
-  management_status text, management_paid_at timestamptz,
-  completed_at timestamptz
-) language plpgsql stable security definer set search_path = public as $$
-begin
-  if not public.auth_is_platform_admin() then
-    raise exception 'forbidden' using errcode = '42501';
-  end if;
-  return query
-  select d.id, d.created_at, d.status, d.secret_slug,
-         d.payer_name, d.payer_email, d.payer_phone, d.payer_cpf,
-         d.payment_method, d.amount_cents,
-         d.management_status, d.management_paid_at, d.completed_at
-  from public.diagnoses d
-  where d.payer_email is not null
-    and (p_since is null or d.created_at >= p_since)
-    and (
-      p_search is null or p_search = '' or
-      d.payer_email ilike '%'||p_search||'%' or
-      d.payer_name  ilike '%'||p_search||'%' or
-      d.payer_cpf   ilike '%'||p_search||'%'
-    )
-  order by d.created_at desc
-  limit greatest(1, least(p_limit, 200))
-  offset greatest(0, p_offset);
-end; $$;
-
-create or replace function public.platform_management_subscribers_list(
-  p_limit int default 50,
-  p_offset int default 0,
-  p_search text default null,
-  p_status text default null
-) returns table (
-  diagnosis_id uuid, subscription_id uuid,
-  management_paid_at timestamptz,
-  payer_name text, payer_email text, payer_phone text, payer_cpf text,
-  business_name text, website text, instagram text,
-  amount_cents int, card_last4 text,
-  sub_status text, next_payment_date timestamptz,
-  last_charge_at timestamptz, last_charge_status text,
-  cancelled_at timestamptz, mp_preapproval_id text
-) language plpgsql stable security definer set search_path = public as $$
-begin
-  if not public.auth_is_platform_admin() then
-    raise exception 'forbidden' using errcode = '42501';
-  end if;
-  return query
-  select d.id, s.id,
-         d.management_paid_at,
-         d.payer_name, d.payer_email, d.payer_phone, d.payer_cpf,
-         d.management_business_name, d.management_website, d.management_instagram,
-         s.amount_cents, s.card_last4,
-         s.status, s.next_payment_date,
-         s.last_charge_at, s.last_charge_status,
-         s.cancelled_at, s.mp_preapproval_id
-  from public.management_subscriptions s
-  join public.diagnoses d on d.id = s.diagnosis_id
-  where (p_status is null or s.status = p_status)
-    and (
-      p_search is null or p_search = '' or
-      d.payer_email ilike '%'||p_search||'%' or
-      d.payer_name  ilike '%'||p_search||'%' or
-      d.payer_cpf   ilike '%'||p_search||'%' or
-      d.management_business_name ilike '%'||p_search||'%'
-    )
-  order by d.management_paid_at desc nulls last
-  limit greatest(1, least(p_limit, 200))
-  offset greatest(0, p_offset);
-end; $$;
-
-create or replace function public.platform_management_subscribers_kpis()
-returns jsonb language plpgsql stable security definer set search_path = public as $$
-declare v jsonb;
-begin
-  if not public.auth_is_platform_admin() then
-    raise exception 'forbidden' using errcode = '42501';
-  end if;
-  select jsonb_build_object(
-    'active_count', count(*) filter (where status='authorized'),
-    'mrr_cents', coalesce(sum(amount_cents) filter (where status='authorized'),0),
-    'new_this_month', count(*) filter (where created_at >= date_trunc('month', now())),
-    'cancelled_this_month', count(*) filter (where cancelled_at >= date_trunc('month', now()))
-  ) into v from public.management_subscriptions;
-  return v;
-end; $$;
-
-grant execute on function public.platform_diagnosis_buyers_list(int,int,text,timestamptz) to authenticated;
-grant execute on function public.platform_management_subscribers_list(int,int,text,text) to authenticated;
-grant execute on function public.platform_management_subscribers_kpis() to authenticated;
+```
+is_member_of(agency_id) AND (
+  is_owner_or_admin(agency_id)
+  OR NOT EXISTS (
+    SELECT 1 FROM public.client_member_scopes s
+    WHERE s.user_id = auth.uid() AND s.agency_id = agency_briefings.agency_id
+  )
+)
 ```
 
-Acesso é controlado pela checagem `auth_is_platform_admin()` dentro de cada função — não há grant a `anon`.
+### 4. `whatsapp_logs` INSERT
+Trocar `WITH CHECK is_member_of(agency_id)` por `is_member_of(agency_id) AND user_can_access_client(client_id)` para casar com SELECT/UPDATE já corretos.
 
-### Frontend
+## Riscos e mitigações
 
-1. **`src/routes/_authenticated/platform-admin.tsx`** — embrulhar o conteúdo atual em `<Tabs>` do shadcn com 4 `TabsTrigger`. Conteúdo atual (overview/agencies/oauth + `<PlatformDiagnosisSection />`) vai para as duas primeiras abas.
+- Edge functions e jobs server-side usam `service_role`, que ignora RLS — não afetados.
+- Server functions que correm como utilizador autenticado restrito passarão a ver só os clientes do escopo, que é exatamente o comportamento pretendido.
+- Não há código que escreva `whatsapp_logs` para um cliente fora do escopo do utilizador no fluxo normal; a mudança só bloqueia abuso direto.
+- Não toco nas policies `_delete` (já são `is_owner_or_admin`) nem em outras tabelas fora do escopo do scanner.
 
-2. **`src/components/platform-admin/PlatformDiagnosisBuyers.tsx`** (novo) — KPIs + tabela com busca, paginação e filtro de período. Usa `supabase.rpc('platform_diagnosis_buyers_list', ...)`. Botão "Copiar WhatsApp" formata `https://wa.me/55<phone>?text=...`. Botão "QA" abre `/diagnostico/{id}?s={secret}`.
+## Entrega
 
-3. **`src/components/platform-admin/PlatformManagementSubscribers.tsx`** (novo) — KPIs (RPC `platform_management_subscribers_kpis`) + tabela (`platform_management_subscribers_list`) com filtro de status (authorized/paused/cancelled), busca, paginação. Botão "Cancelar gestão" reutiliza `cancel-management-subscription` (mesmo fluxo já existente em `PlatformDiagnosisSection`).
-
-4. **`src/lib/platform-admin-buyers.ts`** (novo) — tipos `DiagnosisBuyerRow`, `ManagementSubscriberRow`, helpers `centsToBrl`, `formatCpf`, `formatPhoneBR`, `subscriptionStatusLabel`.
-
-Nenhuma alteração em `meta-pixel.ts`, checkout, ou lógica de pagamento. `PlatformDiagnosisSection` permanece inalterado (continua com e-mail mascarado pois é a visão operacional do funil).
-
-## Fora de escopo
-
-- Export CSV (pode ser adicionado depois se pedir)
-- Detalhe drill-down de cada comprador
-- Histórico de charges (`management_subscription_charges`) — só mostra última cobrança agregada
-
-## Risco
-
-- PII completo na UI: mitigado por `auth_is_platform_admin()` server-side; o front também já está sob `_authenticated` + redirect se não for platform admin.
-- LGPD: registrar nos termos que platform admin tem acesso a dados de cliente para suporte (provavelmente já coberto).
+Uma única migração `supabase/migrations/*` que faz `DROP POLICY` + `CREATE POLICY` para cada item acima. Sem alterações de código de aplicação.
