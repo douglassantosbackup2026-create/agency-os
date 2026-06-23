@@ -236,7 +236,7 @@ function GestaoCheckoutPage() {
 
   const onApproved = useCallback(() => {
     if (!d || !s) return;
-    trackMetaPurchase(GESTAO_PRODUCT, d);
+    // Purchase dispara em /gestao-obrigado para evitar duplicidade.
     navigate({ to: "/gestao-obrigado", search: { d, s } });
   }, [d, s, navigate]);
 
