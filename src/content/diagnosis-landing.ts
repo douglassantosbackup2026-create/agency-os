@@ -343,7 +343,7 @@ export const howItWorksSection = {
   steps: [
     {
       step: 1,
-      title: `Você paga ${PRICE_LABEL}`,
+      title: `Você paga ${PRICE_DISPLAY_TEXT}`,
       description:
         "Pagamento via Mercado Pago — Pix ou cartão em até 12x. Cobrança única, sem mensalidade.",
     },
