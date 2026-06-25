@@ -458,7 +458,7 @@ Deno.serve(async (req) => {
     }
 
     await fireCapiPurchase({
-      eventId: `mgmt_${dataId}`,
+      eventId: `mgmt_purchase_${rawId}`,
       diagnosisId: rawId,
       valueBrl: mgmtPaid / 100,
       contentName: "Gestão de Tráfego Meta Ads",
