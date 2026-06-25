@@ -15,6 +15,41 @@ import {
 } from "../_shared/mp-preapproval.ts";
 import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 import { notifyManagementPaid } from "../_shared/management-paid-hook.ts";
+import { sendMetaPurchase } from "../_shared/meta-capi.ts";
+
+const PUBLIC_SITE_URL =
+  Deno.env.get("PUBLIC_SITE_URL") ?? Deno.env.get("SITE_URL") ?? "";
+
+async function fireCapiPurchase(args: {
+  eventId: string;
+  diagnosisId: string;
+  valueBrl: number;
+  contentName: string;
+  sourcePath: string;
+  email?: string | null;
+  phone?: string | null;
+  firstName?: string | null;
+}) {
+  const r = await sendMetaPurchase({
+    eventId: args.eventId,
+    valueBrl: args.valueBrl,
+    contentName: args.contentName,
+    eventSourceUrl: PUBLIC_SITE_URL ? `${PUBLIC_SITE_URL}${args.sourcePath}` : null,
+    externalId: args.diagnosisId,
+    email: args.email,
+    phone: args.phone,
+    firstName: args.firstName,
+  });
+  if (!r.ok) {
+    console.warn(
+      JSON.stringify({
+        evt: "mercadopago_webhook.capi_purchase_failed",
+        diagnosis_id: args.diagnosisId,
+        err: r.error,
+      }),
+    );
+  }
+}
 
 async function fetchPayment(
   paymentId: string,
