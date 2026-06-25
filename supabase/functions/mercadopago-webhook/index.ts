@@ -531,6 +531,17 @@ Deno.serve(async (req) => {
     console.error("webhook: ensureBuyerAccountAndToken failed", e);
   }
 
+  await fireCapiPurchase({
+    eventId: `diag_${dataId}`,
+    diagnosisId: extRef,
+    valueBrl: diagPaid / 100,
+    contentName: "Diagnóstico Meta Ads",
+    sourcePath: "/obrigado",
+    email: existing.payer_email,
+    phone: existing.payer_phone,
+    firstName: existing.payer_name,
+  });
+
   traceLog("mercadopago_webhook.ok", { data_id: dataId, ext_ref: extRef }, traceId);
   return jsonResponse({ ok: true }, 200);
 });
