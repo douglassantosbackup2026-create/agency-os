@@ -54,14 +54,21 @@ Card.displayName = "Card";
 
 function CardHeaderInner({
   title,
+  subtitle,
   action,
 }: {
   title: string;
+  subtitle?: React.ReactNode;
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between border-b border-border px-4 py-3">
-      <h3 className="text-sm font-semibold">{title}</h3>
+    <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+      <div className="min-w-0">
+        <h3 className="text-sm font-semibold">{title}</h3>
+        {subtitle ? (
+          <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
+        ) : null}
+      </div>
       {action}
     </div>
   );
