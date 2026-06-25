@@ -25,7 +25,7 @@ export function PlatformOpsConfig() {
   const save = useMutation({
     mutationFn: async (agencyId: string | null) => {
       const res = await supabase.rpc("update_retentio_ops_config", {
-        p_diagnosis_funnel_agency_id: agencyId,
+        p_diagnosis_funnel_agency_id: agencyId ?? undefined,
       });
       throwIfSupabaseError(res.error, "update_retentio_ops_config");
       return res.data;
