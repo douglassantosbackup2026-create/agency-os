@@ -457,6 +457,17 @@ Deno.serve(async (req) => {
       );
     }
 
+    await fireCapiPurchase({
+      eventId: `mgmt_${dataId}`,
+      diagnosisId: rawId,
+      valueBrl: mgmtPaid / 100,
+      contentName: "Gestão de Tráfego Meta Ads",
+      sourcePath: "/gestao-obrigado",
+      email: existing.payer_email,
+      phone: existing.payer_phone,
+      firstName: existing.payer_name,
+    });
+
     return jsonResponse({ ok: true, branch: "mgmt" }, 200);
   }
 
