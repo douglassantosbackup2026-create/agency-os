@@ -16,7 +16,7 @@ export type DiagnosisBuyerRow = {
 
 export type ManagementSubscriberRow = {
   diagnosis_id: string;
-  subscription_id: string;
+  subscription_id: string | null;
   management_paid_at: string | null;
   payer_name: string | null;
   payer_email: string | null;
@@ -33,6 +33,10 @@ export type ManagementSubscriberRow = {
   last_charge_status: string | null;
   cancelled_at: string | null;
   mp_preapproval_id: string | null;
+  payment_method: string | null;
+  onboarding_status: string | null;
+  whatsapp_clicked_at: string | null;
+  client_id: string | null;
 };
 
 export type ManagementKpis = {
@@ -91,6 +95,10 @@ export function subscriptionStatusLabel(status: string | null | undefined): stri
       return "Cancelada";
     case "pending":
       return "Pendente";
+    case "pix_paid":
+      return "PIX (mensal)";
+    case "unknown":
+      return "—";
     default:
       return status ?? "—";
   }
@@ -105,6 +113,8 @@ export function subscriptionStatusTone(
     case "paused":
     case "pending":
       return "warn";
+    case "pix_paid":
+      return "ok";
     case "cancelled":
       return "bad";
     default:

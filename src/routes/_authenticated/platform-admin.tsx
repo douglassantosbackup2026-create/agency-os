@@ -25,6 +25,7 @@ import {
 import { PlatformDiagnosisSection } from "@/components/platform-admin/PlatformDiagnosisSection";
 import { PlatformDiagnosisBuyers } from "@/components/platform-admin/PlatformDiagnosisBuyers";
 import { PlatformManagementSubscribers } from "@/components/platform-admin/PlatformManagementSubscribers";
+import { PlatformOpsConfig } from "@/components/platform-admin/PlatformOpsConfig";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/_authenticated/platform-admin")({
@@ -322,7 +323,10 @@ function PlatformAdmin() {
         </TabsContent>
 
         <TabsContent value="funnel">
-          <PlatformDiagnosisSection />
+          <div className="space-y-4">
+            <PlatformOpsConfig />
+            <PlatformDiagnosisSection />
+          </div>
         </TabsContent>
 
         <TabsContent value="buyers">

@@ -65,6 +65,7 @@ import {
   ScoreBar,
   Stat,
 } from "@/components/operational-ui";
+import { ClientDiagnosisOriginBanner } from "@/components/management/ClientDiagnosisOriginBanner";
 import { toast } from "sonner";
 import { throwIfSupabaseError, queryErrorMeta } from "@/lib/supabase-result";
 import { QueryErrorState } from "@/components/query-error-state";
@@ -1091,6 +1092,11 @@ function ClientDetail() {
           </Button>
         </div>
       </header>
+
+      <ClientDiagnosisOriginBanner
+        clientId={clientId}
+        diagnosisId={c.diagnosis_id}
+      />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
         <Stat

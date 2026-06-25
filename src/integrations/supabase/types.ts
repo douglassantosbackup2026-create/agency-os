@@ -817,6 +817,7 @@ export type Database = {
           contact_email: string | null
           contact_phone: string | null
           created_at: string
+          diagnosis_id: string | null
           id: string
           monthly_budget: number | null
           mrr: number | null
@@ -834,6 +835,7 @@ export type Database = {
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
+          diagnosis_id?: string | null
           id?: string
           monthly_budget?: number | null
           mrr?: number | null
@@ -851,6 +853,7 @@ export type Database = {
           contact_email?: string | null
           contact_phone?: string | null
           created_at?: string
+          diagnosis_id?: string | null
           id?: string
           monthly_budget?: number | null
           mrr?: number | null
@@ -869,6 +872,13 @@ export type Database = {
             columns: ["agency_id"]
             isOneToOne: false
             referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clients_diagnosis_id_fkey"
+            columns: ["diagnosis_id"]
+            isOneToOne: false
+            referencedRelation: "diagnoses"
             referencedColumns: ["id"]
           },
         ]
@@ -1121,11 +1131,15 @@ export type Database = {
           management_instagram: string | null
           management_mp_payment_id: string | null
           management_mp_preference_id: string | null
+          management_onboarding_status: string
+          management_ops_notified_at: string | null
           management_paid_at: string | null
           management_payment_method: string | null
           management_pix_expires_at: string | null
           management_pix_qr_code: string | null
           management_pix_qr_code_base64: string | null
+          management_provisioned_at: string | null
+          management_provisioned_by: string | null
           management_status: string
           management_website: string | null
           management_whatsapp_clicked_at: string | null
@@ -1163,11 +1177,15 @@ export type Database = {
           management_instagram?: string | null
           management_mp_payment_id?: string | null
           management_mp_preference_id?: string | null
+          management_onboarding_status?: string
+          management_ops_notified_at?: string | null
           management_paid_at?: string | null
           management_payment_method?: string | null
           management_pix_expires_at?: string | null
           management_pix_qr_code?: string | null
           management_pix_qr_code_base64?: string | null
+          management_provisioned_at?: string | null
+          management_provisioned_by?: string | null
           management_status?: string
           management_website?: string | null
           management_whatsapp_clicked_at?: string | null
@@ -1205,11 +1223,15 @@ export type Database = {
           management_instagram?: string | null
           management_mp_payment_id?: string | null
           management_mp_preference_id?: string | null
+          management_onboarding_status?: string
+          management_ops_notified_at?: string | null
           management_paid_at?: string | null
           management_payment_method?: string | null
           management_pix_expires_at?: string | null
           management_pix_qr_code?: string | null
           management_pix_qr_code_base64?: string | null
+          management_provisioned_at?: string | null
+          management_provisioned_by?: string | null
           management_status?: string
           management_website?: string | null
           management_whatsapp_clicked_at?: string | null
@@ -1853,6 +1875,59 @@ export type Database = {
             columns: ["agency_id"]
             isOneToOne: false
             referencedRelation: "agencies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      management_onboarding_submissions: {
+        Row: {
+          access_checklist: string[]
+          access_notes: string | null
+          created_at: string
+          diagnosis_id: string
+          extra_json: Json
+          id: string
+          ip: string | null
+          monthly_ad_budget: number | null
+          preferred_contact_time: string | null
+          roas_goal: string | null
+          submitted_at: string
+          updated_at: string
+        }
+        Insert: {
+          access_checklist?: string[]
+          access_notes?: string | null
+          created_at?: string
+          diagnosis_id: string
+          extra_json?: Json
+          id?: string
+          ip?: string | null
+          monthly_ad_budget?: number | null
+          preferred_contact_time?: string | null
+          roas_goal?: string | null
+          submitted_at?: string
+          updated_at?: string
+        }
+        Update: {
+          access_checklist?: string[]
+          access_notes?: string | null
+          created_at?: string
+          diagnosis_id?: string
+          extra_json?: Json
+          id?: string
+          ip?: string | null
+          monthly_ad_budget?: number | null
+          preferred_contact_time?: string | null
+          roas_goal?: string | null
+          submitted_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "management_onboarding_submissions_diagnosis_id_fkey"
+            columns: ["diagnosis_id"]
+            isOneToOne: true
+            referencedRelation: "diagnoses"
             referencedColumns: ["id"]
           },
         ]
@@ -2964,6 +3039,7 @@ export type Database = {
       }
     }
     Functions: {
+      assert_funnel_agency_operator: { Args: never; Returns: string }
       auth_is_platform_admin: { Args: never; Returns: boolean }
       bootstrap_retentio_cron_jobs: { Args: never; Returns: Json }
       check_ai_budget: {
@@ -3034,10 +3110,15 @@ export type Database = {
         Args: { p_agency_id: string }
         Returns: Json
       }
+      get_client_diagnosis_handoff: {
+        Args: { p_client_id: string }
+        Returns: Json
+      }
       get_cron_dispatch_agency_batch: {
         Args: { p_job_key: string; p_limit?: number }
         Returns: Json
       }
+      get_diagnosis_funnel_agency_id: { Args: never; Returns: string }
       get_diagnosis_ops_snapshot: { Args: never; Returns: Json }
       get_latest_campaign_audits_for_clients: {
         Args: { p_client_ids: string[] }
@@ -3047,8 +3128,13 @@ export type Database = {
           result_json: Json
         }[]
       }
+      get_management_onboarding_submission: {
+        Args: { p_diagnosis_id: string }
+        Returns: Json
+      }
       get_resilience_ops_snapshot: { Args: never; Returns: Json }
       get_retentio_cron_bearer: { Args: never; Returns: string }
+      get_retentio_ops_config: { Args: never; Returns: Json }
       has_role: {
         Args: {
           _agency_id: string
@@ -3059,6 +3145,29 @@ export type Database = {
       }
       is_member_of: { Args: { _agency_id: string }; Returns: boolean }
       is_owner_or_admin: { Args: { _agency_id: string }; Returns: boolean }
+      management_onboarding_queue: {
+        Args: { p_include_provisioned?: boolean; p_limit?: number }
+        Returns: {
+          business_name: string
+          checklist_done: number
+          checklist_total: number
+          client_id: string
+          client_portal_slug: string
+          diagnosis_id: string
+          form_submitted_at: string
+          management_paid_at: string
+          management_payment_method: string
+          meta_ad_account_id: string
+          monthly_ad_budget: number
+          onboarding_status: string
+          payer_email: string
+          payer_name: string
+          payer_phone: string
+          roas_goal: string
+          secret_slug: string
+          whatsapp_clicked_at: string
+        }[]
+      }
       max_alerts_for_agency: { Args: { _agency: string }; Returns: number }
       platform_diagnosis_buyers_list: {
         Args: {
@@ -3147,6 +3256,7 @@ export type Database = {
           business_name: string
           cancelled_at: string
           card_last4: string
+          client_id: string
           diagnosis_id: string
           instagram: string
           last_charge_at: string
@@ -3154,13 +3264,16 @@ export type Database = {
           management_paid_at: string
           mp_preapproval_id: string
           next_payment_date: string
+          onboarding_status: string
           payer_cpf: string
           payer_email: string
           payer_name: string
           payer_phone: string
+          payment_method: string
           sub_status: string
           subscription_id: string
           website: string
+          whatsapp_clicked_at: string
         }[]
       }
       platform_overview_counts: {
@@ -3184,6 +3297,10 @@ export type Database = {
       retention_cleanup_ops: { Args: never; Returns: Json }
       setup_retentio_cron_jobs: {
         Args: { p_cron_bearer: string }
+        Returns: Json
+      }
+      update_retentio_ops_config: {
+        Args: { p_diagnosis_funnel_agency_id?: string }
         Returns: Json
       }
       upsert_metrics_daily_batch: { Args: { p_rows: Json }; Returns: undefined }

@@ -18,6 +18,8 @@ type StatusPayload = {
   management_status?: string | null;
   management_business_name?: string | null;
   management_payment_method?: string | null;
+  management_onboarding_status?: string | null;
+  portal_slug?: string | null;
   subscription?: {
     status: string;
     next_payment_date: string | null;
@@ -66,6 +68,40 @@ function GestaoObrigadoPage() {
       return "continue";
     },
   });
+
+  const confirmed = snapshot?.management_status === "paid";
+  const hasPortal = Boolean(snapshot?.portal_slug);
+
+  // Poll leve pós-pagamento até o portal estar disponível (provisionamento).
+  useEffect(() => {
+    if (!d || !s || !confirmed || hasPortal) return;
+
+    let alive = true;
+    const pollPortal = async () => {
+      try {
+        const j = await callDiagnosisApi<StatusPayload>("management-payment-status", {
+          query: { d, s },
+        });
+        if (!alive) return;
+        setSnapshot((prev) => (prev ? { ...prev, ...j } : j));
+      } catch {
+        /* ignore — poll silencioso */
+      }
+    };
+
+    void pollPortal();
+    const id = window.setInterval(() => void pollPortal(), 30_000);
+    const stopAt = window.setTimeout(() => {
+      alive = false;
+      window.clearInterval(id);
+    }, 30 * 60_000);
+
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+      window.clearTimeout(stopAt);
+    };
+  }, [d, s, confirmed, hasPortal]);
 
   useEffect(() => {
     if (!d || !s) return;
@@ -128,8 +164,6 @@ function GestaoObrigadoPage() {
     );
   }
 
-  const confirmed = snapshot?.management_status === "paid";
-
   return (
     <div className="diagnosis-funnel">
       <div className="container">
@@ -153,8 +187,8 @@ function GestaoObrigadoPage() {
             <>
               <p>
                 <strong>1ª mensalidade confirmada</strong> para o pedido ligado ao
-                teu diagnóstico (ID <code>{d}</code>). Próximo passo: WhatsApp
-                connosco para iniciar o onboarding em até 24h.
+                teu diagnóstico (ID <code>{d}</code>). Próximo passo: preenche o
+                formulário de onboarding (5 min) — respondemos em até 24h.
               </p>
               {snapshot?.management_payment_method === "card" && snapshot?.subscription?.status === "authorized" ? (
                 <p className="muted">
@@ -182,30 +216,60 @@ function GestaoObrigadoPage() {
           ) : null}
         </div>
 
-        {(confirmed || timedOut) && waHref ? (
+        {(confirmed || timedOut) ? (
           <div className="card">
-            <h2 style={{ marginTop: 0 }}>Falar connosco</h2>
-            <a
-              className="btn btn-primary"
-              href={waHref}
-              target="_blank"
-              rel="noreferrer"
-              onClick={() => {
-                logManagementHandoff({
-                  diagnosisId: d,
-                  secretSlug: s,
-                  kind: "whatsapp_click",
-                  payload: {
-                    business_name:
-                      snapshot?.management_business_name ?? null,
-                    timed_out: timedOut,
-                    confirmed,
-                  },
-                });
-              }}
-            >
-              WhatsApp — próximos passos
-            </a>
+            <h2 style={{ marginTop: 0 }}>Próximos passos</h2>
+            {confirmed ? (
+              <>
+                <Link
+                  to="/gestao-onboarding"
+                  search={{ d, s }}
+                  className="btn btn-primary"
+                  style={{ display: "block", textAlign: "center", marginBottom: "0.75rem" }}
+                >
+                  Preencher onboarding (5 min)
+                </Link>
+                {hasPortal && snapshot?.portal_slug ? (
+                  <a
+                    className="btn btn-outline"
+                    href={`/p/${snapshot.portal_slug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ display: "block", textAlign: "center", marginBottom: "0.75rem" }}
+                  >
+                    Abrir portal do cliente
+                  </a>
+                ) : null}
+              </>
+            ) : null}
+            {waHref ? (
+              <>
+                <p className="muted" style={{ fontSize: "0.9rem" }}>
+                  Dúvidas urgentes:
+                </p>
+                <a
+                  className="btn btn-outline"
+                  href={waHref}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => {
+                    logManagementHandoff({
+                      diagnosisId: d,
+                      secretSlug: s,
+                      kind: "whatsapp_click",
+                      payload: {
+                        business_name:
+                          snapshot?.management_business_name ?? null,
+                        timed_out: timedOut,
+                        confirmed,
+                      },
+                    });
+                  }}
+                >
+                  WhatsApp — dúvidas urgentes
+                </a>
+              </>
+            ) : null}
             <div style={{ marginTop: "1rem" }}>
               <Link
                 to="/diagnostico/$diagnosisId"

@@ -24,12 +24,14 @@ import {
   subscriptionStatusTone,
   whatsappLink,
 } from "@/lib/platform-admin-buyers";
+import { onboardingStatusLabel } from "@/lib/management-onboarding";
 
 const PAGE_SIZE = 50;
 
 const STATUS_OPTIONS = [
   { label: "Todos", value: "" },
-  { label: "Ativas", value: "authorized" },
+  { label: "Ativas (cartão)", value: "authorized" },
+  { label: "PIX pago", value: "pix_paid" },
   { label: "Pausadas", value: "paused" },
   { label: "Canceladas", value: "cancelled" },
   { label: "Pendentes", value: "pending" },
@@ -98,6 +100,28 @@ export function PlatformManagementSubscribers() {
     },
   });
 
+  const provisionMutation = useMutation({
+    mutationFn: async (diagnosisId: string) => {
+      const res = await supabase.functions.invoke("provision-management-client", {
+        body: { diagnosis_id: diagnosisId },
+      });
+      if (res.error) {
+        throw new Error(await edgeFunctionErrorMessage(res.error, res.error.message));
+      }
+      const body = res.data as { error?: string; client_id?: string };
+      if (body?.error) throw new Error(body.error);
+      return body;
+    },
+    onSuccess: () => {
+      toast.success("Cliente provisionado no cockpit.");
+      void queryClient.invalidateQueries({ queryKey: ["platform-subscribers"] });
+      void queryClient.invalidateQueries({ queryKey: ["management-onboarding-queue"] });
+    },
+    onError: (e) => {
+      toast.error(e instanceof Error ? e.message : "Falha ao provisionar");
+    },
+  });
+
   const cancelMutation = useMutation({
     mutationFn: async (payload: { diagnosis_id: string; reason: string }) => {
       const res = await supabase.functions.invoke(
@@ -159,8 +183,8 @@ export function PlatformManagementSubscribers() {
           </h2>
         </div>
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Assinaturas recorrentes da gestão (Mercado Pago). Inclui contacto
-          completo, status no MP, próxima cobrança e ação de cancelamento.
+          Gestão paga (cartão recorrente ou PIX). Inclui onboarding, handoff
+          WhatsApp e provisionamento no cockpit.
         </p>
       </div>
 
@@ -245,6 +269,7 @@ export function PlatformManagementSubscribers() {
                   <th className="pb-2 pr-2 font-medium">Negócio</th>
                   <th className="pb-2 pr-2 font-medium">Mensal</th>
                   <th className="pb-2 pr-2 font-medium">Cartão</th>
+                  <th className="pb-2 pr-2 font-medium">Onboarding</th>
                   <th className="pb-2 pr-2 font-medium">Status</th>
                   <th className="pb-2 pr-2 font-medium">Próx. cobrança</th>
                   <th className="pb-2 font-medium">Ações</th>
@@ -266,7 +291,7 @@ export function PlatformManagementSubscribers() {
                     `Olá ${r.payer_name?.split(" ")[0] ?? ""}, aqui é da Retentio sobre a tua gestão de tráfego.`,
                   );
                   return (
-                    <tr key={r.subscription_id} className="border-b border-border/60 align-top">
+                    <tr key={r.diagnosis_id} className="border-b border-border/60 align-top">
                       <td className="py-2 pr-2 whitespace-nowrap text-muted-foreground">
                         {r.management_paid_at
                           ? new Date(r.management_paid_at).toLocaleString("pt-BR")
@@ -294,7 +319,19 @@ export function PlatformManagementSubscribers() {
                         {centsToBrl(r.amount_cents)}
                       </td>
                       <td className="py-2 pr-2 font-mono text-[11px]">
-                        {r.card_last4 ? `•••• ${r.card_last4}` : "—"}
+                        {r.payment_method === "pix"
+                          ? "PIX"
+                          : r.card_last4
+                            ? `•••• ${r.card_last4}`
+                            : "—"}
+                      </td>
+                      <td className="py-2 pr-2 text-[10px]">
+                        <div>{onboardingStatusLabel(r.onboarding_status)}</div>
+                        {r.whatsapp_clicked_at ? (
+                          <div className="text-emerald-600">WhatsApp ✓</div>
+                        ) : (
+                          <div className="text-muted-foreground">Sem WhatsApp</div>
+                        )}
                       </td>
                       <td className="py-2 pr-2">
                         <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${toneClass}`}>
@@ -313,6 +350,18 @@ export function PlatformManagementSubscribers() {
                       </td>
                       <td className="py-2">
                         <div className="flex flex-wrap gap-1">
+                          {!r.client_id ? (
+                            <button
+                              type="button"
+                              className="rounded border px-1.5 py-0.5 hover:bg-muted disabled:opacity-50"
+                              disabled={provisionMutation.isPending}
+                              onClick={() =>
+                                provisionMutation.mutate(r.diagnosis_id)
+                              }
+                            >
+                              Provisionar
+                            </button>
+                          ) : null}
                           {wa ? (
                             <a
                               href={wa}

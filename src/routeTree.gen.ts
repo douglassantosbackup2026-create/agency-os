@@ -18,6 +18,7 @@ import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as ObrigadoRouteImport } from './routes/obrigado'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as GestaoObrigadoRouteImport } from './routes/gestao-obrigado'
+import { Route as GestaoOnboardingRouteImport } from './routes/gestao-onboarding'
 import { Route as GestaoCheckoutRouteImport } from './routes/gestao-checkout'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as DemoRouteImport } from './routes/demo'
@@ -33,6 +34,7 @@ import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedReportsRouteImport } from './routes/_authenticated/reports'
 import { Route as AuthenticatedPlatformAdminRouteImport } from './routes/_authenticated/platform-admin'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
+import { Route as AuthenticatedManagementOnboardingRouteImport } from './routes/_authenticated/management-onboarding'
 import { Route as AuthenticatedIntegrationsRouteImport } from './routes/_authenticated/integrations'
 import { Route as AuthenticatedHealthRouteImport } from './routes/_authenticated/health'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -91,6 +93,11 @@ const LoginRoute = LoginRouteImport.update({
 const GestaoObrigadoRoute = GestaoObrigadoRouteImport.update({
   id: '/gestao-obrigado',
   path: '/gestao-obrigado',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GestaoOnboardingRoute = GestaoOnboardingRouteImport.update({
+  id: '/gestao-onboarding',
+  path: '/gestao-onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GestaoCheckoutRoute = GestaoCheckoutRouteImport.update({
@@ -168,6 +175,12 @@ const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
   path: '/onboarding',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedManagementOnboardingRoute =
+  AuthenticatedManagementOnboardingRouteImport.update({
+    id: '/management-onboarding',
+    path: '/management-onboarding',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedIntegrationsRoute =
   AuthenticatedIntegrationsRouteImport.update({
     id: '/integrations',
@@ -252,6 +265,7 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/gestao-checkout': typeof GestaoCheckoutRoute
   '/gestao-obrigado': typeof GestaoObrigadoRoute
+  '/gestao-onboarding': typeof GestaoOnboardingRoute
   '/login': typeof LoginRoute
   '/obrigado': typeof ObrigadoRoute
   '/privacidade': typeof PrivacidadeRoute
@@ -271,6 +285,7 @@ export interface FileRoutesByFullPath {
   '/health': typeof AuthenticatedHealthRoute
   '/integrations': typeof AuthenticatedIntegrationsRouteWithChildren
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/management-onboarding': typeof AuthenticatedManagementOnboardingRoute
   '/platform-admin': typeof AuthenticatedPlatformAdminRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -291,6 +306,7 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/gestao-checkout': typeof GestaoCheckoutRoute
   '/gestao-obrigado': typeof GestaoObrigadoRoute
+  '/gestao-onboarding': typeof GestaoOnboardingRoute
   '/login': typeof LoginRoute
   '/obrigado': typeof ObrigadoRoute
   '/privacidade': typeof PrivacidadeRoute
@@ -310,6 +326,7 @@ export interface FileRoutesByTo {
   '/health': typeof AuthenticatedHealthRoute
   '/integrations': typeof AuthenticatedIntegrationsRouteWithChildren
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/management-onboarding': typeof AuthenticatedManagementOnboardingRoute
   '/platform-admin': typeof AuthenticatedPlatformAdminRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -332,6 +349,7 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/gestao-checkout': typeof GestaoCheckoutRoute
   '/gestao-obrigado': typeof GestaoObrigadoRoute
+  '/gestao-onboarding': typeof GestaoOnboardingRoute
   '/login': typeof LoginRoute
   '/obrigado': typeof ObrigadoRoute
   '/privacidade': typeof PrivacidadeRoute
@@ -351,6 +369,7 @@ export interface FileRoutesById {
   '/_authenticated/health': typeof AuthenticatedHealthRoute
   '/_authenticated/integrations': typeof AuthenticatedIntegrationsRouteWithChildren
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
+  '/_authenticated/management-onboarding': typeof AuthenticatedManagementOnboardingRoute
   '/_authenticated/platform-admin': typeof AuthenticatedPlatformAdminRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
@@ -471,6 +490,7 @@ export interface FileRouteTypes {
     | '/_authenticated/health'
     | '/_authenticated/integrations'
     | '/_authenticated/onboarding'
+    | '/_authenticated/management-onboarding'
     | '/_authenticated/platform-admin'
     | '/_authenticated/reports'
     | '/_authenticated/settings'
@@ -493,6 +513,7 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   GestaoCheckoutRoute: typeof GestaoCheckoutRoute
   GestaoObrigadoRoute: typeof GestaoObrigadoRoute
+  GestaoOnboardingRoute: typeof GestaoOnboardingRoute
   LoginRoute: typeof LoginRoute
   ObrigadoRoute: typeof ObrigadoRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
@@ -568,6 +589,13 @@ declare module '@tanstack/react-router' {
       path: '/gestao-obrigado'
       fullPath: '/gestao-obrigado'
       preLoaderRoute: typeof GestaoObrigadoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gestao-onboarding': {
+      id: '/gestao-onboarding'
+      path: '/gestao-onboarding'
+      fullPath: '/gestao-onboarding'
+      preLoaderRoute: typeof GestaoOnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/gestao-checkout': {
@@ -673,6 +701,13 @@ declare module '@tanstack/react-router' {
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/management-onboarding': {
+      id: '/_authenticated/management-onboarding'
+      path: '/management-onboarding'
+      fullPath: '/management-onboarding'
+      preLoaderRoute: typeof AuthenticatedManagementOnboardingRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/integrations': {
@@ -803,6 +838,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedHealthRoute: typeof AuthenticatedHealthRoute
   AuthenticatedIntegrationsRoute: typeof AuthenticatedIntegrationsRouteWithChildren
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
+  AuthenticatedManagementOnboardingRoute: typeof AuthenticatedManagementOnboardingRoute
   AuthenticatedPlatformAdminRoute: typeof AuthenticatedPlatformAdminRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
@@ -824,6 +860,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedHealthRoute: AuthenticatedHealthRoute,
   AuthenticatedIntegrationsRoute: AuthenticatedIntegrationsRouteWithChildren,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
+  AuthenticatedManagementOnboardingRoute: AuthenticatedManagementOnboardingRoute,
   AuthenticatedPlatformAdminRoute: AuthenticatedPlatformAdminRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
@@ -871,6 +908,7 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   GestaoCheckoutRoute: GestaoCheckoutRoute,
   GestaoObrigadoRoute: GestaoObrigadoRoute,
+  GestaoOnboardingRoute: GestaoOnboardingRoute,
   LoginRoute: LoginRoute,
   ObrigadoRoute: ObrigadoRoute,
   PrivacidadeRoute: PrivacidadeRoute,

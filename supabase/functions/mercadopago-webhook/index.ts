@@ -14,6 +14,7 @@ import {
   fetchMpPreapproval,
 } from "../_shared/mp-preapproval.ts";
 import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
+import { notifyManagementPaid } from "../_shared/management-paid-hook.ts";
 
 async function fetchPayment(
   paymentId: string,
@@ -187,6 +188,11 @@ Deno.serve(async (req) => {
           })
           .eq("id", sub.diagnosis_id)
           .eq("management_status", "awaiting_payment");
+        try {
+          await notifyManagementPaid(sbEarly, sub.diagnosis_id as string);
+        } catch (e) {
+          console.error("preapproval notifyManagementPaid failed", e);
+        }
       }
     }
 
@@ -404,80 +410,12 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "db update failed (mgmt)" }, 500);
     }
 
-    // Alerta interno para a agência dona do funil de diagnóstico.
-    // Tolerante a falha: nunca derruba o webhook.
     try {
-      const { data: cfg } = await sb
-        .from("retentio_ops_config")
-        .select("diagnosis_funnel_agency_id")
-        .eq("id", 1)
-        .maybeSingle();
-      const funnelAgencyId = (cfg as { diagnosis_funnel_agency_id?: string | null } | null)
-        ?.diagnosis_funnel_agency_id ?? null;
-      if (funnelAgencyId) {
-        const businessName =
-          (existing.management_business_name as string | null) ?? null;
-        const payerName = (existing.payer_name as string | null) ?? null;
-        const payerEmail = (existing.payer_email as string | null) ?? null;
-        const payerPhone = (existing.payer_phone as string | null) ?? null;
-        const amountBrl = (mgmtPaid / 100).toLocaleString("pt-BR", {
-          style: "currency",
-          currency: "BRL",
-        });
-        const title = businessName
-          ? `Gestão paga: ${businessName} (${amountBrl})`
-          : `Gestão paga: novo cliente (${amountBrl})`;
-        const descParts = [
-          `Pagamento confirmado para o diagnóstico ${rawId}.`,
-          payerName ? `Comprador: ${payerName}.` : null,
-          payerEmail ? `E-mail: ${payerEmail}.` : null,
-          payerPhone ? `Telefone: ${payerPhone}.` : null,
-          existing.meta_ad_account_id
-            ? `Conta Meta ligada: ${existing.meta_ad_account_id}.`
-            : null,
-          existing.management_instagram
-            ? `Instagram: ${existing.management_instagram}.`
-            : null,
-          existing.management_website
-            ? `Site: ${existing.management_website}.`
-            : null,
-        ].filter(Boolean);
-        const { error: alertErr } = await sb.from("alerts").insert({
-          agency_id: funnelAgencyId,
-          type: "diagnosis_management_paid",
-          title,
-          description: descParts.join(" "),
-          priority: "high",
-          recommended_action:
-            "Confirma se o cliente abriu o WhatsApp; se não, contacta proactivamente nas próximas horas.",
-          should_create_task: true,
-          task_title: businessName
-            ? `Onboarding gestão — ${businessName}`
-            : `Onboarding gestão — diagnóstico ${rawId.slice(0, 8)}`,
-          time_to_act: "Próximas 24h",
-          why_line: "Cliente acabou de pagar a gestão de tráfego.",
-        });
-        if (alertErr) {
-          console.error(
-            JSON.stringify({
-              evt: "mercadopago_webhook.alert_insert_failed",
-              diagnosis_id: rawId,
-              err: String(alertErr.message ?? alertErr),
-            }),
-          );
-        }
-      } else {
-        console.warn(
-          JSON.stringify({
-            evt: "mercadopago_webhook.alert_skipped_no_agency",
-            diagnosis_id: rawId,
-          }),
-        );
-      }
+      await notifyManagementPaid(sb, rawId);
     } catch (e) {
       console.error(
         JSON.stringify({
-          evt: "mercadopago_webhook.alert_exception",
+          evt: "mercadopago_webhook.notify_management_paid_failed",
           diagnosis_id: rawId,
           err: String(e).slice(0, 300),
         }),

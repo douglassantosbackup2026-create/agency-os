@@ -59,6 +59,7 @@ import {
   ScoreBar,
   Stat,
 } from "@/components/operational-ui";
+import { ManagementOnboardingQueue } from "@/components/management/ManagementOnboardingQueue";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   component: Dashboard,
@@ -590,6 +591,8 @@ function Dashboard() {
           <span className="text-xs text-muted-foreground">Últimos 30 dias</span>
         </div>
       </header>
+
+      <ManagementOnboardingQueue compact limit={5} />
 
       <Card className="border-primary/25 bg-primary/[0.06] shadow-sm">
         <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">

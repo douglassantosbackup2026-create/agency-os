@@ -15,6 +15,7 @@ import {
   managementPriceCentsFromEnv,
   paymentAmountCents,
 } from "../_shared/mercadopago-webhook-helpers.ts";
+import { notifyManagementPaid } from "../_shared/management-paid-hook.ts";
 
 const DIAGNOSIS_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -153,6 +154,14 @@ Deno.serve(async (req) => {
       updates.management_paid_at = new Date().toISOString();
     }
     await sb.from("diagnoses").update(updates).eq("id", diagnosisId);
+
+    if (status === "authorized") {
+      try {
+        await notifyManagementPaid(sb, diagnosisId);
+      } catch (e) {
+        console.error("process-management-payment notifyManagementPaid failed", e);
+      }
+    }
 
     const redirect =
       status === "authorized"

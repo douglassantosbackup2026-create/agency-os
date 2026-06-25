@@ -2,6 +2,7 @@ import { handleCors, jsonResponse } from "../_shared/diagnosis/cors.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
 import { publicClientIp, publicRateLimitExceeded } from "../_shared/public-rate-limit.ts";
+import { notifyManagementPaid } from "../_shared/management-paid-hook.ts";
 
 const DIAGNOSIS_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -30,6 +31,12 @@ async function reconcileManagementWithMp(
       })
       .eq("id", diagnosisId)
       .eq("management_status", "awaiting_payment");
+
+    try {
+      await notifyManagementPaid(sb, diagnosisId);
+    } catch (e) {
+      console.error("management-payment-status notifyManagementPaid failed", e);
+    }
 
     return "paid";
   } catch (e) {
@@ -62,7 +69,7 @@ Deno.serve(async (req) => {
   const { data } = await sb
     .from("diagnoses")
     .select(
-      "secret_slug, management_status, management_mp_payment_id, management_business_name, management_payment_method",
+      "secret_slug, management_status, management_mp_payment_id, management_business_name, management_payment_method, management_onboarding_status",
     )
     .eq("id", d)
     .maybeSingle();
@@ -106,11 +113,23 @@ Deno.serve(async (req) => {
     };
   }
 
+  let portal_slug: string | null = null;
+  if (data.management_onboarding_status === "provisioned") {
+    const { data: clientRow } = await sb
+      .from("clients")
+      .select("portal_slug")
+      .eq("diagnosis_id", d)
+      .maybeSingle();
+    portal_slug = (clientRow?.portal_slug as string | null) ?? null;
+  }
+
   trace.done({ management_status: managementStatus });
   return jsonResponse({
     management_status: managementStatus,
     management_business_name: data.management_business_name ?? null,
     management_payment_method: data.management_payment_method ?? null,
+    management_onboarding_status: data.management_onboarding_status ?? null,
+    portal_slug,
     subscription,
   });
 });

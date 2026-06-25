@@ -124,3 +124,9 @@ verify_jwt = false
 
 [functions.log-management-handoff]
 verify_jwt = false
+
+[functions.provision-management-client]
+verify_jwt = true
+
+[functions.submit-management-onboarding]
+verify_jwt = false
