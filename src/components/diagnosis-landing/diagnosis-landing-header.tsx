@@ -1,5 +1,5 @@
-import { memo } from "react";
-import { BarChart2 } from "lucide-react";
+import { memo, useSyncExternalStore } from "react";
+import { BarChart2, Moon, Sun } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import {
   ANCHOR_COMO,
@@ -15,6 +15,7 @@ import {
   landingNavAnchorClass,
   landingPrimaryCtaClass,
 } from "@/lib/landing-ui";
+import { getSnapshotTheme, subscribeTheme, toggleTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -22,8 +23,15 @@ type Props = {
 };
 
 function DiagnosisLandingHeaderInner({ onCtaClick }: Props) {
+  const theme = useSyncExternalStore(
+    subscribeTheme,
+    getSnapshotTheme,
+    () => "light" as const,
+  );
+  const isDark = theme === "dark";
   return (
-    <header className="dark sticky top-0 z-50 border-b border-border/70 bg-background/85 text-foreground backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
+    <header className="sticky top-0 z-50 border-b border-border/70 bg-background/85 text-foreground backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
+
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-3.5">
         <a
           href="#top"
