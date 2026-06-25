@@ -76,6 +76,14 @@ function DiagnosisLandingHeaderInner({ onCtaClick }: Props) {
           </Link>
           <button
             type="button"
+            onClick={toggleTheme}
+            aria-label={isDark ? "Ativar modo claro" : "Ativar modo escuro"}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border/70 bg-background/70 text-muted-foreground outline-none ring-offset-background transition hover:bg-muted/80 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {isDark ? <Sun className="h-4 w-4" aria-hidden /> : <Moon className="h-4 w-4" aria-hidden />}
+          </button>
+          <button
+            type="button"
             onClick={onCtaClick}
             className={cn(landingPrimaryCtaClass, "px-3 sm:px-3.5 inline-flex items-center gap-1.5")}
           >
