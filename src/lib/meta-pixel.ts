@@ -37,6 +37,7 @@ declare global {
       command: "track" | "init",
       eventOrId: string,
       params?: Record<string, unknown>,
+      options?: { eventID?: string },
     ) => void;
   }
 }
