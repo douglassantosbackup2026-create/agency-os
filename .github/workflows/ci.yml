@@ -17,6 +17,10 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test -- --run
+      - run: npm run ops:security-rpc-smoke
+        env:
+          VITE_SUPABASE_URL: https://uvuotaxikuxejfeitlaw.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV2dW90YXhpa3V4ZWpmZWl0bGF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgyNzk4MjcsImV4cCI6MjA5Mzg1NTgyN30.32xOultMJNFLQ98Nw3VxQR5t5wyEH1NxTyg6K_bMl_s
       - run: npm run build
         env:
           VITE_SUPABASE_URL: https://uvuotaxikuxejfeitlaw.supabase.co

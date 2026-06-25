@@ -81,6 +81,22 @@ const { data } = await supabase.from('integrations_public').select('*');
 - Sem `MERCADOPAGO_WEBHOOK_SECRET`, `mercadopago-webhook` deve responder **503** `webhook_not_configured`.
 - Webhook com assinatura inválida: **401**.
 
-## 9. Automatização futura
+## 9. RPC anon smoke (automatizado)
+
+Com a chave **anon** (publishable), as RPCs abaixo não devem responder **200**:
+
+```bash
+npm run ops:security-rpc-smoke
+```
+
+Inclui: `get_retentio_cron_bearer`, `bootstrap_retentio_cron_jobs`, `get_resilience_ops_snapshot`, `get_agency_dashboard_snapshot`, `claim_ai_jobs`, `platform_diagnosis_buyers_list`.
+
+Migração: `20260625120000_security_rpc_execute_lockdown.sql`.
+
+## 10. Auth Dashboard (manual)
+
+Activar **Leaked Password Protection** em Authentication → Providers → Email → Password security ([doc Supabase](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection)).
+
+## 11. Automatização futura
 
 Integrar estes passos em CI com dois JWTs de teste e falhar o pipeline se qualquer leitura/escrita cross-tenant passar.

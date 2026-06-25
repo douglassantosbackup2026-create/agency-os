@@ -5,6 +5,7 @@ Itens planeados após P0/P1. Não bloqueiam deploy se P0 estiver completo.
 ## Concluído (auditoria jun/2026)
 
 - RPC guards (`get_agency_dashboard_snapshot`, `get_resilience_ops_snapshot`, `get_agency_dashboard_detail`)
+- **RPC execute lockdown** — migração `20260625120000`: `REVOKE` de `anon`/`authenticated`, guards fail-closed, rotação cron bearer
 - `user_can_access_client` + policies em tabelas filhas
 - Portal slugs CSPRNG + regeneração global
 - `diagnosis-followup` / `process-diagnosis` cron-only
@@ -12,6 +13,7 @@ Itens planeados após P0/P1. Não bloqueiam deploy se P0 estiver completo.
 - Rate limits pagamento + portal IP global
 - Subscriptions plan limits trigger
 - Auth frontend (`getUser`, reset-password recovery, command palette)
+- Smoke `npm run ops:security-rpc-smoke` em CI
 - Ver [`security-audit-remediation.md`](security-audit-remediation.md)
 
 ## 1. Cifra de tokens em repouso

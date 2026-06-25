@@ -36,6 +36,28 @@ Referência das correções aplicadas em jun/2026 após auditoria completa. Vali
 - [ ] Build produção exige `VITE_SUPABASE_*` (`scripts/check-prod-env.mjs`)
 - [ ] Antes de deploy Edge Functions: `npm run ops:check-edge-env` (exige `PUBLIC_SITE_URL` ou `APP_ALLOWED_ORIGINS`)
 
+## P4 — RPC execute lockdown (jun/2026)
+
+- [x] Migração `20260625120000_security_rpc_execute_lockdown.sql` aplicada
+- [x] `REVOKE EXECUTE` explícito de `anon`/`authenticated` em RPCs `SECURITY DEFINER` privilegiadas
+- [x] Guards fail-closed (`require_platform_admin`, `require_authenticated_agency_member`)
+- [x] `user_can_access_client`: `auth.uid() IS NULL` → `false`
+- [x] Cron bearer rotacionado + `CRON_SECRET` alinhado (`npx supabase secrets set` ou `npm run ops:sync-cron-secret`)
+- [ ] `npm run ops:security-rpc-smoke` → todas as RPCs críticas **≠ 200** com anon
+- [ ] Auth Dashboard: **Leaked Password Protection** activo
+
+### Rotação do cron bearer (pós-migração)
+
+A migração `20260625120000` gera novo bearer e re-agenda `pg_cron`. Alinhar Edge Functions:
+
+```bash
+# Com SUPABASE_SERVICE_ROLE_KEY no .env:
+npm run ops:sync-cron-secret
+
+# Ou manualmente (CLI autenticado):
+npx supabase secrets set CRON_SECRET=<valor de get_retentio_cron_bearer via service_role>
+```
+
 ## Smoke commands
 
 ```bash
@@ -43,6 +65,7 @@ npm run test -- --run
 npm run db:lint   # com projeto linkado
 npm run db:types  # regenerar types após migrations
 npm run ops:check-edge-env
+npm run ops:security-rpc-smoke
 ```
 
 ## Secrets obrigatórios (produção)

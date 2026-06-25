@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       action_center: {
@@ -3151,6 +3176,11 @@ export type Database = {
         Args: { p_client_id?: string }
         Returns: undefined
       }
+      require_authenticated_agency_member: {
+        Args: { p_agency_id: string }
+        Returns: undefined
+      }
+      require_platform_admin: { Args: never; Returns: undefined }
       retention_cleanup_ops: { Args: never; Returns: Json }
       setup_retentio_cron_jobs: {
         Args: { p_cron_bearer: string }
@@ -3306,6 +3336,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       ai_job_status: ["pending", "processing", "done", "failed"],

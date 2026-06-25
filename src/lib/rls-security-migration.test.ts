@@ -81,4 +81,22 @@ describe("RLS security migration contract", () => {
     expect(sql).toMatch(/activities_select/i);
     expect(sql).toMatch(/user_can_access_client\(client_id\)/i);
   });
+
+  it("security_rpc_execute_lockdown revokes anon and uses fail-closed guards", () => {
+    const sql = readFileSync(
+      join(
+        root,
+        "supabase",
+        "migrations",
+        "20260625120000_security_rpc_execute_lockdown.sql",
+      ),
+      "utf8",
+    );
+    expect(sql).toMatch(/REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated/i);
+    expect(sql).toMatch(/require_platform_admin/i);
+    expect(sql).toMatch(/require_authenticated_agency_member/i);
+    expect(sql).toMatch(/WHEN auth\.uid\(\) IS NULL THEN false/i);
+    expect(sql).toMatch(/diagnosis_followup_jobs_deny_all/i);
+    expect(sql).toMatch(/extensions\.gen_random_bytes/i);
+  });
 });

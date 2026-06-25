@@ -17,6 +17,7 @@
     "test:e2e": "playwright test",
     "ops:apply-crons": "node scripts/apply-cron-jobs.mjs",
     "ops:sync-cron-secret": "node scripts/sync-cron-secret.mjs",
+    "ops:security-rpc-smoke": "node scripts/security-rpc-smoke.mjs",
     "db:lint": "npx supabase db lint",
     "db:types": "npx supabase gen types typescript --linked > src/integrations/supabase/types.ts",
     "ops:check-edge-env": "node scripts/check-edge-env.mjs --require-prod",
