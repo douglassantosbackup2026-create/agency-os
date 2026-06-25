@@ -148,9 +148,15 @@ export function trackMetaPurchase(
 ): void {
   const dedupKey = `${DEDUP_PREFIX}purchase_${product.id}_${orderId}`;
   if (!markOnce(dedupKey)) return;
+  // eventID precisa bater com o enviado via CAPI (mercadopago-webhook → meta-capi.ts).
+  const eventID =
+    product.id === GESTAO_PRODUCT.id
+      ? `mgmt_purchase_${orderId}`
+      : `diag_purchase_${orderId}`;
   trackMetaPixel(
     "Purchase",
     productParams(product, { order_id: orderId, ...extra }),
+    { eventID },
   );
 }
 
