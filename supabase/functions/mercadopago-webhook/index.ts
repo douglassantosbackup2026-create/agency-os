@@ -480,7 +480,7 @@ Deno.serve(async (req) => {
 
   const { data: existing } = await sb
     .from("diagnoses")
-    .select("id, status, mp_payment_id, amount_cents")
+    .select("id, status, mp_payment_id, amount_cents, payer_email, payer_phone, payer_name")
     .eq("id", extRef)
     .maybeSingle();
 
