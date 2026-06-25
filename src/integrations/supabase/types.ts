@@ -3040,6 +3040,8 @@ export type Database = {
     }
     Functions: {
       assert_funnel_agency_operator: { Args: never; Returns: string }
+      auth_can_provision_management: { Args: never; Returns: boolean }
+      auth_is_funnel_agency_operator: { Args: never; Returns: boolean }
       auth_is_platform_admin: { Args: never; Returns: boolean }
       bootstrap_retentio_cron_jobs: { Args: never; Returns: Json }
       check_ai_budget: {
@@ -3243,6 +3245,30 @@ export type Database = {
           slug: string
         }[]
       }
+      platform_management_handoff_list: {
+        Args: {
+          p_kind?: string
+          p_limit?: number
+          p_offset?: number
+          p_paid_without_whatsapp?: boolean
+        }
+        Returns: {
+          business_name: string
+          client_id: string
+          diagnosis_id: string
+          event_at: string
+          event_id: string
+          kind: string
+          management_paid_at: string
+          onboarding_status: string
+          payer_email: string
+          payer_name: string
+          payer_phone: string
+          payload: Json
+          secret_slug: string
+          whatsapp_clicked_at: string
+        }[]
+      }
       platform_management_subscribers_kpis: { Args: never; Returns: Json }
       platform_management_subscribers_list: {
         Args: {
@@ -3250,6 +3276,7 @@ export type Database = {
           p_offset?: number
           p_search?: string
           p_status?: string
+          p_whatsapp_filter?: string
         }
         Returns: {
           amount_cents: number

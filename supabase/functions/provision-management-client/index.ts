@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { handleCors, jsonResponse } from "../_shared/diagnosis/cors.ts";
 import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
 import { actionCenterRowsFromPlan } from "../_shared/management-action-plan.ts";
+import { aiBudgetExceeded } from "../_shared/ai-budget.ts";
 
 const DIAGNOSIS_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -268,6 +269,39 @@ Deno.serve(async (req) => {
     });
   } catch (e) {
     console.warn("compute-health-scores invoke failed", e);
+  }
+
+  try {
+    const budgetExceeded = await aiBudgetExceeded(admin, funnelAgencyId, 12000);
+    if (budgetExceeded) {
+      console.warn(
+        JSON.stringify({
+          evt: "provision.skip_report_job",
+          reason: "ai_budget_exceeded",
+          client_id: clientId,
+        }),
+      );
+    } else {
+      const { error: jobErr } = await admin.from("ai_jobs").insert({
+        agency_id: funnelAgencyId,
+        client_id: clientId,
+        job_type: "report",
+        status: "pending",
+        payload: {
+          client_id: clientId,
+          mode: "monthly_manager",
+          click_context: "checkin_rotina",
+          generated_by: userId,
+          source: "management_provision",
+        },
+        attempts: 0,
+      });
+      if (jobErr) {
+        console.warn("provision ai_jobs insert failed", jobErr);
+      }
+    }
+  } catch (e) {
+    console.warn("provision enqueue report failed", e);
   }
 
   trace.done({ diagnosis_id: diagnosisId, client_id: clientId });

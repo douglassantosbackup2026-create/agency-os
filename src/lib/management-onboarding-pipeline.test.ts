@@ -61,6 +61,35 @@ describe("management onboarding gaps migration", () => {
   });
 });
 
+describe("management handoff ops migration", () => {
+  it("defines funnel operator RPCs and handoff list", () => {
+    const sql = readFileSync(
+      join(
+        root,
+        "supabase/migrations/20260625160000_management_handoff_ops.sql",
+      ),
+      "utf8",
+    );
+    expect(sql).toMatch(/auth_is_funnel_agency_operator/i);
+    expect(sql).toMatch(/auth_can_provision_management/i);
+    expect(sql).toMatch(/platform_management_handoff_list/i);
+    expect(sql).toMatch(/p_whatsapp_filter/i);
+  });
+});
+
+describe("provision-management-client contract", () => {
+  it("enqueues first IA report job after provision", () => {
+    const src = readFileSync(
+      join(root, "supabase/functions/provision-management-client/index.ts"),
+      "utf8",
+    );
+    expect(src).toMatch(/ai_jobs/);
+    expect(src).toMatch(/monthly_manager/);
+    expect(src).toMatch(/management_provision/);
+    expect(src).toMatch(/aiBudgetExceeded/);
+  });
+});
+
 describe("notifyManagementPaid hook contract", () => {
   it("creates alert and action_center task on payment", () => {
     const src = readFileSync(

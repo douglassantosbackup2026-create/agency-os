@@ -6,10 +6,8 @@ import {
   FileText,
   Loader2,
   MessageCircle,
-  UserPlus,
 } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { edgeFunctionErrorMessage } from "@/lib/edge-function-error";
 import {
@@ -33,6 +31,7 @@ import {
   whatsappLink,
 } from "@/lib/platform-admin-buyers";
 import { buildGestaoIntroMessage } from "@/lib/gestao-whatsapp";
+import { ProvisionManagementButton } from "@/components/management/ProvisionManagementButton";
 
 type OnboardingSubmission = {
   diagnosis_id: string;
@@ -218,19 +217,7 @@ function QueueRowActions({
           Ver formulário
         </Button>
       ) : null}
-      <Button
-        type="button"
-        size="sm"
-        disabled={loading}
-        onClick={() => void provision()}
-      >
-        {loading ? (
-          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-        ) : (
-          <UserPlus className="mr-1 h-3 w-3" />
-        )}
-        Provisionar
-      </Button>
+      <ProvisionManagementButton loading={loading} onClick={() => void provision()} />
       {wa ? (
         <a
           href={wa}
@@ -278,6 +265,7 @@ export function ManagementOnboardingQueue({
 
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ["management-onboarding-queue"] });
+    void queryClient.invalidateQueries({ queryKey: ["funnel-agency-operator"] });
     void refetch();
   };
 

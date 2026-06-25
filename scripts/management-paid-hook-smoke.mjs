@@ -69,9 +69,42 @@ for (const re of requiredSqlPatterns) {
   }
 }
 
+const handoffSql = readFileSync(
+  resolve(
+    root,
+    "supabase/migrations/20260625160000_management_handoff_ops.sql",
+  ),
+  "utf8",
+);
+
+const requiredHandoffPatterns = [
+  /auth_is_funnel_agency_operator/,
+  /auth_can_provision_management/,
+  /platform_management_handoff_list/,
+  /p_whatsapp_filter/,
+];
+
+for (const re of requiredHandoffPatterns) {
+  if (!re.test(handoffSql)) {
+    console.error(`FAIL handoff migration missing pattern: ${re}`);
+    failed++;
+  }
+}
+
+const provisionSrc = readFileSync(
+  resolve(root, "supabase/functions/provision-management-client/index.ts"),
+  "utf8",
+);
+
+if (!/ai_jobs/.test(provisionSrc) || !/management_provision/.test(provisionSrc)) {
+  console.error("FAIL provision-management-client missing ai_jobs enqueue");
+  failed++;
+}
+
 if (failed === 0) {
   console.log("OK   management-paid-hook contract");
   console.log("OK   gaps migration contract");
+  console.log("OK   handoff ops migration contract");
 }
 
 const env = loadEnv();
@@ -103,6 +136,24 @@ if (anonKey) {
     failed++;
   } else {
     console.log(`OK   get_management_onboarding_submission → ${res.status}`);
+  }
+
+  const handoffRes = await fetch(`${base}/platform_management_handoff_list`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: anonKey,
+      Authorization: `Bearer ${anonKey}`,
+    },
+    body: JSON.stringify({ p_limit: 1, p_offset: 0 }),
+  });
+  if (handoffRes.status === 200) {
+    console.error(
+      "FAIL platform_management_handoff_list → 200 (anon não devia ter acesso)",
+    );
+    failed++;
+  } else {
+    console.log(`OK   platform_management_handoff_list → ${handoffRes.status}`);
   }
 } else {
   console.log("SKIP anon RPC check (sem VITE_SUPABASE_PUBLISHABLE_KEY)");

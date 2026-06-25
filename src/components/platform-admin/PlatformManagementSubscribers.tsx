@@ -25,6 +25,7 @@ import {
   whatsappLink,
 } from "@/lib/platform-admin-buyers";
 import { onboardingStatusLabel } from "@/lib/management-onboarding";
+import { ProvisionManagementButton } from "@/components/management/ProvisionManagementButton";
 
 const PAGE_SIZE = 50;
 
@@ -35,6 +36,12 @@ const STATUS_OPTIONS = [
   { label: "Pausadas", value: "paused" },
   { label: "Canceladas", value: "cancelled" },
   { label: "Pendentes", value: "pending" },
+];
+
+const WHATSAPP_OPTIONS = [
+  { label: "WhatsApp: todos", value: "" },
+  { label: "Clicou WhatsApp", value: "clicked" },
+  { label: "Sem clique WhatsApp", value: "not_clicked" },
 ];
 
 function exportCsv(rows: ManagementSubscriberRow[]): string {
@@ -76,10 +83,11 @@ export function PlatformManagementSubscribers() {
   const [search, setSearch] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [whatsappFilter, setWhatsappFilter] = useState("");
   const [page, setPage] = useState(0);
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ["platform-subscribers", search, statusFilter, page],
+    queryKey: ["platform-subscribers", search, statusFilter, whatsappFilter, page],
     meta: queryErrorMeta,
     queryFn: async () => {
       const [listRes, kpisRes] = await Promise.all([
@@ -88,6 +96,7 @@ export function PlatformManagementSubscribers() {
           p_offset: page * PAGE_SIZE,
           p_search: search || undefined,
           p_status: statusFilter || undefined,
+          p_whatsapp_filter: whatsappFilter || undefined,
         }),
         supabase.rpc("platform_management_subscribers_kpis"),
       ]);
@@ -232,6 +241,20 @@ export function PlatformManagementSubscribers() {
                 </option>
               ))}
             </select>
+            <select
+              className="h-9 rounded-md border border-border bg-background px-2 text-xs"
+              value={whatsappFilter}
+              onChange={(e) => {
+                setWhatsappFilter(e.target.value);
+                setPage(0);
+              }}
+            >
+              {WHATSAPP_OPTIONS.map((o) => (
+                <option key={o.value || "all"} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
             <Button type="submit" size="sm" variant="outline" disabled={isFetching}>
               {isFetching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Filtrar"}
             </Button>
@@ -351,16 +374,13 @@ export function PlatformManagementSubscribers() {
                       <td className="py-2">
                         <div className="flex flex-wrap gap-1">
                           {!r.client_id ? (
-                            <button
-                              type="button"
-                              className="rounded border px-1.5 py-0.5 hover:bg-muted disabled:opacity-50"
-                              disabled={provisionMutation.isPending}
+                            <ProvisionManagementButton
+                              loading={provisionMutation.isPending}
                               onClick={() =>
                                 provisionMutation.mutate(r.diagnosis_id)
                               }
-                            >
-                              Provisionar
-                            </button>
+                              className="h-auto px-1.5 py-0.5 text-xs"
+                            />
                           ) : null}
                           {wa ? (
                             <a

@@ -34,6 +34,7 @@ import {
   ShieldCheck,
   Sparkles,
   Users,
+  UserPlus,
 } from "lucide-react";
 import { CommandPalette } from "@/components/command-palette";
 import { initials } from "@/lib/format";
@@ -55,6 +56,7 @@ import { throwIfSupabaseError } from "@/lib/supabase-result";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { OperationClientScopeProvider } from "@/context/operation-client-scope";
 import { OperationScopeSelect } from "@/components/operation-scope-select";
+import { useFunnelAgencyOperator } from "@/hooks/use-management-funnel-access";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async () => {
@@ -162,6 +164,8 @@ function NavLinks({
   openAlertsCount,
   showAdminLink,
   showPlatformAdminLink,
+  showManagementOnboardingLink,
+  managementOnboardingPendingCount,
 }: {
   path: string;
   onNavigate?: () => void;
@@ -170,6 +174,8 @@ function NavLinks({
   openAlertsCount: number;
   showAdminLink: boolean;
   showPlatformAdminLink: boolean;
+  showManagementOnboardingLink: boolean;
+  managementOnboardingPendingCount: number;
 }) {
   const base =
     variant === "sidebar"
@@ -209,6 +215,23 @@ function NavLinks({
               <ChevronDown className="h-4 w-4 shrink-0 opacity-70 transition-transform duration-200 group-data-[state=open]:rotate-180" />
             </CollapsibleTrigger>
             <CollapsibleContent className="space-y-0.5 pt-0.5">
+              {group.id === "operation" && showManagementOnboardingLink ? (
+                <Link
+                  to="/management-onboarding"
+                  onClick={() => onNavigate?.()}
+                  className={`flex min-h-11 items-center gap-2.5 rounded-md px-2.5 py-2.5 text-sm transition md:py-2 ${path.startsWith("/management-onboarding") ? base.active : base.idle}`}
+                >
+                  <UserPlus className="h-4 w-4 shrink-0" />
+                  <span className="flex-1 truncate">Onboarding gestão</span>
+                  {managementOnboardingPendingCount > 0 ? (
+                    <span className="rounded-full bg-primary/25 px-2 py-0.5 text-xs font-semibold tabular-nums text-primary">
+                      {managementOnboardingPendingCount > 99
+                        ? "99+"
+                        : managementOnboardingPendingCount}
+                    </span>
+                  ) : null}
+                </Link>
+              ) : null}
               {group.items.map((item) => {
                 const active =
                   item.to === "/clients"
@@ -279,6 +302,7 @@ function AuthenticatedLayout() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [memberRole, setMemberRole] = useState<string | null>(null);
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const { data: funnelAccess } = useFunnelAgencyOperator();
 
   const {
     data: navMeta,
@@ -496,6 +520,8 @@ function AuthenticatedLayout() {
             openAlertsCount={navMeta?.openAlertsCount ?? 0}
             showAdminLink={memberRole !== "member"}
             showPlatformAdminLink={isPlatformAdmin}
+            showManagementOnboardingLink={funnelAccess?.isOperator ?? false}
+            managementOnboardingPendingCount={funnelAccess?.pendingCount ?? 0}
           />
 
           <div className="border-t border-sidebar-border p-3">
@@ -558,6 +584,8 @@ function AuthenticatedLayout() {
                 openAlertsCount={navMeta?.openAlertsCount ?? 0}
                 showAdminLink={memberRole !== "member"}
                 showPlatformAdminLink={isPlatformAdmin}
+                showManagementOnboardingLink={funnelAccess?.isOperator ?? false}
+                managementOnboardingPendingCount={funnelAccess?.pendingCount ?? 0}
               />
             </div>
             <div className="border-t border-border p-3">

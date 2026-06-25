@@ -25,6 +25,7 @@ import {
 import { PlatformDiagnosisSection } from "@/components/platform-admin/PlatformDiagnosisSection";
 import { PlatformDiagnosisBuyers } from "@/components/platform-admin/PlatformDiagnosisBuyers";
 import { PlatformManagementSubscribers } from "@/components/platform-admin/PlatformManagementSubscribers";
+import { PlatformManagementHandoff } from "@/components/platform-admin/PlatformManagementHandoff";
 import { PlatformOpsConfig } from "@/components/platform-admin/PlatformOpsConfig";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -159,6 +160,7 @@ function PlatformAdmin() {
           <TabsTrigger value="funnel">Funil Diagnóstico</TabsTrigger>
           <TabsTrigger value="buyers">Compradores Diagnóstico</TabsTrigger>
           <TabsTrigger value="subscribers">Assinantes Gestão</TabsTrigger>
+          <TabsTrigger value="handoff">Handoff</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
@@ -335,6 +337,10 @@ function PlatformAdmin() {
 
         <TabsContent value="subscribers">
           <PlatformManagementSubscribers />
+        </TabsContent>
+
+        <TabsContent value="handoff">
+          <PlatformManagementHandoff />
         </TabsContent>
       </Tabs>
     </div>

@@ -17,8 +17,8 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as ObrigadoRouteImport } from './routes/obrigado'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as GestaoObrigadoRouteImport } from './routes/gestao-obrigado'
 import { Route as GestaoOnboardingRouteImport } from './routes/gestao-onboarding'
+import { Route as GestaoObrigadoRouteImport } from './routes/gestao-obrigado'
 import { Route as GestaoCheckoutRouteImport } from './routes/gestao-checkout'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as DemoRouteImport } from './routes/demo'
@@ -90,14 +90,14 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const GestaoObrigadoRoute = GestaoObrigadoRouteImport.update({
-  id: '/gestao-obrigado',
-  path: '/gestao-obrigado',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const GestaoOnboardingRoute = GestaoOnboardingRouteImport.update({
   id: '/gestao-onboarding',
   path: '/gestao-onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GestaoObrigadoRoute = GestaoObrigadoRouteImport.update({
+  id: '/gestao-obrigado',
+  path: '/gestao-obrigado',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GestaoCheckoutRoute = GestaoCheckoutRouteImport.update({
@@ -284,8 +284,8 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/health': typeof AuthenticatedHealthRoute
   '/integrations': typeof AuthenticatedIntegrationsRouteWithChildren
-  '/onboarding': typeof AuthenticatedOnboardingRoute
   '/management-onboarding': typeof AuthenticatedManagementOnboardingRoute
+  '/onboarding': typeof AuthenticatedOnboardingRoute
   '/platform-admin': typeof AuthenticatedPlatformAdminRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -325,8 +325,8 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/health': typeof AuthenticatedHealthRoute
   '/integrations': typeof AuthenticatedIntegrationsRouteWithChildren
-  '/onboarding': typeof AuthenticatedOnboardingRoute
   '/management-onboarding': typeof AuthenticatedManagementOnboardingRoute
+  '/onboarding': typeof AuthenticatedOnboardingRoute
   '/platform-admin': typeof AuthenticatedPlatformAdminRoute
   '/reports': typeof AuthenticatedReportsRoute
   '/settings': typeof AuthenticatedSettingsRoute
@@ -368,8 +368,8 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/health': typeof AuthenticatedHealthRoute
   '/_authenticated/integrations': typeof AuthenticatedIntegrationsRouteWithChildren
-  '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/management-onboarding': typeof AuthenticatedManagementOnboardingRoute
+  '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/platform-admin': typeof AuthenticatedPlatformAdminRoute
   '/_authenticated/reports': typeof AuthenticatedReportsRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
@@ -392,6 +392,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/gestao-checkout'
     | '/gestao-obrigado'
+    | '/gestao-onboarding'
     | '/login'
     | '/obrigado'
     | '/privacidade'
@@ -410,6 +411,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/health'
     | '/integrations'
+    | '/management-onboarding'
     | '/onboarding'
     | '/platform-admin'
     | '/reports'
@@ -431,6 +433,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/gestao-checkout'
     | '/gestao-obrigado'
+    | '/gestao-onboarding'
     | '/login'
     | '/obrigado'
     | '/privacidade'
@@ -449,6 +452,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/health'
     | '/integrations'
+    | '/management-onboarding'
     | '/onboarding'
     | '/platform-admin'
     | '/reports'
@@ -471,6 +475,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/gestao-checkout'
     | '/gestao-obrigado'
+    | '/gestao-onboarding'
     | '/login'
     | '/obrigado'
     | '/privacidade'
@@ -489,8 +494,8 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/health'
     | '/_authenticated/integrations'
-    | '/_authenticated/onboarding'
     | '/_authenticated/management-onboarding'
+    | '/_authenticated/onboarding'
     | '/_authenticated/platform-admin'
     | '/_authenticated/reports'
     | '/_authenticated/settings'
@@ -584,18 +589,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/gestao-obrigado': {
-      id: '/gestao-obrigado'
-      path: '/gestao-obrigado'
-      fullPath: '/gestao-obrigado'
-      preLoaderRoute: typeof GestaoObrigadoRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/gestao-onboarding': {
       id: '/gestao-onboarding'
       path: '/gestao-onboarding'
       fullPath: '/gestao-onboarding'
       preLoaderRoute: typeof GestaoOnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gestao-obrigado': {
+      id: '/gestao-obrigado'
+      path: '/gestao-obrigado'
+      fullPath: '/gestao-obrigado'
+      preLoaderRoute: typeof GestaoObrigadoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/gestao-checkout': {
@@ -837,8 +842,8 @@ interface AuthenticatedRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedHealthRoute: typeof AuthenticatedHealthRoute
   AuthenticatedIntegrationsRoute: typeof AuthenticatedIntegrationsRouteWithChildren
-  AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedManagementOnboardingRoute: typeof AuthenticatedManagementOnboardingRoute
+  AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedPlatformAdminRoute: typeof AuthenticatedPlatformAdminRoute
   AuthenticatedReportsRoute: typeof AuthenticatedReportsRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
@@ -859,8 +864,9 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedHealthRoute: AuthenticatedHealthRoute,
   AuthenticatedIntegrationsRoute: AuthenticatedIntegrationsRouteWithChildren,
+  AuthenticatedManagementOnboardingRoute:
+    AuthenticatedManagementOnboardingRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
-  AuthenticatedManagementOnboardingRoute: AuthenticatedManagementOnboardingRoute,
   AuthenticatedPlatformAdminRoute: AuthenticatedPlatformAdminRoute,
   AuthenticatedReportsRoute: AuthenticatedReportsRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
@@ -923,3 +929,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
