@@ -15,6 +15,41 @@ import {
 } from "../_shared/mp-preapproval.ts";
 import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 import { notifyManagementPaid } from "../_shared/management-paid-hook.ts";
+import { sendMetaPurchase } from "../_shared/meta-capi.ts";
+
+const PUBLIC_SITE_URL =
+  Deno.env.get("PUBLIC_SITE_URL") ?? Deno.env.get("SITE_URL") ?? "";
+
+async function fireCapiPurchase(args: {
+  eventId: string;
+  diagnosisId: string;
+  valueBrl: number;
+  contentName: string;
+  sourcePath: string;
+  email?: string | null;
+  phone?: string | null;
+  firstName?: string | null;
+}) {
+  const r = await sendMetaPurchase({
+    eventId: args.eventId,
+    valueBrl: args.valueBrl,
+    contentName: args.contentName,
+    eventSourceUrl: PUBLIC_SITE_URL ? `${PUBLIC_SITE_URL}${args.sourcePath}` : null,
+    externalId: args.diagnosisId,
+    email: args.email,
+    phone: args.phone,
+    firstName: args.firstName,
+  });
+  if (!r.ok) {
+    console.warn(
+      JSON.stringify({
+        evt: "mercadopago_webhook.capi_purchase_failed",
+        diagnosis_id: args.diagnosisId,
+        err: r.error,
+      }),
+    );
+  }
+}
 
 async function fetchPayment(
   paymentId: string,
@@ -422,6 +457,17 @@ Deno.serve(async (req) => {
       );
     }
 
+    await fireCapiPurchase({
+      eventId: `mgmt_purchase_${rawId}`,
+      diagnosisId: rawId,
+      valueBrl: mgmtPaid / 100,
+      contentName: "Gestão de Tráfego Meta Ads",
+      sourcePath: "/gestao-obrigado",
+      email: existing.payer_email,
+      phone: existing.payer_phone,
+      firstName: existing.payer_name,
+    });
+
     return jsonResponse({ ok: true, branch: "mgmt" }, 200);
   }
 
@@ -434,7 +480,7 @@ Deno.serve(async (req) => {
 
   const { data: existing } = await sb
     .from("diagnoses")
-    .select("id, status, mp_payment_id, amount_cents")
+    .select("id, status, mp_payment_id, amount_cents, payer_email, payer_phone, payer_name")
     .eq("id", extRef)
     .maybeSingle();
 
@@ -484,6 +530,17 @@ Deno.serve(async (req) => {
   } catch (e) {
     console.error("webhook: ensureBuyerAccountAndToken failed", e);
   }
+
+  await fireCapiPurchase({
+    eventId: `diag_purchase_${extRef}`,
+    diagnosisId: extRef,
+    valueBrl: diagPaid / 100,
+    contentName: "Diagnóstico Meta Ads",
+    sourcePath: "/obrigado",
+    email: existing.payer_email,
+    phone: existing.payer_phone,
+    firstName: existing.payer_name,
+  });
 
   traceLog("mercadopago_webhook.ok", { data_id: dataId, ext_ref: extRef }, traceId);
   return jsonResponse({ ok: true }, 200);

@@ -37,6 +37,7 @@ declare global {
       command: "track" | "init",
       eventOrId: string,
       params?: Record<string, unknown>,
+      options?: { eventID?: string },
     ) => void;
   }
 }
@@ -75,10 +76,12 @@ export function productParams(
 export function trackMetaPixel(
   event: string,
   params?: Record<string, unknown>,
+  options?: { eventID?: string },
 ): void {
   if (!isPixelReady()) return;
   try {
-    if (params) window.fbq!("track", event, params);
+    if (params && options) window.fbq!("track", event, params, options);
+    else if (params) window.fbq!("track", event, params);
     else window.fbq!("track", event);
   } catch {
     /* ignore third-party pixel failures */
@@ -145,9 +148,15 @@ export function trackMetaPurchase(
 ): void {
   const dedupKey = `${DEDUP_PREFIX}purchase_${product.id}_${orderId}`;
   if (!markOnce(dedupKey)) return;
+  // eventID precisa bater com o enviado via CAPI (mercadopago-webhook → meta-capi.ts).
+  const eventID =
+    product.id === GESTAO_PRODUCT.id
+      ? `mgmt_purchase_${orderId}`
+      : `diag_purchase_${orderId}`;
   trackMetaPixel(
     "Purchase",
     productParams(product, { order_id: orderId, ...extra }),
+    { eventID },
   );
 }
 
