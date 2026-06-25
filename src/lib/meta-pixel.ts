@@ -75,10 +75,12 @@ export function productParams(
 export function trackMetaPixel(
   event: string,
   params?: Record<string, unknown>,
+  options?: { eventID?: string },
 ): void {
   if (!isPixelReady()) return;
   try {
-    if (params) window.fbq!("track", event, params);
+    if (params && options) window.fbq!("track", event, params, options);
+    else if (params) window.fbq!("track", event, params);
     else window.fbq!("track", event);
   } catch {
     /* ignore third-party pixel failures */
