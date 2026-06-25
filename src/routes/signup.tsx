@@ -46,7 +46,7 @@ function Signup() {
     // try seed automatically
     await invokeWithToast(supabase, "seed-demo-data", { silent: true });
     setLoading(false);
-    toast.success("Agência criada. Bem-vindo ao Retentio.");
+    toast.success("Agência criada. Bem-vindo ao Agency Opus.");
     navigate({ to: "/onboarding" });
   }
 

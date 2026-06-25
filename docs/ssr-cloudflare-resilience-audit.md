@@ -1,4 +1,4 @@
-# Auditoria SSR / Cloudflare — Retentio
+# Auditoria SSR / Cloudflare — Agency Opus
 
 Escopo P2.5 do plano de resiliência. Estado auditado em maio/2026.
 
@@ -22,10 +22,10 @@ Escopo P2.5 do plano de resiliência. Estado auditado em maio/2026.
 | Rota | Recomendação |
 |------|----------------|
 | `/login`, `/signup` | `Cache-Control: public, max-age=0, must-revalidate` (default worker) |
-| `/retentio`, landing | Avaliar `s-maxage=3600` em assets estáticos via Cloudflare CDN |
+| `/agency-opus`, landing | Avaliar `s-maxage=3600` em assets estáticos via Cloudflare CDN |
 | `/_authenticated/*` | **Sem cache público** — dados por agência |
 
-**Headers CDN/cache:** implementados em [`src/server.ts`](../src/server.ts) para `/login`, `/signup`, `/retentio`.
+**Headers CDN/cache:** implementados em [`src/server.ts`](../src/server.ts) para `/login`, `/signup`, `/agency-opus` (e redirect `/retentio`).
 
 ### Loaders TanStack Start
 

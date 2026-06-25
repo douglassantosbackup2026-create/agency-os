@@ -61,10 +61,10 @@ function DiagnosisLandingHeaderInner({ onCtaClick }: Props) {
             </a>
           </div>
           <Link
-            to="/retentio"
+            to="/agency-opus"
             className={cn(landingNavAnchorClass, "hidden sm:inline-flex")}
           >
-            Retentio
+            Agency Opus
           </Link>
           <button
             type="button"

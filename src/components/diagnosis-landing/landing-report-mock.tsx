@@ -45,7 +45,7 @@ function MockTopbar() {
     <div className="lrm-topbar">
       <div className="lrm-brand">
         <span className="lrm-brand-dot" />
-        Retentio · Diagnóstico
+        Agency Opus · Diagnóstico
       </div>
       <span className="lrm-badge-demo">Demo anonimizada</span>
     </div>

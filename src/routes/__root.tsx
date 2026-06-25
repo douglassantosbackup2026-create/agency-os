@@ -10,7 +10,7 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
-import { landingHeroScreenshot, seoDefaults } from "@/content/retentio-landing";
+import { landingHeroScreenshot, seoDefaults } from "@/content/agency-opus-landing";
 import { AuthProvider } from "@/hooks/use-auth";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";

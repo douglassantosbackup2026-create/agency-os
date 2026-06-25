@@ -1,4 +1,4 @@
-/** Classes e constantes partilhadas entre landings públicas (Retentio, Diagnóstico). */
+/** Classes e constantes partilhadas entre landings públicas (Agency Opus, Diagnóstico). */
 
 export const LANDING_SECTION_SCROLL =
   "scroll-mt-[calc(4.75rem+env(safe-area-inset-top,0px))]";

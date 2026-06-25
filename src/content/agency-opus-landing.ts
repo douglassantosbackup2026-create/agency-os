@@ -1,4 +1,4 @@
-/** Copy da landing pública Retentio — cockpit diário de performance. */
+/** Copy da landing pública Agency Opus — cockpit diário de performance. */
 
 export const ANCHOR_BRIEFING = "daily-performance-briefing";
 export const ANCHOR_DEMO = "demo";
@@ -10,7 +10,7 @@ export const hero = {
   /** Trecho destacado em cor primária no H1 (deve existir dentro de `headline`). */
   headlineHighlight: "tomar decisões.",
   subheadline:
-    "O Retentio é o cockpit diário de quem gerencia múltiplos e-commerces: em 60 segundos você sabe qual cliente olhar primeiro, o que mudou, onde está o problema e o que fazer.",
+    "O Agency Opus é o cockpit diário de quem gerencia múltiplos e-commerces: em 60 segundos você sabe qual cliente olhar primeiro, o que mudou, onde está o problema e o que fazer.",
   bullets: [
     "Qual cliente eu olho primeiro hoje?",
     "O que mudou na performance desde ontem?",
@@ -57,20 +57,20 @@ export const painSection = {
 
 export const pivotSection = {
   title: "Você não precisa de mais uma dashboard. Você precisa de prioridade.",
-  intro: "Dashboards mostram dados.\n\nO Retentio mostra onde agir.",
+  intro: "Dashboards mostram dados.\n\nO Agency Opus mostra onde agir.",
   contrastIntro: "A diferença é simples:",
   dashboardQuestion: "“Quais são os números?”",
-  retentioQuestion:
+  agencyOpusQuestion:
     "“Qual cliente precisa de atenção hoje, por qual motivo e qual ação faz mais sentido agora?”",
   closing:
     "É isso que muda sua rotina.\n\nMenos tempo procurando problema.\nMais tempo tomando decisão.",
 };
 
 export const solutionSection = {
-  title: "Conheça o Retentio",
+  title: "Conheça o Agency Opus",
   subtitle:
     "O sistema operacional diário para gestores de tráfego que atendem múltiplos e-commerces.",
-  body: "O Retentio reúne os dados mais importantes da sua operação em uma única rotina de acompanhamento.\n\nEle cruza mídia paga, GA4, budget, metas, histórico, alertas e anotações para gerar um cockpit diário com prioridades claras.",
+  body: "O Agency Opus reúne os dados mais importantes da sua operação em uma única rotina de acompanhamento.\n\nEle cruza mídia paga, GA4, budget, metas, histórico, alertas e anotações para gerar um cockpit diário com prioridades claras.",
   checklistIntro: "Você abre a plataforma e entende rapidamente:",
   checklist: [
     "quais clientes estão saudáveis;",
@@ -86,7 +86,7 @@ export const solutionSection = {
 export const briefingMechanism = {
   name: "Daily Performance Briefing",
   explanation:
-    "O Daily Performance Briefing é o mecanismo do Retentio que transforma dados espalhados em uma rotina simples de decisão.\n\nEle analisa suas contas, organiza os sinais importantes e mostra o que realmente precisa da sua atenção.",
+    "O Daily Performance Briefing é o mecanismo do Agency Opus que transforma dados espalhados em uma rotina simples de decisão.\n\nEle analisa suas contas, organiza os sinais importantes e mostra o que realmente precisa da sua atenção.",
   stepsTitle: "Como funciona",
   steps: [
     {
@@ -185,7 +185,7 @@ export const featureCards: Array<{
   {
     slug: "ga4-midia",
     title: "Entenda se o problema está na campanha, no site ou na conversão.",
-    body: "Nem toda queda de resultado vem da mídia.\n\nO Retentio cruza dados de anúncios com GA4 para ajudar você a entender se o gargalo está no tráfego, na página, no checkout, na oferta ou no tracking.",
+    body: "Nem toda queda de resultado vem da mídia.\n\nO Agency Opus cruza dados de anúncios com GA4 para ajudar você a entender se o gargalo está no tráfego, na página, no checkout, na oferta ou no tracking.",
   },
   {
     slug: "auditor-ia",
@@ -206,7 +206,7 @@ export const featureCards: Array<{
 
 export const authoritySection = {
   title: "Criado por quem vive a rotina real de tráfego.",
-  body: "O Retentio não nasceu de uma ideia genérica de SaaS.\n\nEle foi criado a partir de uma dor real: gerenciar vários grandes e-commerces e perder tempo demais abrindo plataformas, planilhas e relatórios para acompanhar performance.",
+  body: "O Agency Opus não nasceu de uma ideia genérica de SaaS.\n\nEle foi criado a partir de uma dor real: gerenciar vários grandes e-commerces e perder tempo demais abrindo plataformas, planilhas e relatórios para acompanhar performance.",
   bulletsIntro:
     "A plataforma foi pensada para quem precisa operar no dia a dia:",
   bullets: [
@@ -224,11 +224,11 @@ export const authoritySection = {
 export const objectionsSection = {
   title: "Objeções comuns",
   betweenCallout:
-    "O Retentio não substitui Meta, Google ou GA4 — ordena a sua atenção em cima deles.",
+    "O Agency Opus não substitui Meta, Google ou GA4 — ordena a sua atenção em cima deles.",
   items: [
     {
       q: "Eu já uso Looker Studio.",
-      a: "Ótimo. O Retentio não existe para substituir todos os seus dashboards.\n\nEle existe para responder o que dashboards normalmente não respondem rápido:\n\n“Onde eu preciso agir hoje?”\n\nLooker mostra dados.\nRetentio organiza prioridade, alerta, análise e ação.",
+      a: "Ótimo. O Agency Opus não existe para substituir todos os seus dashboards.\n\nEle existe para responder o que dashboards normalmente não respondem rápido:\n\n“Onde eu preciso agir hoje?”\n\nLooker mostra dados.\nAgency Opus organiza prioridade, alerta, análise e ação.",
     },
     {
       q: "Eu já tenho planilha.",
@@ -236,11 +236,11 @@ export const objectionsSection = {
     },
     {
       q: "Eu posso abrir Meta Ads e Google Ads direto.",
-      a: "Pode.\n\nMas fazer isso para 7, 10 ou 20 clientes todos os dias custa tempo.\n\nO Retentio não impede você de entrar nas plataformas.\nEle te mostra onde vale a pena entrar primeiro.",
+      a: "Pode.\n\nMas fazer isso para 7, 10 ou 20 clientes todos os dias custa tempo.\n\nO Agency Opus não impede você de entrar nas plataformas.\nEle te mostra onde vale a pena entrar primeiro.",
     },
     {
       q: "IA pode errar.",
-      a: "Sim. Por isso o Retentio não executa alterações automáticas.\n\nA IA sugere.\nVocê revisa.\nVocê decide.\n\nO gestor continua no controle.",
+      a: "Sim. Por isso o Agency Opus não executa alterações automáticas.\n\nA IA sugere.\nVocê revisa.\nVocê decide.\n\nO gestor continua no controle.",
     },
   ],
 };
@@ -256,7 +256,7 @@ export const costOfInefficiency = {
     { label: "= custo mensal oculto", value: "R$1.800/mês" },
   ],
   conclusion:
-    "O plano Individual do Retentio custa R$497/mês. E ainda libera tempo para você atender mais 4 clientes.",
+    "O plano Individual do Agency Opus custa R$497/mês. E ainda libera tempo para você atender mais 4 clientes.",
   punchline: "Não é gasto. É troca de tempo por resultado.",
 };
 
@@ -328,7 +328,7 @@ export const pricingSection = {
 export const finalCta = {
   title:
     "60 segundos. Você sabe quem precisa de atenção, o que aconteceu e o que fazer.",
-  body: "Pare de começar o dia abrindo 10 abas para descobrir o óbvio.\n\nO Retentio coloca seus clientes, alertas, metas, GA4, análises e ações em uma rotina única — para você chegar às decisões, não aos dados.",
+  body: "Pare de começar o dia abrindo 10 abas para descobrir o óbvio.\n\nO Agency Opus coloca seus clientes, alertas, metas, GA4, análises e ações em uma rotina única — para você chegar às decisões, não aos dados.",
   ctaPrimary: "Criar conta gratuita",
   ctaSecondary: "Ver o cockpit em ação",
   microcopy:
@@ -378,7 +378,7 @@ export const landingHeroScreenshot = {
   png: "/landing/hero-cockpit-clientes.png",
   width: 1600,
   height: 980,
-  alt: "Interface Retentio: lista de clientes no cockpit operacional com health score, ações abertas, último sync e coluna de auditoria IA.",
+  alt: "Interface Agency Opus: lista de clientes no cockpit operacional com health score, ações abertas, último sync e coluna de auditoria IA.",
 } as const;
 
 export type DemoScreenshotPanel = {
@@ -403,7 +403,7 @@ export const demoSection = {
       png: "/landing/central-alertas.png",
       width: 1400,
       height: 788,
-      alt: "Central de alertas do Retentio listando alertas de CPA, criativo fadigado, campanha parada e queda de ROAS por cliente.",
+      alt: "Central de alertas do Agency Opus listando alertas de CPA, criativo fadigado, campanha parada e queda de ROAS por cliente.",
     },
     {
       title: "Cockpit operacional",
@@ -421,7 +421,7 @@ export const demoSection = {
       png: "/landing/health-score.png",
       width: 1400,
       height: 770,
-      alt: "Health Score do Retentio com colunas alto risco, risco médio e clientes saudáveis.",
+      alt: "Health Score do Agency Opus com colunas alto risco, risco médio e clientes saudáveis.",
     },
     {
       title: "Feed operacional",
@@ -457,7 +457,7 @@ export const demoSection = {
       png: "/landing/relatorios-ia.png",
       width: 1400,
       height: 780,
-      alt: "Relatórios IA do Retentio com painel lateral de período e botão para gerar novo relatório.",
+      alt: "Relatórios IA do Agency Opus com painel lateral de período e botão para gerar novo relatório.",
     },
     {
       title: "Inteligência de concorrentes",
@@ -489,7 +489,7 @@ export const miniComparison = {
       us: "Alertas e cruzamento mídia + GA4 no fluxo.",
     },
     {
-      label: "Retentio",
+      label: "Agency Opus",
       them: "—",
       us: "Prioridade, histórico operacional e IA como assistente (você decide).",
     },
@@ -515,7 +515,7 @@ export const faqConversion: Array<{ question: string; answer: string }> = [
   {
     question: "Isso substitui Meta Ads e Google Ads?",
     answer:
-      "Não. Você continua otimizando nas plataformas nativas; o Retentio ajuda a priorizar contas e comunicar resultados.",
+      "Não. Você continua otimizando nas plataformas nativas; o Agency Opus ajuda a priorizar contas e comunicar resultados.",
   },
   {
     question: "IA altera campanhas sozinha?",
@@ -548,7 +548,7 @@ export function landingFaqJsonLd(): Record<string, unknown> {
 /** Meta SEO — também espelhado em __root.tsx */
 export const seoDefaults = {
   title:
-    "Retentio — Cockpit de performance para gestores de tráfego multi e-commerce",
+    "Agency Opus — Cockpit de performance para gestores de tráfego multi e-commerce",
   description:
     "Centralize mídia paga, GA4, budget, metas, alertas e IA em um briefing diário: saiba qual cliente olhar primeiro e onde agir.",
 };

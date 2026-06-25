@@ -188,6 +188,42 @@ npm run ops:deploy-worker
 7. `consultative_derived.qaChecklist` coerente no `facts_json`.
 8. Banner legado some quando `prompt_version = v16`.
 
+## Growth Intelligence v4-consultative (consultor sênior)
+
+- **Prompt:** `diagnosis-growth-intelligence-v4-consultative` — few-shots v13/Páprika + tom consultivo; `build-ai-prompt.ts` slim.
+- **IA:** **Sonnet primário**; retry fallback se validação consultiva falhar; tokens reais.
+- **Validação:** `validateConsultativeNarrative` — R$ no veredito, 5 capítulos, anti-dashboard, learning_fail ≠ saturação.
+- **Fallback:** determinístico só após IA esgotada ou orçamento (`consultative_quality: deferred`).
+
+```bash
+npm test -- supabase/functions/_shared/diagnosis/
+npx supabase functions deploy process-diagnosis diagnosis-report diagnosis-platform-ops --project-ref uvuotaxikuxejfeitlaw
+```
+
+**Secrets Supabase:** `CLAUDE_MODEL=claude-sonnet-4-20250514`, `DIAGNOSIS_AI_MAX_TOKENS=6144`, `DIAGNOSIS_SMALL_ACCOUNT_SPEND_BRL=3000`.
+
+**Reprocessar após v4-consultative:** `prompt_version IS DISTINCT FROM 'diagnosis-growth-intelligence-v4-consultative'`.
+
+### QA checklist v4
+
+1. `buildUserPromptSlim` &lt; 50k chars; sem bloco `facts_json:`.
+2. `analysis_json.__meta.narrative_source` = `ai` ou `deterministic`.
+3. Orçamento IA estourado → `completed` (não `failed`).
+4. Conta pequena: `facts_json.fetch_profile = lite`, sem `trends`.
+5. `retry_ai` mantém `facts_json`, regenera só narrativa.
+6. Banner discreto na UI quando `narrative_source=deterministic`.
+7. `npm test -- supabase/functions/_shared/diagnosis/build-deterministic-analysis.test.ts`.
+
+Query pós-deploy:
+
+```sql
+SELECT analysis_json->'__meta'->>'narrative_source' AS source, COUNT(*)
+FROM diagnosis_reports r
+JOIN diagnoses d ON d.id = r.diagnosis_id
+WHERE d.completed_at > now() - interval '7 days'
+GROUP BY 1;
+```
+
 ## Growth Intelligence v3 Enterprise
 
 - **Prompt:** `diagnosis-growth-intelligence-v3` — regras em `v3-growth-intelligence-rules.ts`; doc em `diagnostico-meta/prompts/diagnosis-growth-intelligence-v3.md`.

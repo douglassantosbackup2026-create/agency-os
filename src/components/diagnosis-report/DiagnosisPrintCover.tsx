@@ -23,7 +23,7 @@ export function DiagnosisPrintCover({
   return (
     <div className="print-cover" aria-hidden>
       <div className="print-cover-inner">
-        <p className="print-cover-brand">Retentio · Performance Marketing</p>
+        <p className="print-cover-brand">Agency Opus · Performance Marketing</p>
         <h1 className="print-cover-title">Diagnóstico Meta Ads</h1>
         <p className="print-cover-period">Período analisado: últimos 30 dias</p>
         {accountLabel ? (

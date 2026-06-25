@@ -94,7 +94,11 @@ function MetaTestOAuthPage() {
     const msg = search.oauth_error;
     setError(msg);
     toast.error(`Meta OAuth: ${msg}`);
-    void navigate({ to: "/test-meta-oauth", search: {}, replace: true });
+    void navigate({
+      to: "/test-meta-oauth",
+      search: { oauth_error: undefined },
+      replace: true,
+    });
   }, [search.oauth_error, navigate]);
 
   const setResult = useCallback((type: string, data: unknown) => {

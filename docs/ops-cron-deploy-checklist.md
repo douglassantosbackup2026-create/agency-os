@@ -1,4 +1,4 @@
-# Checklist — crons Retentio (produção)
+# Checklist — crons Agency Opus (produção)
 
 Executar no **SQL Editor** do projeto Supabase (`uvuotaxikuxejfeitlaw`), com o mesmo valor de `CRON_SECRET` configurado nas Edge Functions.
 

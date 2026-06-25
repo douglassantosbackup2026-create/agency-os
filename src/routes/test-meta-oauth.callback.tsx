@@ -52,7 +52,11 @@ function MetaTestCallbackPage() {
       if (oauthError) {
         const msg = search.error_description ?? oauthError;
         toast.error(`Meta OAuth recusado: ${msg}`);
-        await navigate({ to: "/test-meta-oauth", replace: true });
+        await navigate({
+          to: "/test-meta-oauth",
+          search: { oauth_error: undefined },
+          replace: true,
+        });
         return;
       }
 
@@ -63,11 +67,19 @@ function MetaTestCallbackPage() {
           saveMetaTestToken(long.access_token, long.expires_in);
           if (cancelled) return;
           toast.success("Meta Ads conectado com sucesso.");
-          await navigate({ to: "/test-meta-oauth", replace: true });
+          await navigate({
+          to: "/test-meta-oauth",
+          search: { oauth_error: undefined },
+          replace: true,
+        });
         } catch (e) {
           if (cancelled) return;
           toast.error(e instanceof Error ? e.message : "Falha no OAuth Meta");
-          await navigate({ to: "/test-meta-oauth", replace: true });
+          await navigate({
+          to: "/test-meta-oauth",
+          search: { oauth_error: undefined },
+          replace: true,
+        });
         }
         return;
       }
@@ -92,18 +104,30 @@ function MetaTestCallbackPage() {
 
           if (cancelled) return;
           toast.success("Meta Ads conectado com sucesso.");
-          await navigate({ to: "/test-meta-oauth", replace: true });
+          await navigate({
+          to: "/test-meta-oauth",
+          search: { oauth_error: undefined },
+          replace: true,
+        });
         } catch (e) {
           if (cancelled) return;
           const msg = e instanceof Error ? e.message : "Falha no OAuth Meta";
           toast.error(msg);
-          await navigate({ to: "/test-meta-oauth", replace: true });
+          await navigate({
+          to: "/test-meta-oauth",
+          search: { oauth_error: undefined },
+          replace: true,
+        });
         }
         return;
       }
 
       toast.error("Callback OAuth incompleto.");
-      await navigate({ to: "/test-meta-oauth", replace: true });
+          await navigate({
+            to: "/test-meta-oauth",
+            search: { oauth_error: undefined },
+            replace: true,
+          });
     })();
 
     return () => {

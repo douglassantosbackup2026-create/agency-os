@@ -1,4 +1,4 @@
-# Retentio (agency-os)
+# Agency Opus (agency-os)
 
 Plataforma operacional para agências de tráfego: health score, alertas, relatórios com IA, portal do cliente e integrações.
 
@@ -46,7 +46,7 @@ npm run perf:lighthouse   # TTFB/LCP autenticados (ver docs/ops-performance-vali
 
 ## Produto Diagnóstico Meta
 
-**Homepage (`/`)** = landing do diagnóstico; **landing Retentio** em [`/retentio`](src/routes/retentio.tsx). Rotas: `/obrigado`, `/diagnostico/$id?s=`. Sub-app legado em `diagnostico-meta/` (`npm run diag:dev`) — preferir o app principal. Runbook: [`docs/diagnostico-meta-runbook.md`](docs/diagnostico-meta-runbook.md).
+**Homepage (`/`)** = landing do diagnóstico; **landing Agency Opus** em [`/agency-opus`](src/routes/agency-opus.tsx) (redirect legado: `/retentio`). Rotas: `/obrigado`, `/diagnostico/$id?s=`. Sub-app legado em `diagnostico-meta/` (`npm run diag:dev`) — preferir o app principal. Runbook: [`docs/diagnostico-meta-runbook.md`](docs/diagnostico-meta-runbook.md).
 
 ## Supabase local
 

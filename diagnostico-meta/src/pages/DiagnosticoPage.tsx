@@ -59,7 +59,7 @@ export function DiagnosticoPage() {
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
-    document.title = "Diagnóstico Meta — Retentio";
+    document.title = "Diagnóstico Meta — Agency Opus";
     let meta = document.querySelector('meta[name="robots"]');
     if (!meta) {
       meta = document.createElement("meta");

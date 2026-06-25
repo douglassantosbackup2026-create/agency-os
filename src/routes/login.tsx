@@ -45,7 +45,7 @@ function Login() {
 
   return (
     <AuthShell
-      title="Entrar no Retentio"
+      title="Entrar no Agency Opus"
       subtitle="Acesse o painel da sua agência"
     >
       <form onSubmit={submit} className="space-y-3">
@@ -99,11 +99,11 @@ export function AuthShell({
     <div className="min-h-screen bg-background text-foreground">
       <div className="grid-bg absolute inset-0 -z-10 opacity-40" />
       <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-10">
-        <Link to="/retentio" className="mb-8 flex items-center gap-2">
+        <Link to="/agency-opus" className="mb-8 flex items-center gap-2">
           <div className="grid h-8 w-8 place-items-center rounded-md bg-primary text-primary-foreground font-bold">
             R
           </div>
-          <span className="font-semibold">Retentio</span>
+          <span className="font-semibold">Agency Opus</span>
         </Link>
         <div className="surface-card rounded-2xl border border-border p-6 shadow-xl">
           <h1 className="text-xl font-semibold tracking-tight">{title}</h1>

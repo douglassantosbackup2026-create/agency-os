@@ -4,7 +4,7 @@ Pipeline pós-pagamento da gestão de tráfego Meta Ads. O funil de diagnóstico
 
 ## Pré-requisitos
 
-1. **`retentio_ops_config.diagnosis_funnel_agency_id`** = UUID da agência operadora  
+1. **`retentio_ops_config.diagnosis_funnel_agency_id`** = UUID da agência operadora (**Agency Opus**)  
    - Platform Admin → aba Funil → card **Agência do funil de gestão**  
    - Ou SQL: `UPDATE retentio_ops_config SET diagnosis_funnel_agency_id = '...' WHERE id = 1;`
 

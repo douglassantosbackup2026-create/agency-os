@@ -232,7 +232,7 @@ export function DiagnosisExecutiveReport({
       <header className="exec-topbar exec-container">
         <div className="exec-brand">
           <span className="exec-brand-dot" />
-          Retentio · Diagnóstico Executivo
+          Agency Opus · Diagnóstico Executivo
         </div>
         <div className="exec-meta">Meta Ads · {new Date().toLocaleDateString("pt-BR", { month: "short", year: "numeric" })}</div>
       </header>

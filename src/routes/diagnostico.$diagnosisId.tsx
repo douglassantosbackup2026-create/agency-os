@@ -19,7 +19,10 @@ import {
   trackMetaAddToCart,
   trackMetaViewContentOnce,
 } from "@/lib/meta-pixel";
-import { reportFunnelError } from "@/lib/report-error";
+import {
+  isDeterministicNarrative,
+  isLegacyReport,
+} from "@/lib/diagnosis-report-fallback";
 import "@/styles/diagnosis-executive.css";
 import "@/styles/diagnosis.css";
 
@@ -80,7 +83,7 @@ function DiagnosticoReportPage() {
   }, [diagnosisId, s]);
 
   useEffect(() => {
-    document.title = "Diagnóstico Executivo Meta Ads — Retentio";
+    document.title = "Diagnóstico Executivo Meta Ads — Agency Opus";
     let meta = document.querySelector('meta[name="robots"]');
     if (!meta) {
       meta = document.createElement("meta");
@@ -333,9 +336,32 @@ function DiagnosticoReportPage() {
     : null;
 
   const ctaEligible = data.report?.management_cta_eligible;
+  const promptVersion = data.report?.prompt_version;
+  const deterministicNarrative = isDeterministicNarrative(analysis);
+  const legacyReport = isLegacyReport(promptVersion);
 
   return (
     <>
+      {deterministicNarrative ? (
+        <div className="exec-root" style={{ background: "transparent", minHeight: 0, paddingTop: 12 }}>
+          <div className="exec-container">
+            <p className="legacy-report-banner" role="status">
+              Relatório com análise automática dos dados (sem camada consultiva de IA).
+              Os números e prioridades estão corretos — a narrativa pode ser refinada
+              com uma nova passagem de IA.
+            </p>
+          </div>
+        </div>
+      ) : legacyReport ? (
+        <div className="exec-root" style={{ background: "transparent", minHeight: 0, paddingTop: 12 }}>
+          <div className="exec-container">
+            <p className="legacy-report-banner" role="status">
+              Versão anterior do relatório ({promptVersion ?? "legado"}). Reprocesse para a versão
+              mais recente quando disponível.
+            </p>
+          </div>
+        </div>
+      ) : null}
       <DiagnosisExecutiveReport
         analysis={analysis}
         primaryCtaLabel={

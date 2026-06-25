@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Retentio — Sistema operacional para retenção de agências
+ * Agency Opus — Sistema operacional para agências de tráfego
  * Dark mode premium, inspirado em Linear / Stripe / Vercel.
  * Tokens em oklch. Tipografia: Inter (UI) + JetBrains Mono (números).
  */
@@ -115,7 +115,7 @@
   --sidebar-ring: oklch(0.52 0.22 285 / 45%);
 }
 
-/* Tema escuro (Retentio premium) */
+/* Tema escuro (Agency Opus premium) */
 .dark {
   --radius: 0.625rem;
   --grid-line: oklch(1 0 0 / 3%);

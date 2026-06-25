@@ -436,7 +436,7 @@ function AuthenticatedLayout() {
   }, [agency?.id, debouncedInvalidateAlertsNav]);
 
   const displayRole = roleLabel_pt(memberRole ?? undefined);
-  const agencyTitle = agency?.name ?? "Retentio";
+  const agencyTitle = agency?.name ?? "Agency Opus";
   const agencySubtitle = agency?.slug ? `${agency.slug}` : "Painel da agência";
 
   return (

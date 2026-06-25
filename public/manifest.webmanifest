@@ -1,11 +1,11 @@
 {
-  "name": "Retentio",
-  "short_name": "Retentio",
+  "name": "Agency Opus",
+  "short_name": "Agency Opus",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#060c18",
   "theme_color": "#7c5cff",
-  "description": "SO de retenção para agências de tráfego",
+  "description": "SO de performance para agências de tráfego",
   "icons": [
     {
       "src": "/favicon.ico",

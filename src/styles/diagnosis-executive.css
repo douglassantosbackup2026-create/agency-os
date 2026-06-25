@@ -6,7 +6,7 @@
 /* Fonts loaded via <link> tag in src/routes/__root.tsx head */
 
 .exec-root {
-  /* Tokens alinhados à identidade Retentio (dark premium, accent roxo) */
+  /* Tokens alinhados à identidade Agency Opus (dark premium, accent roxo) */
   --exec-bg: oklch(0.14 0.01 264);
   --exec-bg-deep: oklch(0.12 0.01 264);
   --exec-surface-1: oklch(0.17 0.012 264);
@@ -17,7 +17,7 @@
   --exec-text: oklch(0.96 0.005 240);
   --exec-text-2: oklch(0.78 0.008 250);
   --exec-text-3: oklch(0.58 0.01 260);
-  --exec-accent: oklch(0.7 0.18 285);              /* primary roxo Retentio */
+  --exec-accent: oklch(0.7 0.18 285);              /* primary roxo Agency Opus */
   --exec-accent-soft: oklch(0.7 0.18 285 / 0.14);
   --exec-positive: oklch(0.74 0.16 155);
   --exec-positive-soft: oklch(0.74 0.16 155 / 0.14);

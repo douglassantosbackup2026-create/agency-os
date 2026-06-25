@@ -210,14 +210,14 @@ export default function Demo() {
       <header className="sticky top-0 z-50 border-b border-border/70 bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
           <Link
-            to="/retentio"
+            to="/agency-opus"
             className="flex items-center gap-2 rounded-md outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
           >
             <div className="grid h-7 w-7 shrink-0 place-items-center rounded-md bg-primary text-xs font-bold text-primary-foreground">
               R
             </div>
             <span className="font-semibold tracking-tight text-sm">
-              Retentio
+              Agency Opus
             </span>
           </Link>
           <div className="flex items-center gap-2">
@@ -368,7 +368,7 @@ export default function Demo() {
             Quer ver assim com suas contas reais?
           </h2>
           <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
-            Conecte Meta Ads, Google Ads e GA4. Em minutos o Retentio mostra
+            Conecte Meta Ads, Google Ads e GA4. Em minutos o Agency Opus mostra
             quais clientes precisam de atenção — de verdade.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
@@ -380,7 +380,7 @@ export default function Demo() {
               <ArrowRight className="ml-1.5 h-4 w-4" />
             </Link>
             <Link
-              to="/retentio"
+              to="/agency-opus"
               className="inline-flex min-h-10 items-center justify-center rounded-lg border border-border px-5 text-sm font-medium transition hover:bg-muted/70"
             >
               Saiba mais
@@ -522,7 +522,7 @@ export default function Demo() {
                     </p>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    No Retentio real, você edita e envia diretamente pelo
+                    No Agency Opus real, você edita e envia diretamente pelo
                     WhatsApp ou copia para qualquer canal.
                   </p>
                 </div>

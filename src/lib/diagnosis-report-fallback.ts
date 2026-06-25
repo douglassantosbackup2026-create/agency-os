@@ -79,9 +79,15 @@ function formatBrl(n: number): string {
   return `R$ ${n.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 }
 
-export const PROMPT_VERSION_CURRENT = "diagnosis-growth-intelligence-v3";
+export const PROMPT_VERSION_CURRENT = "diagnosis-growth-intelligence-v4-consultative";
 
 export function isLegacyReport(promptVersion: string | null | undefined): boolean {
   if (!promptVersion) return true;
   return promptVersion !== PROMPT_VERSION_CURRENT;
+}
+
+export function isDeterministicNarrative(
+  analysis: { __meta?: { narrative_source?: string } } | null | undefined,
+): boolean {
+  return analysis?.__meta?.narrative_source === "deterministic";
 }

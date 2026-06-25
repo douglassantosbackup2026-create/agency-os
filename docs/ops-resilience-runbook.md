@@ -1,4 +1,4 @@
-# Runbook operacional — resiliência Retentio
+# Runbook operacional — resiliência Agency Opus
 
 ## Variáveis de ambiente (Edge Functions)
 

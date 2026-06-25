@@ -219,7 +219,7 @@ export function PlatformDiagnosisBuyers() {
                 {list.map((r) => {
                   const wa = whatsappLink(
                     r.payer_phone,
-                    `Olá ${r.payer_name?.split(" ")[0] ?? ""}, aqui é da Retentio sobre o teu diagnóstico Meta.`,
+                    `Olá ${r.payer_name?.split(" ")[0] ?? ""}, aqui é da Agency Opus sobre o teu diagnóstico Meta.`,
                   );
                   return (
                     <tr key={r.id} className="border-b border-border/60 align-top">

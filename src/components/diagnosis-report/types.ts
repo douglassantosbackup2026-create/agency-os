@@ -177,6 +177,13 @@ export type DiagnosisAnalysis = {
   leakByAxis?: LeakByAxisItem[];
   growthScenarios?: GrowthScenarios;
   chapterNarratives?: ChapterNarratives;
+  __meta?: {
+    provider?: string;
+    model?: string;
+    narrative_source?: "ai" | "deterministic";
+    prompt_version?: string;
+    generated_at?: string;
+  };
 };
 
 export type ChapterStatus = "good" | "warning" | "critical" | "info" | "na";

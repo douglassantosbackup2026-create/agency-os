@@ -23,6 +23,7 @@ import { Route as GestaoCheckoutRouteImport } from './routes/gestao-checkout'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as DemoRouteImport } from './routes/demo'
 import { Route as CheckoutRouteImport } from './routes/checkout'
+import { Route as AgencyOpusRouteImport } from './routes/agency-opus'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TestMetaOauthCallbackRouteImport } from './routes/test-meta-oauth.callback'
@@ -118,6 +119,11 @@ const DemoRoute = DemoRouteImport.update({
 const CheckoutRoute = CheckoutRouteImport.update({
   id: '/checkout',
   path: '/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgencyOpusRoute = AgencyOpusRouteImport.update({
+  id: '/agency-opus',
+  path: '/agency-opus',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
@@ -260,6 +266,7 @@ const AuthenticatedIntegrationsOauthCallbackRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/agency-opus': typeof AgencyOpusRoute
   '/checkout': typeof CheckoutRoute
   '/demo': typeof DemoRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -301,6 +308,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/agency-opus': typeof AgencyOpusRoute
   '/checkout': typeof CheckoutRoute
   '/demo': typeof DemoRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -344,6 +352,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/agency-opus': typeof AgencyOpusRoute
   '/checkout': typeof CheckoutRoute
   '/demo': typeof DemoRoute
   '/forgot-password': typeof ForgotPasswordRoute
@@ -387,6 +396,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/agency-opus'
     | '/checkout'
     | '/demo'
     | '/forgot-password'
@@ -428,6 +438,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/agency-opus'
     | '/checkout'
     | '/demo'
     | '/forgot-password'
@@ -470,6 +481,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/agency-opus'
     | '/checkout'
     | '/demo'
     | '/forgot-password'
@@ -513,6 +525,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  AgencyOpusRoute: typeof AgencyOpusRoute
   CheckoutRoute: typeof CheckoutRoute
   DemoRoute: typeof DemoRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
@@ -629,6 +642,13 @@ declare module '@tanstack/react-router' {
       path: '/checkout'
       fullPath: '/checkout'
       preLoaderRoute: typeof CheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agency-opus': {
+      id: '/agency-opus'
+      path: '/agency-opus'
+      fullPath: '/agency-opus'
+      preLoaderRoute: typeof AgencyOpusRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -909,6 +929,7 @@ const DiagnosticoDiagnosisIdRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  AgencyOpusRoute: AgencyOpusRoute,
   CheckoutRoute: CheckoutRoute,
   DemoRoute: DemoRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
@@ -929,3 +950,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

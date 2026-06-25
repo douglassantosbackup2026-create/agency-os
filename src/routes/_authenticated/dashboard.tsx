@@ -546,7 +546,7 @@ function Dashboard() {
           <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-primary/15 text-primary">
             <Sparkles className="h-5 w-5" />
           </div>
-          <h2 className="mt-4 text-lg font-semibold">Bem-vindo ao Retentio</h2>
+          <h2 className="mt-4 text-lg font-semibold">Bem-vindo ao Agency Opus</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Comece gerando dados de exemplo para explorar o sistema, ou crie seu
             primeiro cliente.

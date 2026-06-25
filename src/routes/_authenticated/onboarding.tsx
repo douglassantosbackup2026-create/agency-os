@@ -398,7 +398,7 @@ function Onboarding() {
             <strong className="font-medium text-foreground">
               Uma integração já é suficiente
             </strong>{" "}
-            para o Retentio mostrar dados reais de performance no cockpit.
+            para o Agency Opus mostrar dados reais de performance no cockpit.
           </p>
           <p className="text-xs">
             Sugerido: comece com Meta Ads ou Google Analytics. Demais canais

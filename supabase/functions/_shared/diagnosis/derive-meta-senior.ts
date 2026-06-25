@@ -61,50 +61,59 @@ export async function enrichFactsWithMetaSeniorFetch(
   actId: string,
   token: string,
   metaSession?: MetaGraphSession,
+  options?: { lite?: boolean },
 ): Promise<void> {
   const session = metaSession ?? createMetaGraphSession();
+  const lite = options?.lite === true;
   const current = dateRangeDaysAgo(0, 30);
   const previous = dateRangeDaysAgo(30, 30);
+  const adsetLimit = lite ? 50 : 80;
 
   await runMetaFetch(session, "account meta", async () => {
     facts.account_meta = await fetchAdAccountMeta(actId, token);
   });
 
   await runMetaFetch(session, "adset insights rich", async () => {
-    const rich = await fetchAdsetInsightsRich(actId, token, 80);
+    const rich = await fetchAdsetInsightsRich(actId, token, adsetLimit);
     if (rich.length) facts.adsets_insights = rich;
   });
 
-  await runMetaFetch(session, "ads auction", async () => {
-    facts.ads_insights_auction = await fetchAdsAuctionInsights(actId, token, 40);
-  }, true);
+  if (!lite) {
+    await runMetaFetch(session, "ads auction", async () => {
+      facts.ads_insights_auction = await fetchAdsAuctionInsights(actId, token, 40);
+    }, true);
+  }
   if (!facts.ads_insights_auction) {
     facts.ads_insights_auction = facts.ads_insights_top ?? [];
   }
 
-  await runMetaFetch(session, "adset trends", async () => {
-    facts.adsets_insights_current = await fetchAdsetInsightsForRange(
-      actId,
-      token,
-      current.since,
-      current.until,
-    );
-    await session.beforeFetch();
-    facts.adsets_insights_previous = await fetchAdsetInsightsForRange(
-      actId,
-      token,
-      previous.since,
-      previous.until,
-    );
-  });
+  if (!lite) {
+    await runMetaFetch(session, "adset trends", async () => {
+      facts.adsets_insights_current = await fetchAdsetInsightsForRange(
+        actId,
+        token,
+        current.since,
+        current.until,
+      );
+      await session.beforeFetch();
+      facts.adsets_insights_previous = await fetchAdsetInsightsForRange(
+        actId,
+        token,
+        previous.since,
+        previous.until,
+      );
+    });
+  }
 
   await runMetaFetch(session, "adsets config", async () => {
-    facts.adsets_config = await fetchAdsetsConfig(actId, token, 60);
+    facts.adsets_config = await fetchAdsetsConfig(actId, token, lite ? 40 : 60);
   }, true);
 
-  await runMetaFetch(session, "recommendations", async () => {
-    facts.meta_recommendations_raw = await fetchAccountRecommendations(actId, token);
-  }, true);
+  if (!lite) {
+    await runMetaFetch(session, "recommendations", async () => {
+      facts.meta_recommendations_raw = await fetchAccountRecommendations(actId, token);
+    }, true);
+  }
   if (!facts.meta_recommendations_raw) {
     facts.meta_recommendations_raw = [];
   }

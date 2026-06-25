@@ -311,7 +311,7 @@ export function PlatformManagementSubscribers() {
                           : "bg-muted text-muted-foreground";
                   const wa = whatsappLink(
                     r.payer_phone,
-                    `Olá ${r.payer_name?.split(" ")[0] ?? ""}, aqui é da Retentio sobre a tua gestão de tráfego.`,
+                    `Olá ${r.payer_name?.split(" ")[0] ?? ""}, aqui é da Agency Opus sobre a tua gestão de tráfego.`,
                   );
                   return (
                     <tr key={r.diagnosis_id} className="border-b border-border/60 align-top">

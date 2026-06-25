@@ -105,6 +105,8 @@ export default {
         normalized.status < 400 &&
         (url.pathname === "/login" ||
           url.pathname === "/signup" ||
+          url.pathname === "/agency-opus" ||
+          url.pathname.startsWith("/agency-opus/") ||
           url.pathname === "/retentio" ||
           url.pathname.startsWith("/retentio/"))
       ) {

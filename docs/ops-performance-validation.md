@@ -1,4 +1,4 @@
-# Validação de performance — resiliência Retentio
+# Validação de performance — resiliência Agency Opus
 
 Registo manual pós-deploy. Actualizar após cada release relevante.
 
@@ -57,5 +57,5 @@ Worker: `https://tanstack-start-app.douglaspinheirosantos94.workers.dev/login` �
 
 | Data | Deploy | TTFB | MV | Locks | Responsável |
 |------|--------|------|-----|-------|-------------|
-| 2026-05-29 | Deploy completo (`0c6625c`) — 30 Edge Functions + Worker | `/login` 430 ms, `/retentio` 612 ms | null | 0% | ops |
+| 2026-05-29 | Deploy completo (`0c6625c`) — 30 Edge Functions + Worker | `/login` 430 ms, `/agency-opus` 612 ms | null | 0% | ops |
 | 2026-06-03 | Fase 3 (`5dc2f27`) | | | | |

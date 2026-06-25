@@ -12,7 +12,7 @@ const corsHeaders = {
 };
 
 const BodySchema = z.object({
-  action: z.enum(["retry_ai", "reprocess", "cleanup_stale"]),
+  action: z.enum(["retry_ai", "retry_narrative", "reprocess", "cleanup_stale"]),
   diagnosis_id: z.string().uuid().optional(),
   secret_slug: z.string().min(8).max(120).optional(),
   stale_minutes: z.number().int().min(5).max(1440).optional(),
@@ -128,7 +128,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (action === "retry_ai") {
+    if (action === "retry_ai" || action === "retry_narrative") {
       if (row.status !== "failed") {
         return new Response(
           JSON.stringify({ error: "Diagnóstico não está em falha" }),
@@ -198,6 +198,24 @@ Deno.serve(async (req) => {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+    if (action === "retry_ai" || action === "retry_narrative") {
+      const { error: eRep } = await sb
+        .from("diagnosis_reports")
+        .update({
+          analysis_json: null,
+          prompt_version: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("diagnosis_id", diagnosis_id);
+      if (eRep) {
+        console.error(eRep);
+        return new Response(JSON.stringify({ error: "Falha ao limpar análise" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
     triggerProcessDiagnosis(`diagnosis-platform-ops:${action}`);

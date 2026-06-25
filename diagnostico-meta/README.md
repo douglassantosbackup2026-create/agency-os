@@ -1,6 +1,6 @@
 # Diagnóstico Meta Ads (sub-app)
 
-App **Vite** independente na pasta `diagnostico-meta/`: mesmo repositório e **mesmo Supabase** que o Retentio (`supabase/migrations` + `supabase/functions` na raiz).
+App **Vite** independente na pasta `diagnostico-meta/`: mesmo repositório e **mesmo Supabase** que o Agency Opus (`supabase/migrations` + `supabase/functions` na raiz).
 
 ## Comandos (a partir da raiz do `agency-os`)
 
