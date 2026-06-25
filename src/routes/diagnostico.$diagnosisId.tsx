@@ -13,6 +13,7 @@ import { DiagnosisExecutiveReport } from "@/components/diagnosis-report/executiv
 import { InlineErrorBanner } from "@/components/diagnosis-funnel/InlineErrorBanner";
 import { DiagnosisFailedPanel } from "@/components/diagnosis-funnel/DiagnosisFailedPanel";
 import { parseDiagnosisFailedReason } from "@/lib/diagnosis-failed-reason";
+import { reportFunnelError } from "@/lib/report-error";
 import {
   DIAGNOSIS_PRODUCT,
   GESTAO_PRODUCT,
