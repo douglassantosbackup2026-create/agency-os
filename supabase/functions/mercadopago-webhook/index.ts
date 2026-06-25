@@ -532,7 +532,7 @@ Deno.serve(async (req) => {
   }
 
   await fireCapiPurchase({
-    eventId: `diag_${dataId}`,
+    eventId: `diag_purchase_${extRef}`,
     diagnosisId: extRef,
     valueBrl: diagPaid / 100,
     contentName: "Diagnóstico Meta Ads",
