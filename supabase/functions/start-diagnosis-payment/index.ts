@@ -1,4 +1,10 @@
 import { handleCors, jsonResponse } from "../_shared/diagnosis/cors.ts";
+import {
+  buildExistingPaidDiagnosisPayload,
+  findOpenPaidDiagnosisForEmail,
+  findStaleUnpaidDiagnosis,
+  normalizePayerEmail,
+} from "../_shared/diagnosis/buyer-diagnosis-eligibility.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 import { publicClientIp, publicRateLimitExceeded } from "../_shared/public-rate-limit.ts";
 import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
@@ -52,7 +58,7 @@ Deno.serve(async (req) => {
 
   const payerRaw = (body.payer ?? {}) as Record<string, unknown>;
   const name = String(payerRaw.name ?? "").trim();
-  const email = String(payerRaw.email ?? "").trim().toLowerCase();
+  const email = normalizePayerEmail(String(payerRaw.email ?? ""));
   const cpf = digits(String(payerRaw.cpf ?? ""));
   const phone = digits(String(payerRaw.phone ?? ""));
 
@@ -68,6 +74,41 @@ Deno.serve(async (req) => {
   }
 
   const sb = diagnosisServiceClient();
+
+  const openPaid = await findOpenPaidDiagnosisForEmail(sb, email);
+  if (openPaid) {
+    return jsonResponse(buildExistingPaidDiagnosisPayload(openPaid), 409);
+  }
+
+  const staleUnpaid = await findStaleUnpaidDiagnosis(sb, email);
+  if (staleUnpaid) {
+    const { data: updated, error: upErr } = await sb
+      .from("diagnoses")
+      .update({
+        payer_name: name,
+        payer_email: email,
+        payer_cpf: cpf,
+        payer_phone: phone,
+        amount_cents: priceCents(),
+      })
+      .eq("id", staleUnpaid.id)
+      .eq("status", "awaiting_payment")
+      .is("mp_payment_id", null)
+      .select("id, secret_slug, amount_cents")
+      .maybeSingle();
+
+    if (!upErr && updated) {
+      trace.done({ diagnosis_id: updated.id, reused_unpaid: true });
+      return jsonResponse({
+        diagnosis_id: updated.id,
+        secret_slug: updated.secret_slug,
+        amount_cents: updated.amount_cents,
+        mp_public_key: publicKey,
+        reused_unpaid: true,
+      });
+    }
+  }
+
   const { data: row, error: insErr } = await sb
     .from("diagnoses")
     .insert({

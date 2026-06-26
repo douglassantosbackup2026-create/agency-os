@@ -93,4 +93,24 @@ describe("callDiagnosisApi", () => {
         e.message.includes("Mercado Pago"),
     );
   });
+
+  it("maps existing_paid_diagnosis with resume fields on 409", async () => {
+    mockInvoke.mockResolvedValue(
+      jsonResponse(409, {
+        code: "existing_paid_diagnosis",
+        error: "já pago",
+        diagnosis_id: "d-1",
+        secret_slug: "s-1",
+        resume_path: "/obrigado?d=d-1&s=s-1",
+      }),
+    );
+    await expect(callDiagnosisApi("start-diagnosis-payment")).rejects.toSatisfy(
+      (e: unknown) =>
+        e instanceof DiagnosisApiError &&
+        e.code === "existing_paid_diagnosis" &&
+        e.diagnosis_id === "d-1" &&
+        e.secret_slug === "s-1" &&
+        e.message.includes("andamento"),
+    );
+  });
 });

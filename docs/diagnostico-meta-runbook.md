@@ -324,6 +324,29 @@ Limpeza manual:
 SELECT public.cleanup_stale_diagnosis_processing(30);
 ```
 
+## Política — um diagnóstico por pagamento (e-mail)
+
+Identificador: `payer_email` (normalizado). Implementação: [`buyer-diagnosis-eligibility.ts`](../supabase/functions/_shared/diagnosis/buyer-diagnosis-eligibility.ts).
+
+| Situação | Comportamento |
+|----------|----------------|
+| Pago (`mp_payment_id`) sem relatório (`completed` + `analysis_json`) | `start-diagnosis-payment` → **409** `existing_paid_diagnosis` + `resume_path` `/obrigado?d=&s=` |
+| `failed` / `processing` / `awaiting_connection` | Mesmo slot — retry gratuito (`diagnosis-retry` ou continuar em `/obrigado`) |
+| `completed` + `analysis_json` | Novo checkout permitido (novo pagamento R$37) |
+| `awaiting_payment` sem pagamento (&lt; 24h) | Reutiliza row existente em vez de criar duplicata |
+
+Gate secundário em `process-diagnosis-payment`: impede cobrar MP num `diagnosis_id` diferente do slot pago em aberto do mesmo e-mail.
+
+Deploy:
+
+```bash
+npx supabase db push
+npx supabase functions deploy start-diagnosis-payment process-diagnosis-payment --project-ref uvuotaxikuxejfeitlaw
+npm run ops:deploy-worker
+```
+
+Índice: migration `20260625180000_diagnosis_payer_email_open_paid_idx.sql`.
+
 ## Rate limit (429)
 
 Endpoints: `create-diagnosis-checkout`, `start-diagnosis-payment` (`public-rate-limit.ts`).

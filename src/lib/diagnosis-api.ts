@@ -5,17 +5,34 @@ const FRIENDLY_BY_CODE: Record<string, string> = {
   too_many_requests: "Muitas tentativas. Aguarde um momento e tente novamente.",
   mp_credentials_environment_mismatch:
     "As credenciais do Mercado Pago estão em modo produção. Para testar, use credenciais TEST- e comprador de teste; para uma venda real, use dados reais do comprador.",
+  existing_paid_diagnosis:
+    "Você já tem um diagnóstico pago em andamento. Continue de onde parou sem pagar novamente.",
 };
 
 export class DiagnosisApiError extends Error {
   readonly status: number;
   readonly code?: string;
+  readonly diagnosis_id?: string;
+  readonly secret_slug?: string;
+  readonly resume_path?: string;
 
-  constructor(message: string, status: number, code?: string) {
+  constructor(
+    message: string,
+    status: number,
+    code?: string,
+    extras?: {
+      diagnosis_id?: string;
+      secret_slug?: string;
+      resume_path?: string;
+    },
+  ) {
     super(message);
     this.name = "DiagnosisApiError";
     this.status = status;
     this.code = code;
+    this.diagnosis_id = extras?.diagnosis_id;
+    this.secret_slug = extras?.secret_slug;
+    this.resume_path = extras?.resume_path;
   }
 }
 
@@ -61,11 +78,22 @@ export async function callDiagnosisApi<T>(
   }
 
   if (!res.ok) {
-    const parsed = body as { error?: string; code?: string } | null;
+    const parsed = body as {
+      error?: string;
+      code?: string;
+      diagnosis_id?: string;
+      secret_slug?: string;
+      resume_path?: string;
+    } | null;
     const err = new DiagnosisApiError(
       friendlyMessage(res.status, parsed),
       res.status,
       parsed?.code,
+      {
+        diagnosis_id: parsed?.diagnosis_id,
+        secret_slug: parsed?.secret_slug,
+        resume_path: parsed?.resume_path,
+      },
     );
     if (res.status >= 500) {
       reportError(`diagnosis-api:${name}:${res.status}`, err);

@@ -16,7 +16,7 @@ import {
   Mail,
 } from "lucide-react";
 
-import { callDiagnosisApi } from "@/lib/diagnosis-api";
+import { callDiagnosisApi, DiagnosisApiError } from "@/lib/diagnosis-api";
 import { useDiagnosisPoll } from "@/hooks/use-diagnosis-poll";
 import { useMercadoPago, type MpInstance } from "@/hooks/use-mercadopago-sdk";
 import { InlineErrorBanner } from "@/components/diagnosis-funnel/InlineErrorBanner";
@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/checkout")({
   head: () => ({
@@ -292,12 +293,27 @@ function CheckoutPage() {
       });
       return r;
     } catch (err) {
+      if (
+        err instanceof DiagnosisApiError &&
+        err.code === "existing_paid_diagnosis" &&
+        err.diagnosis_id &&
+        err.secret_slug
+      ) {
+        toast.info(
+          "Você já tem um diagnóstico em andamento. Continuando de onde parou…",
+        );
+        navigate({
+          to: "/obrigado",
+          search: { d: err.diagnosis_id, s: err.secret_slug } as never,
+        });
+        return null;
+      }
       setGlobalError(err instanceof Error ? err.message : "Erro ao iniciar pagamento");
       return null;
     } finally {
       setSubmitting(false);
     }
-  }, [payer, started]);
+  }, [navigate, payer, started]);
 
   const onApproved = useCallback(
     (d: string, s: string, t?: string | null) => {

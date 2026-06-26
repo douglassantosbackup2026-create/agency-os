@@ -1,4 +1,5 @@
 import { handleCors, jsonResponse } from "../_shared/diagnosis/cors.ts";
+import { assertNoConflictingOpenPaidDiagnosis } from "../_shared/diagnosis/buyer-diagnosis-eligibility.ts";
 import { diagnosisServiceClient } from "../_shared/diagnosis/service.ts";
 import {
   ensureBuyerAccountAndToken,
@@ -73,6 +74,18 @@ Deno.serve(async (req) => {
       });
     }
     return jsonResponse({ error: "pagamento já processado" }, 409);
+  }
+
+  const payerEmail = typeof diag.payer_email === "string" ? diag.payer_email : "";
+  if (payerEmail) {
+    const conflict = await assertNoConflictingOpenPaidDiagnosis(
+      sb,
+      payerEmail,
+      diagnosisId,
+    );
+    if (conflict) {
+      return jsonResponse(conflict, 409);
+    }
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!.replace(/\/+$/, "");
