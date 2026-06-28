@@ -44,6 +44,7 @@ import {
   GestaoGuaranteeBlock,
   GestaoNextSteps,
   GestaoOperatorCard,
+  GestaoResultsGallery,
   GestaoSocialProof,
 } from "@/components/gestao/GestaoCheckoutBlocks";
 
@@ -478,6 +479,11 @@ function GestaoCheckoutPage() {
         <p className="mt-6 text-center text-xs text-muted-foreground">
           {gestaoUrgencyText()}
         </p>
+
+        <div className="mt-8">
+          <GestaoResultsGallery />
+        </div>
+
 
         <div className="mt-6 text-center">
           <Link

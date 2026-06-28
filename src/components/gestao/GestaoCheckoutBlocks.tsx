@@ -3,8 +3,44 @@ import {
   GESTAO_GUARANTEE,
   GESTAO_NEXT_STEPS,
   GESTAO_OPERATOR,
+  GESTAO_RESULT_PROOFS,
   GESTAO_TESTIMONIAL,
 } from "@/content/gestao-checkout";
+
+export function GestaoResultsGallery() {
+  return (
+    <section aria-labelledby="gestao-results-title" className="rounded-xl border bg-card p-5">
+      <div className="text-center">
+        <h3 id="gestao-results-title" className="text-base font-semibold">
+          Resultados reais de contas que gerimos
+        </h3>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Prints do Gerenciador de Anúncios Meta — clientes ativos
+        </p>
+      </div>
+      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+        {GESTAO_RESULT_PROOFS.map((proof) => (
+          <figure key={proof.src} className="overflow-hidden rounded-lg border bg-background">
+            <img
+              src={proof.src}
+              alt={proof.alt}
+              loading="lazy"
+              className="block h-auto w-full object-cover"
+            />
+            <figcaption className="space-y-1 px-3 py-3 text-center">
+              <div className="text-sm font-bold text-success">{proof.metric}</div>
+              <div className="text-xs leading-snug text-muted-foreground">{proof.caption}</div>
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+      <p className="mt-3 text-center text-[11px] text-muted-foreground">
+        Resultados variam por nicho, oferta e investimento.
+      </p>
+    </section>
+  );
+}
+
 
 export function GestaoOperatorCard() {
   return (
