@@ -44,6 +44,7 @@ import {
   GestaoGuaranteeBlock,
   GestaoNextSteps,
   GestaoOperatorCard,
+  GestaoResultsGallery,
   GestaoSocialProof,
 } from "@/components/gestao/GestaoCheckoutBlocks";
 
