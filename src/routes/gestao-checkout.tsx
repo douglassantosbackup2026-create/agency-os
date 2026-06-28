@@ -480,6 +480,11 @@ function GestaoCheckoutPage() {
           {gestaoUrgencyText()}
         </p>
 
+        <div className="mt-8">
+          <GestaoResultsGallery />
+        </div>
+
+
         <div className="mt-6 text-center">
           <Link
             to="/diagnostico/$diagnosisId"
