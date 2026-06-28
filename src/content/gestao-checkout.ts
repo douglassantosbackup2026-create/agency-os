@@ -1,6 +1,36 @@
+import proof1 from "@/assets/gestao-proof-1.png.asset.json";
+import proof2 from "@/assets/gestao-proof-2.png.asset.json";
+import proof3 from "@/assets/gestao-proof-3.png.asset.json";
+
 export const GESTAO_PRODUCT_NAME = "Gestão de Tráfego Meta Ads";
 export const GESTAO_PRODUCT_TAGLINE =
   "Execução diária do plano do seu diagnóstico — equipe especializada";
+
+export const GESTAO_RESULT_PROOFS: {
+  src: string;
+  alt: string;
+  metric: string;
+  caption: string;
+}[] = [
+  {
+    src: proof1.url,
+    alt: "Print do Gerenciador Meta mostrando R$ 2.720.057,57 em vendas e ROAS 15,59",
+    metric: "ROAS 15,59×",
+    caption: "R$ 2,72 milhões em vendas — 6 meses de gestão",
+  },
+  {
+    src: proof2.url,
+    alt: "Print do Gerenciador Meta mostrando R$ 4.463.616,78 em vendas e ROAS 32,57",
+    metric: "ROAS 32,57×",
+    caption: "R$ 4,46 milhões em vendas — operação escalada",
+  },
+  {
+    src: proof3.url,
+    alt: "Print do Gerenciador Meta com 278 compras, ROAS 10,79 e R$ 383.962,41 em vendas",
+    metric: "ROAS 10,79×",
+    caption: "278 compras · R$ 383 mil em vendas",
+  },
+];
 
 export const GESTAO_DELIVERABLES = [
   "Implementação das correções prioritárias do relatório",
