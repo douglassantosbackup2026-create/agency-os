@@ -34,7 +34,6 @@ type EcommerceLead = {
 };
 
 export function PlatformEcommerceLeads() {
-  const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const { data, isLoading, isError, error, refetch } = useQuery({
