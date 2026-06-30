@@ -2,14 +2,14 @@ import { Check, ShieldCheck } from "lucide-react";
 import {
   landingEyebrowClass,
   landingPrimaryCalloutClass,
-  landingSectionScroll,
+  LANDING_SECTION_SCROLL,
   landingSurfaceCardClass,
 } from "@/lib/landing-ui";
 import { includedSection, guaranteeSection } from "@/content/gestao-trafego";
 
 export function GestaoTrafegoIncluded() {
   return (
-    <section className={`${landingSectionScroll} border-t border-border/60 py-14 sm:py-16`}>
+    <section className={`${LANDING_SECTION_SCROLL} border-t border-border/60 py-14 sm:py-16`}>
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
           <span className={landingEyebrowClass}>{includedSection.eyebrow}</span>

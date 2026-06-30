@@ -1,14 +1,14 @@
 import { Check, X } from "lucide-react";
 import {
   landingEyebrowClass,
-  landingSectionScroll,
+  LANDING_SECTION_SCROLL,
   landingSurfaceCardClass,
 } from "@/lib/landing-ui";
 import { qualificationSection } from "@/content/gestao-trafego";
 
 export function GestaoTrafegoQualification() {
   return (
-    <section className={`${landingSectionScroll} py-14 sm:py-16`}>
+    <section className={`${LANDING_SECTION_SCROLL} py-14 sm:py-16`}>
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
           <span className={landingEyebrowClass}>{qualificationSection.eyebrow}</span>

@@ -1,11 +1,11 @@
 import { howItWorksSection } from "@/content/gestao-trafego";
-import { landingEyebrowClass, landingSectionMutedClass, landingSectionScroll } from "@/lib/landing-ui";
+import { landingEyebrowClass, landingSectionMutedClass, LANDING_SECTION_SCROLL } from "@/lib/landing-ui";
 
 export function GestaoTrafegoHowItWorks() {
   return (
     <section
       id={howItWorksSection.title.toLowerCase().replace(/\s+/g, "-")}
-      className={`${landingSectionMutedClass} ${landingSectionScroll} py-14 sm:py-16`}
+      className={`${landingSectionMutedClass} ${LANDING_SECTION_SCROLL} py-14 sm:py-16`}
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="mx-auto max-w-2xl text-center">
