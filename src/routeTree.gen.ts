@@ -17,6 +17,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as ObrigadoRouteImport } from './routes/obrigado'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as GestaoTrafegoRouteImport } from './routes/gestao-trafego'
 import { Route as GestaoOnboardingRouteImport } from './routes/gestao-onboarding'
 import { Route as GestaoObrigadoRouteImport } from './routes/gestao-obrigado'
 import { Route as GestaoCheckoutRouteImport } from './routes/gestao-checkout'
@@ -89,6 +90,11 @@ const ObrigadoRoute = ObrigadoRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GestaoTrafegoRoute = GestaoTrafegoRouteImport.update({
+  id: '/gestao-trafego',
+  path: '/gestao-trafego',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GestaoOnboardingRoute = GestaoOnboardingRouteImport.update({
@@ -273,6 +279,7 @@ export interface FileRoutesByFullPath {
   '/gestao-checkout': typeof GestaoCheckoutRoute
   '/gestao-obrigado': typeof GestaoObrigadoRoute
   '/gestao-onboarding': typeof GestaoOnboardingRoute
+  '/gestao-trafego': typeof GestaoTrafegoRoute
   '/login': typeof LoginRoute
   '/obrigado': typeof ObrigadoRoute
   '/privacidade': typeof PrivacidadeRoute
@@ -315,6 +322,7 @@ export interface FileRoutesByTo {
   '/gestao-checkout': typeof GestaoCheckoutRoute
   '/gestao-obrigado': typeof GestaoObrigadoRoute
   '/gestao-onboarding': typeof GestaoOnboardingRoute
+  '/gestao-trafego': typeof GestaoTrafegoRoute
   '/login': typeof LoginRoute
   '/obrigado': typeof ObrigadoRoute
   '/privacidade': typeof PrivacidadeRoute
@@ -359,6 +367,7 @@ export interface FileRoutesById {
   '/gestao-checkout': typeof GestaoCheckoutRoute
   '/gestao-obrigado': typeof GestaoObrigadoRoute
   '/gestao-onboarding': typeof GestaoOnboardingRoute
+  '/gestao-trafego': typeof GestaoTrafegoRoute
   '/login': typeof LoginRoute
   '/obrigado': typeof ObrigadoRoute
   '/privacidade': typeof PrivacidadeRoute
@@ -403,6 +412,7 @@ export interface FileRouteTypes {
     | '/gestao-checkout'
     | '/gestao-obrigado'
     | '/gestao-onboarding'
+    | '/gestao-trafego'
     | '/login'
     | '/obrigado'
     | '/privacidade'
@@ -445,6 +455,7 @@ export interface FileRouteTypes {
     | '/gestao-checkout'
     | '/gestao-obrigado'
     | '/gestao-onboarding'
+    | '/gestao-trafego'
     | '/login'
     | '/obrigado'
     | '/privacidade'
@@ -488,6 +499,7 @@ export interface FileRouteTypes {
     | '/gestao-checkout'
     | '/gestao-obrigado'
     | '/gestao-onboarding'
+    | '/gestao-trafego'
     | '/login'
     | '/obrigado'
     | '/privacidade'
@@ -532,6 +544,7 @@ export interface RootRouteChildren {
   GestaoCheckoutRoute: typeof GestaoCheckoutRoute
   GestaoObrigadoRoute: typeof GestaoObrigadoRoute
   GestaoOnboardingRoute: typeof GestaoOnboardingRoute
+  GestaoTrafegoRoute: typeof GestaoTrafegoRoute
   LoginRoute: typeof LoginRoute
   ObrigadoRoute: typeof ObrigadoRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
@@ -600,6 +613,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gestao-trafego': {
+      id: '/gestao-trafego'
+      path: '/gestao-trafego'
+      fullPath: '/gestao-trafego'
+      preLoaderRoute: typeof GestaoTrafegoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/gestao-onboarding': {
@@ -936,6 +956,7 @@ const rootRouteChildren: RootRouteChildren = {
   GestaoCheckoutRoute: GestaoCheckoutRoute,
   GestaoObrigadoRoute: GestaoObrigadoRoute,
   GestaoOnboardingRoute: GestaoOnboardingRoute,
+  GestaoTrafegoRoute: GestaoTrafegoRoute,
   LoginRoute: LoginRoute,
   ObrigadoRoute: ObrigadoRoute,
   PrivacidadeRoute: PrivacidadeRoute,
