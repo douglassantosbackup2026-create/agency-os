@@ -1,40 +1,89 @@
-## O quê
+Plano de implementação — página de captura de leads para gestão de tráfego pago (e-commerce)
 
-Adicionar uma galeria com 3 prints reais do Gerenciador Meta no checkout `/gestao-checkout`, com legenda destacando o número-chave de cada um. Posição: no final da página, logo após o bloco de pagamento e antes do link "Voltar ao relatório" (a página não tem FAQ — esse é o "final" funcional).
+Objetivo
+Criar uma landing pública, otimizada para Meta Ads, que capta leads qualificados de e-commerces que investem mais de R$ 5.000/mês em Meta Ads e oferece a gestão de tráfego pago (R$ 1.997/mês). A conversão principal é o envio de contato, não o pagamento direto.
 
-Observação: o checkout vive em `src/routes/gestao-checkout.tsx`. O arquivo legacy `diagnostico-meta/src/pages/DiagnosticoPage.tsx` não é tocado.
+Público e posicionamento
+- Público: donos de e-commerce físico, DTCs e heads de marketing de lojas que já gastam >R$ 5k/mês em Meta Ads.
+- Proposta de valor: "pare de queimar dinheiro em campanhas que não escalam — receba uma proposta de gestão baseada em dados da sua conta".
+- Tom: direto, técnico, focado em resultado e transparência (mesma voz do checkout de gestão e do diagnóstico).
 
-## Passos
+URL e arquitetura
+- Rota: `/gestao-trafego` (arquivo `src/routes/gestao-trafego.tsx`).
+- Ação principal: formulário de lead acima da dobra, com CTA "Receber proposta de gestão".
+- Pós-envio: mensagem de confirmação + botão para iniciar conversa no WhatsApp (`/gestao-trafego-obrigado` ou estado inline).
+- Estrutura em 1 página longa, com navegação âncora interna, reutilizando o design system e componentes da landing de diagnóstico.
 
-### 1. Subir os 3 prints como assets CDN
-Via `lovable-assets create` a partir de `/mnt/user-uploads/`:
-- `gestao-proof-1.png` → print do total R$ 2.720.057,57 / ROAS 15,59
-- `gestao-proof-2.png` → print do total R$ 4.463.616,78 / ROAS 32,57
-- `gestao-proof-3.png` → print com 278 compras / ROAS 10,79 / R$ 383.962,41
+Seções da página
+1. Header sticky — logo + link "Já tem diagnóstico?" + CTA principal.
+2. Hero — headline com foco em e-commerce, subheadline, bullets de qualificação, formulário de lead (lado direito em desktop).
+3. Prova social — prints de resultados (reutilizar `GestaoResultsGallery` com legendas por número).
+4. Como funciona — 4 passos: preencher → análise da loja → proposta personalizada → início da gestão.
+5. O que está incluído — lista de entregáveis do pacote R$ 1.997/mês (reutilizar `GESTAO_DELIVERABLES`).
+6. Garantia/segurança — reutilizar o bloco de garantia do checkout.
+7. FAQ — dúvidas sobre contrato, fidelidade, prazo de início, acessos necessários.
+8. CTA final — repetir formulário curto ou botão para WhatsApp.
+9. Footer leve — link para política, termos e diagnóstico R$ 37.
 
-Pointers gravados em `src/assets/gestao-proof-{1,2,3}.png.asset.json`. Nenhum binário no repo.
+Formulário de lead
+Campos obrigatórios e validados com Zod:
+- Nome completo
+- E-mail
+- WhatsApp (máscara BR)
+- Nome da loja
+- Site da loja
+- Investimento mensal aproximado em Meta Ads (select: <5k, 5k–15k, 15k–50k, 50k+)
+- Principal desafio (textarea opcional)
+- Checkbox de consentimento LGPD
 
-### 2. Catalogar legendas em `src/content/gestao-checkout.ts`
-Novo export `GESTAO_RESULT_PROOFS`, ex.:
-```ts
-export const GESTAO_RESULT_PROOFS = [
-  { src: proof1.url, alt: "...", metric: "ROAS 15,59×", caption: "R$ 2,72 milhões em vendas — período de 6 meses" },
-  { src: proof2.url, alt: "...", metric: "ROAS 32,57×", caption: "R$ 4,46 milhões em vendas — operação escalada" },
-  { src: proof3.url, alt: "...", metric: "ROAS 10,79×", caption: "278 compras · R$ 383 mil em vendas" },
-];
-```
+Meta Pixel e rastreamento
+- `PageView` automático via `MetaPixelTracker`.
+- `ViewContent` do produto de gestão ao carregar a página.
+- `Lead` ao enviar o formulário (deduplicado por `lead_gestao_${leadId}`).
+- `CompleteRegistration` ao confirmar o envio.
+- Parâmetros UTM: a página lê `utm_source`, `utm_campaign`, `utm_adset`, `utm_ad` e grava junto com o lead.
 
-### 3. Novo componente `GestaoResultsGallery` em `src/components/gestao/GestaoCheckoutBlocks.tsx`
-- Título: "Resultados reais de contas que gerimos"
-- Subtítulo curto: "Prints do Gerenciador de Anúncios Meta — clientes ativos"
-- Grid responsivo: 1 col mobile, 3 cols `md+`
-- Cada card: imagem (`object-cover`, `border`, `rounded-lg`, `loading="lazy"`), badge da métrica em destaque (cor `text-success`/`text-primary`), legenda curta
-- Microcopy de rodapé: "Resultados variam por nicho, oferta e investimento."
+Backend
+1. Nova tabela `public.ecommerce_leads` (Supabase migration):
+   - id, name, email, phone, store_name, website, monthly_ad_budget_range, challenge, source, utm_source, utm_campaign, utm_adset, utm_ad, status, created_at, updated_at.
+   - GRANT SELECT/INSERT para `authenticated` e `service_role`; GRANT ALL para `service_role`.
+   - RLS: política de inserção anônima (somente campos do formulário) e leitura restrita ao admin.
+2. Server function `submitEcommerceLead` em `src/lib/ecommerce-leads.functions.ts`:
+   - Validação Zod server-side.
+   - Insere o lead na tabela.
+   - Dispara notificação interna (ex.: grava um evento na `diagnosis_handoff_events` ou envia WhatsApp para o operador).
+   - Retorna `{ success: true, leadId }`.
+3. Hook `useEcommerceLeadSubmit` para chamar a server function do formulário.
 
-### 4. Inserir no fim de `gestao-checkout.tsx`
-Adicionar `<GestaoResultsGallery />` entre o parágrafo de `gestaoUrgencyText()` (linha ~478) e o `<div className="mt-6 text-center">` do link "Voltar ao relatório" (linha ~482). Import junto com os outros blocos de `GestaoCheckoutBlocks`.
+Admin / follow-up
+- Nova aba "Leads E-commerce" na página `/platform-admin` (componente `PlatformEcommerceLeads`).
+- Lista ordenada por `created_at` desc, com filtros por status e faixa de investimento.
+- Ações: marcar como contactado, abrir WhatsApp, converter em cliente (linkar a `clients` futuramente).
+- Notificação sonora/toast de novo lead pode ser implementada via realtime ou polling simples.
 
-## Fora de escopo
-- Não mexer no checkout de R$ 37 nem na landing.
-- Não alterar copy do depoimento da Marina nem do bloco do operador.
-- Sem carrossel/JS — grid estático é suficiente para 3 prints.
+Reutilização de assets e componentes
+- Copiar/adaptar: `src/components/gestao/GestaoCheckoutBlocks.tsx` (galeria, depoimento, garantia, operador).
+- Criar novo content: `src/content/gestao-trafego.ts` (copy, FAQ, entregáveis).
+- Criar componentes específicos em `src/components/gestao-trafego/`:
+  - `GestaoTrafegoHeader.tsx`
+  - `GestaoTrafegoHero.tsx` (com formulário)
+  - `GestaoTrafegoHowItWorks.tsx`
+  - `GestaoTrafegoFaq.tsx`
+  - `GestaoTrafegoFinalCta.tsx`
+- Rota de agradecimento: `src/routes/gestao-trafego-obrigado.tsx`.
+
+SEO
+- Title: "Gestão de Tráfego Meta Ads para E-commerce | Agency Opus"
+- Description: "Receba uma proposta de gestão de tráfego pago para sua loja. Especialista em e-commerce com resultados comprovados."
+- `og:title`, `og:description`, `og:type=website`.
+- Sem `noindex` — a página deve ser indexada para anúncios e SEO.
+
+Critérios de aceitação
+- [ ] Formulário valida e persiste lead no Supabase.
+- [ ] Pixel dispara `Lead` e `CompleteRegistration` no envio.
+- [ ] Admin consegue visualizar e atualizar status dos leads.
+- [ ] A página está responsiva e segue o design system existente.
+- [ ] Rota de agradecimento oferece botão de WhatsApp e dispara `Contact` (se aplicável).
+
+Próximos passos
+Aprovar este plano para que eu crie a migration, a server function, a rota e os componentes.
