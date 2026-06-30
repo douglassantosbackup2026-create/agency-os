@@ -1409,6 +1409,63 @@ export type Database = {
           },
         ]
       }
+      ecommerce_leads: {
+        Row: {
+          challenge: string | null
+          created_at: string
+          email: string
+          id: string
+          monthly_ad_budget_range: string
+          name: string
+          phone: string
+          source: string | null
+          status: string
+          store_name: string
+          updated_at: string
+          utm_ad: string | null
+          utm_adset: string | null
+          utm_campaign: string | null
+          utm_source: string | null
+          website: string
+        }
+        Insert: {
+          challenge?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          monthly_ad_budget_range: string
+          name: string
+          phone: string
+          source?: string | null
+          status?: string
+          store_name: string
+          updated_at?: string
+          utm_ad?: string | null
+          utm_adset?: string | null
+          utm_campaign?: string | null
+          utm_source?: string | null
+          website: string
+        }
+        Update: {
+          challenge?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          monthly_ad_budget_range?: string
+          name?: string
+          phone?: string
+          source?: string | null
+          status?: string
+          store_name?: string
+          updated_at?: string
+          utm_ad?: string | null
+          utm_adset?: string | null
+          utm_campaign?: string | null
+          utm_source?: string | null
+          website?: string
+        }
+        Relationships: []
+      }
       feature_flags: {
         Row: {
           agency_id: string
