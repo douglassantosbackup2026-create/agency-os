@@ -139,8 +139,8 @@ export function GestaoTrafegoHero() {
       });
       return;
     }
-    const { consent: _, ...payload } = parsed.data;
-    await submit(payload);
+    await submit(parsed.data);
+
   };
 
 
