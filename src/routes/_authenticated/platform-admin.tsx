@@ -27,6 +27,7 @@ import { PlatformDiagnosisBuyers } from "@/components/platform-admin/PlatformDia
 import { PlatformManagementSubscribers } from "@/components/platform-admin/PlatformManagementSubscribers";
 import { PlatformManagementHandoff } from "@/components/platform-admin/PlatformManagementHandoff";
 import { PlatformOpsConfig } from "@/components/platform-admin/PlatformOpsConfig";
+import { PlatformEcommerceLeads } from "@/components/platform-admin/PlatformEcommerceLeads";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/_authenticated/platform-admin")({
