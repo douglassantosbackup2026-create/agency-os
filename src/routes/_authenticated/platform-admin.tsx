@@ -161,6 +161,7 @@ function PlatformAdmin() {
           <TabsTrigger value="funnel">Funil Diagnóstico</TabsTrigger>
           <TabsTrigger value="buyers">Compradores Diagnóstico</TabsTrigger>
           <TabsTrigger value="subscribers">Assinantes Gestão</TabsTrigger>
+          <TabsTrigger value="leads">Leads E-commerce</TabsTrigger>
           <TabsTrigger value="handoff">Handoff</TabsTrigger>
         </TabsList>
 
