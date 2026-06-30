@@ -341,6 +341,10 @@ function PlatformAdmin() {
           <PlatformManagementSubscribers />
         </TabsContent>
 
+        <TabsContent value="leads">
+          <PlatformEcommerceLeads />
+        </TabsContent>
+
         <TabsContent value="handoff">
           <PlatformManagementHandoff />
         </TabsContent>
