@@ -1,11 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { throwIfSupabaseError, queryErrorMeta } from "@/lib/supabase-result";
 import { Card, CardHeader, Empty, PageSkeleton } from "@/components/operational-ui";
 import { QueryErrorState } from "@/components/query-error-state";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
 
 const STATUS_OPTIONS = [
   { value: "new", label: "Novo" },
