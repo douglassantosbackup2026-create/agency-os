@@ -17,6 +17,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as ObrigadoRouteImport } from './routes/obrigado'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as GestaoTrafegoObrigadoRouteImport } from './routes/gestao-trafego-obrigado'
 import { Route as GestaoTrafegoRouteImport } from './routes/gestao-trafego'
 import { Route as GestaoOnboardingRouteImport } from './routes/gestao-onboarding'
 import { Route as GestaoObrigadoRouteImport } from './routes/gestao-obrigado'
@@ -90,6 +91,11 @@ const ObrigadoRoute = ObrigadoRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GestaoTrafegoObrigadoRoute = GestaoTrafegoObrigadoRouteImport.update({
+  id: '/gestao-trafego-obrigado',
+  path: '/gestao-trafego-obrigado',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GestaoTrafegoRoute = GestaoTrafegoRouteImport.update({
@@ -280,6 +286,7 @@ export interface FileRoutesByFullPath {
   '/gestao-obrigado': typeof GestaoObrigadoRoute
   '/gestao-onboarding': typeof GestaoOnboardingRoute
   '/gestao-trafego': typeof GestaoTrafegoRoute
+  '/gestao-trafego-obrigado': typeof GestaoTrafegoObrigadoRoute
   '/login': typeof LoginRoute
   '/obrigado': typeof ObrigadoRoute
   '/privacidade': typeof PrivacidadeRoute
@@ -323,6 +330,7 @@ export interface FileRoutesByTo {
   '/gestao-obrigado': typeof GestaoObrigadoRoute
   '/gestao-onboarding': typeof GestaoOnboardingRoute
   '/gestao-trafego': typeof GestaoTrafegoRoute
+  '/gestao-trafego-obrigado': typeof GestaoTrafegoObrigadoRoute
   '/login': typeof LoginRoute
   '/obrigado': typeof ObrigadoRoute
   '/privacidade': typeof PrivacidadeRoute
@@ -368,6 +376,7 @@ export interface FileRoutesById {
   '/gestao-obrigado': typeof GestaoObrigadoRoute
   '/gestao-onboarding': typeof GestaoOnboardingRoute
   '/gestao-trafego': typeof GestaoTrafegoRoute
+  '/gestao-trafego-obrigado': typeof GestaoTrafegoObrigadoRoute
   '/login': typeof LoginRoute
   '/obrigado': typeof ObrigadoRoute
   '/privacidade': typeof PrivacidadeRoute
@@ -413,6 +422,7 @@ export interface FileRouteTypes {
     | '/gestao-obrigado'
     | '/gestao-onboarding'
     | '/gestao-trafego'
+    | '/gestao-trafego-obrigado'
     | '/login'
     | '/obrigado'
     | '/privacidade'
@@ -456,6 +466,7 @@ export interface FileRouteTypes {
     | '/gestao-obrigado'
     | '/gestao-onboarding'
     | '/gestao-trafego'
+    | '/gestao-trafego-obrigado'
     | '/login'
     | '/obrigado'
     | '/privacidade'
@@ -500,6 +511,7 @@ export interface FileRouteTypes {
     | '/gestao-obrigado'
     | '/gestao-onboarding'
     | '/gestao-trafego'
+    | '/gestao-trafego-obrigado'
     | '/login'
     | '/obrigado'
     | '/privacidade'
@@ -545,6 +557,7 @@ export interface RootRouteChildren {
   GestaoObrigadoRoute: typeof GestaoObrigadoRoute
   GestaoOnboardingRoute: typeof GestaoOnboardingRoute
   GestaoTrafegoRoute: typeof GestaoTrafegoRoute
+  GestaoTrafegoObrigadoRoute: typeof GestaoTrafegoObrigadoRoute
   LoginRoute: typeof LoginRoute
   ObrigadoRoute: typeof ObrigadoRoute
   PrivacidadeRoute: typeof PrivacidadeRoute
@@ -613,6 +626,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gestao-trafego-obrigado': {
+      id: '/gestao-trafego-obrigado'
+      path: '/gestao-trafego-obrigado'
+      fullPath: '/gestao-trafego-obrigado'
+      preLoaderRoute: typeof GestaoTrafegoObrigadoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/gestao-trafego': {
@@ -957,6 +977,7 @@ const rootRouteChildren: RootRouteChildren = {
   GestaoObrigadoRoute: GestaoObrigadoRoute,
   GestaoOnboardingRoute: GestaoOnboardingRoute,
   GestaoTrafegoRoute: GestaoTrafegoRoute,
+  GestaoTrafegoObrigadoRoute: GestaoTrafegoObrigadoRoute,
   LoginRoute: LoginRoute,
   ObrigadoRoute: ObrigadoRoute,
   PrivacidadeRoute: PrivacidadeRoute,

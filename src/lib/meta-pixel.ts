@@ -193,6 +193,12 @@ export function trackRoutePixelEvents(pathname: string): void {
     trackMetaInitiateCheckout(GESTAO_PRODUCT);
     return;
   }
+  if (pathname === "/gestao-trafego") {
+    trackMetaViewContent(GESTAO_PRODUCT, {
+      content_name: "Gestão de Tráfego E-commerce Landing",
+    });
+    return;
+  }
   if (/^\/diagnostico\/[^/]+\/conectar$/.test(pathname)) {
     trackMetaViewContent(DIAGNOSIS_PRODUCT, {
       content_name: "Conectar conta Meta Ads",
