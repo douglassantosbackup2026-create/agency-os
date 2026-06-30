@@ -59,14 +59,10 @@ export function PlatformEcommerceLeads() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["ecommerce-leads"] });
-      toast({ title: "Status atualizado" });
+      toast.success("Status atualizado");
     },
     onError: (err) => {
-      toast({
-        title: "Erro ao atualizar status",
-        description: err instanceof Error ? err.message : "Tente novamente",
-        variant: "destructive",
-      });
+      toast.error(err instanceof Error ? err.message : "Tente novamente");
     },
   });
 
