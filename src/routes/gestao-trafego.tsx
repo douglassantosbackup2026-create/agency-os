@@ -57,7 +57,7 @@ function GestaoTrafegoPage() {
         <GestaoTrafegoQualification />
         <GestaoTrafegoHowItWorks />
         <GestaoTrafegoIncluded />
-        <GestaoTrafegoTestimonial />
+        <GestaoTrafegoMoreResultsCta onCtaClick={scrollToLeadForm} />
         <GestaoTrafegoFaq />
         <GestaoTrafegoFinalCta onCtaClick={scrollToLeadForm} />
       </main>
