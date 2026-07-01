@@ -13,13 +13,15 @@ export function GestaoTrafegoFinalCta({ onCtaClick }: { onCtaClick?: () => void 
             <p className="mx-auto mt-3 max-w-xl text-base text-muted-foreground">
               {finalCta.body}
             </p>
-            <button
-              type="button"
-              onClick={onCtaClick}
-              className={`${landingPrimaryCtaLargeClass} mx-auto mt-6`}
-            >
-              {finalCta.cta}
-            </button>
+            <div className="mt-6 flex justify-center">
+              <button
+                type="button"
+                onClick={onCtaClick}
+                className={`${landingPrimaryCtaLargeClass} sm:max-w-sm`}
+              >
+                {finalCta.cta}
+              </button>
+            </div>
           </div>
         </div>
       </div>
