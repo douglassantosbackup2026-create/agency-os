@@ -75,7 +75,7 @@ export const GESTAO_RECURRENCE_NOTE_PIX =
   "Pix paga a 1ª mensalidade hoje. Nos meses seguintes, enviamos um novo link de Pix pelo WhatsApp 3 dias antes do vencimento — você decide quando confirmar.";
 
 export const GESTAO_RECURRENCE_NOTE_CARD =
-  "Cartão ativa a cobrança automática mensal de R$ 1.997 pelo Mercado Pago. A 1ª cobrança acontece agora; as próximas são automáticas todo mês na mesma data. Cancele quando quiser.";
+  "Cartão ativa a cobrança automática mensal de R$ 4.997 pelo Mercado Pago. A 1ª cobrança acontece agora; as próximas são automáticas todo mês na mesma data. Cancele quando quiser.";
 
 export const GESTAO_PAYMENT_METHOD_HINTS = {
   pix: "Renovação manual",
@@ -83,9 +83,9 @@ export const GESTAO_PAYMENT_METHOD_HINTS = {
 } as const;
 
 export const GESTAO_CARD_CONSENT =
-  "Autorizo o Mercado Pago a cobrar R$ 1.997 mensalmente no meu cartão até eu cancelar.";
+  "Autorizo o Mercado Pago a cobrar R$ 4.997 mensalmente no meu cartão até eu cancelar.";
 
-export const DEFAULT_MANAGEMENT_PRICE_CENTS = 199700;
+export const DEFAULT_MANAGEMENT_PRICE_CENTS = 499700;
 
 export function formatManagementPrice(cents: number): string {
   return `R$ ${(cents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
