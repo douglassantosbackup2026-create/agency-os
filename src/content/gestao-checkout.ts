@@ -1,6 +1,8 @@
 import proof1 from "@/assets/gestao-proof-1.png.asset.json";
 import proof2 from "@/assets/gestao-proof-2.png.asset.json";
 import proof3 from "@/assets/gestao-proof-3.png.asset.json";
+import proofGoogle1 from "@/assets/gestao-proof-google-1.png.asset.json";
+import proofGoogle2 from "@/assets/gestao-proof-google-2.png.asset.json";
 
 export const GESTAO_PRODUCT_NAME = "Gestão de Tráfego Pago";
 export const GESTAO_PRODUCT_TAGLINE =
@@ -12,6 +14,7 @@ export const GESTAO_RESULT_PROOFS: {
   metric: string;
   caption: string;
   nicho: string;
+  platform: "Meta Ads" | "Google Ads";
 }[] = [
   {
     src: proof1.url,
@@ -19,6 +22,7 @@ export const GESTAO_RESULT_PROOFS: {
     metric: "ROAS 15,59×",
     caption: "R$ 2,72 milhões em vendas em 6 meses",
     nicho: "E-commerce",
+    platform: "Meta Ads",
   },
   {
     src: proof2.url,
@@ -26,6 +30,7 @@ export const GESTAO_RESULT_PROOFS: {
     metric: "ROAS 32,57×",
     caption: "R$ 4,46 milhões em vendas, operação escalada",
     nicho: "E-commerce",
+    platform: "Meta Ads",
   },
   {
     src: proof3.url,
@@ -33,6 +38,23 @@ export const GESTAO_RESULT_PROOFS: {
     metric: "ROAS 10,79×",
     caption: "278 compras · R$ 383 mil em vendas",
     nicho: "E-commerce",
+    platform: "Meta Ads",
+  },
+  {
+    src: proofGoogle1.url,
+    alt: "Print do Google Ads mostrando R$ 261.155,62 em valor de conversão e R$ 13.156,46 de custo em 30 dias",
+    metric: "ROAS 19,85×",
+    caption: "R$ 261 mil em conversões · 163 vendas em 30 dias",
+    nicho: "E-commerce",
+    platform: "Google Ads",
+  },
+  {
+    src: proofGoogle2.url,
+    alt: "Print do Google Ads mostrando R$ 636.534,93 em valor de conversão (incluindo projeções) e R$ 16.028,54 de custo em 30 dias",
+    metric: "ROAS 39,71×",
+    caption: "R$ 636 mil em conversões · 532 vendas em 30 dias",
+    nicho: "E-commerce",
+    platform: "Google Ads",
   },
 ];
 

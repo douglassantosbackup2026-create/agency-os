@@ -15,18 +15,23 @@ export function GestaoResultsGallery() {
           Resultados reais de contas que gerimos
         </h3>
         <p className="mt-1 text-xs text-muted-foreground">
-          Prints do Gerenciador Meta — a gestão cobre também Google, TikTok e outras plataformas ativas na sua loja.
+          Prints do Gerenciador Meta e do Google Ads — a gestão cobre também TikTok e outras plataformas ativas na sua loja.
         </p>
       </div>
       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
         {GESTAO_RESULT_PROOFS.map((proof) => (
           <figure key={proof.src} className="overflow-hidden rounded-lg border bg-background">
-            <img
-              src={proof.src}
-              alt={proof.alt}
-              loading="lazy"
-              className="block h-auto w-full object-cover"
-            />
+            <div className="relative">
+              <img
+                src={proof.src}
+                alt={proof.alt}
+                loading="lazy"
+                className="block h-auto w-full object-cover"
+              />
+              <span className="absolute left-2 top-2 rounded-full bg-background/95 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground shadow-sm ring-1 ring-border">
+                {proof.platform}
+              </span>
+            </div>
             <figcaption className="space-y-1 px-3 py-3 text-center">
               <div className="text-sm font-bold text-success">{proof.metric}</div>
               <div className="text-xs leading-snug text-muted-foreground">{proof.caption}</div>
