@@ -11,36 +11,39 @@ export const GESTAO_RESULT_PROOFS: {
   alt: string;
   metric: string;
   caption: string;
+  nicho: string;
 }[] = [
   {
     src: proof1.url,
     alt: "Print do Gerenciador Meta mostrando R$ 2.720.057,57 em vendas e ROAS 15,59",
     metric: "ROAS 15,59×",
-    caption: "R$ 2,72 milhões em vendas — 6 meses de gestão",
+    caption: "R$ 2,72 milhões em vendas em 6 meses",
+    nicho: "E-commerce",
   },
   {
     src: proof2.url,
     alt: "Print do Gerenciador Meta mostrando R$ 4.463.616,78 em vendas e ROAS 32,57",
     metric: "ROAS 32,57×",
-    caption: "R$ 4,46 milhões em vendas — operação escalada",
+    caption: "R$ 4,46 milhões em vendas, operação escalada",
+    nicho: "E-commerce",
   },
   {
     src: proof3.url,
     alt: "Print do Gerenciador Meta com 278 compras, ROAS 10,79 e R$ 383.962,41 em vendas",
     metric: "ROAS 10,79×",
     caption: "278 compras · R$ 383 mil em vendas",
+    nicho: "E-commerce",
   },
 ];
 
 export const GESTAO_DELIVERABLES = [
   "Gestão integrada de Meta, Google, TikTok e demais plataformas ativas na sua loja",
-  "Implementação das correções prioritárias do relatório",
+  "Implementação das correções prioritárias identificadas na análise inicial",
   "Gestão diária de campanhas, criativos e públicos em cada canal",
-  "Otimização contínua de ROAS, CPA e estrutura de conta em todas as mídias",
+  "Otimização contínua de ROAS, CPA e estrutura de conta",
   "Testes A/B de criativos e ofertas com critério de escala",
-  "Relatórios de performance consolidados e alinhamento estratégico",
-  "Canal direto com gestor (WhatsApp) para decisões rápidas",
-  "Foco em recuperar receita identificada no diagnóstico",
+  "Relatórios de performance semanais e alinhamento estratégico",
+  "Canal direto com o gestor (WhatsApp) para decisões rápidas",
 ];
 
 export const GESTAO_GUARANTEE =
