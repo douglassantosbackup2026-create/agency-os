@@ -15,7 +15,7 @@ export function GestaoResultsGallery() {
           Resultados reais de contas que gerimos
         </h3>
         <p className="mt-1 text-xs text-muted-foreground">
-          Exemplos do Gerenciador Meta — a gestão cobre também Google, TikTok e outras plataformas
+          Prints do Gerenciador Meta — a gestão cobre também Google, TikTok e outras plataformas ativas na sua loja.
         </p>
       </div>
       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -30,12 +30,15 @@ export function GestaoResultsGallery() {
             <figcaption className="space-y-1 px-3 py-3 text-center">
               <div className="text-sm font-bold text-success">{proof.metric}</div>
               <div className="text-xs leading-snug text-muted-foreground">{proof.caption}</div>
+              <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground/80">
+                {proof.nicho}
+              </div>
             </figcaption>
           </figure>
         ))}
       </div>
-      <p className="mt-3 text-center text-[11px] text-muted-foreground">
-        Resultados variam por nicho, oferta e investimento.
+      <p className="mt-3 text-center text-[11px] leading-relaxed text-muted-foreground">
+        Resultados variam por nicho, oferta, ticket médio e verba investida. Os números acima refletem contas específicas, não uma média geral.
       </p>
     </section>
   );
