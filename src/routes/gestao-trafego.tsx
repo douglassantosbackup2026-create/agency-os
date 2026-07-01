@@ -9,8 +9,10 @@ import {
   GestaoTrafegoSocialProof,
   GestaoTrafegoFaq,
   GestaoTrafegoFinalCta,
+  GestaoTrafegoStickyCta,
   scrollToLeadForm,
 } from "@/components/gestao-trafego";
+
 import { seo } from "@/content/gestao-trafego";
 import { GESTAO_PRODUCT, trackMetaPageView, trackMetaViewContent } from "@/lib/meta-pixel";
 
@@ -55,6 +57,8 @@ function GestaoTrafegoPage() {
         <GestaoTrafegoFaq />
         <GestaoTrafegoFinalCta onCtaClick={scrollToLeadForm} />
       </main>
+      <GestaoTrafegoStickyCta />
     </div>
+
   );
 }

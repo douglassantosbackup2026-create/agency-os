@@ -18,29 +18,44 @@ export const hero = {
   headlineHighlight: "queimar dinheiro",
   subheadline:
     "Gestão de tráfego pago sob medida para e-commerces que investem mais de R$ 5.000/mês em mídia paga — Meta, Google, TikTok e outras plataformas. Foco em ROAS, escala e execução sem enrolação.",
+  microProof: "+R$ 30 milhões gerenciados · ROAS médio 10×+ em contas ativas",
   bullets: [
     "Diagnóstico técnico das suas contas antes de começar",
-    "Gestão diária de Meta, Google, TikTok e demais plataformas ativas",
+    "Gestão diária de Meta, Google, TikTok e demais plataformas",
     "Otimização de campanhas, criativos e públicos em todos os canais",
-    "Relatório semanal de performance e próximos passos",
-    "Canal direto com gestor via WhatsApp",
-    "Sem fidelidade — cancele quando quiser",
+    "Relatório semanal e canal direto com o gestor no WhatsApp",
   ],
+  badges: ["Sem fidelidade", "Cancele quando quiser", "Resposta em 24h úteis"],
   cta: "Receber proposta de gestão",
   ctaLoading: "Enviando…",
   footnote: "Resposta em até 24h úteis. Seu contato é usado só para a proposta.",
 };
 
+
 export const form = {
   title: "Solicite uma proposta para sua loja",
   subtitle: "Preencha em 1 minuto. Douglas analisa sua operação e responde com a proposta.",
+  trustBadges: [
+    { label: "Dados protegidos" },
+    { label: "Resposta em 24h úteis" },
+    { label: "Sem fidelidade" },
+  ],
+  step1Cta: "Continuar",
+  step2Back: "Voltar",
+  stepLabels: { one: "1 · Contato", two: "2 · Sua loja" },
+  budgetHint: {
+    low: "Para operações abaixo de R$ 5.000/mês, o diagnóstico de R$ 37 é o ponto de partida ideal. Você pode continuar mesmo assim.",
+  },
   fields: {
     name: { label: "Nome completo", placeholder: "Seu nome" },
     email: { label: "E-mail", placeholder: "voce@loja.com.br" },
     phone: { label: "WhatsApp", placeholder: "(11) 99999-9999" },
     storeName: { label: "Nome da loja", placeholder: "Loja Exemplo" },
     website: { label: "Site ou Instagram da loja", placeholder: "https://loja.com.br ou @loja" },
-    budget: { label: "Quanto investe por mês em mídia paga (somando todas as plataformas)?" },
+    budget: {
+      label: "Quanto investe por mês em mídia paga (somando todas as plataformas)?",
+      placeholder: "Selecione a faixa",
+    },
     challenge: {
       label: "Qual o maior desafio hoje?",
       placeholder: "Ex.: ROAS do Meta caiu, Google não escala, TikTok com CPA alto…",
@@ -53,6 +68,7 @@ export const form = {
     { value: ">50k", label: "Mais de R$ 50.000" },
   ],
   consent: "Concordo em receber contato sobre a proposta de gestão. Seus dados não serão compartilhados.",
+  privacyLinkLabel: "política de privacidade",
   errors: {
     required: "Campo obrigatório",
     email: "E-mail inválido",
@@ -66,6 +82,7 @@ export const form = {
     ctaHint: "Se quiser adiantar, clique para iniciar a conversa.",
   },
 };
+
 
 export const howItWorksSection = {
   eyebrow: "Como funciona",
