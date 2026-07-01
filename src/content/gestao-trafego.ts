@@ -143,9 +143,14 @@ export const faqSection = {
         "Mensalidade de R$ 1.997, sem fidelidade. Você pode cancelar antes do próximo ciclo de cobrança avisando pelo WhatsApp.",
     },
     {
+      question: "Quais plataformas de mídia paga vocês gerenciam?",
+      answer:
+        "Meta Ads (Facebook e Instagram), Google Ads (Search, Shopping, PMax, YouTube), TikTok Ads e outras plataformas conforme a operação da sua loja. Um único gestor cuidando de todos os canais ativos.",
+    },
+    {
       question: "Quais acessos são necessários?",
       answer:
-        "Business Manager, conta de anúncios, catálogo de produtos, Pixel/CAPI e acesso ao Shopify/e-commerce. Tudo com permissões mínimas e seguras.",
+        "Depende dos canais ativos: Business Manager e Pixel/CAPI (Meta), Google Ads e Merchant Center, TikTok Ads Manager, GA4 e acesso ao Shopify/e-commerce. Tudo com permissões mínimas e seguras.",
     },
     {
       question: "Vocês garantem ROAS?",
@@ -156,15 +161,15 @@ export const faqSection = {
 };
 
 export const finalCta = {
-  title: "Vamos olhar sua conta antes de você gastar mais nada em mídia",
-  body: "Preencha o formulário e receba uma proposta de gestão feita para a sua operação.",
+  title: "Vamos olhar suas contas antes de você gastar mais nada em mídia",
+  body: "Preencha o formulário e receba uma proposta de gestão de mídia paga (Meta, Google, TikTok e outras) feita para a sua operação.",
   cta: "Receber proposta de gestão",
 };
 
 export const seo = {
-  title: "Gestão de Tráfego Meta Ads para E-commerce | Agency Opus",
+  title: "Gestão de Tráfego Pago (Meta, Google, TikTok) para E-commerce | Agency Opus",
   description:
-    "Receba uma proposta de gestão de tráfego pago para sua loja. Especialista em Meta Ads para e-commerce com resultados comprovados.",
+    "Gestão de mídia paga para e-commerce que investe R$ 5k+/mês: Meta, Google, TikTok e outras plataformas com um único gestor. Receba uma proposta sob medida.",
 };
 
 export const anchors = {
