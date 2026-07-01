@@ -18,18 +18,19 @@ export const hero = {
   headlineHighlight: "queimar dinheiro",
   subheadline:
     "Gestão de tráfego pago sob medida para e-commerces que investem mais de R$ 5.000/mês em mídia paga — Meta, Google, TikTok e outras plataformas. Foco em ROAS, escala e execução sem enrolação.",
+  microProof: "+R$ 30 milhões gerenciados · ROAS médio 10×+ em contas ativas",
   bullets: [
     "Diagnóstico técnico das suas contas antes de começar",
-    "Gestão diária de Meta, Google, TikTok e demais plataformas ativas",
+    "Gestão diária de Meta, Google, TikTok e demais plataformas",
     "Otimização de campanhas, criativos e públicos em todos os canais",
-    "Relatório semanal de performance e próximos passos",
-    "Canal direto com gestor via WhatsApp",
-    "Sem fidelidade — cancele quando quiser",
+    "Relatório semanal e canal direto com o gestor no WhatsApp",
   ],
+  badges: ["Sem fidelidade", "Cancele quando quiser", "Resposta em 24h úteis"],
   cta: "Receber proposta de gestão",
   ctaLoading: "Enviando…",
   footnote: "Resposta em até 24h úteis. Seu contato é usado só para a proposta.",
 };
+
 
 export const form = {
   title: "Solicite uma proposta para sua loja",
