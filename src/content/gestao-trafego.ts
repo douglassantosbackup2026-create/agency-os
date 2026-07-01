@@ -194,4 +194,44 @@ export const anchors = {
   comoFunciona: "como-funciona",
   prova: "prova",
   faq: "faq",
+  marcas: "marcas",
+};
+
+export const clientsSection = {
+  eyebrow: "Marcas atendidas",
+  title: "Lojas que já passaram pela nossa gestão",
+  subtitle: "E-commerces que confiaram a operação de mídia paga.",
+  footnote: "Trabalho realizado como gestor no Grupo Moon.",
+  items: [
+    { name: "Mixed", niche: "Moda feminina" },
+    { name: "Fillity", niche: "Moda íntima" },
+    { name: "La Rouge", niche: "Beleza" },
+    { name: "Paula Ferber", niche: "Acessórios" },
+    { name: "Carolina Etz", niche: "Casa & decoração" },
+    { name: "Linea", niche: "Moda" },
+  ],
+};
+
+export const problemsSection = {
+  eyebrow: "O diagnóstico começa aqui",
+  title: "Você reconhece algum desses problemas?",
+  subtitle: "Se pelo menos dois soam familiares, faz sentido conversar.",
+  items: [
+    "ROAS despencou nos últimos meses e ninguém sabe explicar o porquê",
+    "CPM não para de subir e come toda a margem da campanha",
+    "Escala trava sempre no mesmo teto de faturamento mensal",
+    "Criativos morrem em poucos dias e falta processo pra repor",
+    "Sem visibilidade real do que está acontecendo dentro da conta",
+  ],
+};
+
+export const operatorSection = {
+  eyebrow: "Quem vai cuidar da sua conta",
+  title: "Um gestor dedicado, não uma agência genérica",
+  bullets: [
+    "Ex-Ogilvy, com passagem por operações de e-commerce de alto ticket",
+    "+R$ 30 milhões gerenciados em Meta Ads e Google Ads",
+    "5 anos focados exclusivamente em e-commerce",
+    "Atendimento direto no WhatsApp, sem intermediário de gerente de contas",
+  ],
 };
