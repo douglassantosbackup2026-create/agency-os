@@ -44,7 +44,7 @@ export const form = {
   step2Back: "Voltar",
   stepLabels: { one: "1 · Contato", two: "2 · Sua loja" },
   budgetHint: {
-    low: "Para operações abaixo de R$ 5.000/mês, o diagnóstico de R$ 37 é o ponto de partida ideal. Você pode continuar mesmo assim.",
+    low: "Abaixo de R$ 5.000/mês, a gestão de R$ 1.997 dificilmente compensa. Você pode enviar assim mesmo — vamos ser diretos se recomendarmos esperar ganhar escala.",
   },
   fields: {
     name: { label: "Nome completo", placeholder: "Seu nome" },
