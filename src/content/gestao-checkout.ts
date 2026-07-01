@@ -33,11 +33,12 @@ export const GESTAO_RESULT_PROOFS: {
 ];
 
 export const GESTAO_DELIVERABLES = [
+  "Gestão integrada de Meta, Google, TikTok e demais plataformas ativas na sua loja",
   "Implementação das correções prioritárias do relatório",
-  "Gestão diária de campanhas, criativos e públicos",
-  "Otimização contínua de ROAS, CPA e estrutura de conta",
+  "Gestão diária de campanhas, criativos e públicos em cada canal",
+  "Otimização contínua de ROAS, CPA e estrutura de conta em todas as mídias",
   "Testes A/B de criativos e ofertas com critério de escala",
-  "Relatórios de performance e alinhamento estratégico",
+  "Relatórios de performance consolidados e alinhamento estratégico",
   "Canal direto com gestor (WhatsApp) para decisões rápidas",
   "Foco em recuperar receita identificada no diagnóstico",
 ];
