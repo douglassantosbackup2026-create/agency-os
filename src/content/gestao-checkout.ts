@@ -2,9 +2,9 @@ import proof1 from "@/assets/gestao-proof-1.png.asset.json";
 import proof2 from "@/assets/gestao-proof-2.png.asset.json";
 import proof3 from "@/assets/gestao-proof-3.png.asset.json";
 
-export const GESTAO_PRODUCT_NAME = "Gestão de Tráfego Meta Ads";
+export const GESTAO_PRODUCT_NAME = "Gestão de Tráfego Pago";
 export const GESTAO_PRODUCT_TAGLINE =
-  "Execução diária do plano do seu diagnóstico — equipe especializada";
+  "Execução diária de Meta, Google, TikTok e demais canais — um único gestor especializado";
 
 export const GESTAO_RESULT_PROOFS: {
   src: string;
