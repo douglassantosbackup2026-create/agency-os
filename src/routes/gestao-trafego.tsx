@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import {
   GestaoTrafegoHeader,
   GestaoTrafegoHero,
+  GestaoTrafegoPlatforms,
   GestaoTrafegoHowItWorks,
   GestaoTrafegoQualification,
   GestaoTrafegoIncluded,
@@ -50,10 +51,11 @@ function GestaoTrafegoPage() {
       <GestaoTrafegoHeader onCtaClick={scrollToLeadForm} />
       <main>
         <GestaoTrafegoHero />
+        <GestaoTrafegoPlatforms />
+        <GestaoTrafegoSocialProof />
         <GestaoTrafegoQualification />
         <GestaoTrafegoHowItWorks />
         <GestaoTrafegoIncluded />
-        <GestaoTrafegoSocialProof />
         <GestaoTrafegoFaq />
         <GestaoTrafegoFinalCta onCtaClick={scrollToLeadForm} />
       </main>
