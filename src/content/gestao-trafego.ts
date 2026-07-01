@@ -13,14 +13,15 @@ export { GESTAO_DELIVERABLES, GESTAO_GUARANTEE, GESTAO_OPERATOR, GESTAO_RESULT_P
 export const GESTAO_PRICE_LABEL = formatManagementPrice(DEFAULT_MANAGEMENT_PRICE_CENTS);
 
 export const hero = {
-  eyebrow: "Gestão de Tráfego Meta Ads para e-commerce",
-  headline: "Pare de queimar dinheiro no Meta Ads.",
+  eyebrow: "Gestão de Tráfego Pago para e-commerce",
+  headline: "Pare de queimar dinheiro em mídia paga.",
   headlineHighlight: "queimar dinheiro",
   subheadline:
-    "Gestão de tráfego pago sob medida para e-commerces que investem mais de R$ 5.000/mês em Meta Ads. Foco em ROAS, escala e execução sem enrolação.",
+    "Gestão de tráfego pago sob medida para e-commerces que investem mais de R$ 5.000/mês em mídia paga — Meta, Google, TikTok e outras plataformas. Foco em ROAS, escala e execução sem enrolação.",
   bullets: [
-    "Diagnóstico técnico da sua conta antes de começar",
-    "Gestão diária de campanhas, criativos e públicos",
+    "Diagnóstico técnico das suas contas antes de começar",
+    "Gestão diária de Meta, Google, TikTok e demais plataformas ativas",
+    "Otimização de campanhas, criativos e públicos em todos os canais",
     "Relatório semanal de performance e próximos passos",
     "Canal direto com gestor via WhatsApp",
     "Sem fidelidade — cancele quando quiser",
