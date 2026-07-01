@@ -99,9 +99,9 @@ export const qualificationSection = {
   title: "Feito para um perfil específico de e-commerce",
   forYou: [
     "Loja de e-commerce físico vendendo no Brasil",
-    "Investe pelo menos R$ 5.000/mês em Meta Ads",
-    "Já tem campanhas rodando ou rodou nos últimos 30 dias",
-    "Quer um gestor dedicado, não uma agência genérica",
+    "Investe pelo menos R$ 5.000/mês em mídia paga (Meta, Google, TikTok etc.)",
+    "Já tem campanhas rodando em pelo menos uma plataforma paga",
+    "Quer um gestor dedicado cuidando de todos os canais, não uma agência por plataforma",
     "Está disposto a executar mudanças rápidas com base em dados",
   ],
   notForYou: [
