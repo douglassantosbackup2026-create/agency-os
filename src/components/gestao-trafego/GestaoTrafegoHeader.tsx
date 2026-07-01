@@ -91,13 +91,6 @@ function GestaoTrafegoHeaderInner({ onCtaClick }: Props) {
               </a>
             ))}
             <Link
-              to="/"
-              onClick={() => setMobileOpen(false)}
-              className={cn(landingNavAnchorClass, "justify-start")}
-            >
-              Diagnóstico R$37
-            </Link>
-            <Link
               to="/gestao-checkout"
               onClick={() => setMobileOpen(false)}
               className={cn(landingOutlineCtaClass, "mt-2 justify-start")}
