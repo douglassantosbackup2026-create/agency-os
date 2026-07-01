@@ -5,7 +5,7 @@ export { GestaoTrafegoQualification } from "./GestaoTrafegoQualification";
 export { GestaoTrafegoIncluded } from "./GestaoTrafegoIncluded";
 export { GestaoTrafegoSocialProof } from "./GestaoTrafegoSocialProof";
 export { GestaoTrafegoPlatforms } from "./GestaoTrafegoPlatforms";
-export { GestaoTrafegoTestimonial } from "./GestaoTrafegoTestimonial";
+export { GestaoTrafegoMoreResultsCta } from "./GestaoTrafegoMoreResultsCta";
 export { GestaoTrafegoFaq } from "./GestaoTrafegoFaq";
 export { GestaoTrafegoFinalCta } from "./GestaoTrafegoFinalCta";
 export { GestaoTrafegoStickyCta } from "./GestaoTrafegoStickyCta";

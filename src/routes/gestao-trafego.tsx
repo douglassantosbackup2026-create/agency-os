@@ -8,7 +8,7 @@ import {
   GestaoTrafegoQualification,
   GestaoTrafegoIncluded,
   GestaoTrafegoSocialProof,
-  GestaoTrafegoTestimonial,
+  GestaoTrafegoMoreResultsCta,
   GestaoTrafegoFaq,
   GestaoTrafegoFinalCta,
   GestaoTrafegoStickyCta,
@@ -57,7 +57,7 @@ function GestaoTrafegoPage() {
         <GestaoTrafegoQualification />
         <GestaoTrafegoHowItWorks />
         <GestaoTrafegoIncluded />
-        <GestaoTrafegoTestimonial />
+        <GestaoTrafegoMoreResultsCta onCtaClick={scrollToLeadForm} />
         <GestaoTrafegoFaq />
         <GestaoTrafegoFinalCta onCtaClick={scrollToLeadForm} />
       </main>

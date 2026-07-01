@@ -46,9 +46,6 @@ function GestaoTrafegoHeaderInner({ onCtaClick }: Props) {
                 {link.label}
               </a>
             ))}
-            <Link to="/" className={cn(landingNavAnchorClass, "hidden lg:inline-flex")}>
-              Diagnóstico R$37
-            </Link>
           </div>
 
           <button
@@ -93,13 +90,6 @@ function GestaoTrafegoHeaderInner({ onCtaClick }: Props) {
                 {link.label}
               </a>
             ))}
-            <Link
-              to="/"
-              onClick={() => setMobileOpen(false)}
-              className={cn(landingNavAnchorClass, "justify-start")}
-            >
-              Diagnóstico R$37
-            </Link>
             <Link
               to="/gestao-checkout"
               onClick={() => setMobileOpen(false)}

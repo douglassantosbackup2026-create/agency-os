@@ -18,7 +18,7 @@ export const hero = {
   headlineHighlight: "queimar dinheiro",
   subheadline:
     "Gestão de tráfego pago sob medida para e-commerces que investem mais de R$ 5.000/mês em mídia paga — Meta, Google, TikTok e outras plataformas. Foco em ROAS, escala e execução sem enrolação.",
-  microProof: "+R$ 30 milhões gerenciados · ROAS médio 10×+ em contas ativas",
+  microProof: "+R$ 30 milhões gerenciados · cases com ROAS 10×+ em contas ativas",
   bullets: [
     "Diagnóstico técnico das suas contas antes de começar",
     "Gestão diária de Meta, Google, TikTok e demais plataformas",
@@ -44,7 +44,7 @@ export const form = {
   step2Back: "Voltar",
   stepLabels: { one: "1 · Contato", two: "2 · Sua loja" },
   budgetHint: {
-    low: "Para operações abaixo de R$ 5.000/mês, o diagnóstico de R$ 37 é o ponto de partida ideal. Você pode continuar mesmo assim.",
+    low: "Abaixo de R$ 5.000/mês, a gestão de R$ 1.997 dificilmente compensa. Você pode enviar assim mesmo — vamos ser diretos se recomendarmos esperar ganhar escala.",
   },
   fields: {
     name: { label: "Nome completo", placeholder: "Seu nome" },
@@ -123,8 +123,9 @@ export const qualificationSection = {
   ],
   notForYou: [
     "Infoprodutos, serviços ou afiliados",
-    "Lojas que não investem em tráfego pago",
+    "Lojas que ainda não investem em tráfego pago",
     "Quem procura só relatório, sem execução",
+    "Quem não tem pelo menos R$ 5.000/mês de verba de mídia — o investimento na gestão não compensa nessa escala",
   ],
 };
 
@@ -145,14 +146,14 @@ export const faqSection = {
   title: "Perguntas frequentes",
   items: [
     {
+      question: "Preciso pagar alguma coisa antes de receber a proposta?",
+      answer:
+        "Não. Preencher o formulário e receber a proposta não tem custo nem compromisso. Você só paga se decidir seguir com a gestão mensal.",
+    },
+    {
       question: "Quanto tempo leva para começar a gestão?",
       answer:
         "Após aprovar a proposta, fazemos o onboarding em até 24h e as primeiras otimizações em até 5 dias úteis.",
-    },
-    {
-      question: "Preciso fazer o diagnóstico de R$37 antes?",
-      answer:
-        "Não é obrigatório, mas ajuda. Se já fez o diagnóstico, a proposta será mais cirúrgica. Se não fez, analisamos a conta durante a proposta.",
     },
     {
       question: "Como funciona o contrato?",
@@ -172,14 +173,14 @@ export const faqSection = {
     {
       question: "Vocês garantem ROAS?",
       answer:
-        "Nenhum gestor sério garante ROAS. O que garantimos é execução técnica, transparência nos números e ajustes baseados em dados — com relatório semanal.",
+        "Não garantimos um número específico de ROAS, porque o resultado depende de fatores fora do nosso controle (oferta, ticket médio, sazonalidade, concorrência). O que garantimos é processo: diagnóstico técnico, execução diária e otimização baseada em dados, com transparência total sobre o que está sendo feito e por quê.",
     },
   ],
 };
 
 export const finalCta = {
-  title: "Vamos olhar suas contas antes de você gastar mais nada em mídia",
-  body: "Preencha o formulário e receba uma proposta de gestão de mídia paga (Meta, Google, TikTok e outras) feita para a sua operação.",
+  title: "Antes de investir mais um real em mídia, olhe pra sua conta com quem entende de estrutura, não só de criativo.",
+  body: "Preencha o formulário e receba uma proposta de gestão de mídia paga (Meta, Google, TikTok e outras) feita para a sua operação — sem compromisso.",
   cta: "Receber proposta de gestão",
 };
 
