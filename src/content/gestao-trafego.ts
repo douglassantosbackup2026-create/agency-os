@@ -203,12 +203,12 @@ export const clientsSection = {
   subtitle: "E-commerces que confiaram a operação de mídia paga.",
   footnote: "Trabalho realizado como gestor no Grupo Moon.",
   items: [
-    { name: "Mixed", niche: "Moda feminina" },
-    { name: "Fillity", niche: "Moda íntima" },
-    { name: "La Rouge", niche: "Beleza" },
-    { name: "Paula Ferber", niche: "Acessórios" },
-    { name: "Carolina Etz", niche: "Casa & decoração" },
-    { name: "Linea", niche: "Moda" },
+    { name: "Mixed", niche: "MODA FEMININA" },
+    { name: "Fillity", niche: "MODA FEMININA" },
+    { name: "La Rouge", niche: "LINGERIE E SLEEPWEAR DE LUXO\u00a0" },
+    { name: "Paula Ferber", niche: "SAPATO E BOLSAS ARTESANAIS\u00a0" },
+    { name: "Carolina Etz", niche: "MODA FEMININA" },
+    { name: "Linea", niche: "SUPLEMENTO" },
   ],
 };
 
