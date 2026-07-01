@@ -8,7 +8,7 @@ import {
   GestaoTrafegoQualification,
   GestaoTrafegoIncluded,
   GestaoTrafegoSocialProof,
-  GestaoTrafegoTestimonial,
+  GestaoTrafegoMoreResultsCta,
   GestaoTrafegoFaq,
   GestaoTrafegoFinalCta,
   GestaoTrafegoStickyCta,
