@@ -46,9 +46,6 @@ function GestaoTrafegoHeaderInner({ onCtaClick }: Props) {
                 {link.label}
               </a>
             ))}
-            <Link to="/" className={cn(landingNavAnchorClass, "hidden lg:inline-flex")}>
-              Diagnóstico R$37
-            </Link>
           </div>
 
           <button
