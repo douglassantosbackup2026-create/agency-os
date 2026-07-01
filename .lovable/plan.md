@@ -1,89 +1,49 @@
-Plano de implementação — página de captura de leads para gestão de tráfego pago (e-commerce)
+## Objetivo
+Ampliar o posicionamento da Gestão de Tráfego: hoje a copy é toda focada em Meta Ads. Passar a comunicar gestão de tráfego pago em todas as mídias relevantes para e-commerce (Meta, Google, TikTok, Pinterest etc.), sem descaracterizar a especialização.
 
-Objetivo
-Criar uma landing pública, otimizada para Meta Ads, que capta leads qualificados de e-commerces que investem mais de R$ 5.000/mês em Meta Ads e oferece a gestão de tráfego pago (R$ 1.997/mês). A conversão principal é o envio de contato, não o pagamento direto.
+## Escopo (só copy + microcomponentes)
+Alterações restritas a conteúdo e labels. Nenhuma mudança em backend, schema, webhooks, preços ou fluxo de checkout.
 
-Público e posicionamento
-- Público: donos de e-commerce físico, DTCs e heads de marketing de lojas que já gastam >R$ 5k/mês em Meta Ads.
-- Proposta de valor: "pare de queimar dinheiro em campanhas que não escalam — receba uma proposta de gestão baseada em dados da sua conta".
-- Tom: direto, técnico, focado em resultado e transparência (mesma voz do checkout de gestão e do diagnóstico).
+## Arquivos afetados
 
-URL e arquitetura
-- Rota: `/gestao-trafego` (arquivo `src/routes/gestao-trafego.tsx`).
-- Ação principal: formulário de lead acima da dobra, com CTA "Receber proposta de gestão".
-- Pós-envio: mensagem de confirmação + botão para iniciar conversa no WhatsApp (`/gestao-trafego-obrigado` ou estado inline).
-- Estrutura em 1 página longa, com navegação âncora interna, reutilizando o design system e componentes da landing de diagnóstico.
+**1. `src/content/gestao-trafego.ts` (landing de captação de leads)**
+- Hero eyebrow: "Gestão de Tráfego Meta Ads para e-commerce" → "Gestão de Tráfego Pago para e-commerce".
+- Subheadline: trocar "mais de R$ 5.000/mês em Meta Ads" por "mais de R$ 5.000/mês em mídia paga (Meta, Google, TikTok e outras)".
+- Bullets: generalizar "campanhas, criativos e públicos" para incluir múltiplas plataformas; manter foco em ROAS e execução.
+- `form.fields.budget.label`: "Quanto investe por mês em Meta Ads?" → "Quanto investe por mês em mídia paga?".
+- `form.fields.challenge.placeholder`: incluir exemplos de Google/TikTok além de Meta.
+- Qualification: trocar "campanhas rodando" (implícito Meta) por "campanhas rodando em pelo menos uma plataforma paga".
+- FAQ: atualizar pergunta de acessos para citar Google Ads, TikTok Ads Manager, GA4 além do BM/Pixel.
+- SEO title/description: "Gestão de Tráfego Pago (Meta, Google, TikTok) para E-commerce".
+- `finalCta.body`: substituir "Meta Ads" por "mídia paga".
 
-Seções da página
-1. Header sticky — logo + link "Já tem diagnóstico?" + CTA principal.
-2. Hero — headline com foco em e-commerce, subheadline, bullets de qualificação, formulário de lead (lado direito em desktop).
-3. Prova social — prints de resultados (reutilizar `GestaoResultsGallery` com legendas por número).
-4. Como funciona — 4 passos: preencher → análise da loja → proposta personalizada → início da gestão.
-5. O que está incluído — lista de entregáveis do pacote R$ 1.997/mês (reutilizar `GESTAO_DELIVERABLES`).
-6. Garantia/segurança — reutilizar o bloco de garantia do checkout.
-7. FAQ — dúvidas sobre contrato, fidelidade, prazo de início, acessos necessários.
-8. CTA final — repetir formulário curto ou botão para WhatsApp.
-9. Footer leve — link para política, termos e diagnóstico R$ 37.
+**2. `src/content/gestao-checkout.ts` (checkout R$1.997 existente)**
+- `GESTAO_PRODUCT_NAME`: "Gestão de Tráfego Meta Ads" → "Gestão de Tráfego Pago".
+- `GESTAO_DELIVERABLES`: generalizar itens que dizem "campanhas/criativos" para deixar claro que cobre múltiplas plataformas; adicionar um item específico "Gestão integrada de Meta, Google e outras plataformas conforme a operação".
+- `GESTAO_OPERATOR.credentialLine`: já cita "Meta e Google Ads" — manter.
+- Nota: o `MANAGEMENT_MP_ITEM_TITLE` do edge function `create-management-checkout` já usa "Gestão de tráfego Meta / Google" — sugerir atualizar env var para "Gestão de tráfego pago" (documentar, não alterar código).
 
-Formulário de lead
-Campos obrigatórios e validados com Zod:
-- Nome completo
-- E-mail
-- WhatsApp (máscara BR)
-- Nome da loja
-- Site da loja
-- Investimento mensal aproximado em Meta Ads (select: <5k, 5k–15k, 15k–50k, 50k+)
-- Principal desafio (textarea opcional)
-- Checkbox de consentimento LGPD
+**3. `src/components/gestao-trafego/*` e `src/routes/gestao-trafego.tsx`**
+- Ajustar qualquer string hard-coded que ainda diga "Meta Ads" (checar `GestaoTrafegoHero`, `GestaoTrafegoFinalCta`, header). Substituir por "mídia paga" / "tráfego pago" preservando menções a Meta quando forem exemplo específico.
+- `trackMetaViewContent` `content_name`: manter "Gestão de Tráfego E-commerce Landing" (sem "Meta Ads" na string atual, ok).
 
-Meta Pixel e rastreamento
-- `PageView` automático via `MetaPixelTracker`.
-- `ViewContent` do produto de gestão ao carregar a página.
-- `Lead` ao enviar o formulário (deduplicado por `lead_gestao_${leadId}`).
-- `CompleteRegistration` ao confirmar o envio.
-- Parâmetros UTM: a página lê `utm_source`, `utm_campaign`, `utm_adset`, `utm_ad` e grava junto com o lead.
+**4. Prova social (mantém como está)**
+- Os prints continuam sendo do Meta — vamos legendar como "Resultados em Meta Ads (exemplos reais de clientes)" para dar transparência de que a prova visível é Meta, mas o serviço cobre outras mídias.
 
-Backend
-1. Nova tabela `public.ecommerce_leads` (Supabase migration):
-   - id, name, email, phone, store_name, website, monthly_ad_budget_range, challenge, source, utm_source, utm_campaign, utm_adset, utm_ad, status, created_at, updated_at.
-   - GRANT SELECT/INSERT para `authenticated` e `service_role`; GRANT ALL para `service_role`.
-   - RLS: política de inserção anônima (somente campos do formulário) e leitura restrita ao admin.
-2. Server function `submitEcommerceLead` em `src/lib/ecommerce-leads.functions.ts`:
-   - Validação Zod server-side.
-   - Insere o lead na tabela.
-   - Dispara notificação interna (ex.: grava um evento na `diagnosis_handoff_events` ou envia WhatsApp para o operador).
-   - Retorna `{ success: true, leadId }`.
-3. Hook `useEcommerceLeadSubmit` para chamar a server function do formulário.
+**5. Diagnóstico e checkout de R$37**
+- Fora de escopo. O diagnóstico continua sendo especificamente Meta Ads (é o produto de entrada). Só a Gestão passa a ser multi-mídia.
 
-Admin / follow-up
-- Nova aba "Leads E-commerce" na página `/platform-admin` (componente `PlatformEcommerceLeads`).
-- Lista ordenada por `created_at` desc, com filtros por status e faixa de investimento.
-- Ações: marcar como contactado, abrir WhatsApp, converter em cliente (linkar a `clients` futuramente).
-- Notificação sonora/toast de novo lead pode ser implementada via realtime ou polling simples.
+## Positioning final
+- Título de mercado: "Gestão de Tráfego Pago para E-commerce — Meta, Google, TikTok e outras".
+- Mensagem central: um único gestor cuidando de toda a operação de mídia paga da loja, sem terceirizar por canal.
+- Diagnóstico (R$37) segue como porta de entrada focado em Meta Ads (não muda).
 
-Reutilização de assets e componentes
-- Copiar/adaptar: `src/components/gestao/GestaoCheckoutBlocks.tsx` (galeria, depoimento, garantia, operador).
-- Criar novo content: `src/content/gestao-trafego.ts` (copy, FAQ, entregáveis).
-- Criar componentes específicos em `src/components/gestao-trafego/`:
-  - `GestaoTrafegoHeader.tsx`
-  - `GestaoTrafegoHero.tsx` (com formulário)
-  - `GestaoTrafegoHowItWorks.tsx`
-  - `GestaoTrafegoFaq.tsx`
-  - `GestaoTrafegoFinalCta.tsx`
-- Rota de agradecimento: `src/routes/gestao-trafego-obrigado.tsx`.
+## Fora deste plano
+- Preço, checkout, webhooks, tabelas Supabase, admin, Pixel, CAPI: sem alteração.
+- Não vamos criar landing separada por canal; é uma landing única de gestão multi-plataforma.
 
-SEO
-- Title: "Gestão de Tráfego Meta Ads para E-commerce | Agency Opus"
-- Description: "Receba uma proposta de gestão de tráfego pago para sua loja. Especialista em e-commerce com resultados comprovados."
-- `og:title`, `og:description`, `og:type=website`.
-- Sem `noindex` — a página deve ser indexada para anúncios e SEO.
-
-Critérios de aceitação
-- [ ] Formulário valida e persiste lead no Supabase.
-- [ ] Pixel dispara `Lead` e `CompleteRegistration` no envio.
-- [ ] Admin consegue visualizar e atualizar status dos leads.
-- [ ] A página está responsiva e segue o design system existente.
-- [ ] Rota de agradecimento oferece botão de WhatsApp e dispara `Contact` (se aplicável).
-
-Próximos passos
-Aprovar este plano para que eu crie a migration, a server function, a rota e os componentes.
+## Critério de aceite
+- Nenhuma frase da landing e do checkout de gestão implica que atendemos só Meta Ads.
+- Formulário de lead pergunta investimento em mídia paga (não só Meta).
+- SEO/OG refletem o novo posicionamento.
+- Prints de resultado ficam legendados como exemplos Meta, sem enganar sobre o escopo do serviço.
