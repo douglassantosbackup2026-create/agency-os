@@ -18,7 +18,7 @@ export function GestaoTrafegoQualification() {
         </div>
 
         <div className="mt-10 grid gap-6 md:grid-cols-2">
-          <div className={landingSurfaceCardClass}>
+          <div className={`${landingSurfaceCardClass} p-6 sm:p-8`}>
             <h3 className="text-base font-semibold">Para quem é</h3>
             <ul className="mt-4 space-y-3">
               {qualificationSection.forYou.map((item) => (
@@ -30,7 +30,7 @@ export function GestaoTrafegoQualification() {
             </ul>
           </div>
 
-          <div className={landingSurfaceCardClass}>
+          <div className={`${landingSurfaceCardClass} p-6 sm:p-8`}>
             <h3 className="text-base font-semibold">Não é para quem</h3>
             <ul className="mt-4 space-y-3">
               {qualificationSection.notForYou.map((item) => (

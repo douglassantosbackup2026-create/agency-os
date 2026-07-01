@@ -18,8 +18,8 @@ export function GestaoTrafegoIncluded() {
           </h2>
         </div>
 
-        <div className="mt-10 grid gap-6 lg:grid-cols-3">
-          <div className={`${landingSurfaceCardClass} lg:col-span-2`}>
+        <div className="mt-10 grid gap-6 lg:grid-cols-3 lg:items-stretch">
+          <div className={`${landingSurfaceCardClass} p-6 sm:p-8 lg:col-span-2`}>
             <ul className="grid gap-3 sm:grid-cols-2">
               {includedSection.items.map((item) => (
                 <li key={item} className="flex items-start gap-2.5 text-sm">
@@ -30,7 +30,7 @@ export function GestaoTrafegoIncluded() {
             </ul>
           </div>
 
-          <div className={landingPrimaryCalloutClass}>
+          <div className={`${landingPrimaryCalloutClass} h-full p-6 sm:p-8`}>
             <div className="flex items-start gap-3">
               <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
               <div>
