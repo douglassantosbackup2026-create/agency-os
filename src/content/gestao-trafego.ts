@@ -229,7 +229,7 @@ export const operatorSection = {
   eyebrow: "Quem vai cuidar da sua conta",
   title: "Um gestor dedicado, não uma agência genérica",
   bullets: [
-    "Ex-Ogilvy, com passagem por operações de e-commerce de alto ticket",
+    "Com passagem por operações de e-commerce de alto ticket",
     "+R$ 30 milhões gerenciados em Meta Ads e Google Ads",
     "5 anos focados exclusivamente em e-commerce",
     "Atendimento direto no WhatsApp, sem intermediário de gerente de contas",
