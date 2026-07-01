@@ -18,7 +18,7 @@ export const hero = {
   headlineHighlight: "queimar dinheiro",
   subheadline:
     "Gestão de tráfego pago sob medida para e-commerces que investem mais de R$ 5.000/mês em mídia paga — Meta, Google, TikTok e outras plataformas. Foco em ROAS, escala e execução sem enrolação.",
-  microProof: "+R$ 30 milhões gerenciados · ROAS médio 10×+ em contas ativas",
+  microProof: "+R$ 30 milhões gerenciados · cases com ROAS 10×+ em contas ativas",
   bullets: [
     "Diagnóstico técnico das suas contas antes de começar",
     "Gestão diária de Meta, Google, TikTok e demais plataformas",
