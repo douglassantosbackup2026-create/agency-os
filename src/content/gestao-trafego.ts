@@ -40,10 +40,10 @@ export const form = {
     phone: { label: "WhatsApp", placeholder: "(11) 99999-9999" },
     storeName: { label: "Nome da loja", placeholder: "Loja Exemplo" },
     website: { label: "Site ou Instagram da loja", placeholder: "https://loja.com.br ou @loja" },
-    budget: { label: "Quanto investe por mês em Meta Ads?" },
+    budget: { label: "Quanto investe por mês em mídia paga (somando todas as plataformas)?" },
     challenge: {
       label: "Qual o maior desafio hoje?",
-      placeholder: "Ex.: ROAS caiu, CPM subiu, não consigo escalar…",
+      placeholder: "Ex.: ROAS do Meta caiu, Google não escala, TikTok com CPA alto…",
     },
   },
   budgetOptions: [
