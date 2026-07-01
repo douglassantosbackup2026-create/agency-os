@@ -1,4 +1,4 @@
-import { GestaoOperatorCard, GestaoResultsGallery, GestaoSocialProof } from "@/components/gestao/GestaoCheckoutBlocks";
+import { GestaoResultsGallery, GestaoSocialProof } from "@/components/gestao/GestaoCheckoutBlocks";
 import { anchors } from "@/content/gestao-trafego";
 
 export function GestaoTrafegoSocialProof() {
@@ -11,10 +11,10 @@ export function GestaoTrafegoSocialProof() {
           </div>
           <div className="space-y-6">
             <GestaoSocialProof />
-            <GestaoOperatorCard />
           </div>
         </div>
       </div>
     </section>
   );
 }
+

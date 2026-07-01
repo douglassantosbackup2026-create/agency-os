@@ -4,8 +4,11 @@ import {
   GestaoTrafegoHeader,
   GestaoTrafegoHero,
   GestaoTrafegoPlatforms,
+  GestaoTrafegoClients,
   GestaoTrafegoHowItWorks,
   GestaoTrafegoQualification,
+  GestaoTrafegoProblems,
+  GestaoTrafegoOperator,
   GestaoTrafegoIncluded,
   GestaoTrafegoSocialProof,
   GestaoTrafegoMoreResultsCta,
@@ -53,7 +56,10 @@ function GestaoTrafegoPage() {
       <main>
         <GestaoTrafegoHero />
         <GestaoTrafegoPlatforms />
+        <GestaoTrafegoClients />
         <GestaoTrafegoSocialProof />
+        <GestaoTrafegoOperator />
+        <GestaoTrafegoProblems />
         <GestaoTrafegoQualification />
         <GestaoTrafegoHowItWorks />
         <GestaoTrafegoIncluded />
