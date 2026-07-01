@@ -13,14 +13,15 @@ export { GESTAO_DELIVERABLES, GESTAO_GUARANTEE, GESTAO_OPERATOR, GESTAO_RESULT_P
 export const GESTAO_PRICE_LABEL = formatManagementPrice(DEFAULT_MANAGEMENT_PRICE_CENTS);
 
 export const hero = {
-  eyebrow: "Gestão de Tráfego Meta Ads para e-commerce",
-  headline: "Pare de queimar dinheiro no Meta Ads.",
+  eyebrow: "Gestão de Tráfego Pago para e-commerce",
+  headline: "Pare de queimar dinheiro em mídia paga.",
   headlineHighlight: "queimar dinheiro",
   subheadline:
-    "Gestão de tráfego pago sob medida para e-commerces que investem mais de R$ 5.000/mês em Meta Ads. Foco em ROAS, escala e execução sem enrolação.",
+    "Gestão de tráfego pago sob medida para e-commerces que investem mais de R$ 5.000/mês em mídia paga — Meta, Google, TikTok e outras plataformas. Foco em ROAS, escala e execução sem enrolação.",
   bullets: [
-    "Diagnóstico técnico da sua conta antes de começar",
-    "Gestão diária de campanhas, criativos e públicos",
+    "Diagnóstico técnico das suas contas antes de começar",
+    "Gestão diária de Meta, Google, TikTok e demais plataformas ativas",
+    "Otimização de campanhas, criativos e públicos em todos os canais",
     "Relatório semanal de performance e próximos passos",
     "Canal direto com gestor via WhatsApp",
     "Sem fidelidade — cancele quando quiser",
@@ -39,10 +40,10 @@ export const form = {
     phone: { label: "WhatsApp", placeholder: "(11) 99999-9999" },
     storeName: { label: "Nome da loja", placeholder: "Loja Exemplo" },
     website: { label: "Site ou Instagram da loja", placeholder: "https://loja.com.br ou @loja" },
-    budget: { label: "Quanto investe por mês em Meta Ads?" },
+    budget: { label: "Quanto investe por mês em mídia paga (somando todas as plataformas)?" },
     challenge: {
       label: "Qual o maior desafio hoje?",
-      placeholder: "Ex.: ROAS caiu, CPM subiu, não consigo escalar…",
+      placeholder: "Ex.: ROAS do Meta caiu, Google não escala, TikTok com CPA alto…",
     },
   },
   budgetOptions: [
@@ -98,9 +99,9 @@ export const qualificationSection = {
   title: "Feito para um perfil específico de e-commerce",
   forYou: [
     "Loja de e-commerce físico vendendo no Brasil",
-    "Investe pelo menos R$ 5.000/mês em Meta Ads",
-    "Já tem campanhas rodando ou rodou nos últimos 30 dias",
-    "Quer um gestor dedicado, não uma agência genérica",
+    "Investe pelo menos R$ 5.000/mês em mídia paga (Meta, Google, TikTok etc.)",
+    "Já tem campanhas rodando em pelo menos uma plataforma paga",
+    "Quer um gestor dedicado cuidando de todos os canais, não uma agência por plataforma",
     "Está disposto a executar mudanças rápidas com base em dados",
   ],
   notForYou: [
@@ -142,9 +143,14 @@ export const faqSection = {
         "Mensalidade de R$ 1.997, sem fidelidade. Você pode cancelar antes do próximo ciclo de cobrança avisando pelo WhatsApp.",
     },
     {
+      question: "Quais plataformas de mídia paga vocês gerenciam?",
+      answer:
+        "Meta Ads (Facebook e Instagram), Google Ads (Search, Shopping, PMax, YouTube), TikTok Ads e outras plataformas conforme a operação da sua loja. Um único gestor cuidando de todos os canais ativos.",
+    },
+    {
       question: "Quais acessos são necessários?",
       answer:
-        "Business Manager, conta de anúncios, catálogo de produtos, Pixel/CAPI e acesso ao Shopify/e-commerce. Tudo com permissões mínimas e seguras.",
+        "Depende dos canais ativos: Business Manager e Pixel/CAPI (Meta), Google Ads e Merchant Center, TikTok Ads Manager, GA4 e acesso ao Shopify/e-commerce. Tudo com permissões mínimas e seguras.",
     },
     {
       question: "Vocês garantem ROAS?",
@@ -155,15 +161,15 @@ export const faqSection = {
 };
 
 export const finalCta = {
-  title: "Vamos olhar sua conta antes de você gastar mais nada em mídia",
-  body: "Preencha o formulário e receba uma proposta de gestão feita para a sua operação.",
+  title: "Vamos olhar suas contas antes de você gastar mais nada em mídia",
+  body: "Preencha o formulário e receba uma proposta de gestão de mídia paga (Meta, Google, TikTok e outras) feita para a sua operação.",
   cta: "Receber proposta de gestão",
 };
 
 export const seo = {
-  title: "Gestão de Tráfego Meta Ads para E-commerce | Agency Opus",
+  title: "Gestão de Tráfego Pago (Meta, Google, TikTok) para E-commerce | Agency Opus",
   description:
-    "Receba uma proposta de gestão de tráfego pago para sua loja. Especialista em Meta Ads para e-commerce com resultados comprovados.",
+    "Gestão de mídia paga para e-commerce que investe R$ 5k+/mês: Meta, Google, TikTok e outras plataformas com um único gestor. Receba uma proposta sob medida.",
 };
 
 export const anchors = {

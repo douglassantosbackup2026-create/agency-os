@@ -58,7 +58,7 @@ export const Route = createFileRoute("/gestao-checkout")({
   }),
   head: () => ({
     meta: [
-      { title: "Checkout — Gestão de Tráfego Meta Ads" },
+      { title: "Checkout — Gestão de Tráfego Pago" },
       {
         name: "description",
         content: "Contrate gestão de tráfego com pagamento seguro via cartão ou PIX.",

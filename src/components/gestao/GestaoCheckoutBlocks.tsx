@@ -15,7 +15,7 @@ export function GestaoResultsGallery() {
           Resultados reais de contas que gerimos
         </h3>
         <p className="mt-1 text-xs text-muted-foreground">
-          Prints do Gerenciador de Anúncios Meta — clientes ativos
+          Exemplos do Gerenciador Meta — a gestão cobre também Google, TikTok e outras plataformas
         </p>
       </div>
       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
