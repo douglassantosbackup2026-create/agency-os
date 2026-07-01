@@ -123,8 +123,9 @@ export const qualificationSection = {
   ],
   notForYou: [
     "Infoprodutos, serviços ou afiliados",
-    "Lojas que não investem em tráfego pago",
+    "Lojas que ainda não investem em tráfego pago",
     "Quem procura só relatório, sem execução",
+    "Quem não tem pelo menos R$ 5.000/mês de verba de mídia — o investimento na gestão não compensa nessa escala",
   ],
 };
 
