@@ -86,7 +86,7 @@ export const form = {
 
 export const howItWorksSection = {
   eyebrow: "Como funciona",
-  title: "De lead à operação no ar em poucos dias",
+  title: "De lead à operação escalando em poucos dias",
   steps: [
     {
       step: 1,
@@ -101,12 +101,12 @@ export const howItWorksSection = {
     {
       step: 3,
       title: "Você recebe a proposta",
-      description: "Plano de ação, investimento, prazo de início e o que esperar nos primeiros 30 dias.",
+      description: "Plano de ação, investimento, prazo de início e projeção de escala nos primeiros 30 dias.",
     },
     {
       step: 4,
       title: "Iniciamos a gestão",
-      description: "Acesso, briefing, metas e as primeiras otimizações em até 5 dias úteis.",
+      description: "Acesso, briefing, metas e as primeiras otimizações para escala em até 5 dias úteis.",
     },
   ],
 };
