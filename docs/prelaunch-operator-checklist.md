@@ -28,7 +28,8 @@ Execute **staging**, depois **produção**. Não commitar valores de secrets nes
 
 | Item | Confirmar |
 |------|-----------|
-| `PUBLIC_SITE_URL` / `VITE_PUBLIC_SITE_URL` | Igual ao Worker em produção |
+| `PUBLIC_SITE_URL` / `VITE_PUBLIC_SITE_URL` | `https://agencyopus.live` em produção (CORS das Edge Functions) |
+| `APP_ALLOWED_ORIGINS` | Incluir www, Worker staging e localhost — ver `ops:diagnosis-secrets` |
 | Secrets MP, Meta, OAuth, Claude, `CRON_SECRET` | Ver [`diagnosis-production-env.md`](diagnosis-production-env.md) |
 | `META_TEST_ENABLED` | Ausente ou `false` |
 | Cron `process-diagnosis-batch` | Activo (`ops:apply-crons` ou SQL bootstrap) |

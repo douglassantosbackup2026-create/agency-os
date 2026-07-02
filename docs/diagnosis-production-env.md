@@ -6,7 +6,7 @@ Fonte de verdade do funil: **app principal** (`/`, `/checkout`, `/obrigado`, `/d
 
 | Variável | Onde | Valor exemplo |
 |----------|------|----------------|
-| `VITE_PUBLIC_SITE_URL` | Wrangler / `.env` | `https://tanstack-start-app.douglaspinheirosantos94.workers.dev` |
+| `VITE_PUBLIC_SITE_URL` | Wrangler / `.env` | `https://agencyopus.live` (domínio público) ou Worker de staging |
 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` | Worker | Projeto `uvuotaxikuxejfeitlaw` |
 
 Deploy: `npm run ops:deploy-worker` (injeta `VITE_PUBLIC_SITE_URL` se ausente).
@@ -15,7 +15,8 @@ Deploy: `npm run ops:deploy-worker` (injeta `VITE_PUBLIC_SITE_URL` se ausente).
 
 | Secret | Obrigatório |
 |--------|-------------|
-| `PUBLIC_SITE_URL` ou `SITE_URL` | Sim — mesmo host que o Worker |
+| `PUBLIC_SITE_URL` ou `SITE_URL` | Sim — domínio canónico do funil (`https://agencyopus.live`) |
+| `APP_ALLOWED_ORIGINS` | Recomendado — CSV de origens CORS (www, Worker, localhost) |
 | `MERCADOPAGO_ACCESS_TOKEN` | Sim |
 | `MERCADOPAGO_WEBHOOK_SECRET` | Sim (webhook fail-closed) |
 | `META_APP_ID`, `META_APP_SECRET` | Sim |
@@ -33,8 +34,20 @@ Deploy: `npm run ops:deploy-worker` (injeta `VITE_PUBLIC_SITE_URL` se ausente).
 Script (requer `supabase login`):
 
 ```bash
-PUBLIC_SITE_URL=https://tanstack-start-app.douglaspinheirosantos94.workers.dev npm run ops:diagnosis-secrets
+PUBLIC_SITE_URL=https://agencyopus.live npm run ops:diagnosis-secrets
 ```
+
+`APP_ALLOWED_ORIGINS` é definido pelo script com: `agencyopus.live`, `www`, Worker de staging e `localhost:5173`. Sobrescreva via env se necessário.
+
+## Funil gestão-tráfego (`/gestao-trafego`)
+
+| Função | Uso |
+|--------|-----|
+| `submit-ecommerce-lead` | Formulário lead → obrigado |
+| `start-lead-payment`, `process-lead-payment` | Checkout transparente lead |
+| `lead-payment-status` | Poll PIX/cartão lead |
+
+Smoke CORS: `npm run ops:lead-submit-smoke`
 
 ## Meta OAuth redirect URI
 

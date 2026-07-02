@@ -21,6 +21,7 @@
     "ops:security-rpc-smoke": "node scripts/security-rpc-smoke.mjs",
     "ops:management-paid-smoke": "node scripts/management-paid-hook-smoke.mjs",
     "ops:lead-paid-smoke": "node scripts/lead-paid-hook-smoke.mjs",
+    "ops:lead-submit-smoke": "node scripts/smoke-lead-submit.mjs",
     "db:lint": "npx supabase db lint",
     "db:types": "npx supabase gen types typescript --linked > src/integrations/supabase/types.ts",
     "ops:check-edge-env": "node scripts/check-edge-env.mjs --require-prod",

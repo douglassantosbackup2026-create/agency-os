@@ -3,7 +3,7 @@
  * Define secrets do funil Diagnóstico no Supabase (requer supabase login ou access token).
  *
  * Uso:
- *   PUBLIC_SITE_URL=https://tanstack-start-app....workers.dev node scripts/ops-set-diagnosis-secrets.mjs
+ *   PUBLIC_SITE_URL=https://agencyopus.live node scripts/ops-set-diagnosis-secrets.mjs
  *   node scripts/ops-set-diagnosis-secrets.mjs --require-prod
  *
  * Opcional: MERCADOPAGO_ACCESS_TOKEN, OAUTH_STATE_SECRET, CRON_SECRET, ANTHROPIC_API_KEY
@@ -27,16 +27,22 @@ const site =
   process.env.VITE_PUBLIC_SITE_URL?.trim() ||
   (requireProd
     ? ""
-    : "https://tanstack-start-app.douglaspinheirosantos94.workers.dev");
+    : "https://agencyopus.live");
 
 if (!site) {
   console.error("[security] PUBLIC_SITE_URL é obrigatório com --require-prod.");
   process.exit(1);
 }
 
+const defaultAllowedOrigins =
+  "https://agencyopus.live,https://www.agencyopus.live,https://tanstack-start-app.douglaspinheirosantos94.workers.dev,http://localhost:5173";
+const allowedOrigins =
+  process.env.APP_ALLOWED_ORIGINS?.trim() || defaultAllowedOrigins;
+
 const pairs = [
   ["PUBLIC_SITE_URL", site],
   ["SITE_URL", site],
+  ["APP_ALLOWED_ORIGINS", allowedOrigins],
 ];
 
 for (const [key, val] of [

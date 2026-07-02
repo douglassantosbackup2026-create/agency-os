@@ -24,7 +24,11 @@ export function appCors(req: Request): Record<string, string> {
   // Se nenhuma allowlist configurada, fallback aberto (compat retro).
   // Configure PUBLIC_SITE_URL para ativar a restrição.
   const allow =
-    list.length === 0 ? "*" : list.includes(origin) ? origin : list[0];
+    list.length === 0
+      ? "*"
+      : origin && list.includes(origin)
+        ? origin
+        : "*";
   return {
     "Access-Control-Allow-Origin": allow,
     "Access-Control-Allow-Headers": ALLOW_HEADERS,
