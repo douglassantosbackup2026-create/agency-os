@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Check, MessageCircle } from "lucide-react";
 import { whatsappGestaoHref } from "@/lib/gestao-whatsapp";
-import { trackMetaPageView, trackMetaPurchase } from "@/lib/meta-pixel";
+import { GESTAO_PRODUCT, trackMetaPageView, trackMetaPurchase } from "@/lib/meta-pixel";
 
 const CANONICAL_URL = "https://agencyopus.live/gestao-obrigado-lead";
 
@@ -31,11 +31,7 @@ function GestaoObrigadoLeadPage() {
   useEffect(() => {
     trackMetaPageView();
     if (lead) {
-      trackMetaPurchase(
-        "Gestão de Tráfego Meta Ads",
-        { order_id: lead, value: 4997, currency: "BRL" },
-        lead,
-      );
+      trackMetaPurchase(GESTAO_PRODUCT, lead, { value: 4997, currency: "BRL" });
     }
   }, [lead]);
 
