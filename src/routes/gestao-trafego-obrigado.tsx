@@ -32,7 +32,7 @@ function GestaoTrafegoObrigadoPage() {
   }, [lead]);
 
   const whatsappHref = whatsappGestaoHref(
-    "Olá! Preenchi a proposta de gestão de tráfego no site e quero conversar sobre a minha operação.",
+    "Olá! Preenchi a proposta de gestão de tráfego no site e quero conversar sobre como escalar a minha operação.",
   );
 
   return (
