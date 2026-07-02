@@ -129,7 +129,7 @@ export const GESTAO_NEXT_STEPS: { title: string; description: string }[] = [
       "Douglas chama você no WhatsApp para alinhar acessos, metas e prioridades do mês.",
   },
   {
-    title: "Campanhas no ar em até 5 dias úteis",
+    title: "Campanhas no ar e primeiras otimizações de escala",
     description:
       "Implementação das correções prioritárias do diagnóstico e início da otimização contínua.",
   },
