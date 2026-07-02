@@ -20,6 +20,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as GestaoTrafegoObrigadoRouteImport } from './routes/gestao-trafego-obrigado'
 import { Route as GestaoTrafegoRouteImport } from './routes/gestao-trafego'
 import { Route as GestaoOnboardingRouteImport } from './routes/gestao-onboarding'
+import { Route as GestaoObrigadoLeadRouteImport } from './routes/gestao-obrigado-lead'
 import { Route as GestaoObrigadoRouteImport } from './routes/gestao-obrigado'
 import { Route as GestaoCheckoutRouteImport } from './routes/gestao-checkout'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
@@ -106,6 +107,11 @@ const GestaoTrafegoRoute = GestaoTrafegoRouteImport.update({
 const GestaoOnboardingRoute = GestaoOnboardingRouteImport.update({
   id: '/gestao-onboarding',
   path: '/gestao-onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GestaoObrigadoLeadRoute = GestaoObrigadoLeadRouteImport.update({
+  id: '/gestao-obrigado-lead',
+  path: '/gestao-obrigado-lead',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GestaoObrigadoRoute = GestaoObrigadoRouteImport.update({
@@ -284,6 +290,7 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/gestao-checkout': typeof GestaoCheckoutRoute
   '/gestao-obrigado': typeof GestaoObrigadoRoute
+  '/gestao-obrigado-lead': typeof GestaoObrigadoLeadRoute
   '/gestao-onboarding': typeof GestaoOnboardingRoute
   '/gestao-trafego': typeof GestaoTrafegoRoute
   '/gestao-trafego-obrigado': typeof GestaoTrafegoObrigadoRoute
@@ -328,6 +335,7 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/gestao-checkout': typeof GestaoCheckoutRoute
   '/gestao-obrigado': typeof GestaoObrigadoRoute
+  '/gestao-obrigado-lead': typeof GestaoObrigadoLeadRoute
   '/gestao-onboarding': typeof GestaoOnboardingRoute
   '/gestao-trafego': typeof GestaoTrafegoRoute
   '/gestao-trafego-obrigado': typeof GestaoTrafegoObrigadoRoute
@@ -374,6 +382,7 @@ export interface FileRoutesById {
   '/forgot-password': typeof ForgotPasswordRoute
   '/gestao-checkout': typeof GestaoCheckoutRoute
   '/gestao-obrigado': typeof GestaoObrigadoRoute
+  '/gestao-obrigado-lead': typeof GestaoObrigadoLeadRoute
   '/gestao-onboarding': typeof GestaoOnboardingRoute
   '/gestao-trafego': typeof GestaoTrafegoRoute
   '/gestao-trafego-obrigado': typeof GestaoTrafegoObrigadoRoute
@@ -420,6 +429,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/gestao-checkout'
     | '/gestao-obrigado'
+    | '/gestao-obrigado-lead'
     | '/gestao-onboarding'
     | '/gestao-trafego'
     | '/gestao-trafego-obrigado'
@@ -464,6 +474,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/gestao-checkout'
     | '/gestao-obrigado'
+    | '/gestao-obrigado-lead'
     | '/gestao-onboarding'
     | '/gestao-trafego'
     | '/gestao-trafego-obrigado'
@@ -509,6 +520,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/gestao-checkout'
     | '/gestao-obrigado'
+    | '/gestao-obrigado-lead'
     | '/gestao-onboarding'
     | '/gestao-trafego'
     | '/gestao-trafego-obrigado'
@@ -555,6 +567,7 @@ export interface RootRouteChildren {
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   GestaoCheckoutRoute: typeof GestaoCheckoutRoute
   GestaoObrigadoRoute: typeof GestaoObrigadoRoute
+  GestaoObrigadoLeadRoute: typeof GestaoObrigadoLeadRoute
   GestaoOnboardingRoute: typeof GestaoOnboardingRoute
   GestaoTrafegoRoute: typeof GestaoTrafegoRoute
   GestaoTrafegoObrigadoRoute: typeof GestaoTrafegoObrigadoRoute
@@ -647,6 +660,13 @@ declare module '@tanstack/react-router' {
       path: '/gestao-onboarding'
       fullPath: '/gestao-onboarding'
       preLoaderRoute: typeof GestaoOnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gestao-obrigado-lead': {
+      id: '/gestao-obrigado-lead'
+      path: '/gestao-obrigado-lead'
+      fullPath: '/gestao-obrigado-lead'
+      preLoaderRoute: typeof GestaoObrigadoLeadRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/gestao-obrigado': {
@@ -975,6 +995,7 @@ const rootRouteChildren: RootRouteChildren = {
   ForgotPasswordRoute: ForgotPasswordRoute,
   GestaoCheckoutRoute: GestaoCheckoutRoute,
   GestaoObrigadoRoute: GestaoObrigadoRoute,
+  GestaoObrigadoLeadRoute: GestaoObrigadoLeadRoute,
   GestaoOnboardingRoute: GestaoOnboardingRoute,
   GestaoTrafegoRoute: GestaoTrafegoRoute,
   GestaoTrafegoObrigadoRoute: GestaoTrafegoObrigadoRoute,
