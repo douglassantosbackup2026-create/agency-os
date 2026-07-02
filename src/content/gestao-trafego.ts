@@ -13,16 +13,16 @@ export { GESTAO_DELIVERABLES, GESTAO_GUARANTEE, GESTAO_OPERATOR, GESTAO_RESULT_P
 export const GESTAO_PRICE_LABEL = formatManagementPrice(DEFAULT_MANAGEMENT_PRICE_CENTS);
 
 export const hero = {
-  eyebrow: "Gestão de Tráfego Pago para e-commerce",
-  headline: "Pare de queimar dinheiro em mídia paga.",
-  headlineHighlight: "queimar dinheiro",
+  eyebrow: "Gestão de tráfego pago para e-commerce que quer escalar",
+  headline: "Escale sua loja sem queimar dinheiro em mídia paga.",
+  headlineHighlight: "Escale sua loja",
   subheadline:
-    "Gestão de tráfego pago sob medida para e-commerces que investem mais de R$ 5.000/mês em mídia paga — Meta, Google, TikTok e outras plataformas. Foco em ROAS, escala e execução sem enrolação.",
-  microProof: "+R$ 30 milhões gerenciados · cases com ROAS 10×+ em contas ativas",
+    "Gestão de tráfego pago sob medida para e-commerces que já investem mais de R$ 5.000/mês em Meta, Google, TikTok e outras plataformas e querem escalar com ROAS, estrutura e execução.",
+  microProof: "+R$ 30 milhões gerenciados · cases escalando de 5k para 50k+ de verba mantendo ROAS",
   bullets: [
-    "Diagnóstico técnico das suas contas antes de começar",
-    "Gestão diária de Meta, Google, TikTok e demais plataformas",
-    "Otimização de campanhas, criativos e públicos em todos os canais",
+    "Diagnóstico técnico da sua estrutura de campanhas antes de escalar",
+    "Gestão diária de Meta, Google, TikTok e demais plataformas ativas",
+    "Otimização de ROAS, CPA e criativos para escalar a verba sem perder rentabilidade",
     "Relatório semanal e canal direto com o gestor no WhatsApp",
   ],
   badges: ["Sem fidelidade", "Cancele quando quiser", "Resposta em 24h úteis"],
