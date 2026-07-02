@@ -41,7 +41,7 @@ export const submitEcommerceLead = createServerFn({ method: "POST" })
   .inputValidator((data) => leadSchema.parse(data))
   .handler(async ({ data }) => {
     const supabase = createServerSupabaseClient();
-    const { data: inserted, error } = await supabase
+    const { error } = await supabase
       .from("ecommerce_leads")
       .insert({
         name: data.name,
@@ -56,14 +56,12 @@ export const submitEcommerceLead = createServerFn({ method: "POST" })
         utm_campaign: data.utmCampaign ?? null,
         utm_adset: data.utmAdset ?? null,
         utm_ad: data.utmAd ?? null,
-      })
-      .select("id")
-      .single();
+      });
 
     if (error) {
       console.error("submitEcommerceLead insert error:", error);
       throw new Error("Falha ao salvar lead. Tente novamente.");
     }
 
-    return { success: true as const, leadId: inserted.id };
+    return { success: true as const };
   });
