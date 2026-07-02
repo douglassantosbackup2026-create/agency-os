@@ -180,15 +180,15 @@ export const faqSection = {
 };
 
 export const finalCta = {
-  title: "Antes de investir mais um real em mídia, olhe pra sua conta com quem entende de estrutura, não só de criativo.",
-  body: "Preencha o formulário e receba uma proposta de gestão de mídia paga (Meta, Google, TikTok e outras) feita para a sua operação — sem compromisso.",
+  title: "Antes de jogar mais dinheiro na mídia, estruture a conta para escalar. A gente cuida da execução.",
+  body: "Preencha o formulário e receba uma proposta de gestão focada em escalar sua operação (Meta, Google, TikTok e outras) — sem compromisso.",
   cta: "Receber proposta de gestão",
 };
 
 export const seo = {
-  title: "Gestão de Tráfego Pago (Meta, Google, TikTok) para E-commerce | Agency Opus",
+  title: "Gestão de Tráfego Pago para E-commerce que Quer Escalar | Agency Opus",
   description:
-    "Gestão de mídia paga para e-commerce que investe R$ 5k+/mês: Meta, Google, TikTok e outras plataformas com um único gestor. Receba uma proposta sob medida.",
+    "Gestão de mídia paga para e-commerce que investe R$ 5k+/mês e quer escalar: Meta, Google, TikTok com um único gestor. Receba uma proposta de escala.",
 };
 
 export const anchors = {
