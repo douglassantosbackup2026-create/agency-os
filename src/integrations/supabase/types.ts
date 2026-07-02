@@ -1411,12 +1411,16 @@ export type Database = {
       }
       ecommerce_leads: {
         Row: {
+          amount_cents: number | null
           challenge: string | null
           created_at: string
           email: string
           id: string
           monthly_ad_budget_range: string
+          mp_payment_id: string | null
+          mp_preference_id: string | null
           name: string
+          paid_at: string | null
           phone: string
           source: string | null
           status: string
@@ -1429,12 +1433,16 @@ export type Database = {
           website: string
         }
         Insert: {
+          amount_cents?: number | null
           challenge?: string | null
           created_at?: string
           email: string
           id?: string
           monthly_ad_budget_range: string
+          mp_payment_id?: string | null
+          mp_preference_id?: string | null
           name: string
+          paid_at?: string | null
           phone: string
           source?: string | null
           status?: string
@@ -1447,12 +1455,16 @@ export type Database = {
           website: string
         }
         Update: {
+          amount_cents?: number | null
           challenge?: string | null
           created_at?: string
           email?: string
           id?: string
           monthly_ad_budget_range?: string
+          mp_payment_id?: string | null
+          mp_preference_id?: string | null
           name?: string
+          paid_at?: string | null
           phone?: string
           source?: string | null
           status?: string
