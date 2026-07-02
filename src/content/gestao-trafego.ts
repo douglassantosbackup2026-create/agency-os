@@ -113,11 +113,12 @@ export const howItWorksSection = {
 
 export const qualificationSection = {
   eyebrow: "Para quem é",
-  title: "Feito para um perfil específico de e-commerce",
+  title: "Feito para e-commerce que quer escalar com tráfego pago",
   forYou: [
     "Loja de e-commerce físico vendendo no Brasil",
     "Investe pelo menos R$ 5.000/mês em mídia paga (Meta, Google, TikTok etc.)",
     "Já tem campanhas rodando em pelo menos uma plataforma paga",
+    "Quer escalar a verba de mídia paga mantendo ou melhorando o ROAS",
     "Quer um gestor dedicado cuidando de todos os canais, não uma agência por plataforma",
     "Está disposto a executar mudanças rápidas com base em dados",
   ],
@@ -125,7 +126,7 @@ export const qualificationSection = {
     "Infoprodutos, serviços ou afiliados",
     "Lojas que ainda não investem em tráfego pago",
     "Quem procura só relatório, sem execução",
-    "Quem não tem pelo menos R$ 5.000/mês de verba de mídia — o investimento na gestão não compensa nessa escala",
+    "Quem não tem pelo menos R$ 5.000/mês de verba de mídia — a gestão não compensa nessa escala",
   ],
 };
 
