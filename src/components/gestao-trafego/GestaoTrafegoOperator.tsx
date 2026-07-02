@@ -13,8 +13,13 @@ export function GestaoTrafegoOperator() {
     <section className={`${LANDING_SECTION_SCROLL} border-t border-border/60 py-14 sm:py-16`}>
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className={`${landingSurfaceCardClass} grid gap-8 p-6 sm:p-10 md:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] md:items-center md:gap-12`}>
-          <div className="mx-auto grid aspect-square w-full max-w-[280px] place-items-center rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent text-6xl font-bold tracking-tight text-primary md:mx-0">
-            {GESTAO_OPERATOR.initials}
+          <div className="mx-auto aspect-square w-full max-w-[280px] overflow-hidden rounded-2xl bg-muted md:mx-0">
+            <img
+              src={gestaoOperatorAsset.url}
+              alt={`${GESTAO_OPERATOR.name} — ${GESTAO_OPERATOR.role}`}
+              loading="lazy"
+              className="h-full w-full object-cover"
+            />
           </div>
 
           <div>
