@@ -4,6 +4,10 @@ import { beginEdgeTrace } from "../_shared/edge-trace-handler.ts";
 import { publicClientIp, publicRateLimitExceeded } from "../_shared/public-rate-limit.ts";
 import { notifyLeadPaid } from "../_shared/lead-paid-hook.ts";
 import { fetchMpPreapproval } from "../_shared/mp-preapproval.ts";
+import {
+  getLeadSlotSnapshot,
+  markLeadPaidIfSlotAvailable,
+} from "../_shared/lead-slots-shared.ts";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -24,26 +28,22 @@ async function reconcileLeadWithMp(
     const j = (await r.json()) as { status?: string };
     if (j.status !== "approved") return null;
 
-    const paidAt = new Date().toISOString();
-    const { error: upErr } = await sb
-      .from("ecommerce_leads")
-      .update({
-        status: "paid",
-        mp_payment_id: mpPaymentId,
-        paid_at: paidAt,
-      })
-      .eq("id", leadId)
-      .eq("status", "awaiting_payment");
-
-    if (upErr) {
-      console.error("lead-payment-status reconcile update", upErr);
+    const mark = await markLeadPaidIfSlotAvailable(sb, leadId, {
+      mp_payment_id: mpPaymentId,
+      payment_method: "pix",
+    });
+    if (!mark.ok) {
+      if (mark.reason === "slots_full") {
+        console.warn("lead-payment-status: slots full on reconcile", { leadId });
+      }
       return null;
     }
-
-    try {
-      await notifyLeadPaid(sb, leadId);
-    } catch (e) {
-      console.error("lead-payment-status notifyLeadPaid failed", e);
+    if (mark.reason === "claimed") {
+      try {
+        await notifyLeadPaid(sb, leadId);
+      } catch (e) {
+        console.error("lead-payment-status notifyLeadPaid failed", e);
+      }
     }
 
     return "paid";
@@ -62,26 +62,24 @@ async function reconcileLeadPreapproval(
     const pre = await fetchMpPreapproval(preapprovalId);
     if (!pre || pre.status !== "authorized") return null;
 
-    const paidAt = new Date().toISOString();
-    const { error: upErr } = await sb
-      .from("ecommerce_leads")
-      .update({
-        status: "paid",
-        payment_method: "card",
-        paid_at: paidAt,
-      })
-      .eq("id", leadId)
-      .eq("status", "awaiting_payment");
-
-    if (upErr) {
-      console.error("lead-payment-status preapproval reconcile", upErr);
+    const mark = await markLeadPaidIfSlotAvailable(sb, leadId, {
+      payment_method: "card",
+      mp_preapproval_id: preapprovalId,
+    });
+    if (!mark.ok) {
+      if (mark.reason === "slots_full") {
+        console.warn("lead-payment-status: slots full on preapproval reconcile", {
+          leadId,
+        });
+      }
       return null;
     }
-
-    try {
-      await notifyLeadPaid(sb, leadId);
-    } catch (e) {
-      console.error("lead-payment-status notifyLeadPaid (preapproval) failed", e);
+    if (mark.reason === "claimed") {
+      try {
+        await notifyLeadPaid(sb, leadId);
+      } catch (e) {
+        console.error("lead-payment-status notifyLeadPaid (preapproval) failed", e);
+      }
     }
 
     return "paid";
@@ -176,11 +174,13 @@ Deno.serve(async (req) => {
       : null;
 
   trace.done({ lead_id: lead, status });
+  const slots = await getLeadSlotSnapshot(sb);
   return jsonResponse({
     status,
     amount_cents: data.amount_cents ?? null,
     paid_at: data.paid_at ?? null,
     payment_method: data.payment_method ?? null,
+    slots,
     lead: {
       name: data.name ?? null,
       email: data.email ?? null,

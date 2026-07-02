@@ -146,5 +146,8 @@ verify_jwt = false
 [functions.process-lead-payment]
 verify_jwt = false
 
+[functions.lead-available-slots]
+verify_jwt = false
+
 [functions.provision-lead-client]
 verify_jwt = true

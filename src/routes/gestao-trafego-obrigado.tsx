@@ -1,12 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect } from "react";
-import { ArrowLeft, Check, CreditCard, Flame, MessageCircle, TrendingUp } from "lucide-react";
+import { useEffect, useMemo } from "react";
+import { ArrowLeft, Check, CreditCard, MessageCircle, TrendingUp } from "lucide-react";
 import { whatsappGestaoHref } from "@/lib/gestao-whatsapp";
 import {
   formatLeadManagementPrice,
   LEAD_MANAGEMENT_PRICE_CENTS,
 } from "@/lib/lead-management-price";
-import { GESTAO_PRODUCT, trackMetaPageView } from "@/lib/meta-pixel";
+import { trackMetaPageView } from "@/lib/meta-pixel";
+import { LeadFunnelSlotsBadge } from "@/components/gestao-trafego/LeadFunnelSlotsBadge";
+import { useLeadAvailableSlots } from "@/hooks/use-lead-available-slots";
+import {
+  formatLeadSlotsMetaDescription,
+  formatLeadSlotsMetaTitle,
+  LEAD_FUNNEL_MONTHLY_CAP,
+  leadSlotsWhatsAppLine,
+} from "@/content/gestao-lead-slots";
 
 const CANONICAL_URL = "https://agencyopus.live/gestao-trafego-obrigado";
 const PRICE_LABEL = formatLeadManagementPrice(LEAD_MANAGEMENT_PRICE_CENTS);
@@ -21,10 +29,10 @@ export const Route = createFileRoute("/gestao-trafego-obrigado")({
   }),
   head: () => ({
     meta: [
-      { title: "Proposta recebida — garanta sua vaga (só 3 este mês)" },
+      { title: formatLeadSlotsMetaTitle(LEAD_FUNNEL_MONTHLY_CAP) },
       {
         name: "description",
-        content: `Só 3 vagas por mês. ${PRICE_LABEL}/mês, sem fidelidade. Pague no cartão ou Pix e garanta a sua agora.`,
+        content: formatLeadSlotsMetaDescription(LEAD_FUNNEL_MONTHLY_CAP, PRICE_LABEL),
       },
       { name: "robots", content: "noindex" },
     ],
@@ -35,20 +43,27 @@ export const Route = createFileRoute("/gestao-trafego-obrigado")({
 
 function GestaoTrafegoObrigadoPage() {
   const { lead, s, checkout } = Route.useSearch();
+  const { slots, loading: slotsLoading } = useLeadAvailableSlots();
   const linkIncomplete = !lead || !s;
+  const slotsFull = !slotsLoading && slots.available <= 0;
   const error = linkIncomplete
     ? "Link incompleto. Envie o formulário novamente na página de gestão."
     : checkout === "falha"
       ? "Pagamento não foi concluído. Tente novamente ou fale no WhatsApp."
-      : null;
+      : slotsFull
+        ? "Vagas esgotadas para este mês. Fale no WhatsApp para lista de espera."
+        : null;
 
   useEffect(() => {
     trackMetaPageView();
   }, []);
 
-  const whatsappHref = whatsappGestaoHref(
-    `Olá! Acabei de enviar a proposta no site e quero garantir uma das 3 vagas deste mês para a gestão de tráfego (${PRICE_LABEL}/mês). Podemos começar?`,
+  const whatsappHref = useMemo(
+    () => whatsappGestaoHref(leadSlotsWhatsAppLine(slots.available, PRICE_LABEL)),
+    [slots.available],
   );
+
+  const canPay = Boolean(lead && s && !slotsFull);
 
   return (
     <div className="min-h-screen bg-background px-4 py-12">
@@ -60,16 +75,16 @@ function GestaoTrafegoObrigadoPage() {
           Proposta recebida — falta só garantir sua vaga
         </h1>
         <p className="mt-3 text-base text-muted-foreground">
-          Douglas abre <strong className="text-foreground">apenas 3 vagas por mês</strong> para operações de e-commerce que querem escalar. Quem paga primeiro, entra.
+          Douglas abre{" "}
+          <strong className="text-foreground">apenas {slots.cap} vagas por mês</strong>{" "}
+          para operações de e-commerce que querem escalar. Quem paga primeiro, entra.
         </p>
 
         <div className="mt-8 rounded-xl border-2 border-primary/40 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-6 text-left">
-          <div className="flex items-center justify-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive/15 px-3 py-1 text-xs font-bold uppercase tracking-wide text-destructive">
-              <Flame className="h-3.5 w-3.5" />
-              Apenas 3 vagas este mês
-            </span>
-          </div>
+          <LeadFunnelSlotsBadge
+            available={slots.available}
+            loading={slotsLoading}
+          />
           <div className="mt-4 text-center">
             <div className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
               {PRICE_LABEL}
@@ -78,10 +93,10 @@ function GestaoTrafegoObrigadoPage() {
             <p className="mt-1 text-sm text-muted-foreground">sem fidelidade · onboarding em até 24h úteis</p>
           </div>
 
-          {lead && s ? (
+          {canPay ? (
             <Link
               to="/gestao-trafego-checkout"
-              search={{ lead, s }}
+              search={{ lead: lead!, s: s! }}
               className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 py-4 text-base font-bold text-primary-foreground shadow-lg shadow-primary/20 transition hover:opacity-90"
             >
               <CreditCard className="h-5 w-5" />
@@ -94,7 +109,7 @@ function GestaoTrafegoObrigadoPage() {
               className="mt-5 inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg bg-primary px-6 py-4 text-base font-bold text-primary-foreground opacity-60"
             >
               <CreditCard className="h-5 w-5" />
-              Pagar agora e garantir vaga
+              {slotsFull ? "Vagas esgotadas este mês" : "Pagar agora e garantir vaga"}
             </button>
           )}
           <p className="mt-2 text-center text-xs text-muted-foreground">

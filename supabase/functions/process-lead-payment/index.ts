@@ -15,6 +15,11 @@ import {
   leadPriceCents,
 } from "../_shared/lead-checkout-shared.ts";
 import { notifyLeadPaid } from "../_shared/lead-paid-hook.ts";
+import {
+  assertLeadSlotAvailable,
+  LEAD_SLOTS_FULL_MESSAGE,
+  markLeadPaidIfSlotAvailable,
+} from "../_shared/lead-slots-shared.ts";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -74,6 +79,17 @@ Deno.serve(async (req) => {
 
   if ((lead.status as string) !== "awaiting_payment") {
     return jsonResponse({ error: "inicie o pagamento antes de processar" }, 409);
+  }
+
+  const slotCheck = await assertLeadSlotAvailable(sb, leadId);
+  if (!slotCheck.ok) {
+    if (slotCheck.reason === "slots_full") {
+      return jsonResponse(
+        { error: LEAD_SLOTS_FULL_MESSAGE, code: "lead_slots_full" },
+        409,
+      );
+    }
+    return jsonResponse({ error: "lead não encontrado" }, 404);
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!.replace(/\/+$/, "");
@@ -144,17 +160,28 @@ Deno.serve(async (req) => {
       if (subErr) console.error("lead subscription upsert failed", subErr);
     }
 
-    const updates: Record<string, unknown> = {
-      payment_method: "card",
-      mp_preapproval_id: preapprovalId ? String(preapprovalId) : null,
-    };
-    if (status === "authorized") {
-      updates.status = "paid";
-      updates.paid_at = new Date().toISOString();
-    }
-    await sb.from("ecommerce_leads").update(updates).eq("id", leadId);
-
-    if (status === "authorized") {
+    if (status !== "authorized") {
+      await sb
+        .from("ecommerce_leads")
+        .update({
+          payment_method: "card",
+          mp_preapproval_id: preapprovalId ? String(preapprovalId) : null,
+        })
+        .eq("id", leadId);
+    } else {
+      const mark = await markLeadPaidIfSlotAvailable(sb, leadId, {
+        payment_method: "card",
+        mp_preapproval_id: preapprovalId ? String(preapprovalId) : null,
+      });
+      if (!mark.ok) {
+        if (mark.reason === "slots_full") {
+          return jsonResponse(
+            { error: LEAD_SLOTS_FULL_MESSAGE, code: "lead_slots_full" },
+            409,
+          );
+        }
+        return jsonResponse({ error: "Falha ao confirmar pagamento" }, 500);
+      }
       try {
         await notifyLeadPaid(sb, leadId);
       } catch (e) {

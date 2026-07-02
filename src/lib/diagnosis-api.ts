@@ -7,6 +7,8 @@ const FRIENDLY_BY_CODE: Record<string, string> = {
     "As credenciais do Mercado Pago estão em modo produção. Para testar, use credenciais TEST- e comprador de teste; para uma venda real, use dados reais do comprador.",
   existing_paid_diagnosis:
     "Você já tem um diagnóstico pago em andamento. Continue de onde parou sem pagar novamente.",
+  lead_slots_full:
+    "Vagas esgotadas para este mês. Entre em contato pelo WhatsApp.",
 };
 
 export class DiagnosisApiError extends Error {

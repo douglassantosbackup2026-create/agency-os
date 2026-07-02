@@ -12,4 +12,5 @@ export { GestaoTrafegoMoreResultsCta } from "./GestaoTrafegoMoreResultsCta";
 export { GestaoTrafegoFaq } from "./GestaoTrafegoFaq";
 export { GestaoTrafegoFinalCta } from "./GestaoTrafegoFinalCta";
 export { GestaoTrafegoStickyCta } from "./GestaoTrafegoStickyCta";
+export { LeadFunnelSlotsBadge } from "./LeadFunnelSlotsBadge";
 

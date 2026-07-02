@@ -16,6 +16,7 @@ import {
 import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 import { notifyManagementPaid } from "../_shared/management-paid-hook.ts";
 import { notifyLeadPaid } from "../_shared/lead-paid-hook.ts";
+import { markLeadPaidIfSlotAvailable } from "../_shared/lead-slots-shared.ts";
 import { sendMetaPurchase } from "../_shared/meta-capi.ts";
 
 const PUBLIC_SITE_URL =
@@ -445,37 +446,42 @@ Deno.serve(async (req) => {
     const claimResp = await claimIdempotency();
     if (claimResp) return claimResp;
 
-    const paidAt = new Date().toISOString();
-    const { error: upErr } = await sb
-      .from("ecommerce_leads")
-      .update({
-        mp_payment_id: dataId,
-        status: "paid",
-        paid_at: paidAt,
-      })
-      .eq("id", rawId);
-
-    if (upErr) {
-      console.error(upErr);
+    const mark = await markLeadPaidIfSlotAvailable(sb, rawId, {
+      mp_payment_id: dataId,
+      payment_method: "pix",
+    });
+    if (!mark.ok) {
+      if (mark.reason === "slots_full") {
+        console.warn(
+          JSON.stringify({
+            evt: "mercadopago_webhook.lead_slots_full",
+            lead_id: rawId,
+          }),
+        );
+        return jsonResponse({ ok: true, note: "lead slots full", branch: "lead" }, 200);
+      }
+      console.error("mercadopago_webhook lead mark failed", mark);
       return jsonResponse({ error: "db update failed (lead)" }, 500);
     }
 
-    try {
-      await notifyLeadPaid(sb, rawId);
-    } catch (e) {
-      console.error("mercadopago_webhook notifyLeadPaid failed", e);
-    }
+    if (mark.reason === "claimed") {
+      try {
+        await notifyLeadPaid(sb, rawId);
+      } catch (e) {
+        console.error("mercadopago_webhook notifyLeadPaid failed", e);
+      }
 
-    await fireCapiPurchase({
-      eventId: `mgmt_purchase_${rawId}`,
-      diagnosisId: rawId,
-      valueBrl: leadPaid / 100,
-      contentName: "Gestão de Tráfego Meta Ads",
-      sourcePath: "/gestao-obrigado-lead",
-      email: leadRow.email as string | null,
-      phone: leadRow.phone as string | null,
-      firstName: leadRow.name as string | null,
-    });
+      await fireCapiPurchase({
+        eventId: `mgmt_purchase_${rawId}`,
+        diagnosisId: rawId,
+        valueBrl: leadPaid / 100,
+        contentName: "Gestão de Tráfego Meta Ads",
+        sourcePath: "/gestao-obrigado-lead",
+        email: leadRow.email as string | null,
+        phone: leadRow.phone as string | null,
+        firstName: leadRow.name as string | null,
+      });
+    }
 
     return jsonResponse({ ok: true, branch: "lead" }, 200);
   }
