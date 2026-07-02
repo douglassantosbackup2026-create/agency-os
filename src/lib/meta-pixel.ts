@@ -184,7 +184,9 @@ export function isDiagnosisPaidStatus(status: string | null | undefined): boolea
 
 export function trackRoutePixelEvents(pathname: string): void {
   if (pathname === "/") {
-    trackMetaViewContent(DIAGNOSIS_PRODUCT);
+    trackMetaViewContent(GESTAO_PRODUCT, {
+      content_name: "Gestão de Tráfego E-commerce Landing",
+    });
     return;
   }
   if (pathname === "/checkout") {
