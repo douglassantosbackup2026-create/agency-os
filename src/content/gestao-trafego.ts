@@ -33,8 +33,8 @@ export const hero = {
 
 
 export const form = {
-  title: "Solicite uma proposta para sua loja",
-  subtitle: "Preencha em 1 minuto. Douglas analisa sua operação e responde com a proposta.",
+  title: "Solicite uma proposta para escalar sua loja",
+  subtitle: "Preencha em 1 minuto. Douglas analisa sua operação e responde com um plano de escala.",
   trustBadges: [
     { label: "Dados protegidos" },
     { label: "Resposta em 24h úteis" },
@@ -44,7 +44,7 @@ export const form = {
   step2Back: "Voltar",
   stepLabels: { one: "1 · Contato", two: "2 · Sua loja" },
   budgetHint: {
-    low: "Abaixo de R$ 5.000/mês, a gestão de R$ 1.997 dificilmente compensa. Você pode enviar assim mesmo — vamos ser diretos se recomendarmos esperar ganhar escala.",
+    low: "Abaixo de R$ 5.000/mês, a gestão de R$ 4.997 dificilmente compensa. Você pode enviar assim mesmo — vamos ser diretos se recomendarmos esperar ganhar escala.",
   },
   fields: {
     name: { label: "Nome completo", placeholder: "Seu nome" },
@@ -58,7 +58,7 @@ export const form = {
     },
     challenge: {
       label: "Qual o maior desafio hoje?",
-      placeholder: "Ex.: ROAS do Meta caiu, Google não escala, TikTok com CPA alto…",
+      placeholder: "Ex.: ROAS caiu ao escalar, Google trava, TikTok com CPA alto, falta estrutura para dobrar a verba…",
     },
   },
   budgetOptions: [
@@ -77,7 +77,7 @@ export const form = {
   },
   success: {
     title: "Proposta solicitada",
-    body: "Recebemos seus dados. Douglas vai analisar sua operação e responder em até 24h úteis.",
+    body: "Recebemos seus dados. Douglas vai analisar sua operação e responder em até 24h úteis com uma proposta de escala.",
     cta: "Falar no WhatsApp agora",
     ctaHint: "Se quiser adiantar, clique para iniciar a conversa.",
   },
