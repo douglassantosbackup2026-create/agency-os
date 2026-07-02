@@ -18,6 +18,7 @@ import { Route as PrivacidadeRouteImport } from './routes/privacidade'
 import { Route as ObrigadoRouteImport } from './routes/obrigado'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as GestaoTrafegoObrigadoRouteImport } from './routes/gestao-trafego-obrigado'
+import { Route as GestaoTrafegoCheckoutRouteImport } from './routes/gestao-trafego-checkout'
 import { Route as GestaoTrafegoRouteImport } from './routes/gestao-trafego'
 import { Route as GestaoOnboardingRouteImport } from './routes/gestao-onboarding'
 import { Route as GestaoObrigadoLeadRouteImport } from './routes/gestao-obrigado-lead'
@@ -97,6 +98,11 @@ const LoginRoute = LoginRouteImport.update({
 const GestaoTrafegoObrigadoRoute = GestaoTrafegoObrigadoRouteImport.update({
   id: '/gestao-trafego-obrigado',
   path: '/gestao-trafego-obrigado',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GestaoTrafegoCheckoutRoute = GestaoTrafegoCheckoutRouteImport.update({
+  id: '/gestao-trafego-checkout',
+  path: '/gestao-trafego-checkout',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GestaoTrafegoRoute = GestaoTrafegoRouteImport.update({
@@ -293,6 +299,7 @@ export interface FileRoutesByFullPath {
   '/gestao-obrigado-lead': typeof GestaoObrigadoLeadRoute
   '/gestao-onboarding': typeof GestaoOnboardingRoute
   '/gestao-trafego': typeof GestaoTrafegoRoute
+  '/gestao-trafego-checkout': typeof GestaoTrafegoCheckoutRoute
   '/gestao-trafego-obrigado': typeof GestaoTrafegoObrigadoRoute
   '/login': typeof LoginRoute
   '/obrigado': typeof ObrigadoRoute
@@ -338,6 +345,7 @@ export interface FileRoutesByTo {
   '/gestao-obrigado-lead': typeof GestaoObrigadoLeadRoute
   '/gestao-onboarding': typeof GestaoOnboardingRoute
   '/gestao-trafego': typeof GestaoTrafegoRoute
+  '/gestao-trafego-checkout': typeof GestaoTrafegoCheckoutRoute
   '/gestao-trafego-obrigado': typeof GestaoTrafegoObrigadoRoute
   '/login': typeof LoginRoute
   '/obrigado': typeof ObrigadoRoute
@@ -385,6 +393,7 @@ export interface FileRoutesById {
   '/gestao-obrigado-lead': typeof GestaoObrigadoLeadRoute
   '/gestao-onboarding': typeof GestaoOnboardingRoute
   '/gestao-trafego': typeof GestaoTrafegoRoute
+  '/gestao-trafego-checkout': typeof GestaoTrafegoCheckoutRoute
   '/gestao-trafego-obrigado': typeof GestaoTrafegoObrigadoRoute
   '/login': typeof LoginRoute
   '/obrigado': typeof ObrigadoRoute
@@ -432,6 +441,7 @@ export interface FileRouteTypes {
     | '/gestao-obrigado-lead'
     | '/gestao-onboarding'
     | '/gestao-trafego'
+    | '/gestao-trafego-checkout'
     | '/gestao-trafego-obrigado'
     | '/login'
     | '/obrigado'
@@ -477,6 +487,7 @@ export interface FileRouteTypes {
     | '/gestao-obrigado-lead'
     | '/gestao-onboarding'
     | '/gestao-trafego'
+    | '/gestao-trafego-checkout'
     | '/gestao-trafego-obrigado'
     | '/login'
     | '/obrigado'
@@ -523,6 +534,7 @@ export interface FileRouteTypes {
     | '/gestao-obrigado-lead'
     | '/gestao-onboarding'
     | '/gestao-trafego'
+    | '/gestao-trafego-checkout'
     | '/gestao-trafego-obrigado'
     | '/login'
     | '/obrigado'
@@ -570,6 +582,7 @@ export interface RootRouteChildren {
   GestaoObrigadoLeadRoute: typeof GestaoObrigadoLeadRoute
   GestaoOnboardingRoute: typeof GestaoOnboardingRoute
   GestaoTrafegoRoute: typeof GestaoTrafegoRoute
+  GestaoTrafegoCheckoutRoute: typeof GestaoTrafegoCheckoutRoute
   GestaoTrafegoObrigadoRoute: typeof GestaoTrafegoObrigadoRoute
   LoginRoute: typeof LoginRoute
   ObrigadoRoute: typeof ObrigadoRoute
@@ -646,6 +659,13 @@ declare module '@tanstack/react-router' {
       path: '/gestao-trafego-obrigado'
       fullPath: '/gestao-trafego-obrigado'
       preLoaderRoute: typeof GestaoTrafegoObrigadoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gestao-trafego-checkout': {
+      id: '/gestao-trafego-checkout'
+      path: '/gestao-trafego-checkout'
+      fullPath: '/gestao-trafego-checkout'
+      preLoaderRoute: typeof GestaoTrafegoCheckoutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/gestao-trafego': {
@@ -998,6 +1018,7 @@ const rootRouteChildren: RootRouteChildren = {
   GestaoObrigadoLeadRoute: GestaoObrigadoLeadRoute,
   GestaoOnboardingRoute: GestaoOnboardingRoute,
   GestaoTrafegoRoute: GestaoTrafegoRoute,
+  GestaoTrafegoCheckoutRoute: GestaoTrafegoCheckoutRoute,
   GestaoTrafegoObrigadoRoute: GestaoTrafegoObrigadoRoute,
   LoginRoute: LoginRoute,
   ObrigadoRoute: ObrigadoRoute,
@@ -1013,3 +1034,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

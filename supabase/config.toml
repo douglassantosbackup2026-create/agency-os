@@ -140,5 +140,11 @@ verify_jwt = false
 [functions.lead-payment-status]
 verify_jwt = false
 
+[functions.start-lead-payment]
+verify_jwt = false
+
+[functions.process-lead-payment]
+verify_jwt = false
+
 [functions.provision-lead-client]
 verify_jwt = true

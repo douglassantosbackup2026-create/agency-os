@@ -30,3 +30,36 @@ describe("lead-paid-hook contract", () => {
     expect(src).toMatch(/action_center/);
   });
 });
+
+describe("lead transparent checkout contract", () => {
+  it("start-lead-payment validates slug and returns mp key", () => {
+    const src = readFileSync(
+      resolve(root, "supabase/functions/start-lead-payment/index.ts"),
+      "utf8",
+    );
+    expect(src).toMatch(/assertLeadCheckoutReady/);
+    expect(src).toMatch(/MERCADOPAGO_PUBLIC_KEY/);
+    expect(src).toMatch(/lead-start:/);
+  });
+
+  it("process-lead-payment supports pix and preapproval card", () => {
+    const src = readFileSync(
+      resolve(root, "supabase/functions/process-lead-payment/index.ts"),
+      "utf8",
+    );
+    expect(src).toMatch(/lead:\$\{leadId\}/);
+    expect(src).toMatch(/lead-sub:\$\{leadId\}/);
+    expect(src).toMatch(/ecommerce_lead_id/);
+    expect(src).toMatch(/notifyLeadPaid/);
+  });
+
+  it("migration adds transparent checkout columns", () => {
+    const sql = readFileSync(
+      resolve(root, "supabase/migrations/20260702180000_lead_transparent_checkout.sql"),
+      "utf8",
+    );
+    expect(sql).toMatch(/payer_cpf/);
+    expect(sql).toMatch(/pix_qr_code/);
+    expect(sql).toMatch(/ecommerce_lead_id/);
+  });
+});

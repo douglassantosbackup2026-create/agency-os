@@ -1,19 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { ArrowLeft, Check, CreditCard, Flame, Loader2, MessageCircle, TrendingUp } from "lucide-react";
+import { useEffect } from "react";
+import { ArrowLeft, Check, CreditCard, Flame, MessageCircle, TrendingUp } from "lucide-react";
 import { whatsappGestaoHref } from "@/lib/gestao-whatsapp";
-import { callDiagnosisApi } from "@/lib/diagnosis-api";
 import {
   formatLeadManagementPrice,
   LEAD_MANAGEMENT_PRICE_CENTS,
 } from "@/lib/lead-management-price";
-import { GESTAO_PRODUCT, trackMetaAddPaymentInfo, trackMetaPageView } from "@/lib/meta-pixel";
+import { GESTAO_PRODUCT, trackMetaPageView } from "@/lib/meta-pixel";
 
 const CANONICAL_URL = "https://agencyopus.live/gestao-trafego-obrigado";
 const PRICE_LABEL = formatLeadManagementPrice(LEAD_MANAGEMENT_PRICE_CENTS);
 
+type ObrigadoSearch = { lead?: string; s?: string; checkout?: string };
+
 export const Route = createFileRoute("/gestao-trafego-obrigado")({
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): ObrigadoSearch => ({
     lead: typeof search.lead === "string" ? search.lead : undefined,
     s: typeof search.s === "string" ? search.s : undefined,
     checkout: typeof search.checkout === "string" ? search.checkout : undefined,
@@ -34,19 +35,12 @@ export const Route = createFileRoute("/gestao-trafego-obrigado")({
 
 function GestaoTrafegoObrigadoPage() {
   const { lead, s, checkout } = Route.useSearch();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(() => {
-    if (!lead || !s) {
-      return "Link incompleto. Envie o formulário novamente na página de gestão.";
-    }
-    if (checkout === "falha") {
-      return "Pagamento não foi concluído. Tente novamente ou fale no WhatsApp.";
-    }
-    if (checkout === "pending") {
-      return "Pagamento pendente de confirmação. Assim que o Mercado Pago confirmar, sua vaga entra na fila.";
-    }
-    return null;
-  });
+  const linkIncomplete = !lead || !s;
+  const error = linkIncomplete
+    ? "Link incompleto. Envie o formulário novamente na página de gestão."
+    : checkout === "falha"
+      ? "Pagamento não foi concluído. Tente novamente ou fale no WhatsApp."
+      : null;
 
   useEffect(() => {
     trackMetaPageView();
@@ -55,29 +49,6 @@ function GestaoTrafegoObrigadoPage() {
   const whatsappHref = whatsappGestaoHref(
     `Olá! Acabei de enviar a proposta no site e quero garantir uma das 3 vagas deste mês para a gestão de tráfego (${PRICE_LABEL}/mês). Podemos começar?`,
   );
-
-  const handleCheckout = async () => {
-    if (!lead || !s) {
-      setError("Link incompleto. Envie o formulário novamente.");
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await callDiagnosisApi<{ init_point?: string }>("create-lead-checkout", {
-        method: "POST",
-        body: JSON.stringify({ lead_id: lead, access_slug: s }),
-      });
-      if (!res.init_point) {
-        throw new Error("Não foi possível abrir o checkout. Tente novamente.");
-      }
-      trackMetaAddPaymentInfo(GESTAO_PRODUCT, { order_id: lead });
-      window.location.href = res.init_point;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao abrir o checkout.");
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-background px-4 py-12">
@@ -107,26 +78,27 @@ function GestaoTrafegoObrigadoPage() {
             <p className="mt-1 text-sm text-muted-foreground">sem fidelidade · onboarding em até 24h úteis</p>
           </div>
 
-          <button
-            type="button"
-            onClick={handleCheckout}
-            disabled={loading || !lead || !s}
-            className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 py-4 text-base font-bold text-primary-foreground shadow-lg shadow-primary/20 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="h-5 w-5 animate-spin" />
-                Abrindo checkout…
-              </>
-            ) : (
-              <>
-                <CreditCard className="h-5 w-5" />
-                Pagar agora e garantir vaga
-              </>
-            )}
-          </button>
+          {lead && s ? (
+            <Link
+              to="/gestao-trafego-checkout"
+              search={{ lead, s }}
+              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 py-4 text-base font-bold text-primary-foreground shadow-lg shadow-primary/20 transition hover:opacity-90"
+            >
+              <CreditCard className="h-5 w-5" />
+              Pagar agora e garantir vaga
+            </Link>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="mt-5 inline-flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg bg-primary px-6 py-4 text-base font-bold text-primary-foreground opacity-60"
+            >
+              <CreditCard className="h-5 w-5" />
+              Pagar agora e garantir vaga
+            </button>
+          )}
           <p className="mt-2 text-center text-xs text-muted-foreground">
-            Cartão de crédito, Pix ou boleto · pagamento seguro Mercado Pago
+            Cartão de crédito ou Pix · pagamento seguro Mercado Pago
           </p>
 
           {error ? (
@@ -164,6 +136,7 @@ function GestaoTrafegoObrigadoPage() {
         <div className="mt-8">
           <Link
             to="/gestao-trafego"
+            search={{}}
             className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground underline hover:text-foreground"
           >
             <ArrowLeft className="h-4 w-4" />

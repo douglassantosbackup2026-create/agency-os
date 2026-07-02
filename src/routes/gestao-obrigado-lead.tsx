@@ -143,6 +143,7 @@ function GestaoObrigadoLeadPage() {
         <div className="mt-8">
           <Link
             to="/gestao-trafego"
+            search={{}}
             className="text-sm text-muted-foreground underline hover:text-foreground"
           >
             Voltar para a página de gestão

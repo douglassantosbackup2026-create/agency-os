@@ -23,8 +23,15 @@ import { GESTAO_PRODUCT, trackMetaPageView, trackMetaViewContent } from "@/lib/m
 
 const CANONICAL_URL = "https://agencyopus.live/gestao-trafego";
 
+type GestaoTrafegoSearch = {
+  utm_source?: string;
+  utm_campaign?: string;
+  utm_adset?: string;
+  utm_ad?: string;
+};
+
 export const Route = createFileRoute("/gestao-trafego")({
-  validateSearch: (search: Record<string, unknown>) => ({
+  validateSearch: (search: Record<string, unknown>): GestaoTrafegoSearch => ({
     utm_source: typeof search.utm_source === "string" ? search.utm_source : undefined,
     utm_campaign: typeof search.utm_campaign === "string" ? search.utm_campaign : undefined,
     utm_adset: typeof search.utm_adset === "string" ? search.utm_adset : undefined,

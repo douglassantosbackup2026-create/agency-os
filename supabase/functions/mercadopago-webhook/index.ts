@@ -201,7 +201,7 @@ Deno.serve(async (req) => {
 
     const { data: sub } = await sbEarly
       .from("management_subscriptions")
-      .select("id, diagnosis_id, status")
+      .select("id, diagnosis_id, ecommerce_lead_id, status")
       .eq("mp_preapproval_id", dataId)
       .maybeSingle();
 
@@ -215,20 +215,38 @@ Deno.serve(async (req) => {
       if (status === "cancelled") update.cancelled_at = new Date().toISOString();
       await sbEarly.from("management_subscriptions").update(update).eq("id", sub.id);
 
-      // Se a assinatura foi autorizada (e o diagnóstico ainda não foi marcado), marca como pago.
       if (status === "authorized") {
-        await sbEarly
-          .from("diagnoses")
-          .update({
-            management_status: "paid",
-            management_paid_at: new Date().toISOString(),
-          })
-          .eq("id", sub.diagnosis_id)
-          .eq("management_status", "awaiting_payment");
-        try {
-          await notifyManagementPaid(sbEarly, sub.diagnosis_id as string);
-        } catch (e) {
-          console.error("preapproval notifyManagementPaid failed", e);
+        if (sub.diagnosis_id) {
+          await sbEarly
+            .from("diagnoses")
+            .update({
+              management_status: "paid",
+              management_paid_at: new Date().toISOString(),
+            })
+            .eq("id", sub.diagnosis_id)
+            .eq("management_status", "awaiting_payment");
+          try {
+            await notifyManagementPaid(sbEarly, sub.diagnosis_id as string);
+          } catch (e) {
+            console.error("preapproval notifyManagementPaid failed", e);
+          }
+        } else if (sub.ecommerce_lead_id) {
+          const leadId = sub.ecommerce_lead_id as string;
+          await sbEarly
+            .from("ecommerce_leads")
+            .update({
+              status: "paid",
+              payment_method: "card",
+              paid_at: new Date().toISOString(),
+              mp_preapproval_id: dataId,
+            })
+            .eq("id", leadId)
+            .eq("status", "awaiting_payment");
+          try {
+            await notifyLeadPaid(sbEarly, leadId);
+          } catch (e) {
+            console.error("preapproval notifyLeadPaid failed", e);
+          }
         }
       }
     }
@@ -251,7 +269,7 @@ Deno.serve(async (req) => {
 
     const { data: sub } = await sbEarly
       .from("management_subscriptions")
-      .select("id, diagnosis_id, amount_cents")
+      .select("id, diagnosis_id, ecommerce_lead_id, amount_cents")
       .eq("mp_preapproval_id", preapprovalId)
       .maybeSingle();
 
@@ -274,7 +292,8 @@ Deno.serve(async (req) => {
     if (!existingCharge) {
       await sbEarly.from("management_subscription_charges").insert({
         subscription_id: sub.id,
-        diagnosis_id: sub.diagnosis_id,
+        diagnosis_id: sub.diagnosis_id ?? null,
+        ecommerce_lead_id: sub.ecommerce_lead_id ?? null,
         mp_payment_id: paymentId,
         status,
         amount_cents: amountCents,
@@ -292,7 +311,7 @@ Deno.serve(async (req) => {
         .eq("id", sub.id);
 
       // Alerta interno se a cobrança recorrente falhou.
-      if (status !== "approved" && status !== "processed") {
+      if (status !== "approved" && status !== "processed" && sub.diagnosis_id) {
         try {
           const { data: cfg } = await sbEarly
             .from("retentio_ops_config")
