@@ -6,6 +6,7 @@ import {
 } from "@/lib/landing-ui";
 import { operatorSection } from "@/content/gestao-trafego";
 import { GESTAO_OPERATOR } from "@/content/gestao-checkout";
+import gestaoOperatorAsset from "@/assets/gestao-operator.png.asset.json";
 
 export function GestaoTrafegoOperator() {
   return (
