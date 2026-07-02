@@ -61,10 +61,19 @@ const build = spawnSync("npm", ["run", "build"], {
 });
 if (build.status !== 0) process.exit(build.status ?? 1);
 
+const optionalVite = [
+  "VITE_LEAD_MANAGEMENT_PRICE_CENTS",
+  "VITE_LEAD_FUNNEL_MONTHLY_CAP",
+  "VITE_GESTAO_AVAILABLE_SLOTS",
+].flatMap((k) =>
+  merged[k]?.trim() ? [["--var", `${k}:${merged[k].trim()}`]] : [],
+);
+
 const varArgs = [
   ...required.flatMap((k) => ["--var", `${k}:${merged[k]}`]),
   "--var",
   `VITE_PUBLIC_SITE_URL:${optionalSite}`,
+  ...optionalVite.flat(),
 ];
 console.log("Deploying Worker with runtime vars…");
 const deploy = spawnSync(

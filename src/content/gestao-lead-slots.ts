@@ -3,14 +3,24 @@ export const LEAD_FUNNEL_MONTHLY_CAP = Number(
   import.meta.env.VITE_LEAD_FUNNEL_MONTHLY_CAP ?? 3,
 );
 
+/** Base da fila de espera exibida (28 + leads reais aguardando). */
+export const LEAD_WAITLIST_BASE = Number(
+  import.meta.env.VITE_LEAD_WAITLIST_BASE_COUNT ?? 28,
+);
+
 export type LeadSlotsSnapshot = {
   cap: number;
   used: number;
   available: number;
+  waitlist_display?: number;
 };
 
 export function computeAvailableSlots(cap: number, used: number): number {
   return Math.max(0, cap - used);
+}
+
+export function computeWaitlistDisplay(base: number, pendingCount: number): number {
+  return base + Math.max(0, pendingCount);
 }
 
 export function formatLeadSlotsBadge(available: number): string {
@@ -44,5 +54,20 @@ export function leadSlotsWhatsAppLine(available: number, priceLabel: string): st
 }
 
 export function formatLeadSlotsCapLine(cap: number): string {
-  return `Douglas abre apenas ${cap} vagas por mês para operações de e-commerce que querem escalar. Quem paga primeiro, entra.`;
+  return `Eu abro apenas ${cap} vagas por mês para operações de e-commerce que querem escalar. Quem paga primeiro, entra.`;
+}
+
+export function formatLeadWaitlistUrgency(
+  waitlistDisplay: number,
+  available: number,
+): { headline: string; subline: string } {
+  const waitlistLabel =
+    waitlistDisplay === 1 ? "1 e-commerce" : `${waitlistDisplay} e-commerces`;
+  const vagasLabel =
+    available === 1 ? "apenas 1 vaga" : `apenas ${available} vagas`;
+
+  return {
+    headline: `${waitlistLabel} já solicitaram proposta este mês — mas eu abro ${vagasLabel}.`,
+    subline: "Quem garantir agora entra; quem esperar fica na fila de espera.",
+  };
 }

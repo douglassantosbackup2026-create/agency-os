@@ -12,7 +12,9 @@ import { useLeadAvailableSlots } from "@/hooks/use-lead-available-slots";
 import {
   formatLeadSlotsMetaDescription,
   formatLeadSlotsMetaTitle,
+  formatLeadWaitlistUrgency,
   LEAD_FUNNEL_MONTHLY_CAP,
+  LEAD_WAITLIST_BASE,
   leadSlotsWhatsAppLine,
 } from "@/content/gestao-lead-slots";
 
@@ -65,6 +67,9 @@ function GestaoTrafegoObrigadoPage() {
 
   const canPay = Boolean(lead && s && !slotsFull);
 
+  const waitlistDisplay = slots.waitlist_display ?? LEAD_WAITLIST_BASE;
+  const urgency = formatLeadWaitlistUrgency(waitlistDisplay, slots.available);
+
   return (
     <div className="min-h-screen bg-background px-4 py-12">
       <div className="mx-auto max-w-lg text-center">
@@ -75,10 +80,22 @@ function GestaoTrafegoObrigadoPage() {
           Proposta recebida — falta só garantir sua vaga
         </h1>
         <p className="mt-3 text-base text-muted-foreground">
-          Douglas abre{" "}
-          <strong className="text-foreground">apenas {slots.cap} vagas por mês</strong>{" "}
-          para operações de e-commerce que querem escalar. Quem paga primeiro, entra.
+          {slotsLoading ? (
+            <span className="inline-block h-5 w-full max-w-md animate-pulse rounded bg-muted" />
+          ) : (
+            <>
+              <strong className="text-foreground">{urgency.headline}</strong>{" "}
+              {urgency.subline}
+            </>
+          )}
         </p>
+        {!slotsLoading && slots.available > 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">
+            Eu abro{" "}
+            <strong className="text-foreground">apenas {slots.cap} vagas por mês</strong>{" "}
+            para operações de e-commerce que querem escalar.
+          </p>
+        ) : null}
 
         <div className="mt-8 rounded-xl border-2 border-primary/40 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-6 text-left">
           <LeadFunnelSlotsBadge

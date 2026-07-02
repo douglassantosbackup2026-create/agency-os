@@ -23,6 +23,7 @@ const sharedSrc = fs.readFileSync(
   "utf8",
 );
 check("lead-slots-shared snapshot", /getLeadSlotSnapshot/.test(sharedSrc));
+check("lead-slots-shared waitlist", /waitlist_display/.test(sharedSrc));
 check("lead-slots-shared atomic mark", /markLeadPaidIfSlotAvailable/.test(sharedSrc));
 
 const fnSrc = fs.readFileSync(
@@ -49,6 +50,14 @@ const obrigadoSrc = fs.readFileSync(
   "utf8",
 );
 check("obrigado uses useLeadAvailableSlots", /useLeadAvailableSlots/.test(obrigadoSrc));
+check("obrigado waitlist copy", /formatLeadWaitlistUrgency/.test(obrigadoSrc));
+
+const pixelSrc = fs.readFileSync(path.join(root, "src/lib/meta-pixel.ts"), "utf8");
+check("meta-pixel gestao value from lead price", /leadManagementPriceBrl\(\)/.test(pixelSrc));
+check(
+  "meta-pixel InitiateCheckout on gestao-trafego-checkout",
+  /gestao-trafego-checkout/.test(pixelSrc) && /trackMetaInitiateCheckout\(GESTAO_PRODUCT/.test(pixelSrc),
+);
 
 const envPath = path.join(root, ".env");
 if (!fs.existsSync(envPath)) {
@@ -75,6 +84,65 @@ if (!fs.existsSync(envPath)) {
       const j = await res.json();
       check("response has cap/used/available", j.cap != null && j.used != null && j.available != null);
       check("available = cap - used", j.available === Math.max(0, j.cap - j.used));
+      check("waitlist_display >= 28", typeof j.waitlist_display === "number" && j.waitlist_display >= 28);
+    }
+
+    const headers = {
+      "Content-Type": "application/json",
+      apikey: anon,
+      Authorization: `Bearer ${anon}`,
+      Origin: "https://agencyopus.live",
+    };
+    const submitRes = await fetch(`${base}/functions/v1/submit-ecommerce-lead`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        name: "E2E Smoke",
+        email: `e2e-smoke-${Date.now()}@example.com`,
+        phone: "11999999999",
+        store_name: "Loja E2E",
+        website: "https://example.com",
+        monthly_ad_budget_range: "5k-15k",
+        source: "smoke-e2e",
+      }),
+    });
+    check("e2e submit-ecommerce-lead", submitRes.ok);
+    if (submitRes.ok) {
+      const submitBody = await submitRes.json();
+      const { lead_id: leadId, access_slug: accessSlug } = submitBody;
+      check("e2e lead_id + access_slug", Boolean(leadId && accessSlug));
+      if (leadId && accessSlug) {
+        const statusRes = await fetch(
+          `${base}/functions/v1/lead-payment-status?lead=${encodeURIComponent(leadId)}&s=${encodeURIComponent(accessSlug)}`,
+          { headers: { apikey: anon, Authorization: `Bearer ${anon}`, Origin: "https://agencyopus.live" } },
+        );
+        check("e2e lead-payment-status", statusRes.ok);
+        if (statusRes.ok) {
+          const statusBody = await statusRes.json();
+          check("e2e status not paid yet", statusBody.status !== "paid");
+          check("e2e status has slots", statusBody.slots?.available != null);
+        }
+        const startRes = await fetch(`${base}/functions/v1/start-lead-payment`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            lead_id: leadId,
+            access_slug: accessSlug,
+            payer: {
+              name: "E2E Smoke",
+              email: submitBody.email ?? "e2e@example.com",
+              cpf: "39053344705",
+              phone: "11999999999",
+            },
+          }),
+        });
+        check("e2e start-lead-payment", startRes.ok);
+        if (startRes.ok) {
+          const startBody = await startRes.json();
+          check("e2e mp_public_key present", Boolean(startBody.mp_public_key));
+          check("e2e amount_cents > 0", Number(startBody.amount_cents) > 0);
+        }
+      }
     }
   }
 }

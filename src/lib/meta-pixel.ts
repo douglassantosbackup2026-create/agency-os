@@ -3,6 +3,8 @@
  * PageView é disparado em cada navegação SPA via MetaPixelTracker.
  */
 
+import { leadManagementPriceBrl } from "@/lib/lead-management-price";
+
 export const META_PIXEL_ID = "1014878304387575";
 
 export const META_PIXEL_INIT_SCRIPT = `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${META_PIXEL_ID}');`;
@@ -25,7 +27,7 @@ export const GESTAO_PRODUCT: MetaPixelProduct = {
   id: "gestao-meta-ads",
   name: "Gestão de Tráfego Meta Ads",
   category: "gestao",
-  value: 1997,
+  value: leadManagementPriceBrl(),
 };
 
 const CURRENCY = "BRL" as const;
@@ -191,6 +193,12 @@ export function trackRoutePixelEvents(pathname: string): void {
   }
   if (pathname === "/gestao-checkout") {
     trackMetaInitiateCheckout(GESTAO_PRODUCT);
+    return;
+  }
+  if (pathname === "/gestao-trafego-checkout") {
+    trackMetaInitiateCheckout(GESTAO_PRODUCT, {
+      content_name: "Gestão de Tráfego E-commerce Checkout",
+    });
     return;
   }
   if (pathname === "/gestao-trafego") {

@@ -4,6 +4,7 @@ export type LeadSlotSnapshot = {
   cap: number;
   used: number;
   available: number;
+  waitlist_display: number;
 };
 
 export type MarkLeadPaidResult =
@@ -23,11 +24,23 @@ export function leadMonthlySlotCap(): number {
   return Number.isFinite(n) && n > 0 ? n : 3;
 }
 
+export function leadWaitlistBase(): number {
+  const n = parseInt(Deno.env.get("LEAD_WAITLIST_BASE_COUNT") ?? "28", 10);
+  return Number.isFinite(n) && n >= 0 ? n : 28;
+}
+
+export function computeWaitlistDisplay(base: number, pendingCount: number): number {
+  return base + Math.max(0, pendingCount);
+}
+
 export function computeAvailableSlots(cap: number, used: number): number {
   return Math.max(0, cap - used);
 }
 
-function parseSnapshot(raw: unknown): LeadSlotSnapshot {
+function parseSnapshot(
+  raw: unknown,
+  waitlistDisplay: number,
+): LeadSlotSnapshot {
   const j = raw as { cap?: number; used?: number; available?: number } | null;
   const cap = leadMonthlySlotCap();
   const used = Number(j?.used ?? 0);
@@ -39,6 +52,7 @@ function parseSnapshot(raw: unknown): LeadSlotSnapshot {
     cap: Number(j?.cap ?? cap),
     used: Number.isFinite(used) ? used : 0,
     available: Number.isFinite(available) ? available : computeAvailableSlots(cap, used),
+    waitlist_display: waitlistDisplay,
   };
 }
 
@@ -73,18 +87,47 @@ function parseMarkResult(raw: unknown): MarkLeadPaidResult {
   return { ok: false, reason: "update_failed" };
 }
 
+export async function countLeadWaitlistThisMonth(
+  sb: SupabaseClient,
+): Promise<number> {
+  const { data: monthStart, error: monthErr } = await sb.rpc(
+    "lead_month_start_sao_paulo",
+  );
+  if (monthErr || !monthStart) {
+    console.error("countLeadWaitlistThisMonth month start failed", monthErr);
+    return 0;
+  }
+
+  const { count, error } = await sb
+    .from("ecommerce_leads")
+    .select("id", { count: "exact", head: true })
+    .gte("created_at", monthStart as string)
+    .in("status", ["new", "awaiting_payment"]);
+
+  if (error) {
+    console.error("countLeadWaitlistThisMonth failed", error);
+    return 0;
+  }
+
+  return count ?? 0;
+}
+
 export async function getLeadSlotSnapshot(
   sb: SupabaseClient,
 ): Promise<LeadSlotSnapshot> {
   const cap = leadMonthlySlotCap();
+  const base = leadWaitlistBase();
+  const pending = await countLeadWaitlistThisMonth(sb);
+  const waitlistDisplay = computeWaitlistDisplay(base, pending);
+
   const { data, error } = await sb.rpc("get_ecommerce_lead_slot_snapshot", {
     p_cap: cap,
   });
   if (error) {
     console.error("getLeadSlotSnapshot failed", error);
-    return { cap, used: 0, available: cap };
+    return { cap, used: 0, available: cap, waitlist_display: waitlistDisplay };
   }
-  return parseSnapshot(data);
+  return parseSnapshot(data, waitlistDisplay);
 }
 
 export async function assertLeadSlotAvailable(

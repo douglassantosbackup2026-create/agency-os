@@ -20,12 +20,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import {
-  GESTAO_CARD_CONSENT,
   GESTAO_DELIVERABLES,
   GESTAO_PAYMENT_METHOD_HINTS,
   GESTAO_PRODUCT_NAME,
   GESTAO_PRODUCT_TAGLINE,
-  GESTAO_RECURRENCE_NOTE_CARD,
   GESTAO_RECURRENCE_NOTE_PIX,
   gestaoUrgencyText,
 } from "@/content/gestao-checkout";
@@ -37,6 +35,8 @@ import {
 } from "@/hooks/use-lead-available-slots";
 import {
   formatLeadManagementPrice,
+  leadCardConsentLabel,
+  leadRecurrenceNoteCard,
   LEAD_MANAGEMENT_PRICE_CENTS,
 } from "@/lib/lead-management-price";
 import { GESTAO_PRODUCT, trackMetaAddPaymentInfo, trackMetaLead } from "@/lib/meta-pixel";
@@ -383,7 +383,7 @@ function GestaoTrafegoCheckoutPage() {
             </div>
           </div>
           <p className="mt-3 rounded-md bg-muted/50 px-3 py-2 text-xs leading-snug text-muted-foreground">
-            {method === "card" ? GESTAO_RECURRENCE_NOTE_CARD : GESTAO_RECURRENCE_NOTE_PIX}
+            {method === "card" ? leadRecurrenceNoteCard(priceLabel) : GESTAO_RECURRENCE_NOTE_PIX}
           </p>
         </section>
 
@@ -462,7 +462,8 @@ function GestaoTrafegoCheckoutPage() {
             ) : (
               <LeadCardSection started={started} ensureStarted={ensureStarted} starting={submitting}
                 mp={mp} sdkError={sdkError} amount={amount} lead={lead} s={s} payerCpf={payer.cpf}
-                onApproved={onApproved} priceLabel={priceLabel} />
+                onApproved={onApproved} priceLabel={priceLabel}
+                cardConsentLabel={leadCardConsentLabel(priceLabel)} />
             )}
           </div>
           <p className="text-center text-xs text-muted-foreground">
@@ -606,10 +607,11 @@ function LeadPixSection({ lead, s, started, ensureStarted, starting, onApproved,
   );
 }
 
-function LeadCardSection({ started, ensureStarted, starting, mp, sdkError, amount, lead, s, payerCpf, onApproved, priceLabel }: {
+function LeadCardSection({ started, ensureStarted, starting, mp, sdkError, amount, lead, s, payerCpf, onApproved, priceLabel, cardConsentLabel }: {
   started: StartResp | null; ensureStarted: () => Promise<StartResp | null>; starting: boolean;
   mp: MpInstance | null; sdkError: string | null; amount: number;
   lead: string; s: string; payerCpf: string; onApproved: () => void; priceLabel: string;
+  cardConsentLabel: string;
 }) {
   const [number, setNumber] = useState("");
   const [holder, setHolder] = useState("");
@@ -677,7 +679,7 @@ function LeadCardSection({ started, ensureStarted, starting, mp, sdkError, amoun
           onChange={(e) => setConsent(e.target.checked)}
           className="mt-0.5 h-4 w-4 cursor-pointer"
         />
-        <span className="leading-snug text-muted-foreground">{GESTAO_CARD_CONSENT}</span>
+        <span className="leading-snug text-muted-foreground">{cardConsentLabel}</span>
       </label>
       {err ? <p className="text-sm text-destructive">{err}</p> : null}
       <Button type="submit" disabled={loading || starting || !consent} className="h-12 w-full">

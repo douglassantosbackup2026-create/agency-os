@@ -3,6 +3,7 @@ import { callDiagnosisApi } from "@/lib/diagnosis-api";
 import {
   computeAvailableSlots,
   LEAD_FUNNEL_MONTHLY_CAP,
+  LEAD_WAITLIST_BASE,
   type LeadSlotsSnapshot,
 } from "@/content/gestao-lead-slots";
 
@@ -10,6 +11,7 @@ const DEFAULT_SNAPSHOT: LeadSlotsSnapshot = {
   cap: LEAD_FUNNEL_MONTHLY_CAP,
   used: 0,
   available: LEAD_FUNNEL_MONTHLY_CAP,
+  waitlist_display: LEAD_WAITLIST_BASE,
 };
 
 function normalizeSnapshot(raw: Partial<LeadSlotsSnapshot> | null | undefined): LeadSlotsSnapshot {
@@ -19,7 +21,11 @@ function normalizeSnapshot(raw: Partial<LeadSlotsSnapshot> | null | undefined): 
     raw?.available != null && Number.isFinite(Number(raw.available))
       ? Number(raw.available)
       : computeAvailableSlots(cap, used);
-  return { cap, used, available };
+  const waitlistDisplay =
+    raw?.waitlist_display != null && Number.isFinite(Number(raw.waitlist_display))
+      ? Number(raw.waitlist_display)
+      : LEAD_WAITLIST_BASE;
+  return { cap, used, available, waitlist_display: waitlistDisplay };
 }
 
 export function useLeadAvailableSlots(enabled = true) {

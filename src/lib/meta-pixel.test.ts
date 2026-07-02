@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { isDiagnosisPaidStatus, trackRoutePixelEvents } from "./meta-pixel";
+import {
+  GESTAO_PRODUCT,
+  isDiagnosisPaidStatus,
+  trackRoutePixelEvents,
+} from "./meta-pixel";
+import { leadManagementPriceBrl } from "./lead-management-price";
 
 describe("isDiagnosisPaidStatus", () => {
   it("returns false for awaiting_payment", () => {
@@ -19,9 +24,16 @@ describe("trackRoutePixelEvents", () => {
     expect(() => trackRoutePixelEvents("/")).not.toThrow();
     expect(() => trackRoutePixelEvents("/checkout")).not.toThrow();
     expect(() => trackRoutePixelEvents("/gestao-checkout")).not.toThrow();
+    expect(() => trackRoutePixelEvents("/gestao-trafego-checkout")).not.toThrow();
     expect(() =>
       trackRoutePixelEvents("/diagnostico/abc/conectar"),
     ).not.toThrow();
     expect(() => trackRoutePixelEvents("/dashboard")).not.toThrow();
+  });
+});
+
+describe("GESTAO_PRODUCT", () => {
+  it("uses lead funnel price in BRL for pixel value", () => {
+    expect(GESTAO_PRODUCT.value).toBe(leadManagementPriceBrl());
   });
 });
