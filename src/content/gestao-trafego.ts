@@ -159,7 +159,7 @@ export const faqSection = {
     {
       question: "Como funciona o contrato?",
       answer:
-        "Mensalidade de R$ 1.997, sem fidelidade. Você pode cancelar antes do próximo ciclo de cobrança avisando pelo WhatsApp.",
+        "Mensalidade de R$ 4.997, sem fidelidade. Você pode cancelar antes do próximo ciclo de cobrança avisando pelo WhatsApp.",
     },
     {
       question: "Quais plataformas de mídia paga vocês gerenciam?",
