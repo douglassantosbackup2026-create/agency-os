@@ -218,11 +218,11 @@ export const problemsSection = {
   title: "Você reconhece algum desses problemas?",
   subtitle: "Se pelo menos dois soam familiares, faz sentido conversar.",
   items: [
-    "ROAS despencou nos últimos meses e ninguém sabe explicar o porquê",
-    "CPM não para de subir e come toda a margem da campanha",
-    "Escala trava sempre no mesmo teto de faturamento mensal",
-    "Criativos morrem em poucos dias e falta processo pra repor",
-    "Sem visibilidade real do que está acontecendo dentro da conta",
+    "ROAS cai toda vez que tenta aumentar a verba",
+    "CPM sobe e come a margem quando escala campanhas",
+    "Faturamento trava no mesmo teto há meses",
+    "Criativos morrem rápido e não há processo para repor em escala",
+    "Sem visibilidade real do que acontece dentro da conta quando a verba cresce",
   ],
 };
 
