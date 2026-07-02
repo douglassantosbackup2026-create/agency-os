@@ -69,6 +69,7 @@ const DIAGNOSIS_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const MGMT_PREFIX = "mgmt:";
+const LEAD_PREFIX = "lead:";
 
 // Verifica assinatura HMAC-SHA256 do Mercado Pago.
 // Doc: header `x-signature: ts=...,v1=...` + `x-request-id`.
@@ -383,6 +384,74 @@ Deno.serve(async (req) => {
       return jsonResponse({ ok: true, idempotent: true }, 200);
     }
     return null;
+  }
+
+  if (typeof extRef === "string" && extRef.startsWith(LEAD_PREFIX)) {
+    const rawId = extRef.slice(LEAD_PREFIX.length);
+    if (!DIAGNOSIS_ID_RE.test(rawId)) {
+      return jsonResponse({ ok: true, note: "invalid lead external_reference" }, 200);
+    }
+    const { data: leadRow } = await sb
+      .from("ecommerce_leads")
+      .select("id, status, mp_payment_id, amount_cents, name, email, phone")
+      .eq("id", rawId)
+      .maybeSingle();
+
+    if (!leadRow) {
+      return jsonResponse({ ok: true, note: "unknown lead" }, 200);
+    }
+
+    const leadExpected = Number(leadRow.amount_cents) > 0
+      ? Number(leadRow.amount_cents)
+      : managementPriceCentsFromEnv();
+    const leadPaid = paymentAmountCents(payment);
+    if (!amountMatchesExpected(leadPaid, leadExpected)) {
+      console.warn(
+        JSON.stringify({
+          evt: "mercadopago_webhook.amount_mismatch",
+          branch: "lead",
+          lead_id: rawId,
+          paid_cents: leadPaid,
+          expected_cents: leadExpected,
+        }),
+      );
+      return jsonResponse({ error: "amount mismatch" }, 400);
+    }
+
+    if (leadRow.mp_payment_id === dataId) {
+      return jsonResponse({ ok: true, idempotent: true, branch: "lead" }, 200);
+    }
+
+    const claimResp = await claimIdempotency();
+    if (claimResp) return claimResp;
+
+    const paidAt = new Date().toISOString();
+    const { error: upErr } = await sb
+      .from("ecommerce_leads")
+      .update({
+        mp_payment_id: dataId,
+        status: "paid",
+        paid_at: paidAt,
+      })
+      .eq("id", rawId);
+
+    if (upErr) {
+      console.error(upErr);
+      return jsonResponse({ error: "db update failed (lead)" }, 500);
+    }
+
+    await fireCapiPurchase({
+      eventId: `mgmt_purchase_${rawId}`,
+      diagnosisId: rawId,
+      valueBrl: leadPaid / 100,
+      contentName: "Gestão de Tráfego Meta Ads",
+      sourcePath: "/gestao-obrigado-lead",
+      email: leadRow.email as string | null,
+      phone: leadRow.phone as string | null,
+      firstName: leadRow.name as string | null,
+    });
+
+    return jsonResponse({ ok: true, branch: "lead" }, 200);
   }
 
   if (typeof extRef === "string" && extRef.startsWith(MGMT_PREFIX)) {
