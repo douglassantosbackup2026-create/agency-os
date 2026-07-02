@@ -1,4 +1,5 @@
-import { ShieldCheck, MessageCircle, Mail, Rocket, Quote } from "lucide-react";
+import { useState } from "react";
+import { ImageOff, ShieldCheck, MessageCircle, Mail, Rocket, Quote } from "lucide-react";
 import {
   GESTAO_GUARANTEE,
   GESTAO_NEXT_STEPS,
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/carousel";
 
 export function GestaoResultsGallery() {
+  const [errored, setErrored] = useState<Record<string, boolean>>({});
   return (
     <section aria-labelledby="gestao-results-title" className="rounded-xl border bg-card p-5">
       <div className="text-center">
@@ -31,19 +33,29 @@ export function GestaoResultsGallery() {
         className="mt-4 w-full px-8 sm:px-10"
       >
         <CarouselContent className="-ml-4">
-          {GESTAO_RESULT_PROOFS.map((proof) => (
+          {GESTAO_RESULT_PROOFS.map((proof, i) => (
             <CarouselItem
               key={proof.src}
               className="pl-4 basis-full md:basis-1/2 lg:basis-1/3"
             >
               <figure className="h-full overflow-hidden rounded-lg border bg-background">
-                <div className="relative">
-                  <img
-                    src={proof.src}
-                    alt={proof.alt}
-                    loading="lazy"
-                    className="block h-auto w-full object-cover"
-                  />
+                <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
+                  {errored[proof.src] ? (
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-muted-foreground">
+                      <ImageOff className="h-6 w-6" />
+                      <span className="text-[11px]">Print indisponível</span>
+                    </div>
+                  ) : (
+                    <img
+                      src={proof.src}
+                      alt={proof.alt}
+                      width={800}
+                      height={600}
+                      loading={i === 0 ? "eager" : "lazy"}
+                      onError={() => setErrored((s) => ({ ...s, [proof.src]: true }))}
+                      className="h-full w-full object-cover"
+                    />
+                  )}
                   <span className="absolute left-2 top-2 rounded-full bg-background/95 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground shadow-sm ring-1 ring-border">
                     {proof.platform}
                   </span>
@@ -72,14 +84,26 @@ export function GestaoResultsGallery() {
 
 
 export function GestaoOperatorCard() {
+  const [avatarError, setAvatarError] = useState(false);
   return (
     <div className="flex items-start gap-3 rounded-xl border bg-card p-4">
-      <img
-        src={gestaoOperatorAsset.url}
-        alt={`${GESTAO_OPERATOR.name} — ${GESTAO_OPERATOR.role}`}
-        loading="lazy"
-        className="h-12 w-12 shrink-0 rounded-full object-cover"
-      />
+      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-muted">
+        {avatarError ? (
+          <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-muted-foreground">
+            {GESTAO_OPERATOR.initials}
+          </div>
+        ) : (
+          <img
+            src={gestaoOperatorAsset.url}
+            alt={`${GESTAO_OPERATOR.name} — ${GESTAO_OPERATOR.role}`}
+            width={96}
+            height={96}
+            loading="lazy"
+            onError={() => setAvatarError(true)}
+            className="h-full w-full object-cover"
+          />
+        )}
+      </div>
       <div className="min-w-0">
         <p className="text-sm font-semibold leading-tight">
           {GESTAO_OPERATOR.name}
