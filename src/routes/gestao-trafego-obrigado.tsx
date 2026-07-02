@@ -14,7 +14,7 @@ export const Route = createFileRoute("/gestao-trafego-obrigado")({
   }),
   head: () => ({
     meta: [
-      { title: "Proposta solicitada — Gestão de Tráfego Meta Ads" },
+      { title: "Proposta de escala solicitada — Gestão de Tráfego" },
       { name: "description", content: "Recebemos sua proposta. Douglas responderá em até 24h úteis." },
       { name: "robots", content: "noindex" },
     ],
