@@ -227,7 +227,7 @@ function GestaoObrigadoPage() {
                   className="btn btn-primary"
                   style={{ display: "block", textAlign: "center", marginBottom: "0.75rem" }}
                 >
-                  Preencher onboarding (5 min)
+                  Preencher onboarding de escala (5 min)
                 </Link>
                 {hasPortal && snapshot?.portal_slug ? (
                   <a
