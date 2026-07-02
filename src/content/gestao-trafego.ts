@@ -13,16 +13,16 @@ export { GESTAO_DELIVERABLES, GESTAO_GUARANTEE, GESTAO_OPERATOR, GESTAO_RESULT_P
 export const GESTAO_PRICE_LABEL = formatManagementPrice(DEFAULT_MANAGEMENT_PRICE_CENTS);
 
 export const hero = {
-  eyebrow: "Gestão de Tráfego Pago para e-commerce",
-  headline: "Pare de queimar dinheiro em mídia paga.",
-  headlineHighlight: "queimar dinheiro",
+  eyebrow: "Gestão de tráfego pago para e-commerce que quer escalar",
+  headline: "Escale sua loja sem queimar dinheiro em mídia paga.",
+  headlineHighlight: "Escale sua loja",
   subheadline:
-    "Gestão de tráfego pago sob medida para e-commerces que investem mais de R$ 5.000/mês em mídia paga — Meta, Google, TikTok e outras plataformas. Foco em ROAS, escala e execução sem enrolação.",
-  microProof: "+R$ 30 milhões gerenciados · cases com ROAS 10×+ em contas ativas",
+    "Gestão de tráfego pago sob medida para e-commerces que já investem mais de R$ 5.000/mês em Meta, Google, TikTok e outras plataformas e querem escalar com ROAS, estrutura e execução.",
+  microProof: "+R$ 30 milhões gerenciados · cases escalando de 5k para 50k+ de verba mantendo ROAS",
   bullets: [
-    "Diagnóstico técnico das suas contas antes de começar",
-    "Gestão diária de Meta, Google, TikTok e demais plataformas",
-    "Otimização de campanhas, criativos e públicos em todos os canais",
+    "Diagnóstico técnico da sua estrutura de campanhas antes de escalar",
+    "Gestão diária de Meta, Google, TikTok e demais plataformas ativas",
+    "Otimização de ROAS, CPA e criativos para escalar a verba sem perder rentabilidade",
     "Relatório semanal e canal direto com o gestor no WhatsApp",
   ],
   badges: ["Sem fidelidade", "Cancele quando quiser", "Resposta em 24h úteis"],
@@ -33,8 +33,8 @@ export const hero = {
 
 
 export const form = {
-  title: "Solicite uma proposta para sua loja",
-  subtitle: "Preencha em 1 minuto. Douglas analisa sua operação e responde com a proposta.",
+  title: "Solicite uma proposta para escalar sua loja",
+  subtitle: "Preencha em 1 minuto. Douglas analisa sua operação e responde com um plano de escala.",
   trustBadges: [
     { label: "Dados protegidos" },
     { label: "Resposta em 24h úteis" },
@@ -44,7 +44,7 @@ export const form = {
   step2Back: "Voltar",
   stepLabels: { one: "1 · Contato", two: "2 · Sua loja" },
   budgetHint: {
-    low: "Abaixo de R$ 5.000/mês, a gestão de R$ 1.997 dificilmente compensa. Você pode enviar assim mesmo — vamos ser diretos se recomendarmos esperar ganhar escala.",
+    low: "Abaixo de R$ 5.000/mês, a gestão de R$ 4.997 dificilmente compensa. Você pode enviar assim mesmo — vamos ser diretos se recomendarmos esperar ganhar escala.",
   },
   fields: {
     name: { label: "Nome completo", placeholder: "Seu nome" },
@@ -58,7 +58,7 @@ export const form = {
     },
     challenge: {
       label: "Qual o maior desafio hoje?",
-      placeholder: "Ex.: ROAS do Meta caiu, Google não escala, TikTok com CPA alto…",
+      placeholder: "Ex.: ROAS caiu ao escalar, Google trava, TikTok com CPA alto, falta estrutura para dobrar a verba…",
     },
   },
   budgetOptions: [
@@ -77,7 +77,7 @@ export const form = {
   },
   success: {
     title: "Proposta solicitada",
-    body: "Recebemos seus dados. Douglas vai analisar sua operação e responder em até 24h úteis.",
+    body: "Recebemos seus dados. Douglas vai analisar sua operação e responder em até 24h úteis com uma proposta de escala.",
     cta: "Falar no WhatsApp agora",
     ctaHint: "Se quiser adiantar, clique para iniciar a conversa.",
   },
@@ -86,7 +86,7 @@ export const form = {
 
 export const howItWorksSection = {
   eyebrow: "Como funciona",
-  title: "De lead à operação no ar em poucos dias",
+  title: "De lead à operação escalando em poucos dias",
   steps: [
     {
       step: 1,
@@ -101,23 +101,24 @@ export const howItWorksSection = {
     {
       step: 3,
       title: "Você recebe a proposta",
-      description: "Plano de ação, investimento, prazo de início e o que esperar nos primeiros 30 dias.",
+      description: "Plano de ação, investimento, prazo de início e projeção de escala nos primeiros 30 dias.",
     },
     {
       step: 4,
       title: "Iniciamos a gestão",
-      description: "Acesso, briefing, metas e as primeiras otimizações em até 5 dias úteis.",
+      description: "Acesso, briefing, metas e as primeiras otimizações para escala em até 5 dias úteis.",
     },
   ],
 };
 
 export const qualificationSection = {
   eyebrow: "Para quem é",
-  title: "Feito para um perfil específico de e-commerce",
+  title: "Feito para e-commerce que quer escalar com tráfego pago",
   forYou: [
     "Loja de e-commerce físico vendendo no Brasil",
     "Investe pelo menos R$ 5.000/mês em mídia paga (Meta, Google, TikTok etc.)",
     "Já tem campanhas rodando em pelo menos uma plataforma paga",
+    "Quer escalar a verba de mídia paga mantendo ou melhorando o ROAS",
     "Quer um gestor dedicado cuidando de todos os canais, não uma agência por plataforma",
     "Está disposto a executar mudanças rápidas com base em dados",
   ],
@@ -125,7 +126,7 @@ export const qualificationSection = {
     "Infoprodutos, serviços ou afiliados",
     "Lojas que ainda não investem em tráfego pago",
     "Quem procura só relatório, sem execução",
-    "Quem não tem pelo menos R$ 5.000/mês de verba de mídia — o investimento na gestão não compensa nessa escala",
+    "Quem não tem pelo menos R$ 5.000/mês de verba de mídia — a gestão não compensa nessa escala",
   ],
 };
 
@@ -158,7 +159,7 @@ export const faqSection = {
     {
       question: "Como funciona o contrato?",
       answer:
-        "Mensalidade de R$ 1.997, sem fidelidade. Você pode cancelar antes do próximo ciclo de cobrança avisando pelo WhatsApp.",
+        "Mensalidade de R$ 4.997, sem fidelidade. Você pode cancelar antes do próximo ciclo de cobrança avisando pelo WhatsApp.",
     },
     {
       question: "Quais plataformas de mídia paga vocês gerenciam?",
@@ -179,15 +180,15 @@ export const faqSection = {
 };
 
 export const finalCta = {
-  title: "Antes de investir mais um real em mídia, olhe pra sua conta com quem entende de estrutura, não só de criativo.",
-  body: "Preencha o formulário e receba uma proposta de gestão de mídia paga (Meta, Google, TikTok e outras) feita para a sua operação — sem compromisso.",
+  title: "Antes de jogar mais dinheiro na mídia, estruture a conta para escalar. A gente cuida da execução.",
+  body: "Preencha o formulário e receba uma proposta de gestão focada em escalar sua operação (Meta, Google, TikTok e outras) — sem compromisso.",
   cta: "Receber proposta de gestão",
 };
 
 export const seo = {
-  title: "Gestão de Tráfego Pago (Meta, Google, TikTok) para E-commerce | Agency Opus",
+  title: "Gestão de Tráfego Pago para E-commerce que Quer Escalar | Agency Opus",
   description:
-    "Gestão de mídia paga para e-commerce que investe R$ 5k+/mês: Meta, Google, TikTok e outras plataformas com um único gestor. Receba uma proposta sob medida.",
+    "Gestão de mídia paga para e-commerce que investe R$ 5k+/mês e quer escalar: Meta, Google, TikTok com um único gestor. Receba uma proposta de escala.",
 };
 
 export const anchors = {
@@ -217,11 +218,11 @@ export const problemsSection = {
   title: "Você reconhece algum desses problemas?",
   subtitle: "Se pelo menos dois soam familiares, faz sentido conversar.",
   items: [
-    "ROAS despencou nos últimos meses e ninguém sabe explicar o porquê",
-    "CPM não para de subir e come toda a margem da campanha",
-    "Escala trava sempre no mesmo teto de faturamento mensal",
-    "Criativos morrem em poucos dias e falta processo pra repor",
-    "Sem visibilidade real do que está acontecendo dentro da conta",
+    "ROAS cai toda vez que tenta aumentar a verba",
+    "CPM sobe e come a margem quando escala campanhas",
+    "Faturamento trava no mesmo teto há meses",
+    "Criativos morrem rápido e não há processo para repor em escala",
+    "Sem visibilidade real do que acontece dentro da conta quando a verba cresce",
   ],
 };
 

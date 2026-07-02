@@ -6,7 +6,7 @@ import proofGoogle2 from "@/assets/gestao-proof-google-2.png.asset.json";
 
 export const GESTAO_PRODUCT_NAME = "Gestão de Tráfego Pago";
 export const GESTAO_PRODUCT_TAGLINE =
-  "Execução diária de Meta, Google, TikTok e demais canais — um único gestor especializado";
+  "Execução diária de Meta, Google, TikTok e demais canais — gestão para escalar com ROAS";
 
 export const GESTAO_RESULT_PROOFS: {
   src: string;
@@ -59,12 +59,12 @@ export const GESTAO_RESULT_PROOFS: {
 ];
 
 export const GESTAO_DELIVERABLES = [
-  "Gestão integrada de Meta, Google, TikTok e demais plataformas ativas na sua loja",
-  "Implementação das correções prioritárias identificadas na análise inicial",
+  "Gestão integrada de Meta, Google, TikTok e demais plataformas para escalar a verba",
+  "Implementação das correções prioritárias que travam a escala",
   "Gestão diária de campanhas, criativos e públicos em cada canal",
-  "Otimização contínua de ROAS, CPA e estrutura de conta",
+  "Otimização contínua de ROAS, CPA e estrutura de conta para escala",
   "Testes A/B de criativos e ofertas com critério de escala",
-  "Relatórios de performance semanais e alinhamento estratégico",
+  "Relatórios de performance semanais e alinhamento de crescimento",
   "Canal direto com o gestor (WhatsApp) para decisões rápidas",
 ];
 
@@ -106,15 +106,15 @@ export const GESTAO_OPERATOR = {
   name: "Douglas Santos",
   role: "Gestor responsável pela sua conta",
   credentialLine:
-    "Ex-Ogilvy · +R$ 30 milhões gerenciados em Meta e Google Ads · 5 anos focados em e-commerce",
+    "Com passagem por operações de e-commerce de alto ticket · +R$ 30 milhões gerenciados em escala · 5 anos focados em e-commerce",
   initials: "DS",
 };
 
 export const GESTAO_TESTIMONIAL = {
   quote:
-    "Em 2 meses saímos do vermelho para 5 dígitos de lucro. O Douglas mexeu na estrutura inteira da conta, não só nos criativos.",
+    "Dobramos a verba de mídia em 90 dias e o ROAS subiu. O Douglas estruturou a conta para escalar, não só para rodar.",
   author: "Marina L.",
-  role: "CEO — moda feminina",
+  role: "CEO — moda feminina em escala",
   metric: "ROAS 2,1× → 8,3× em 60 dias",
 };
 
@@ -129,7 +129,7 @@ export const GESTAO_NEXT_STEPS: { title: string; description: string }[] = [
       "Douglas chama você no WhatsApp para alinhar acessos, metas e prioridades do mês.",
   },
   {
-    title: "Campanhas no ar em até 5 dias úteis",
+    title: "Campanhas no ar e primeiras otimizações de escala",
     description:
       "Implementação das correções prioritárias do diagnóstico e início da otimização contínua.",
   },

@@ -14,7 +14,7 @@ export const Route = createFileRoute("/gestao-trafego-obrigado")({
   }),
   head: () => ({
     meta: [
-      { title: "Proposta solicitada — Gestão de Tráfego Meta Ads" },
+      { title: "Proposta de escala solicitada — Gestão de Tráfego" },
       { name: "description", content: "Recebemos sua proposta. Douglas responderá em até 24h úteis." },
       { name: "robots", content: "noindex" },
     ],
@@ -32,7 +32,7 @@ function GestaoTrafegoObrigadoPage() {
   }, [lead]);
 
   const whatsappHref = whatsappGestaoHref(
-    "Olá! Preenchi a proposta de gestão de tráfego no site e quero conversar sobre a minha operação.",
+    "Olá! Preenchi a proposta de gestão de tráfego no site e quero conversar sobre como escalar a minha operação.",
   );
 
   return (
