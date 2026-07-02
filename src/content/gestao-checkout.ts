@@ -112,9 +112,9 @@ export const GESTAO_OPERATOR = {
 
 export const GESTAO_TESTIMONIAL = {
   quote:
-    "Em 2 meses saímos do vermelho para 5 dígitos de lucro. O Douglas mexeu na estrutura inteira da conta, não só nos criativos.",
+    "Dobramos a verba de mídia em 90 dias e o ROAS subiu. O Douglas estruturou a conta para escalar, não só para rodar.",
   author: "Marina L.",
-  role: "CEO — moda feminina",
+  role: "CEO — moda feminina em escala",
   metric: "ROAS 2,1× → 8,3× em 60 dias",
 };
 
