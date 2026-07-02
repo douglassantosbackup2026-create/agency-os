@@ -60,18 +60,26 @@ Deno.serve(async (req) => {
   }
 
   const leadId = typeof body.lead_id === "string" ? body.lead_id.trim() : "";
+  const accessSlug =
+    typeof body.access_slug === "string" ? body.access_slug.trim() : "";
   if (!UUID_RE.test(leadId)) {
     return jsonResponse({ error: "lead_id inválido" }, 400);
+  }
+  if (!accessSlug) {
+    return jsonResponse({ error: "access_slug obrigatório" }, 400);
   }
 
   const sb = diagnosisServiceClient();
   const { data: lead, error: lErr } = await sb
     .from("ecommerce_leads")
-    .select("id, name, email, phone, status")
+    .select("id, name, email, phone, status, access_slug")
     .eq("id", leadId)
     .maybeSingle();
 
   if (lErr || !lead) {
+    return jsonResponse({ error: "Lead não encontrado" }, 404);
+  }
+  if ((lead.access_slug as string) !== accessSlug) {
     return jsonResponse({ error: "Lead não encontrado" }, 404);
   }
   if ((lead.status as string) === "paid") {
@@ -83,7 +91,7 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!.replace(/\/+$/, "");
   const notificationUrl = `${supabaseUrl}/functions/v1/mercadopago-webhook`;
-  const qp = `lead=${encodeURIComponent(leadId)}`;
+  const qp = `lead=${encodeURIComponent(leadId)}&s=${encodeURIComponent(accessSlug)}`;
 
   const preference = {
     items: [

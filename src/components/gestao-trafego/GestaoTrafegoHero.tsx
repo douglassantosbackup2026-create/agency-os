@@ -113,7 +113,10 @@ export function GestaoTrafegoHero() {
 
   useEffect(() => {
     if (status.stage === "success") {
-      navigate({ to: "/gestao-trafego-obrigado", search: { lead: status.leadId } });
+      navigate({
+        to: "/gestao-trafego-obrigado",
+        search: { lead: status.leadId, s: status.accessSlug },
+      });
     }
   }, [status, navigate]);
 

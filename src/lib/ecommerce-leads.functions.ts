@@ -42,10 +42,12 @@ export const submitEcommerceLead = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const supabase = createServerSupabaseClient();
     const leadId = crypto.randomUUID();
+    const accessSlug = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
     const { error } = await supabase
       .from("ecommerce_leads")
       .insert({
         id: leadId,
+        access_slug: accessSlug,
         name: data.name,
         email: data.email,
         phone: data.phone,
@@ -65,5 +67,5 @@ export const submitEcommerceLead = createServerFn({ method: "POST" })
       throw new Error("Falha ao salvar lead. Tente novamente.");
     }
 
-    return { success: true as const, leadId };
+    return { success: true as const, leadId, accessSlug };
   });

@@ -818,6 +818,7 @@ export type Database = {
           contact_phone: string | null
           created_at: string
           diagnosis_id: string | null
+          ecommerce_lead_id: string | null
           id: string
           monthly_budget: number | null
           mrr: number | null
@@ -836,6 +837,7 @@ export type Database = {
           contact_phone?: string | null
           created_at?: string
           diagnosis_id?: string | null
+          ecommerce_lead_id?: string | null
           id?: string
           monthly_budget?: number | null
           mrr?: number | null
@@ -854,6 +856,7 @@ export type Database = {
           contact_phone?: string | null
           created_at?: string
           diagnosis_id?: string | null
+          ecommerce_lead_id?: string | null
           id?: string
           monthly_budget?: number | null
           mrr?: number | null
@@ -879,6 +882,13 @@ export type Database = {
             columns: ["diagnosis_id"]
             isOneToOne: false
             referencedRelation: "diagnoses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clients_ecommerce_lead_id_fkey"
+            columns: ["ecommerce_lead_id"]
+            isOneToOne: false
+            referencedRelation: "ecommerce_leads"
             referencedColumns: ["id"]
           },
         ]
@@ -1436,8 +1446,10 @@ export type Database = {
       }
       ecommerce_leads: {
         Row: {
+          access_slug: string
           amount_cents: number | null
           challenge: string | null
+          client_id: string | null
           created_at: string
           email: string
           id: string
@@ -1445,8 +1457,11 @@ export type Database = {
           mp_payment_id: string | null
           mp_preference_id: string | null
           name: string
+          ops_notified_at: string | null
           paid_at: string | null
           phone: string
+          provisioned_at: string | null
+          provisioned_by: string | null
           source: string | null
           status: string
           store_name: string
@@ -1458,8 +1473,10 @@ export type Database = {
           website: string
         }
         Insert: {
+          access_slug: string
           amount_cents?: number | null
           challenge?: string | null
+          client_id?: string | null
           created_at?: string
           email: string
           id?: string
@@ -1467,8 +1484,11 @@ export type Database = {
           mp_payment_id?: string | null
           mp_preference_id?: string | null
           name: string
+          ops_notified_at?: string | null
           paid_at?: string | null
           phone: string
+          provisioned_at?: string | null
+          provisioned_by?: string | null
           source?: string | null
           status?: string
           store_name: string
@@ -1480,8 +1500,10 @@ export type Database = {
           website: string
         }
         Update: {
+          access_slug?: string
           amount_cents?: number | null
           challenge?: string | null
+          client_id?: string | null
           created_at?: string
           email?: string
           id?: string
@@ -1489,8 +1511,11 @@ export type Database = {
           mp_payment_id?: string | null
           mp_preference_id?: string | null
           name?: string
+          ops_notified_at?: string | null
           paid_at?: string | null
           phone?: string
+          provisioned_at?: string | null
+          provisioned_by?: string | null
           source?: string | null
           status?: string
           store_name?: string
@@ -1501,7 +1526,15 @@ export type Database = {
           utm_source?: string | null
           website?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ecommerce_leads_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       feature_flags: {
         Row: {

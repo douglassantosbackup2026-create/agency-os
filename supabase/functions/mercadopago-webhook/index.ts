@@ -15,6 +15,7 @@ import {
 } from "../_shared/mp-preapproval.ts";
 import { traceIdFromRequest, traceLog } from "../_shared/edge-trace.ts";
 import { notifyManagementPaid } from "../_shared/management-paid-hook.ts";
+import { notifyLeadPaid } from "../_shared/lead-paid-hook.ts";
 import { sendMetaPurchase } from "../_shared/meta-capi.ts";
 
 const PUBLIC_SITE_URL =
@@ -438,6 +439,12 @@ Deno.serve(async (req) => {
     if (upErr) {
       console.error(upErr);
       return jsonResponse({ error: "db update failed (lead)" }, 500);
+    }
+
+    try {
+      await notifyLeadPaid(sb, rawId);
+    } catch (e) {
+      console.error("mercadopago_webhook notifyLeadPaid failed", e);
     }
 
     await fireCapiPurchase({

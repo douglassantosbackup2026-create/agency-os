@@ -1,7 +1,6 @@
 import { useCallback, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { submitEcommerceLead } from "@/lib/ecommerce-leads.functions";
+import { callDiagnosisApi } from "@/lib/diagnosis-api";
 import { GESTAO_PRODUCT, trackMetaLead, trackMetaCompleteRegistration } from "@/lib/meta-pixel";
 import { reportError } from "@/lib/report-error";
 
@@ -21,7 +20,7 @@ export type LeadFormData = z.infer<typeof localSchema>;
 export type SubmitStatus =
   | { stage: "idle" }
   | { stage: "loading" }
-  | { stage: "success"; leadId: string }
+  | { stage: "success"; leadId: string; accessSlug: string }
   | { stage: "error"; message: string };
 
 export function useEcommerceLeadSubmit(utm: {
@@ -31,35 +30,43 @@ export function useEcommerceLeadSubmit(utm: {
   ad: string;
 }) {
   const [status, setStatus] = useState<SubmitStatus>({ stage: "idle" });
-  const submit = useServerFn(submitEcommerceLead);
 
   const handleSubmit = useCallback(
     async (data: LeadFormData) => {
+      if (status.stage === "loading") return;
       setStatus({ stage: "loading" });
       try {
         const parsed = localSchema.parse(data);
-        const result = await submit({
-          data: {
+        const result = await callDiagnosisApi<{
+          lead_id: string;
+          access_slug: string;
+        }>("submit-ecommerce-lead", {
+          method: "POST",
+          body: JSON.stringify({
             name: parsed.name,
             email: parsed.email,
             phone: parsed.phone,
-            storeName: parsed.storeName,
+            store_name: parsed.storeName,
             website: parsed.website,
-            monthlyAdBudgetRange: parsed.monthlyAdBudgetRange,
-            challenge: parsed.challenge,
+            monthly_ad_budget_range: parsed.monthlyAdBudgetRange,
+            challenge: parsed.challenge ?? null,
             source: "meta_ads",
-            utmSource: utm.source,
-            utmCampaign: utm.campaign,
-            utmAdset: utm.adset,
-            utmAd: utm.ad,
-          },
+            utm_source: utm.source || null,
+            utm_campaign: utm.campaign || null,
+            utm_adset: utm.adset || null,
+            utm_ad: utm.ad || null,
+          }),
         });
 
-        const dedupId = result.leadId;
+        const dedupId = result.lead_id;
         trackMetaLead(GESTAO_PRODUCT, dedupId, { lead_id: dedupId });
         trackMetaCompleteRegistration("Gestão E-commerce Lead", { lead_id: dedupId }, dedupId);
 
-        setStatus({ stage: "success", leadId: result.leadId });
+        setStatus({
+          stage: "success",
+          leadId: result.lead_id,
+          accessSlug: result.access_slug,
+        });
       } catch (err) {
         const message =
           err instanceof z.ZodError
@@ -71,7 +78,7 @@ export function useEcommerceLeadSubmit(utm: {
         setStatus({ stage: "error", message });
       }
     },
-    [submit, utm],
+    [status.stage, utm],
   );
 
   return { status, submit: handleSubmit, reset: () => setStatus({ stage: "idle" }) };

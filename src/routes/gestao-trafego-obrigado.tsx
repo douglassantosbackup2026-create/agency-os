@@ -3,19 +3,28 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, Check, CreditCard, Flame, Loader2, MessageCircle, TrendingUp } from "lucide-react";
 import { whatsappGestaoHref } from "@/lib/gestao-whatsapp";
 import { callDiagnosisApi } from "@/lib/diagnosis-api";
-import { GESTAO_PRODUCT, trackMetaAddPaymentInfo, trackMetaCompleteRegistration, trackMetaPageView } from "@/lib/meta-pixel";
+import {
+  formatLeadManagementPrice,
+  LEAD_MANAGEMENT_PRICE_CENTS,
+} from "@/lib/lead-management-price";
+import { GESTAO_PRODUCT, trackMetaAddPaymentInfo, trackMetaPageView } from "@/lib/meta-pixel";
 
 const CANONICAL_URL = "https://agencyopus.live/gestao-trafego-obrigado";
+const PRICE_LABEL = formatLeadManagementPrice(LEAD_MANAGEMENT_PRICE_CENTS);
 
 export const Route = createFileRoute("/gestao-trafego-obrigado")({
   validateSearch: (search: Record<string, unknown>) => ({
     lead: typeof search.lead === "string" ? search.lead : undefined,
+    s: typeof search.s === "string" ? search.s : undefined,
     checkout: typeof search.checkout === "string" ? search.checkout : undefined,
   }),
   head: () => ({
     meta: [
       { title: "Proposta recebida — garanta sua vaga (só 3 este mês)" },
-      { name: "description", content: "Só 3 vagas por mês. R$ 4.997/mês, sem fidelidade. Pague no cartão ou Pix e garanta a sua agora." },
+      {
+        name: "description",
+        content: `Só 3 vagas por mês. ${PRICE_LABEL}/mês, sem fidelidade. Pague no cartão ou Pix e garanta a sua agora.`,
+      },
       { name: "robots", content: "noindex" },
     ],
     links: [{ rel: "canonical", href: CANONICAL_URL }],
@@ -24,28 +33,32 @@ export const Route = createFileRoute("/gestao-trafego-obrigado")({
 });
 
 function GestaoTrafegoObrigadoPage() {
-  const { lead, checkout } = Route.useSearch();
+  const { lead, s, checkout } = Route.useSearch();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(
-    checkout === "falha"
-      ? "Pagamento não foi concluído. Tente novamente ou fale no WhatsApp."
-      : checkout === "pending"
-      ? "Pagamento pendente de confirmação. Assim que o Mercado Pago confirmar, sua vaga entra na fila."
-      : null,
-  );
+  const [error, setError] = useState<string | null>(() => {
+    if (!lead || !s) {
+      return "Link incompleto. Envie o formulário novamente na página de gestão.";
+    }
+    if (checkout === "falha") {
+      return "Pagamento não foi concluído. Tente novamente ou fale no WhatsApp.";
+    }
+    if (checkout === "pending") {
+      return "Pagamento pendente de confirmação. Assim que o Mercado Pago confirmar, sua vaga entra na fila.";
+    }
+    return null;
+  });
 
   useEffect(() => {
     trackMetaPageView();
-    trackMetaCompleteRegistration("Gestão E-commerce Lead", { lead_id: lead ?? "" }, lead ?? undefined);
-  }, [lead]);
+  }, []);
 
   const whatsappHref = whatsappGestaoHref(
-    "Olá! Acabei de enviar a proposta no site e quero garantir uma das 3 vagas deste mês para a gestão de tráfego (R$ 4.997/mês). Podemos começar?",
+    `Olá! Acabei de enviar a proposta no site e quero garantir uma das 3 vagas deste mês para a gestão de tráfego (${PRICE_LABEL}/mês). Podemos começar?`,
   );
 
   const handleCheckout = async () => {
-    if (!lead) {
-      setError("Referência do lead ausente. Envie o formulário novamente.");
+    if (!lead || !s) {
+      setError("Link incompleto. Envie o formulário novamente.");
       return;
     }
     setLoading(true);
@@ -53,7 +66,7 @@ function GestaoTrafegoObrigadoPage() {
     try {
       const res = await callDiagnosisApi<{ init_point?: string }>("create-lead-checkout", {
         method: "POST",
-        body: JSON.stringify({ lead_id: lead }),
+        body: JSON.stringify({ lead_id: lead, access_slug: s }),
       });
       if (!res.init_point) {
         throw new Error("Não foi possível abrir o checkout. Tente novamente.");
@@ -88,7 +101,8 @@ function GestaoTrafegoObrigadoPage() {
           </div>
           <div className="mt-4 text-center">
             <div className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-              R$ 4.997<span className="text-lg font-semibold text-muted-foreground">/mês</span>
+              {PRICE_LABEL}
+              <span className="text-lg font-semibold text-muted-foreground">/mês</span>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">sem fidelidade · onboarding em até 24h úteis</p>
           </div>
@@ -96,7 +110,7 @@ function GestaoTrafegoObrigadoPage() {
           <button
             type="button"
             onClick={handleCheckout}
-            disabled={loading || !lead}
+            disabled={loading || !lead || !s}
             className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-6 py-4 text-base font-bold text-primary-foreground shadow-lg shadow-primary/20 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading ? (
