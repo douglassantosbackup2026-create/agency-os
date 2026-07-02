@@ -6,7 +6,7 @@ import proofGoogle2 from "@/assets/gestao-proof-google-2.png.asset.json";
 
 export const GESTAO_PRODUCT_NAME = "Gestão de Tráfego Pago";
 export const GESTAO_PRODUCT_TAGLINE =
-  "Execução diária de Meta, Google, TikTok e demais canais — um único gestor especializado";
+  "Execução diária de Meta, Google, TikTok e demais canais — gestão para escalar com ROAS";
 
 export const GESTAO_RESULT_PROOFS: {
   src: string;
