@@ -106,7 +106,7 @@ export const GESTAO_OPERATOR = {
   name: "Douglas Santos",
   role: "Gestor responsável pela sua conta",
   credentialLine:
-    "Ex-Ogilvy · +R$ 30 milhões gerenciados em Meta e Google Ads · 5 anos focados em e-commerce",
+    "Com passagem por operações de e-commerce de alto ticket · +R$ 30 milhões gerenciados em escala · 5 anos focados em e-commerce",
   initials: "DS",
 };
 
