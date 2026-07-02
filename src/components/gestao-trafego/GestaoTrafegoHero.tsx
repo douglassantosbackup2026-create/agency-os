@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { z } from "zod";
 import { ArrowLeft, ArrowRight, Check, Loader2, AlertCircle, ShieldCheck, Clock, XCircle, Info } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -75,7 +75,15 @@ const formSchema = z.object({
 type FormData = z.infer<typeof formSchema>;
 
 export function GestaoTrafegoHero() {
-  const search = useSearch({ from: "/gestao-trafego" });
+  const search = useRouterState({
+    select: (state) =>
+      state.location.search as {
+        utm_source?: string;
+        utm_campaign?: string;
+        utm_adset?: string;
+        utm_ad?: string;
+      },
+  });
   const utm = useMemo(
     () => ({
       source: String(search.utm_source ?? ""),

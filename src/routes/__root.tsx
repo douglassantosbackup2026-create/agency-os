@@ -10,7 +10,8 @@ import {
 } from "@tanstack/react-router";
 
 import appCss from "../styles.css?url";
-import { landingHeroScreenshot, seoDefaults } from "@/content/agency-opus-landing";
+import { seo, seoOgImage } from "@/content/gestao-trafego";
+import { buildFallbackSiteMeta } from "@/lib/site-seo";
 import { AuthProvider } from "@/hooks/use-auth";
 import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
@@ -71,108 +72,45 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   );
 }
 
-function siteOrigin(): string {
-  const raw =
-    typeof import.meta.env.VITE_SITE_URL === "string"
-      ? import.meta.env.VITE_SITE_URL.trim()
-      : "";
-  return raw.replace(/\/$/, "");
-}
-
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   {
-    head: () => {
-      const origin = siteOrigin();
-      const ogImage =
-        origin !== "" ? `${origin}${landingHeroScreenshot.webp}` : undefined;
-      return {
-        meta: [
-          { charSet: "utf-8" },
-          { name: "viewport", content: "width=device-width, initial-scale=1" },
-          {
-            httpEquiv: "Content-Security-Policy",
-            content:
-              "default-src 'self'; script-src 'self' 'unsafe-inline' https://sdk.mercadopago.com https://*.mlstatic.com https://cdn.gpteng.co https://connect.facebook.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdn.gpteng.co data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://*.supabase.in https://api.mercadopago.com https://api.mercadolibre.com https://*.mlstatic.com https://graph.facebook.com https://cdn.gpteng.co https://www.facebook.com https://connect.facebook.net; frame-src https://*.mercadopago.com; base-uri 'self'; form-action 'self';",
-          },
-          { httpEquiv: "X-Content-Type-Options", content: "nosniff" },
-          { name: "referrer", content: "strict-origin-when-cross-origin" },
-          {
-            name: "facebook-domain-verification",
-            content: "rqya1e2l4vihrvte9x5kzpscr035rk",
-          },
-          {
-            name: "facebook-domain-verification",
-            content: "uf8868fgtby21yorxefxipn5nw1fvf",
-          },
-
-          {
-            title: seoDefaults.title,
-          },
-          {
-            name: "description",
-            content: seoDefaults.description,
-          },
-          { name: "theme-color", content: "#f4f3f8" },
-          {
-            property: "og:title",
-            content: seoDefaults.title,
-          },
-          {
-            property: "og:description",
-            content: seoDefaults.description,
-          },
-          { property: "og:type", content: "website" },
-          ...(ogImage
-            ? ([
-                { property: "og:image", content: ogImage },
-                { name: "twitter:card", content: "summary_large_image" },
-              ] as const)
-            : []),
-          { title: "Lovable App" },
-          { property: "og:title", content: "Lovable App" },
-          { name: "twitter:title", content: "Lovable App" },
-          {
-            name: "description",
-            content:
-              "Agency OS is a SaaS platform designed as an operational system for performance marketing agencies.",
-          },
-          {
-            property: "og:description",
-            content:
-              "Agency OS is a SaaS platform designed as an operational system for performance marketing agencies.",
-          },
-          {
-            name: "twitter:description",
-            content:
-              "Agency OS is a SaaS platform designed as an operational system for performance marketing agencies.",
-          },
-          {
-            property: "og:image",
-            content:
-              "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/fbfd06c5-df86-43bd-8a10-5a047e2b1bb9/id-preview-d29176f4--9ee84330-8b5f-4426-81f4-618b5ae00757.lovable.app-1778371800390.png",
-          },
-          {
-            name: "twitter:image",
-            content:
-              "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/fbfd06c5-df86-43bd-8a10-5a047e2b1bb9/id-preview-d29176f4--9ee84330-8b5f-4426-81f4-618b5ae00757.lovable.app-1778371800390.png",
-          },
-        ],
-        links: [
-          { rel: "stylesheet", href: appCss },
-          { rel: "manifest", href: "/manifest.webmanifest" },
-          { rel: "preconnect", href: "https://fonts.googleapis.com" },
-          {
-            rel: "preconnect",
-            href: "https://fonts.gstatic.com",
-            crossOrigin: "anonymous",
-          },
-          {
-            rel: "stylesheet",
-            href: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap",
-          },
-        ],
-      };
-    },
+    head: () => ({
+      meta: [
+        { charSet: "utf-8" },
+        { name: "viewport", content: "width=device-width, initial-scale=1" },
+        {
+          httpEquiv: "Content-Security-Policy",
+          content:
+            "default-src 'self'; script-src 'self' 'unsafe-inline' https://sdk.mercadopago.com https://*.mlstatic.com https://cdn.gpteng.co https://connect.facebook.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdn.gpteng.co data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://*.supabase.in https://api.mercadopago.com https://api.mercadolibre.com https://*.mlstatic.com https://graph.facebook.com https://cdn.gpteng.co https://www.facebook.com https://connect.facebook.net; frame-src https://*.mercadopago.com; base-uri 'self'; form-action 'self';",
+        },
+        { httpEquiv: "X-Content-Type-Options", content: "nosniff" },
+        { name: "referrer", content: "strict-origin-when-cross-origin" },
+        {
+          name: "facebook-domain-verification",
+          content: "rqya1e2l4vihrvte9x5kzpscr035rk",
+        },
+        {
+          name: "facebook-domain-verification",
+          content: "uf8868fgtby21yorxefxipn5nw1fvf",
+        },
+        { name: "theme-color", content: "#f4f3f8" },
+        ...buildFallbackSiteMeta(seo.title, seo.description, seoOgImage),
+      ],
+      links: [
+        { rel: "stylesheet", href: appCss },
+        { rel: "manifest", href: "/manifest.webmanifest" },
+        { rel: "preconnect", href: "https://fonts.googleapis.com" },
+        {
+          rel: "preconnect",
+          href: "https://fonts.gstatic.com",
+          crossOrigin: "anonymous",
+        },
+        {
+          rel: "stylesheet",
+          href: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap",
+        },
+      ],
+    }),
     shellComponent: RootShell,
     component: RootComponent,
     notFoundComponent: NotFoundComponent,

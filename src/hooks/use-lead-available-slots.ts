@@ -30,28 +30,29 @@ function normalizeSnapshot(raw: Partial<LeadSlotsSnapshot> | null | undefined): 
 
 export function useLeadAvailableSlots(enabled = true) {
   const [slots, setSlots] = useState<LeadSlotsSnapshot>(DEFAULT_SNAPSHOT);
-  const [loading, setLoading] = useState(enabled);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refetch = useCallback(async () => {
     if (!enabled) return;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), 8_000);
     try {
-      const data = await callDiagnosisApi<LeadSlotsSnapshot>("lead-available-slots");
+      const data = await callDiagnosisApi<LeadSlotsSnapshot>("lead-available-slots", {
+        signal: controller.signal,
+      });
       setSlots(normalizeSnapshot(data));
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro ao carregar vagas");
     } finally {
+      window.clearTimeout(timeoutId);
       setLoading(false);
     }
   }, [enabled]);
 
   useEffect(() => {
-    if (!enabled) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
+    if (!enabled) return;
     void refetch();
   }, [enabled, refetch]);
 

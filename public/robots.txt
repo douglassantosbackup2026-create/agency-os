@@ -16,4 +16,4 @@ Allow: /
 User-agent: WhatsApp
 Allow: /
 
-Sitemap: https://opus-retention-os.lovable.app/sitemap.xml
+Sitemap: https://agencyopus.live/sitemap.xml

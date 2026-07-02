@@ -1,19 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { diagnosisContactEmail } from "@/content/diagnosis-landing";
+import { buildPublicPageHead } from "@/lib/site-seo";
 
 export const Route = createFileRoute("/termos")({
   component: TermsPage,
-  head: () => ({
-    meta: [
-      { title: "Termos de Serviço — Diagnóstico Meta Ads" },
-      {
-        name: "description",
-        content:
-          "Termos e condições de uso do serviço de Diagnóstico Meta Ads.",
-      },
-      { name: "robots", content: "index,follow" },
-    ],
-  }),
+  head: () =>
+    buildPublicPageHead({
+      title: "Termos de Serviço — Agency Opus",
+      description:
+        "Termos e condições de uso dos serviços Agency Opus, incluindo diagnóstico Meta Ads e gestão de tráfego.",
+      path: "/termos",
+    }),
 });
 
 function TermsPage() {

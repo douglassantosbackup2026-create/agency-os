@@ -4,6 +4,7 @@ import { CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { callDiagnosisApi } from "@/lib/diagnosis-api";
 import { InlineErrorBanner } from "@/components/diagnosis-funnel/InlineErrorBanner";
 import { trackMetaCompleteRegistration } from "@/lib/meta-pixel";
+import { buildPublicPageHead } from "@/lib/site-seo";
 
 type PendingAccount = {
   id?: string;
@@ -27,9 +28,13 @@ export const Route = createFileRoute("/diagnostico/$diagnosisId/conectar")({
     s: typeof raw.s === "string" ? raw.s : undefined,
   }),
   component: ConnectAccountPage,
-  head: () => ({
-    meta: [{ title: "Escolha a conta de anúncio — Diagnóstico Meta" }],
-  }),
+  head: () =>
+    buildPublicPageHead({
+      title: "Escolha a conta de anúncio — Diagnóstico Meta",
+      description: "Conecte e selecione a conta de anúncios Meta para o diagnóstico.",
+      path: "/diagnostico/conectar",
+      robots: "noindex,nofollow",
+    }),
 });
 
 function accountStatusLabel(n?: number): { label: string; tone: string } {

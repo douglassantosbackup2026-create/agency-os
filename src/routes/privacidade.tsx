@@ -1,19 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { diagnosisContactEmail } from "@/content/diagnosis-landing";
+import { buildPublicPageHead } from "@/lib/site-seo";
 
 export const Route = createFileRoute("/privacidade")({
   component: PrivacyPage,
-  head: () => ({
-    meta: [
-      { title: "Política de Privacidade — Diagnóstico Meta Ads" },
-      {
-        name: "description",
-        content:
-          "Como coletamos, usamos e protegemos seus dados ao usar o Diagnóstico Meta Ads.",
-      },
-      { name: "robots", content: "index,follow" },
-    ],
-  }),
+  head: () =>
+    buildPublicPageHead({
+      title: "Política de Privacidade — Agency Opus",
+      description:
+        "Como a Agency Opus coleta, usa e protege seus dados nos serviços de diagnóstico e gestão de tráfego.",
+      path: "/privacidade",
+    }),
 });
 
 function PrivacyPage() {

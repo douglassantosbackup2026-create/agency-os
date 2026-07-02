@@ -12,6 +12,7 @@ import {
   trackMetaPurchase,
 } from "@/lib/meta-pixel";
 import { reportFunnelError } from "@/lib/report-error";
+import { buildPublicPageHead } from "@/lib/site-seo";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +61,13 @@ export const Route = createFileRoute("/obrigado")({
     oauth_error:
       typeof search.oauth_error === "string" ? search.oauth_error : undefined,
   }),
+  head: () =>
+    buildPublicPageHead({
+      title: "Obrigado — Diagnóstico Meta Ads",
+      description: "Confirmação de pagamento e próximos passos do diagnóstico.",
+      path: "/obrigado",
+      robots: "noindex,nofollow",
+    }),
   component: ObrigadoPage,
 });
 

@@ -24,6 +24,7 @@ import {
   isDeterministicNarrative,
   isLegacyReport,
 } from "@/lib/diagnosis-report-fallback";
+import { buildPublicPageHead } from "@/lib/site-seo";
 import "@/styles/diagnosis-executive.css";
 import "@/styles/diagnosis.css";
 
@@ -43,6 +44,13 @@ export const Route = createFileRoute("/diagnostico/$diagnosisId")({
   validateSearch: (search: Record<string, unknown>): DiagnosticoSearch => ({
     s: typeof search.s === "string" ? search.s : undefined,
   }),
+  head: () =>
+    buildPublicPageHead({
+      title: "Diagnóstico Executivo Meta Ads — Agency Opus",
+      description: "Relatório executivo do diagnóstico Meta Ads da sua loja.",
+      path: "/diagnostico",
+      robots: "noindex,nofollow",
+    }),
   component: DiagnosticoReportPage,
 });
 
@@ -82,17 +90,6 @@ function DiagnosticoReportPage() {
       ? `${base}/functions/v1/meta-oauth-start?d=${encodeURIComponent(diagnosisId)}&s=${encodeURIComponent(s)}`
       : "";
   }, [diagnosisId, s]);
-
-  useEffect(() => {
-    document.title = "Diagnóstico Executivo Meta Ads — Agency Opus";
-    let meta = document.querySelector('meta[name="robots"]');
-    if (!meta) {
-      meta = document.createElement("meta");
-      meta.setAttribute("name", "robots");
-      document.head.appendChild(meta);
-    }
-    meta.setAttribute("content", "noindex, nofollow");
-  }, []);
 
   useEffect(() => {
     if (!s) return;

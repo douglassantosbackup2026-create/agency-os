@@ -59,15 +59,13 @@ export function formatLeadSlotsCapLine(cap: number): string {
 
 export function formatLeadWaitlistUrgency(
   waitlistDisplay: number,
-  available: number,
+  _available?: number,
 ): { headline: string; subline: string } {
   const waitlistLabel =
     waitlistDisplay === 1 ? "1 e-commerce" : `${waitlistDisplay} e-commerces`;
-  const vagasLabel =
-    available === 1 ? "apenas 1 vaga" : `apenas ${available} vagas`;
 
   return {
-    headline: `${waitlistLabel} já solicitaram proposta este mês — mas eu abro ${vagasLabel}.`,
-    subline: "Quem garantir agora entra; quem esperar fica na fila de espera.",
+    headline: `${waitlistLabel} já solicitaram proposta este mês.`,
+    subline: "",
   };
 }

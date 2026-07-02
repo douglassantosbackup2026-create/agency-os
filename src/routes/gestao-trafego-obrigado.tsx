@@ -45,9 +45,9 @@ export const Route = createFileRoute("/gestao-trafego-obrigado")({
 
 function GestaoTrafegoObrigadoPage() {
   const { lead, s, checkout } = Route.useSearch();
-  const { slots, loading: slotsLoading } = useLeadAvailableSlots();
+  const { slots } = useLeadAvailableSlots();
   const linkIncomplete = !lead || !s;
-  const slotsFull = !slotsLoading && slots.available <= 0;
+  const slotsFull = slots.available <= 0;
   const error = linkIncomplete
     ? "Link incompleto. Envie o formulário novamente na página de gestão."
     : checkout === "falha"
@@ -80,16 +80,9 @@ function GestaoTrafegoObrigadoPage() {
           Proposta recebida — falta só garantir sua vaga
         </h1>
         <p className="mt-3 text-base text-muted-foreground">
-          {slotsLoading ? (
-            <span className="inline-block h-5 w-full max-w-md animate-pulse rounded bg-muted" />
-          ) : (
-            <>
-              <strong className="text-foreground">{urgency.headline}</strong>{" "}
-              {urgency.subline}
-            </>
-          )}
+          <strong className="text-foreground">{urgency.headline}</strong>
         </p>
-        {!slotsLoading && slots.available > 0 ? (
+        {slots.available > 0 ? (
           <p className="mt-2 text-sm text-muted-foreground">
             Eu abro{" "}
             <strong className="text-foreground">apenas {slots.cap} vagas por mês</strong>{" "}
@@ -98,10 +91,7 @@ function GestaoTrafegoObrigadoPage() {
         ) : null}
 
         <div className="mt-8 rounded-xl border-2 border-primary/40 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-6 text-left">
-          <LeadFunnelSlotsBadge
-            available={slots.available}
-            loading={slotsLoading}
-          />
+          <LeadFunnelSlotsBadge available={slots.available} />
           <div className="mt-4 text-center">
             <div className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
               {PRICE_LABEL}

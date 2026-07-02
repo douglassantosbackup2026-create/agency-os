@@ -10,6 +10,7 @@ import { InlineErrorBanner } from "@/components/diagnosis-funnel/InlineErrorBann
 import { GESTAO_PRODUCT, trackMetaPurchase } from "@/lib/meta-pixel";
 import { reportFunnelError } from "@/lib/report-error";
 import { logManagementHandoff } from "@/lib/log-management-handoff";
+import { buildPublicPageHead } from "@/lib/site-seo";
 import "@/styles/diagnosis.css";
 
 type GestaoObrigadoSearch = { d?: string; s?: string };
@@ -35,6 +36,13 @@ export const Route = createFileRoute("/gestao-obrigado")({
     d: typeof search.d === "string" ? search.d : undefined,
     s: typeof search.s === "string" ? search.s : undefined,
   }),
+  head: () =>
+    buildPublicPageHead({
+      title: "Obrigado — Gestão de Tráfego",
+      description: "Confirmação de pagamento e próximos passos da gestão de tráfego.",
+      path: "/gestao-obrigado",
+      robots: "noindex,nofollow",
+    }),
   component: GestaoObrigadoPage,
 });
 

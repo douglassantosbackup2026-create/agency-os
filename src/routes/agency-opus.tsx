@@ -33,10 +33,12 @@ import {
   painSection,
   pivotSection,
   pricingSection,
+  seoDefaults,
   solutionSection,
   testimonialPlaceholder,
   type FeatureCardSlug,
 } from "@/content/agency-opus-landing";
+import { buildPublicPageHead } from "@/lib/site-seo";
 import {
   LANDING_SECTION_SCROLL as SECTION_SCROLL,
   landingNavAnchorClass as navAnchorClass,
@@ -81,17 +83,27 @@ export const Route = createFileRoute("/agency-opus")({
     const { data } = await supabase.auth.getSession();
     if (data.session) throw redirect({ to: "/dashboard" });
   },
-  head: () => ({
-    links: [
-      {
-        rel: "preload",
-        as: "image",
-        href: "/landing/hero-cockpit-clientes-1024.avif",
-        type: "image/avif",
-        fetchpriority: "high",
-      },
-    ],
-  }),
+  head: () => {
+    const pageHead = buildPublicPageHead({
+      title: seoDefaults.title,
+      description: seoDefaults.description,
+      path: "/agency-opus",
+      imagePath: landingHeroScreenshot.webp,
+    });
+    return {
+      ...pageHead,
+      links: [
+        ...(pageHead.links ?? []),
+        {
+          rel: "preload",
+          as: "image",
+          href: "/landing/hero-cockpit-clientes-1024.avif",
+          type: "image/avif",
+          fetchpriority: "high",
+        },
+      ],
+    };
+  },
   component: Landing,
 });
 

@@ -191,6 +191,9 @@ export const seo = {
     "Gestão de mídia paga para e-commerce que investe R$ 5k+/mês e quer escalar: Meta, Google, TikTok com um único gestor. Receba uma proposta de escala.",
 };
 
+export const seoOgImage =
+  "/__l5e/assets-v1/a23c1867-9e14-4ab7-8100-9abfee62eae4/gestao-operator.png";
+
 export const anchors = {
   comoFunciona: "como-funciona",
   prova: "prova",

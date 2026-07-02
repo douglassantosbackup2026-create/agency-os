@@ -37,9 +37,8 @@ describe("gestao-lead-slots helpers", () => {
 
   it("formats waitlist urgency copy in first person", () => {
     const copy = formatLeadWaitlistUrgency(31, 2);
-    expect(copy.headline).toContain("31 e-commerces");
-    expect(copy.headline).toContain("apenas 2 vagas");
-    expect(copy.subline).toContain("Quem garantir agora entra");
+    expect(copy.headline).toBe("31 e-commerces já solicitaram proposta este mês.");
+    expect(copy.subline).toBe("");
   });
 });
 

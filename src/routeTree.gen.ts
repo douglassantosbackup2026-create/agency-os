@@ -25,6 +25,7 @@ import { Route as GestaoObrigadoLeadRouteImport } from './routes/gestao-obrigado
 import { Route as GestaoObrigadoRouteImport } from './routes/gestao-obrigado'
 import { Route as GestaoCheckoutRouteImport } from './routes/gestao-checkout'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as DiagnosticoMetaRouteImport } from './routes/diagnostico-meta'
 import { Route as DemoRouteImport } from './routes/demo'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as AgencyOpusRouteImport } from './routes/agency-opus'
@@ -133,6 +134,11 @@ const GestaoCheckoutRoute = GestaoCheckoutRouteImport.update({
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
   id: '/forgot-password',
   path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DiagnosticoMetaRoute = DiagnosticoMetaRouteImport.update({
+  id: '/diagnostico-meta',
+  path: '/diagnostico-meta',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DemoRoute = DemoRouteImport.update({
@@ -293,6 +299,7 @@ export interface FileRoutesByFullPath {
   '/agency-opus': typeof AgencyOpusRoute
   '/checkout': typeof CheckoutRoute
   '/demo': typeof DemoRoute
+  '/diagnostico-meta': typeof DiagnosticoMetaRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/gestao-checkout': typeof GestaoCheckoutRoute
   '/gestao-obrigado': typeof GestaoObrigadoRoute
@@ -339,6 +346,7 @@ export interface FileRoutesByTo {
   '/agency-opus': typeof AgencyOpusRoute
   '/checkout': typeof CheckoutRoute
   '/demo': typeof DemoRoute
+  '/diagnostico-meta': typeof DiagnosticoMetaRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/gestao-checkout': typeof GestaoCheckoutRoute
   '/gestao-obrigado': typeof GestaoObrigadoRoute
@@ -387,6 +395,7 @@ export interface FileRoutesById {
   '/agency-opus': typeof AgencyOpusRoute
   '/checkout': typeof CheckoutRoute
   '/demo': typeof DemoRoute
+  '/diagnostico-meta': typeof DiagnosticoMetaRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/gestao-checkout': typeof GestaoCheckoutRoute
   '/gestao-obrigado': typeof GestaoObrigadoRoute
@@ -435,6 +444,7 @@ export interface FileRouteTypes {
     | '/agency-opus'
     | '/checkout'
     | '/demo'
+    | '/diagnostico-meta'
     | '/forgot-password'
     | '/gestao-checkout'
     | '/gestao-obrigado'
@@ -481,6 +491,7 @@ export interface FileRouteTypes {
     | '/agency-opus'
     | '/checkout'
     | '/demo'
+    | '/diagnostico-meta'
     | '/forgot-password'
     | '/gestao-checkout'
     | '/gestao-obrigado'
@@ -528,6 +539,7 @@ export interface FileRouteTypes {
     | '/agency-opus'
     | '/checkout'
     | '/demo'
+    | '/diagnostico-meta'
     | '/forgot-password'
     | '/gestao-checkout'
     | '/gestao-obrigado'
@@ -576,6 +588,7 @@ export interface RootRouteChildren {
   AgencyOpusRoute: typeof AgencyOpusRoute
   CheckoutRoute: typeof CheckoutRoute
   DemoRoute: typeof DemoRoute
+  DiagnosticoMetaRoute: typeof DiagnosticoMetaRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   GestaoCheckoutRoute: typeof GestaoCheckoutRoute
   GestaoObrigadoRoute: typeof GestaoObrigadoRoute
@@ -708,6 +721,13 @@ declare module '@tanstack/react-router' {
       path: '/forgot-password'
       fullPath: '/forgot-password'
       preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/diagnostico-meta': {
+      id: '/diagnostico-meta'
+      path: '/diagnostico-meta'
+      fullPath: '/diagnostico-meta'
+      preLoaderRoute: typeof DiagnosticoMetaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/demo': {
@@ -1012,6 +1032,7 @@ const rootRouteChildren: RootRouteChildren = {
   AgencyOpusRoute: AgencyOpusRoute,
   CheckoutRoute: CheckoutRoute,
   DemoRoute: DemoRoute,
+  DiagnosticoMetaRoute: DiagnosticoMetaRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   GestaoCheckoutRoute: GestaoCheckoutRoute,
   GestaoObrigadoRoute: GestaoObrigadoRoute,

@@ -25,6 +25,7 @@ describe("trackRoutePixelEvents", () => {
     expect(() => trackRoutePixelEvents("/checkout")).not.toThrow();
     expect(() => trackRoutePixelEvents("/gestao-checkout")).not.toThrow();
     expect(() => trackRoutePixelEvents("/gestao-trafego-checkout")).not.toThrow();
+    expect(() => trackRoutePixelEvents("/diagnostico-meta")).not.toThrow();
     expect(() =>
       trackRoutePixelEvents("/diagnostico/abc/conectar"),
     ).not.toThrow();

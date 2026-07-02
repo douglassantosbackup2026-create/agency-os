@@ -203,10 +203,8 @@ export function trackRoutePixelEvents(pathname: string): void {
     });
     return;
   }
-  if (pathname === "/gestao-trafego") {
-    trackMetaViewContent(GESTAO_PRODUCT, {
-      content_name: "Gestão de Tráfego E-commerce Landing",
-    });
+  if (pathname === "/diagnostico-meta") {
+    trackMetaViewContent(DIAGNOSIS_PRODUCT);
     return;
   }
   if (/^\/diagnostico\/[^/]+\/conectar$/.test(pathname)) {

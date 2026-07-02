@@ -6,6 +6,7 @@ import {
   GESTAO_RESULT_PROOFS,
   GESTAO_TESTIMONIAL,
 } from "@/content/gestao-checkout";
+import gestaoOperatorAsset from "@/assets/gestao-operator.png.asset.json";
 import {
   Carousel,
   CarouselContent,
@@ -73,9 +74,12 @@ export function GestaoResultsGallery() {
 export function GestaoOperatorCard() {
   return (
     <div className="flex items-start gap-3 rounded-xl border bg-card p-4">
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-        {GESTAO_OPERATOR.initials}
-      </div>
+      <img
+        src={gestaoOperatorAsset.url}
+        alt={`${GESTAO_OPERATOR.name} — ${GESTAO_OPERATOR.role}`}
+        loading="lazy"
+        className="h-12 w-12 shrink-0 rounded-full object-cover"
+      />
       <div className="min-w-0">
         <p className="text-sm font-semibold leading-tight">
           {GESTAO_OPERATOR.name}
