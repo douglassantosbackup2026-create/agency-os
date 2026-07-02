@@ -1,4 +1,5 @@
-import { ShieldCheck, MessageCircle, Mail, Rocket, Quote } from "lucide-react";
+import { useState } from "react";
+import { ImageOff, ShieldCheck, MessageCircle, Mail, Rocket, Quote } from "lucide-react";
 import {
   GESTAO_GUARANTEE,
   GESTAO_NEXT_STEPS,

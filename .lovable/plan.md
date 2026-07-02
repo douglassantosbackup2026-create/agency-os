@@ -1,53 +1,27 @@
-## Objetivo
-Permitir que o lead compre gestão de tráfego direto na página `/gestao-trafego-obrigado`, com **cartão e Pix**, sem depender de diagnóstico prévio.
+## Problema
+Na `/gestao-trafego-checkout`, as imagens da galeria "Resultados reais" e o avatar do Douglas aparecem quebradas — só o ícone de imagem quebrada + texto do `alt` transbordando pelo card. Assets em `/__l5e/...` respondem 200 no dev, preview e domínio custom, então o defeito é de **renderização/layout** e não de rede: quando o `<img>` demora ou falha por qualquer motivo, o card colapsa porque não há container com dimensão fixa nem estado de fallback.
 
-## Abordagem — Checkout Pro (redirect) via Mercado Pago
-Reusar o padrão de `create-management-checkout` (Checkout Pro hospedado do MP) em vez de reconstruir Bricks + Pix inline. Vantagens: **1 endpoint**, cobre cartão + Pix + boleto automaticamente, sem coletar CPF/dados de cartão no nosso frontend, sem novas telas complexas.
+## Correção (somente frontend, sem mudar business logic)
 
-## Alterações
+### 1. `src/components/gestao/GestaoCheckoutBlocks.tsx` — `GestaoResultsGallery`
+- Envolver cada `<img>` em um container com aspect-ratio fixo (`aspect-[4/3]`) e `overflow-hidden`, com `<img className="h-full w-full object-cover" width={800} height={600} onError={...} />`.
+- Adicionar estado `erroredIndexes` (via `useState`) para, no `onError`, esconder o `<img>` e mostrar um placeholder discreto no lugar (ícone + "Print indisponível") — evita o `alt` gigante vazando pelo card.
+- Trocar `loading="lazy"` para `loading="eager"` só no primeiro slide (para não piscar dentro do carrossel), manter lazy nos demais.
+- Manter badge "META ADS/GOOGLE ADS" absoluto sobre o container (agora sempre com altura garantida).
 
-### 1. Backend — nova Edge Function `create-lead-checkout`
-Arquivo: `supabase/functions/create-lead-checkout/index.ts`
-- POST `{ lead_id: string }`
-- Rate-limit por IP (reusa `publicRateLimitExceeded`).
-- Valida lead existe em `ecommerce_leads` via service client.
-- Se `status === 'paid'` → 400.
-- Cria preferência MP: item R$ 4.997, `external_reference: lead:<lead_id>`, `notification_url` → `mercadopago-webhook`, `back_urls.success` → `${SITE}/gestao-obrigado-lead?lead=<id>`, `failure`/`pending` → volta para `/gestao-trafego-obrigado?lead=<id>&checkout=<status>`.
-- Atualiza `ecommerce_leads`: `status='awaiting_payment'`, guarda `mp_preference_id` e `amount_cents`.
-- Retorna `{ init_point }`.
+### 2. `GestaoOperatorCard` no mesmo arquivo
+- Trocar `<img h-12 w-12 rounded-full>` por um container `h-12 w-12 shrink-0 rounded-full overflow-hidden bg-muted` com `<img className="h-full w-full object-cover" width={96} height={96} onError={hide}>` e fallback com iniciais (`GESTAO_OPERATOR.initials`) quando falhar.
 
-### 2. Migração — colunas extras em `ecommerce_leads`
-Novo arquivo em `supabase/migrations/`:
-```sql
-ALTER TABLE public.ecommerce_leads
-  ADD COLUMN IF NOT EXISTS mp_preference_id TEXT,
-  ADD COLUMN IF NOT EXISTS mp_payment_id TEXT,
-  ADD COLUMN IF NOT EXISTS amount_cents INTEGER,
-  ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ;
-```
-(status já existe e vira `'awaiting_payment' | 'paid' | 'new'`.)
+### 3. Sanidade de layout
+- Confirmar que os cards do carrossel (`CarouselItem` com `basis-full md:basis-1/2 lg:basis-1/3`) ficam com altura consistente após o aspect-ratio (sem `h-auto` na imagem).
+- Sem mudanças em `GestaoSocialProof`, `GestaoGuaranteeBlock` ou `GestaoNextSteps`.
 
-### 3. Webhook — estender `mercadopago-webhook`
-Detectar `external_reference` com prefixo `lead:` e, quando pagamento aprovado, atualizar o lead: `status='paid'`, `mp_payment_id`, `paid_at=now()`. (Mantém lógica existente para `mgmt:` intacta.)
-
-### 4. Frontend — server fn wrapper
-Novo `src/lib/lead-checkout.functions.ts` (server fn `createLeadCheckout`) que chama a edge function via service (ou usar `callDiagnosisApi`-style fetch pública). Retorna `init_point`.
-
-### 5. Frontend — botão na página `gestao-trafego-obrigado.tsx`
-Adicionar botão primário **"Pagar agora — Cartão ou Pix"** acima do WhatsApp (WhatsApp vira secundário). Estados: loading, erro inline. Ao clicar → chama server fn → `window.location.href = init_point`.
-
-Layout dentro do card de urgência:
-- Botão 1 (primário, roxo/gradiente): "Pagar agora e garantir vaga · Cartão ou Pix"
-- Divisor "ou"
-- Botão 2 (secundário, outline): "Prefere falar antes? WhatsApp" (link atual)
-
-### 6. Nova rota simples `/gestao-obrigado-lead?lead=<id>`
-Página de confirmação pós-pagamento: mensagem "Pagamento recebido — Douglas vai chamar no WhatsApp em até 24h" + Meta Pixel `Purchase`.
+### 4. Verificação
+- Rodar a rota `/gestao-trafego-checkout` via Playwright headless com `?lead=` e `s=` mockados (ou apenas visitar `/gestao-trafego-obrigado`, onde a mesma galeria também aparece) e conferir por screenshot que:
+  - Imagens carregam com proporção 4:3 uniforme.
+  - Se uma URL falhar, aparece o placeholder e o texto do alt não vaza.
+  - Avatar do Douglas mostra iniciais "DS" caso a foto falhe.
 
 ## Fora de escopo
-- Não altero `/gestao-checkout` (fluxo de diagnóstico).
-- Não implemento Bricks/Pix inline (Checkout Pro cobre ambos).
-- Não crio dashboard admin para leads pagos (dados ficam disponíveis via `PlatformEcommerceLeads` existente).
-
-## Nota técnica
-Requer secret `MERCADOPAGO_ACCESS_TOKEN` e `PUBLIC_SITE_URL` já configurados (usados pela `create-management-checkout`). Nenhuma nova secret necessária.
+- Não mexer no fluxo de checkout, Mercado Pago, edge functions ou schema.
+- Não regenerar os assets em `src/assets/gestao-proof-*.png.asset.json` (as URLs estão saudáveis).
