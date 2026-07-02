@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       action_center: {
@@ -1455,11 +1430,17 @@ export type Database = {
           id: string
           monthly_ad_budget_range: string
           mp_payment_id: string | null
+          mp_preapproval_id: string | null
           mp_preference_id: string | null
           name: string
           ops_notified_at: string | null
           paid_at: string | null
+          payer_cpf: string | null
+          payment_method: string | null
           phone: string
+          pix_expires_at: string | null
+          pix_qr_code: string | null
+          pix_qr_code_base64: string | null
           provisioned_at: string | null
           provisioned_by: string | null
           source: string | null
@@ -1482,11 +1463,17 @@ export type Database = {
           id?: string
           monthly_ad_budget_range: string
           mp_payment_id?: string | null
+          mp_preapproval_id?: string | null
           mp_preference_id?: string | null
           name: string
           ops_notified_at?: string | null
           paid_at?: string | null
+          payer_cpf?: string | null
+          payment_method?: string | null
           phone: string
+          pix_expires_at?: string | null
+          pix_qr_code?: string | null
+          pix_qr_code_base64?: string | null
           provisioned_at?: string | null
           provisioned_by?: string | null
           source?: string | null
@@ -1509,11 +1496,17 @@ export type Database = {
           id?: string
           monthly_ad_budget_range?: string
           mp_payment_id?: string | null
+          mp_preapproval_id?: string | null
           mp_preference_id?: string | null
           name?: string
           ops_notified_at?: string | null
           paid_at?: string | null
+          payer_cpf?: string | null
+          payment_method?: string | null
           phone?: string
+          pix_expires_at?: string | null
+          pix_qr_code?: string | null
+          pix_qr_code_base64?: string | null
           provisioned_at?: string | null
           provisioned_by?: string | null
           source?: string | null
@@ -2039,7 +2032,8 @@ export type Database = {
           amount_cents: number
           charged_at: string | null
           created_at: string
-          diagnosis_id: string
+          diagnosis_id: string | null
+          ecommerce_lead_id: string | null
           id: string
           mp_payment_id: string | null
           payload: Json | null
@@ -2050,7 +2044,8 @@ export type Database = {
           amount_cents: number
           charged_at?: string | null
           created_at?: string
-          diagnosis_id: string
+          diagnosis_id?: string | null
+          ecommerce_lead_id?: string | null
           id?: string
           mp_payment_id?: string | null
           payload?: Json | null
@@ -2061,7 +2056,8 @@ export type Database = {
           amount_cents?: number
           charged_at?: string | null
           created_at?: string
-          diagnosis_id?: string
+          diagnosis_id?: string | null
+          ecommerce_lead_id?: string | null
           id?: string
           mp_payment_id?: string | null
           payload?: Json | null
@@ -2074,6 +2070,13 @@ export type Database = {
             columns: ["diagnosis_id"]
             isOneToOne: false
             referencedRelation: "diagnoses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "management_subscription_charges_ecommerce_lead_id_fkey"
+            columns: ["ecommerce_lead_id"]
+            isOneToOne: false
+            referencedRelation: "ecommerce_leads"
             referencedColumns: ["id"]
           },
           {
@@ -2092,7 +2095,8 @@ export type Database = {
           card_last4: string | null
           created_at: string
           currency: string
-          diagnosis_id: string
+          diagnosis_id: string | null
+          ecommerce_lead_id: string | null
           frequency: number
           frequency_type: string
           id: string
@@ -2112,7 +2116,8 @@ export type Database = {
           card_last4?: string | null
           created_at?: string
           currency?: string
-          diagnosis_id: string
+          diagnosis_id?: string | null
+          ecommerce_lead_id?: string | null
           frequency?: number
           frequency_type?: string
           id?: string
@@ -2132,7 +2137,8 @@ export type Database = {
           card_last4?: string | null
           created_at?: string
           currency?: string
-          diagnosis_id?: string
+          diagnosis_id?: string | null
+          ecommerce_lead_id?: string | null
           frequency?: number
           frequency_type?: string
           id?: string
@@ -2152,6 +2158,13 @@ export type Database = {
             columns: ["diagnosis_id"]
             isOneToOne: false
             referencedRelation: "diagnoses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "management_subscriptions_ecommerce_lead_id_fkey"
+            columns: ["ecommerce_lead_id"]
+            isOneToOne: false
+            referencedRelation: "ecommerce_leads"
             referencedColumns: ["id"]
           },
         ]
@@ -3224,6 +3237,10 @@ export type Database = {
       }
       get_diagnosis_funnel_agency_id: { Args: never; Returns: string }
       get_diagnosis_ops_snapshot: { Args: never; Returns: Json }
+      get_ecommerce_lead_slot_snapshot: {
+        Args: { p_cap: number }
+        Returns: Json
+      }
       get_latest_campaign_audits_for_clients: {
         Args: { p_client_ids: string[] }
         Returns: {
@@ -3249,6 +3266,7 @@ export type Database = {
       }
       is_member_of: { Args: { _agency_id: string }; Returns: boolean }
       is_owner_or_admin: { Args: { _agency_id: string }; Returns: boolean }
+      lead_month_start_sao_paulo: { Args: never; Returns: string }
       management_onboarding_queue: {
         Args: { p_include_provisioned?: boolean; p_limit?: number }
         Returns: {
@@ -3428,6 +3446,15 @@ export type Database = {
         Args: { p_cron_bearer: string }
         Returns: Json
       }
+      try_mark_ecommerce_lead_paid: {
+        Args: {
+          p_cap: number
+          p_extra?: Json
+          p_lead_id: string
+          p_paid_at?: string
+        }
+        Returns: Json
+      }
       update_retentio_ops_config: {
         Args: { p_diagnosis_funnel_agency_id?: string }
         Returns: Json
@@ -3582,9 +3609,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       ai_job_status: ["pending", "processing", "done", "failed"],
