@@ -130,3 +130,6 @@ verify_jwt = true
 
 [functions.submit-management-onboarding]
 verify_jwt = false
+
+[functions.create-lead-checkout]
+verify_jwt = false
