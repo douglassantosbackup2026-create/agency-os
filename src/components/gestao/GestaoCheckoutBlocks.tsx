@@ -84,14 +84,26 @@ export function GestaoResultsGallery() {
 
 
 export function GestaoOperatorCard() {
+  const [avatarError, setAvatarError] = useState(false);
   return (
     <div className="flex items-start gap-3 rounded-xl border bg-card p-4">
-      <img
-        src={gestaoOperatorAsset.url}
-        alt={`${GESTAO_OPERATOR.name} — ${GESTAO_OPERATOR.role}`}
-        loading="lazy"
-        className="h-12 w-12 shrink-0 rounded-full object-cover"
-      />
+      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-muted">
+        {avatarError ? (
+          <div className="flex h-full w-full items-center justify-center text-xs font-semibold text-muted-foreground">
+            {GESTAO_OPERATOR.initials}
+          </div>
+        ) : (
+          <img
+            src={gestaoOperatorAsset.url}
+            alt={`${GESTAO_OPERATOR.name} — ${GESTAO_OPERATOR.role}`}
+            width={96}
+            height={96}
+            loading="lazy"
+            onError={() => setAvatarError(true)}
+            className="h-full w-full object-cover"
+          />
+        )}
+      </div>
       <div className="min-w-0">
         <p className="text-sm font-semibold leading-tight">
           {GESTAO_OPERATOR.name}
