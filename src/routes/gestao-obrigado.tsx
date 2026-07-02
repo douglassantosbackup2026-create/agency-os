@@ -176,7 +176,7 @@ function GestaoObrigadoPage() {
         </div>
 
         <div className="card">
-          <h1 style={{ marginTop: 0 }}>Gestão de tráfego</h1>
+          <h1 style={{ marginTop: 0 }}>Gestão de tráfego para escala</h1>
           {!confirmed ? (
             <p>
               {timedOut
@@ -188,7 +188,7 @@ function GestaoObrigadoPage() {
               <p>
                 <strong>1ª mensalidade confirmada</strong> para o pedido ligado ao
                 teu diagnóstico (ID <code>{d}</code>). Próximo passo: preenche o
-                formulário de onboarding (5 min) — respondemos em até 24h.
+                formulário de onboarding para começarmos a estruturar a escala da sua operação.
               </p>
               {snapshot?.management_payment_method === "card" && snapshot?.subscription?.status === "authorized" ? (
                 <p className="muted">
