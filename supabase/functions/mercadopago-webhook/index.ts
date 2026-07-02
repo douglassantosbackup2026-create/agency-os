@@ -69,6 +69,7 @@ const DIAGNOSIS_ID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const MGMT_PREFIX = "mgmt:";
+const LEAD_PREFIX = "lead:";
 
 // Verifica assinatura HMAC-SHA256 do Mercado Pago.
 // Doc: header `x-signature: ts=...,v1=...` + `x-request-id`.
