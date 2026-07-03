@@ -84,8 +84,8 @@ function GestaoTrafegoObrigadoPage() {
         </p>
         {slots.available > 0 ? (
           <p className="mt-2 text-sm text-muted-foreground">
-            Eu abro{" "}
-            <strong className="text-foreground">apenas {slots.cap} vagas por mês</strong>{" "}
+            Tenho{" "}
+            <strong className="text-foreground">apenas {slots.cap} vagas</strong>{" "}
             para operações de e-commerce que querem escalar.
           </p>
         ) : null}
