@@ -19,7 +19,7 @@ import {
 export function GestaoResultsGallery() {
   const [errored, setErrored] = useState<Record<string, boolean>>({});
   return (
-    <section aria-labelledby="gestao-results-title" className="rounded-xl border bg-card p-5">
+    <section aria-labelledby="gestao-results-title" className="overflow-hidden rounded-xl border bg-card p-3 sm:p-5">
       <div className="text-center">
         <h3 id="gestao-results-title" className="text-base font-semibold">
           Resultados reais de contas que gerimos
@@ -30,7 +30,7 @@ export function GestaoResultsGallery() {
       </div>
       <Carousel
         opts={{ align: "start", loop: true }}
-        className="mt-4 w-full px-6 sm:px-10"
+        className="mt-4 w-full sm:px-10"
       >
         <CarouselContent className="-ml-4">
           {GESTAO_RESULT_PROOFS.map((proof, i) => (
