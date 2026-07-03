@@ -39,7 +39,7 @@ export function GestaoResultsGallery() {
               className="pl-4 basis-full md:basis-1/2 lg:basis-1/3"
             >
               <figure className="h-full overflow-hidden rounded-lg border bg-background">
-                <div className="relative h-72 w-full overflow-hidden bg-muted sm:h-auto sm:aspect-[4/3]">
+                <div className="relative h-64 w-full overflow-hidden bg-muted sm:h-auto sm:aspect-[4/3]">
                   {errored[proof.src] ? (
                     <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-muted-foreground">
                       <ImageOff className="h-6 w-6" />
