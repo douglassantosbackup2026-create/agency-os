@@ -58,6 +58,9 @@ function GestaoTrafegoObrigadoPage() {
 
   useEffect(() => {
     trackMetaPageView();
+    trackMetaViewContent(GESTAO_PRODUCT, {
+      content_name: "Proposta Gestão de Tráfego E-commerce",
+    });
   }, []);
 
   const whatsappHref = useMemo(
