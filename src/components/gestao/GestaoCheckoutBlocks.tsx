@@ -30,7 +30,7 @@ export function GestaoResultsGallery() {
       </div>
       <Carousel
         opts={{ align: "start", loop: true }}
-        className="mt-4 w-full px-8 sm:px-10"
+        className="mt-4 w-full px-6 sm:px-10"
       >
         <CarouselContent className="-ml-4">
           {GESTAO_RESULT_PROOFS.map((proof, i) => (
@@ -39,7 +39,7 @@ export function GestaoResultsGallery() {
               className="pl-4 basis-full md:basis-1/2 lg:basis-1/3"
             >
               <figure className="h-full overflow-hidden rounded-lg border bg-background">
-                <div className="relative aspect-[4/3] w-full overflow-hidden bg-muted">
+                <div className="relative h-72 w-full overflow-hidden bg-muted sm:h-auto sm:aspect-[4/3]">
                   {errored[proof.src] ? (
                     <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-muted-foreground">
                       <ImageOff className="h-6 w-6" />
@@ -53,7 +53,7 @@ export function GestaoResultsGallery() {
                       height={600}
                       loading={i === 0 ? "eager" : "lazy"}
                       onError={() => setErrored((s) => ({ ...s, [proof.src]: true }))}
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-contain sm:object-cover"
                     />
                   )}
                   <span className="absolute left-2 top-2 rounded-full bg-background/95 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-foreground shadow-sm ring-1 ring-border">
