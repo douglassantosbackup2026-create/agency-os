@@ -71,8 +71,8 @@ export function GestaoResultsGallery() {
             </CarouselItem>
           ))}
         </CarouselContent>
-        <CarouselPrevious className="left-0" />
-        <CarouselNext className="right-0" />
+        <CarouselPrevious className="left-1 bg-background/80 backdrop-blur sm:left-0" />
+        <CarouselNext className="right-1 bg-background/80 backdrop-blur sm:right-0" />
       </Carousel>
       <p className="mt-3 text-center text-[11px] leading-relaxed text-muted-foreground">
         Resultados variam por nicho, oferta, ticket médio e verba investida. Os números acima refletem contas específicas, não uma média geral.
