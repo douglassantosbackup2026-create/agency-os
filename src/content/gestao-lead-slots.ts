@@ -24,9 +24,9 @@ export function computeWaitlistDisplay(base: number, pendingCount: number): numb
 }
 
 export function formatLeadSlotsBadge(available: number): string {
-  if (available <= 0) return "Vagas esgotadas este mês";
-  if (available === 1) return "Apenas 1 vaga disponível neste mês";
-  return `Apenas ${available} vagas este mês`;
+  if (available <= 0) return "Vagas esgotadas";
+  if (available === 1) return "APENAS 1 VAGA";
+  return `APENAS ${available} VAGAS`;
 }
 
 export function formatLeadSlotsMetaTitle(available: number): string {
