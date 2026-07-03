@@ -19,7 +19,7 @@ import {
 export function GestaoResultsGallery() {
   const [errored, setErrored] = useState<Record<string, boolean>>({});
   return (
-    <section aria-labelledby="gestao-results-title" className="rounded-xl border bg-card p-5">
+    <section aria-labelledby="gestao-results-title" className="overflow-hidden rounded-xl border bg-card p-3 sm:p-5">
       <div className="text-center">
         <h3 id="gestao-results-title" className="text-base font-semibold">
           Resultados reais de contas que gerimos
@@ -30,7 +30,7 @@ export function GestaoResultsGallery() {
       </div>
       <Carousel
         opts={{ align: "start", loop: true }}
-        className="mt-4 w-full px-6 sm:px-10"
+        className="mt-4 w-full sm:px-10"
       >
         <CarouselContent className="-ml-4">
           {GESTAO_RESULT_PROOFS.map((proof, i) => (
@@ -39,7 +39,7 @@ export function GestaoResultsGallery() {
               className="pl-4 basis-full md:basis-1/2 lg:basis-1/3"
             >
               <figure className="h-full overflow-hidden rounded-lg border bg-background">
-                <div className="relative h-72 w-full overflow-hidden bg-muted sm:h-auto sm:aspect-[4/3]">
+                <div className="relative h-64 w-full overflow-hidden bg-muted sm:h-auto sm:aspect-[4/3]">
                   {errored[proof.src] ? (
                     <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-muted-foreground">
                       <ImageOff className="h-6 w-6" />
@@ -71,8 +71,8 @@ export function GestaoResultsGallery() {
             </CarouselItem>
           ))}
         </CarouselContent>
-        <CarouselPrevious className="left-0" />
-        <CarouselNext className="right-0" />
+        <CarouselPrevious className="left-1 bg-background/80 backdrop-blur sm:left-0" />
+        <CarouselNext className="right-1 bg-background/80 backdrop-blur sm:right-0" />
       </Carousel>
       <p className="mt-3 text-center text-[11px] leading-relaxed text-muted-foreground">
         Resultados variam por nicho, oferta, ticket médio e verba investida. Os números acima refletem contas específicas, não uma média geral.
