@@ -6,7 +6,7 @@ import {
   formatLeadManagementPrice,
   LEAD_MANAGEMENT_PRICE_CENTS,
 } from "@/lib/lead-management-price";
-import { trackMetaPageView } from "@/lib/meta-pixel";
+import { GESTAO_PRODUCT, trackMetaPageView, trackMetaViewContent } from "@/lib/meta-pixel";
 import { LeadFunnelSlotsBadge } from "@/components/gestao-trafego/LeadFunnelSlotsBadge";
 import { useLeadAvailableSlots } from "@/hooks/use-lead-available-slots";
 import {

@@ -1,27 +1,26 @@
-## Problema
-Na `/gestao-trafego-checkout`, as imagens da galeria "Resultados reais" e o avatar do Douglas aparecem quebradas — só o ícone de imagem quebrada + texto do `alt` transbordando pelo card. Assets em `/__l5e/...` respondem 200 no dev, preview e domínio custom, então o defeito é de **renderização/layout** e não de rede: quando o `<img>` demora ou falha por qualquer motivo, o card colapsa porque não há container com dimensão fixa nem estado de fallback.
+## Mapeamento atual do funil de gestão
 
-## Correção (somente frontend, sem mudar business logic)
+Rota | Momento | Eventos disparados
+- /gestao-trafego (landing) | Visualização da landing | PageView + ViewContent(GESTAO_PRODUCT)
+- submit do formulário (useEcommerceLeadSubmit) | Lead envia dados | Lead(GESTAO_PRODUCT) + CompleteRegistration
+- /gestao-trafego-obrigado (proposta) | Página atual | PageView apenas
+- /gestao-trafego-checkout | Início do pagamento | InitiateCheckout(GESTAO_PRODUCT)
+- /gestao-obrigado-lead | Pagamento confirmado | Purchase(GESTAO_PRODUCT)
 
-### 1. `src/components/gestao/GestaoCheckoutBlocks.tsx` — `GestaoResultsGallery`
-- Envolver cada `<img>` em um container com aspect-ratio fixo (`aspect-[4/3]`) e `overflow-hidden`, com `<img className="h-full w-full object-cover" width={800} height={600} onError={...} />`.
-- Adicionar estado `erroredIndexes` (via `useState`) para, no `onError`, esconder o `<img>` e mostrar um placeholder discreto no lugar (ícone + "Print indisponível") — evita o `alt` gigante vazando pelo card.
-- Trocar `loading="lazy"` para `loading="eager"` só no primeiro slide (para não piscar dentro do carrossel), manter lazy nos demais.
-- Manter badge "META ADS/GOOGLE ADS" absoluto sobre o container (agora sempre com altura garantida).
+## O que deve disparar em /gestao-trafego-obrigado
 
-### 2. `GestaoOperatorCard` no mesmo arquivo
-- Trocar `<img h-12 w-12 rounded-full>` por um container `h-12 w-12 shrink-0 rounded-full overflow-hidden bg-muted` com `<img className="h-full w-full object-cover" width={96} height={96} onError={hide}>` e fallback com iniciais (`GESTAO_OPERATOR.initials`) quando falhar.
+1. **PageView** — manter. Já está no `useEffect` da página.
+2. **ViewContent do GESTAO_PRODUCT** — adicionar. Sinaliza que o lead visualizou a proposta de gestão, preenchendo a etapa entre o envio do formulário e o início do checkout. Recomenda-se usar `content_name: "Proposta Gestão de Tráfego E-commerce"`.
+3. **Não disparar** `Lead`, `InitiateCheckout` ou `Purchase` nesta página — esses eventos pertencem a etapas posteriores (Lead já dispara no submit, InitiateCheckout no checkout e Purchase após pagamento).
 
-### 3. Sanidade de layout
-- Confirmar que os cards do carrossel (`CarouselItem` com `basis-full md:basis-1/2 lg:basis-1/3`) ficam com altura consistente após o aspect-ratio (sem `h-auto` na imagem).
-- Sem mudanças em `GestaoSocialProof`, `GestaoGuaranteeBlock` ou `GestaoNextSteps`.
+## Implementação proposta
 
-### 4. Verificação
-- Rodar a rota `/gestao-trafego-checkout` via Playwright headless com `?lead=` e `s=` mockados (ou apenas visitar `/gestao-trafego-obrigado`, onde a mesma galeria também aparece) e conferir por screenshot que:
-  - Imagens carregam com proporção 4:3 uniforme.
-  - Se uma URL falhar, aparece o placeholder e o texto do alt não vaza.
-  - Avatar do Douglas mostra iniciais "DS" caso a foto falhe.
+Em `src/routes/gestao-trafego-obrigado.tsx`:
+- Atualizar o import de `@/lib/meta-pixel` para incluir `GESTAO_PRODUCT` e `trackMetaViewContent`.
+- No `useEffect` existente, chamar `trackMetaViewContent(GESTAO_PRODUCT, { content_name: "Proposta Gestão de Tráfego E-commerce" })` junto com `trackMetaPageView()`.
+- Não alterar o fluxo de checkout, pagamento, edge functions ou schema.
 
 ## Fora de escopo
-- Não mexer no fluxo de checkout, Mercado Pago, edge functions ou schema.
-- Não regenerar os assets em `src/assets/gestao-proof-*.png.asset.json` (as URLs estão saudáveis).
+- Não remover o evento `Lead` que já dispara corretamente no `useEcommerceLeadSubmit`.
+- Não mexer nos eventos de Purchase, InitiateCheckout ou AddPaymentInfo de outras páginas.
+- Não alterar textos, layout ou lógica de vagas.
